@@ -1,0 +1,94 @@
+|| name.m -- qualified names
+
+
+%export +
+
+%import <maybe>
+%import <mirandaExtensions>
+
+
+|| a name is an identifier, constructor, or symbol
+name ::= Unqualified string        |         || unresolved, unqualified name
+         Unresolved  string string |         || unresolved top-level name qualified by a module name
+         Qualified   string string |         || resolved top-level name
+         Private     string string |         || resolved top-level name, cannot be exported/imported (shared lit references)
+         Builtin     string        |         || resolved top-level name for built-in (primitive)
+         Internal    string int              || resolved non-top-level name, specialized with a int to make name unique
+
+getName :: name -> string
+getName (Unqualified n)  = n
+getName (Unresolved m n) = n
+getName (Qualified m n)  = n
+getName (Private m n)    = n
+getName (Builtin n)      = n
+getName (Internal n d)   = n
+
+getModName :: name -> string
+getModName (Unresolved m n) = m
+getModName (Qualified m n)  = m
+getModName (Private m n)    = m
+getModName (Builtin n)      = "builtin"
+getModName n                = ""
+
+showName :: name -> string
+showName (Unqualified n)   = n
+showName (Unresolved m n ) = m ++ "." ++ n
+showName (Qualified m n)   = m ++ "." ++ n
+showName (Private m n)     = m ++ "." ++ n
+showName (Builtin n)       = "builtin." ++ n
+showName (Internal n d)    = n ++ "_" ++ showint d
+
+qualifyName :: string -> name -> name
+qualifyName "builtin" (Unqualified n) = Builtin n
+qualifyName m         (Unqualified n) = Qualified m n
+qualifyName m         n               = n
+
+unqualifyName :: name -> name
+unqualifyName n = Unqualified $ getName n
+
+unresolveName :: name -> name
+unresolveName (Qualified m n) = Unresolved m n
+unresolveName n               = n
+
+
+|| testing 
+
+isUnqualified, isUnresolved, isQualified, isPrivate, isBuiltin, isInternal, isBuiltinTuple :: name -> bool
+isUnqualified (Unqualified n) = True
+isUnqualified _               = False
+
+isUnresolved (Unresolved m n) = True
+isUnresolved n                = False
+
+isQualified (Qualified m n)   = True
+isQualified _                 = False
+
+isPrivate (Private m n)       = True
+isPrivate _                   = False
+
+isBuiltin (Builtin n)         = True
+isBuiltin _                   = False
+
+isInternal (Internal n d)     = True
+isInternal _                  = False
+
+|| is this a builtin tuple constructor name?
+isBuiltinTuple (Builtin n)    = isPrefixOf cmpchar "Tuple" n
+isBuiltinTuple _              = False
+
+
+|| name generation
+
+|| generate a unique internal name
+|| use a prefix of "`" for any names you don't want to appear in exception reports or
+|| profiling reports
+genName :: string -> int -> (int, name)
+genName s gen = (gen + 1, Internal s gen)
+
+|| generate a list of unique internal names to replace an existing list
+genNames :: string -> int -> [*] -> (int, [name])
+genNames s = mapAccumL gn where gn g x = genName s g
+
+|| generate a unique private name
+genPrivateName :: string -> string -> int -> (int, name)
+genPrivateName mn s gen = (gen + 1, Private mn $ s ++ "_" ++ showint gen)

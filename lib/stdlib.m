@@ -1,0 +1,682 @@
+|| stdlib.m -- standard environment
+
+
+ %export + -null -unsafeWriteStdErr     || null defined in mirandaExtensions, but defined and used internally, here, to avoid dependency
+
+
+|| Note on unboxed primitive values:
+|| unboxed primitive values (word#) cannot be passed in to polymorphic functions, stored in polymorphic data structures, or bound to a variable using
+|| a let{rec} (i.e. defined in a where clause), because those assume that the value is boxed.
+
+|| Note on functions written with partial application
+|| Many functions here are written with partial application -- fewer arguments than full saturation would dictate. Thes return
+|| a function to take the rest of the arguments.  This is done mostly to allow better inlining optimization with recursive functions,
+|| since it splits the function into a non-recursive part, which can be inlined, and a recursive part, which cannot.  The non-recursive
+|| part can be used during inlining and optimization to specialize the recursive loop.  In other cases, the function is written with
+|| its most "natural" arity, i.e. the arity that it is typically called with.  Note, however, that top-level functions should have at
+|| least one argument, otherwise they become Constant Applicative Form thunks, which have to be updated during execution, and also
+|| generate less efficient code.
+
+|| Typeclasses
+|| Miranda has a "magic" polymorphic implementation of comparison operators and the "show" function, and
+|| its implementation uses runtime tags to determine the actual comparison operation.  Miranda2 does not use
+|| runtime tags, so an ord instance must be explicitly passed in to any function performing comparisons.  Currently
+|| Miranda2 does not implement true typeclasses, so this is handled manually.  Types defined with ::= or == have
+|| ord and show instances automatically derived by the compiler, but can be overriden with explicit definitions.
+
+
+|| show typeclass
+
+|| a showI is an instance of a show typeclass: a function for converting the value to a string
+showI * == * -> string
+
+|| show turns a show instance into a string
+show :: showI * -> * -> string
+show si x = si x
+
+|| show instance for word#
+showword# :: showI word#
+showword# w = showint (I# w) ++ "#"
+
+|| show instance for unit
+showunit :: showI ()
+showunit _ = "()"
+
+|| show instance for function
+showFn :: showI (* -> **)
+showFn f = "<function>"
+
+
+|| ord typeclass
+
+ordering ::= EQ | LT | GT
+
+|| an ordI is an instance of an ord typeclass: a function for comparing two values
+|| and returning an ordering
+ordI * == * -> * -> ordering
+
+|| sequence ordering comparisons, used in deriving an ord instance for complex data
+thenCmp :: ordering -> ordering -> ordering
+thenCmp a b
+    = case a of
+        EQ -> b
+        LT -> LT
+        GT -> GT
+
+|| get the tag value for a constructor, useful for implementing enums
+getTag :: * -> int
+getTag c = case c of _ -> case getTag# c of t -> I# t
+
+|| compare the tags of two constructor applications
+|| c1 and c2 must evaluate to fully-saturated constructors
+|| used by compiler in deriving an ord instance for user data
+|| Note: the use of wildcards instead of variables in the caseAlts
+|| is to avoid generation of extraneous Vclosure creation, since we
+|| don't need the whole closure value, just the tag part
+cmpTags :: * -> * -> ordering
+cmpTags c1 c2
+    = case c1 of
+        _ -> case getTag# c1 of
+                 t1 -> case c2 of
+                         _ -> case getTag# c2 of
+                                  t2 -> case t1 $cmp# t2 of
+                                          0# -> EQ
+                                          1# -> LT
+                                          2# -> GT
+
+|| ord instance for word#
+cmpword# :: word# -> word# -> ordering
+cmpword# w1 w2
+    = case w1 $cmp# w2 of
+         0# -> EQ
+         1# -> LT
+         2# -> GT
+
+|| ord instance for unit
+cmpunit :: () -> () -> ordering
+cmpunit _ _ = EQ
+
+|| ord instance for function (cannot compare)
+cmpFn :: (* -> **) -> (* -> **) -> ordering
+cmpFn fa fb = error "attempt to compare functions"
+
+|| all ord operations are derived from the ord instance (ordI *)
+compare :: ordI * -> * -> * -> ordering
+compare cmp a b = cmp a b
+
+|| note: these are partially-applied with only the first value to comprare, to allow better
+|| inlining for presection/postsection use as in filter
+_eq, _ne, _lt, _le, _gt, _ge :: ordI * -> * -> * -> bool
+_eq cmp a = go where go b = case cmp a b of EQ -> True;  _ -> False
+_ne cmp a = go where go b = case cmp a b of EQ -> False; _ -> True 
+_lt cmp a = go where go b = case cmp a b of LT -> True;  _ -> False
+_le cmp a = go where go b = case cmp a b of GT -> False; _ -> True
+_gt cmp a = go where go b = case cmp a b of GT -> True;  _ -> False
+_ge cmp a = go where go b = case cmp a b of LT -> False; _ -> True
+
+
+|| error handling and debugging
+|| these perform unsafe IO operations, but we don't want to have a module
+|| dependency on IO, so we use a local unsafeWriteStdErr function
+
+|| exit the program with an int result status
+exit :: int -> *
+exit (I# n#) = exit# n#
+
+|| write a string to stderr (simple version that doesn't depend upon the io module, but can result in out-of-order io)
+unsafeWriteStdErr :: string -> ()
+unsafeWriteStdErr s
+    = case allocFileStream# 2# 32# of fs# -> go fs# s   || allocate a 256-byte buffer for stderr (fd = 2)
+      where
+        go fs# s
+            = case writeByteStream fs# s of
+                [] -> case writeFile# fs# of _ -> ()            || done; write final buffer out
+                s' -> case writeFile# fs# of _ -> go fs# s'     || more bytes in string; restart
+
+error# :: string -> *
+error# s = case unsafeWriteStdErr ("\n" ++ s ++ "\n") of _ -> exit# 1#
+
+error :: string -> *
+error s = error# ("program error: " ++ s)
+
+|| black hole (used to mark in-progress thunk evaluation)
+blackHole :: *
+blackHole = error# "BLACK HOLE"
+
+|| undefined
+undef :: *
+undef = error "undefined"
+
+|| runtime error for missing case (generated by compiler)
+caseFail :: (string, word#, word#) -> *
+caseFail (mn, el#, ec#)
+    = error ("missing case in module " ++ mn ++ " near line " ++ showint (I# el#) ++ " col " ++ showint (I# ec#))
+
+|| runtime error for a pattern match failure (generated by compiler)
+matchFail :: (string, word#, word#) -> *
+matchFail (mn, el#, ec#)
+    = error ("lhs of pattern definition does not match rhs in module " ++ mn ++ " near line " ++ showint (I# el#) ++ " col " ++ showint (I# ec#))
+
+|| output the first argument to stderr, before returning the second argument as a result
+trace :: string -> * -> *
+trace s e = case unsafeWriteStdErr (s ++ "\n") of _ -> e
+
+
+|| primitive byteStream operations
+
+|| read a byteStream as a string (list of char)
+|| readByteStream# returns (-1)# at end of stream
+readByteStream :: word# -> string
+readByteStream s#
+    = case readByteStream# s# of
+        c# -> case c# $cmp# 0# of
+                1# -> []        || less than 0, end of stream
+                _  -> C# c# : readByteStream s#
+
+|| write a string to a byteStream, returning any unwritten portion of the string if the byteStream becomes full
+writeByteStream :: word# -> string -> string
+writeByteStream s# [] = []
+writeByteStream s# (C# c# : cs)
+    = case writeByteStream# s# c# of 
+        0# -> writeByteStream s# cs     || return of 0# indicates write was successful
+        _  -> C# c# : cs                || non-zero return indicates buffer was full; return unwritten portion of string
+
+
+|| standard function combinators
+
+id :: * -> *
+id x = x
+
+|| note: const is not written with partial application, here, even though it is normally called with
+|| just the first argument,because inlining it partially has no benefits on performance and causes
+|| code growth (e.g. lens.set)
+const :: * -> ** -> *
+const a b = a
+
+apply, ($) :: (* -> **) -> * -> **
+f $apply x = f x
+f $      x = f x
+
+|| flipped version of ($) for uniform left-to-right computation flow
+rapply, (|>) :: * -> (* -> **) -> **
+x $rapply f = f x
+x |>      f = f x
+
+(.) :: (** -> ***) -> (* -> **) -> * -> ***
+f . g = go where go a = f (g a)
+
+|| flipped version of (.) for uniform left-to-right computation flow
+(.>) :: (* -> **) -> (** -> ***) -> * -> ***
+g .> f = go where go a = f (g a)
+
+|| note: converse is partially-applied here with f and the first argument expected, since that is the 
+|| most common use, due to the compiler using converse for postsection operations e.g. filter (> 1)
+converse :: (* -> ** -> ***) -> ** -> * -> ***
+converse f a = go where go b = f b a
+
+iterate :: (* -> *) -> * -> [*]
+iterate f = go where go a = [x | x <- a, f x ..]
+
+|| evaluate a to WHNF, then return b
+seq :: * -> ** -> **
+seq a b = case a of _ -> b
+
+|| fixed point of a function
+fix :: (* -> *) -> *
+fix f = x where x = f x
+
+
+|| standard boolean type
+bool ::= False | True
+
+(&) :: bool -> bool -> bool
+False & _ = False
+True  & b = b
+
+(\/) :: bool -> bool -> bool
+False \/ b = b
+True  \/ _ = True
+
+(~) :: bool -> bool
+(~) True  = False
+(~) False = True
+
+and :: [bool] -> bool
+and xs = foldr (&) True xs
+
+or :: [bool] -> bool
+or xs = foldr (\/) False xs
+
+
+|| standard tuple2 (pair) functions
+|| note: tupleN constructors aren't defined with ::=, so they don't have derived instances for show and ord (cmp)
+|| automatically defined.  Instead they must be explicitly defined somewhere else, if required.  The instances
+|| are named showtuple<N> and cmptuple<N>
+
+|| show instance for tuple2
+showtuple2 :: showI * -> showI ** -> showI (*, **)
+showtuple2 sa sb
+   = go
+     where
+       go (a, b) = "(" ++ sa a ++ ", " ++ sb b ++ ")"
+
+|| ord instance for tuple2
+cmptuple2 :: ordI * -> ordI ** -> ordI (*, **)
+cmptuple2 cmpa cmpb
+    = cmp
+      where
+        cmp (a1, b1) (a2, b2) = cmpa a1 a2 $thenCmp cmpb b1 b2
+
+fst :: (*, **) -> *
+fst (a, b) = a
+
+snd :: (*, **) -> **
+snd (a, b) = b
+
+
+|| standard int functions
+
+|| the the standard operators (+, -, *, /, div, mod) operate on
+|| boxed int values, while the builtin operators (+#, -#, *#, div#, and mod#)
+|| operate on unboxed word# values.  Boxing and unboxing are handled explicitly
+|| here
+
+int ::= I# word#        || boxed int type, a wrapper around an unboxed word#
+
+|| show instance for int, defined explicitly here to show the integer normally, rather than as "(I# x)" that
+|| would be the default for a derived instance of show
+showint :: showI int
+showint n = showintBase 10 "" n
+
+|| standard comparison operators are defined on int only; all other comparisons must use an ord instance with _eq, _ne, etc,
+|| or define their own unique operators (e.g. ==$ for string equality)
+(==), (~=), (<), (<=), (>), (>=) :: int -> int -> bool
+(I# a#) == (I# b#) = case a# $cmp# b# of 0# -> True;  _ -> False
+(I# a#) ~= (I# b#) = case a# $cmp# b# of 0# -> False; _ -> True
+(I# a#) <  (I# b#) = case a# $cmp# b# of 1# -> True;  _ -> False
+(I# a#) <= (I# b#) = case a# $cmp# b# of 2# -> False; _ -> True
+(I# a#) >  (I# b#) = case a# $cmp# b# of 2# -> True;  _ -> False
+(I# a#) >= (I# b#) = case a# $cmp# b# of 1# -> False; _ -> True
+
+|| arithmetic operations on word#
+(+), (-), (*), div, mod :: int -> int -> int
+(I# a#) +    (I# b#) = case a# +# b# of w# -> I# w#
+(I# a#) -    (I# b#) = case a# -# b# of w# -> I# w#
+(I# a#) *    (I# b#) = case a# *# b# of w# -> I# w#
+(I# a#) $div 0       = error "attempt to divide by zero"
+(I# a#) $div (I# b#) = case a# $div# b# of w# -> I# w#
+(I# a#) $mod 0       = error "attempt to mod with zero"
+(I# a#) $mod (I# b#) = case a# $mod# b# of w# -> I# w#
+
+|| converse infix minus, needed because we cannot form postsections with '-', as it is ambiguous with prefix negate
+subtract :: int -> int -> int
+subtract b = go where go a = a - b
+
+|| bit-wise operations on word#
+(.&.), (.|.), (.^.),(.<<.), (.>>.) :: int -> int -> int
+(I# a#) .&.  (I# b#) = case a# $band# b# of w# -> I# w#
+(I# a#) .|.  (I# b#) = case a# $bor#  b# of w# -> I# w#
+(I# a#) .^.  (I# b#) = case a# $bxor# b# of w# -> I# w#
+(I# a#) .<<. (I# b#) = case a# $bshl# b# of w# -> I# w#
+(I# a#) .>>. (I# b#) = case a# $bshr# b# of w# -> I# w#
+
+complement :: int -> int
+complement (I# a#) = case bnot# a# of w# -> I# w#
+
+(^) :: int -> int -> int
+a ^ b
+    = 0,               if b < 0
+    = 1,               if b == 0
+    = m * m,           if b .&. 1 == 0  || b is even
+    = a * a ^ (b - 1), otherwise        || b is odd
+      where
+        m = a ^ (b .>>. 1)
+
+abs, neg :: int -> int
+abs n = -n, if n < 0
+      = n,  otherwise
+
+neg n = 0 - n   || cannot use prefix (-) here, as the compiler defines that as stdlib.neg, which would make it a black hole
+
+|| max2 and min2 are defined on all types, and use the ordI instance to order them
+max2, min2 :: ordI * -> * -> * -> *
+max2 cmp a b = case cmp a b of LT -> b; _  -> a
+min2 cmp a b = case cmp a b of GT -> b; _  -> a
+
+max, min :: ordI * -> [*] -> *
+max cmp xs = foldl1 (max2 cmp) xs
+min cmp xs = foldl1 (min2 cmp) xs
+
+sum, product :: [int] -> int
+sum     xs = foldl (+) 0 xs
+product xs = foldl (*) 1 xs
+
+|| conversions between int and string
+showintBase :: int -> string -> int -> string
+showintBase b p n
+    = case n $cmpint 0 of
+        EQ -> p ++ "0"
+        LT -> showintBase b ('-' : p) (- n)
+        GT -> p ++ go [] n
+      where
+          code0       = code '0'
+          codeA       = code 'a' - 10
+          go ds n     = ds,                                       if n == 0
+                      = go (hexdigit (n $mod b) : ds) (n $div b), otherwise
+          hexdigit n  = decode (code0 + n),                       if n < 10
+                      = decode (codeA + n),                       otherwise
+
+showhex, showoct, showbin :: int -> string
+showhex n = showintBase 16 "0x" n
+showoct n = showintBase 8  "0" n
+showbin n = showintBase 2  "0b" n
+
+intval :: string -> int
+intval ('-' : xs) = - intval xs
+intval xs
+    = go 0 xs
+      where
+        code0         = code '0'
+        go n (x : xs) = go (n * 10 + code x - code0) xs, if '0' <=. x <=. '9'
+        go n xs       = n
+
+
+|| standard num functions
+
+num == int              || num are only ints, for now
+
+numval :: string -> num
+numval n = intval n
+
+(/) :: num -> num -> num
+a / b = a $div b        || no floating point, for now
+
+entier :: num -> num    || entier is a nop when nums are only ints
+entier n = n
+
+
+|| standard char functions
+
+char ::= C# word#    || boxed char type, a wrapper around an unboxed word#
+
+|| show instance for char, defined explicitly here to show the (escaped) char in single quotes, rather than as "(C# x)" that
+|| would be the default for a derived instance of show
+showchar :: showI char
+showchar c = "'" ++ showCharUnquoted c ++ "'"
+
+|| convert a character to a string without any quotes, used by showchar and showstring
+showCharUnquoted :: char -> string
+showCharUnquoted c
+    = "\\a",                    if c ==. '\a'
+    = "\\b",                    if c ==. '\b'
+    = "\\f",                    if c ==. '\f'
+    = "\\n",                    if c ==. '\n'
+    = "\\r",                    if c ==. '\r'
+    = "\\t",                    if c ==. '\t'
+    = "\\v",                    if c ==. '\v'
+    = "\\\\",                   if c ==. '\\'
+    = "\\\'",                   if c ==. '\''
+    = "\\\"",                   if c ==. '\"'
+    = [c],                      if ' ' <=. c <=. '~'
+    = "\\" ++ showint (code c), otherwise
+
+|| define some comparison operators for char
+(C# a#) ==. (C# b#) = case a# $cmp# b# of 0# -> True;  _ -> False
+(C# a#) ~=. (C# b#) = case a# $cmp# b# of 0# -> False; _ -> True
+(C# a#) <.  (C# b#) = case a# $cmp# b# of 1# -> True;  _ -> False
+(C# a#) <=. (C# b#) = case a# $cmp# b# of 2# -> False; _ -> True
+(C# a#) >.  (C# b#) = case a# $cmp# b# of 2# -> True;  _ -> False
+(C# a#) >=. (C# b#) = case a# $cmp# b# of 1# -> False; _ -> True
+
+digit :: char -> bool
+digit c = '0' <=. c <=. '9'
+
+letter :: char -> bool
+letter c = 'A' <=. c <=. 'Z' \/ 'a' <=. c <=. 'z'
+
+code :: char -> int
+code (C# w#) = I# w#
+
+decode :: int -> char
+decode n       = error "decode: character out of range", if n < 0 \/ n > 255
+decode (I# w#) = C# w#
+
+
+|| standard list functions
+
+|| show instance for [*]
+showlist :: showI * -> showI [*]
+showlist si [] = "[]"
+showlist si (x : xs)
+    = ('[' : si x) ++ go xs
+      where
+        go [] = "]"
+        go (x : xs) = ", " ++ si x ++ go xs
+
+|| ord instance for [*]
+cmplist :: ordI * -> ordI [*]
+cmplist cmp'
+    = cmp
+      where
+        cmp [] []       = EQ
+        cmp [] (y : ys) = LT
+        cmp (x : xs) [] = GT
+        cmp (x : xs) (y : ys)
+            = case cmp' x y of
+                EQ -> cmp xs ys
+                o  -> o
+
+|| testing
+
+|| null is defined in mirandaExtensions, but is use internally here and not exported
+|| so that there is no circular dependency
+null :: [*] -> bool
+null [] = True
+null _  = False
+
+member :: ordI * -> [*] -> * -> bool
+member cmp xs a = foldr ((\/) . (_eq cmp a)) False xs
+
+|| accessing
+hd :: [*] -> *
+hd []       = error "hd: []"
+hd (x : xs) = x
+
+tl :: [*] -> [*]
+tl []       = error "tl: []"
+tl (x : xs) = xs
+
+(!) :: [*] -> int -> *
+xs ! n
+    = err,     if n < 0
+    = go xs n, otherwise
+      where
+        err     = error "(!): index out of range"
+        go [] _ = err
+        go (x : xs) n
+            = x,             if n == 0
+            = go xs (n - 1), otherwise                      
+
+last :: [*] -> *
+last []       = error "last: empty list"
+last (x : xs)
+    = go x xs
+      where
+        go x []       = x
+        go x (y : ys) = go y ys
+
+init :: [*] -> [*]
+init []       = error "init: empty list"
+init [x]      = []
+init (x : xs) = x : init xs
+
+take :: int -> [*] -> [*]
+take n xs
+    = [],                           if n <= 0 \/ null xs
+    = hd xs : take (n - 1) (tl xs), otherwise
+
+drop :: int -> [*] -> [*]
+drop n xs
+    = xs,                   if n <= 0 \/ null xs
+    = drop (n - 1) (tl xs), otherwise
+
+|| building
+repeat :: * -> [*]
+repeat x = x : repeat x
+
+rep :: int -> * -> [*]
+rep n x = [],                if n <= 0
+        = x : rep (n - 1) x, otherwise
+
+
+|| ranges -- note: these cannot use explicit range expressions, because they are used to implement the range expressions in the compiler
+
+rangeByFrom :: int -> int -> [int]
+rangeByFrom (I# step#) (I# n#)
+    = go n#
+      where
+        go n# = case n# +# step# of n'# -> I# n# : go n'#
+
+rangeFrom :: int -> [int]
+rangeFrom n = rangeByFrom 1 n
+
+range :: int -> int -> [int]
+range (I# n#) (I# lim#)
+    = go n#
+      where
+        go n# = case n# $cmp# lim# of
+                  2# -> []
+                  _  -> case n# +# 1# of n'# -> I# n# : go n'#
+
+rangeBy :: int -> int -> int -> [int]
+rangeBy (I# step#) (I# n#) (I# lim#)
+    = case step# $cmp# 0# of
+        1# -> goDec n#
+        _  -> goInc n#
+      where
+        goInc n# = case n# $cmp# lim# of
+                     2# -> []
+                     _  -> case n# +# step# of n'# -> I# n# : goInc n'#
+
+        goDec n# = case n# $cmp# lim# of
+                     1# -> []
+                     _  -> case n# +# step# of n'# -> I# n# : goDec n'#
+
+
+|| folds
+
+|| lazy right fold, written to allow inlining with first two parameters
+foldr :: (* -> ** -> **) -> ** -> [*] -> **
+foldr f z
+    = go
+      where
+        go []       = z
+        go (x : xs) = f x (go xs)
+
+foldr1 :: (* -> * -> *) -> [*] -> *
+foldr1 f
+    = go
+      where
+        go []       = error "foldr1: empty list"
+        go [x]      = x
+        go (x : xs) = f x (go xs)
+
+|| strict left-fold, written to allow inlining with first two parameters
+foldl :: (* -> ** -> *) -> * -> [**] -> *
+foldl f z
+    = go z
+      where
+        go z []       = z
+        go z (x : xs) = case f z x of z' -> go z' xs
+
+foldl1 :: (* -> * -> *) -> [*] -> *
+foldl1 f []       = error "foldl1: empty list"
+foldl1 f (x : xs) = foldl f x xs
+
+(#) :: [*] -> int
+(#) xs = foldl inc 0 xs where inc n _ =  n + 1
+
+reverse :: [*] -> [*]
+reverse xs = foldl (converse (:)) [] xs
+
+(++) :: [*] -> [*] -> [*]
+[]       ++ ys = ys
+(x : xs) ++ ys = x : (xs ++ ys)
+
+concat :: [[*]] -> [*]
+concat xs = [y | ys <- xs; y <- ys]     || foldr (++) [] xs
+
+|| mapping
+map :: (* -> **) -> [*] -> [**]
+map f = go where go xs = [f x | x <- xs]
+
+map2 :: (* -> ** -> ***) -> [*] -> [**] -> [***]
+map2 f = go where go xs ys = [f x y | (x, y) <- zip2 xs ys]
+
+filter :: (* -> bool) -> [*] -> [*]
+filter f = go where go xs = [x | x <- xs; f x]
+
+index :: [*] -> [int]
+index xs
+    = go 0# xs
+      where
+        go i# [] = []
+        go i# (_ : xs) = case i# +# 1# of i'# -> (I# i#) : go i'# xs
+
+zip2 :: [*] -> [**] -> [(*, **)]
+zip2 (x : xs) (y : ys) = (x, y) : zip2 xs ys
+zip2 xs       ys       = []
+
+zip3 :: [*] -> [**] -> [***] -> [(*, **, ***)]
+zip3 (x : xs) (y : ys) (z : zs) = (x, y, z) : zip3 xs ys zs
+zip3 xs       ys       zs       = []
+
+transpose :: [[*]] -> [[*]]
+transpose []         = []
+transpose ([] : xss) = transpose xss
+transpose ((x : xs) : xss)
+    = combine x xs $ go xss
+      where
+        combine y ys (h, t) = (y : h) : transpose (ys : t)
+        merge h t (hs, ts)  = (h : hs, t : ts)
+
+        go []             = ([], [])
+        go ([] : xs)      = go xs
+        go ((h : t) : xs) = merge h t $ go xs
+
+
+|| standard string functions
+
+string == [char]
+
+|| show instance for string, defined explicitly here to show the (escaped) string in quotes, rather than
+|| as a list of individual chars, as its default derived instance would
+showstring :: showI string
+showstring s = "\"" ++ foldr showsc "\"" s where showsc c = (showCharUnquoted c ++)
+
+|| define some standard comparison operators for string
+|| note: these are partially applied here, expecting only the first argument, to match the arity of the
+|| _eq, _ne ... functions.  Explicit eta-conversion for the first parameter is not performed, otherwise
+|| the functions would become top-level CAFs which would require updates at runtime
+(==$) a = _eq cmpstring a
+(~=$) a = _ne cmpstring a
+(<$)  a = _lt cmpstring a
+(<=$) a = _le cmpstring a
+(>$)  a = _gt cmpstring a
+(>=$) a = _ge cmpstring a
+
+lay, unlines :: [string] -> string
+lay [] = []
+lay (x : xs) = x ++ '\n' : lay xs
+
+unlines xs = lay xs
+
+|| same as split '\n', but split is more general, and defined in mirandaExtensions,
+|| so a copy of it is used, here.
+lines :: string -> [string]
+lines s
+    = foldr go [] s
+      where
+        go x k        = []       : k, if x ==. '\n'
+        go x []       = [x]      : []
+        go x (xs : k) = (x : xs) : k

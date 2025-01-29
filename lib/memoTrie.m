@@ -1,0 +1,92 @@
+|| memoization of functions using a lazy mapping of indices in a trie
+|| based upon Haskell's Data.MemoTrie written by Conal Elliot
+
+
+%export + -tree -t_fmap
+
+%import <maybe>
+%import <mirandaExtensions>
+
+
+tree * ::= Tree (tree *) * (tree *)
+
+t_fmap :: (* -> **) -> tree * -> tree **
+t_fmap f (Tree l m r) = Tree (t_fmap f l) (f m) (t_fmap f r)
+
+|| memoize a function using a lazy trie of nats
+|| first  arg is a conversion function from the domain to an int
+|| second arg is a conversion function from an int to the domain
+|| third  arg is the (non-recursive) function to memoize
+memo :: (* -> int) -> (int -> *) -> (* -> **) -> (* -> **)
+memo toInt fromInt f
+    = memof
+      where
+        memof n = toInt n |> index treef
+        treef   = t_fmap (fromInt .> f) nats
+
+        nats = go 0 1
+               where
+                 go n s
+                   = Tree (go l s') n (go r s')
+                     where
+                       l  = n + s
+                       r  = l + s
+                       s' = s .<<. 1
+
+        index (Tree l m r) n
+           = case cmpint n 0 of
+               EQ -> m
+               LT -> fromInt n |> f
+               GT -> case n' .&. 1 == 0 of
+                       False -> index r q
+                       True  -> index l q
+                     where
+                       n' = n - 1
+                       q  = n' .>>. 1
+
+|| memoize a function on an int
+memoint :: (int -> *) -> (int -> *)
+memoint f = memo id id f
+
+|| memoize a function on a char
+memochar :: (char -> *) -> (char -> *)
+memochar f = memo code decode f
+
+|| memoize a function on a tuple, given the memoizers for the tuple elements
+|| by chaining the memoizers for the product type (a, b), providing a trie of tries
+|| the type signature for this function isn't defined, here, because it is hard to write
+memopair mA mB f = uncurry . mA $ mB . curry f
+
+|| memoize a function on a list, given the memoizer for a list element by
+|| chaining a sequence of memoizers to provided a nested trie structure
+|| the type signature for this function isn't defined, here, because it is hard to write
+memolist me f
+    = delist . me $ memolist me . enlist f
+      where
+        delist g   = viewL .> fromMaybef (f []) (uncurry g)     || apply g to the (hd, tl) of a list, or apply f to [] if the list is empty
+        enlist g x = (x :) .> g                                 || append x to the remaining tl and apply g
+
+memostring :: (string -> *) -> (string -> *)
+memostring f = memolist memochar f
+
+|| memoize a recursive function
+|| first argument is the memoizer for the function domain
+|| second argument is the recursive function to memoize, open-coded with the
+|| function to call to recurse
+memofix :: ((* -> **) -> (* -> **)) -> ((* -> **) -> (* -> **)) -> (* -> **)
+memofix mf f
+    = mf f'
+      where
+        f' = f (mf f')
+
+|| example of memoizing the fibonacci function
+|| fib :: int -> int
+|| fib = memofix memoint fib'
+||       where
+||         fib' f n
+||             = n,                     if n < 2
+||             = f (n - 1) + f (n - 2), otherwise
+|| 
+|| %import <io>
+|| main :: io ()
+|| main = fib 80 |> showint |> putStrLn

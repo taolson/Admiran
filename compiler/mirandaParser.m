@@ -1,0 +1,665 @@
+|| mirandaParser.m -- parser for Miranda2 programs
+||
+|| supports the following extensions to the Miranda grammar:
+||
+||     infix symbols can be used as identifiers in definitions, e.g. (+) :: int -> int -> int or a << b = a * 2 ^ b
+||     wildcard pattern matches with _, e.g. (_ : xs') = xs
+||
+||     case .. of .. expressions supported for constructors and unboxed integers, e.g. case xs of [] -> 0; x : xs' -> 1;
+
+
+%export parse parseExpr
+
+%import <either>
+%import <lens>
+%import <map>
+%import <maybe>
+%import <mirandaExtensions>
+%import <set>
+%import "exception"
+%import "grammar"
+%import "module"
+%import "name"
+%import "parser"                (>>=)/p_bind (<$>)/p_fmap (<*>)/p_apply (<*)/p_left (*>)/p_right (<|>)/p_alt (>>=?)/p_guard
+%import "predef"
+%import "tokenizer"
+
+
+|| Miranda expression parsing
+
+|| parse an identifier
+p_identifier :: parser name
+p_identifier
+    = p_any >>=? mkIdent
+      where
+        mkIdent (Tident n) = p_pure n
+        mkIdent _          = p_fail
+
+p_symbol :: parser name
+p_symbol
+    = p_any >>=? mkSym
+      where
+        mkSym (Tsymbol n) = p_pure n
+        mkSym t           = p_fail
+
+p_infix :: parser name
+p_infix
+    = p_symbol $p_satisfy isInfix
+      where
+        isInfix n = ~s_member cmpstring (getName n) reservedNames & ~isPrefix n
+
+p_infix1 :: parser name
+p_infix1 = p_infix $p_satisfy ((~=$ "-") . getName)
+
+p_prefix :: parser name
+p_prefix
+    = p_symbol >>=? fpre
+      where
+        fpre n = p_pure stdNegName, if s ==$ "-"        || replace with stdNegName if used as a prefix, to disambiguate from subtraction
+               = p_pure n,          if isPrefix n
+               = p_fail,            otherwise
+                 where s = getName n
+
+p_var :: parser name
+p_var = (p_identifier <|> p_inParens p_symbol) $p_satisfy isVar
+
+p_constructor :: parser name
+p_constructor = (p_identifier <|> p_inParens p_infix) $p_satisfy isConstructor
+
+p_varOrConstructor :: parser name
+p_varOrConstructor = p_var <|> p_constructor
+
+p_literal :: parser expr
+p_literal
+    = p_any >>=? flit
+      where
+        flit (TlitInt n)    = p_pure (Eint n)
+        flit (TlitChar c)   = p_pure (Echar c)
+        flit (TlitString s) = p_pure (Estring s)
+        flit (TprimInt n)   = p_pure (EprimInt n)
+        flit (TprimChar c)  = p_pure (EprimChar c)
+        flit t              = p_fail
+
+|| comma separated list of many
+p_listManyOf :: parser * -> parser [*]
+p_listManyOf p = p_manySepBy p_comma p
+
+|| comma separated list of some
+p_listSomeOf :: parser * -> parser [*]
+p_listSomeOf p = p_someSepBy p_comma p
+
+|| parse a parenthesized expression, either Unit (), a single expression (x), or a tuple (x, y, ..)
+p_parenExpr :: parser expr -> parser expr
+p_parenExpr pElt
+    = mkParen <$> p_inParens (p_listManyOf pElt)
+      where
+        mkParen []  = builtinUnit      || ()
+        mkParen [x] = x                || (expr)
+        mkParen xs  = makeTupleExpr xs || (a, b ..)
+
+|| parse an explicit list of expressions
+p_listExpr :: parser expr -> parser expr
+p_listExpr pElt = p_inBrackets (makeList <$> p_listManyOf pElt)
+
+
+|| list comprehension
+
+|| parser for first form of generator, e.g. x <- [1 .. 10]
+p_generator :: parser qual
+p_generator = p_liftA2 Qgen (p_listSomeOf p_pat <* p_lArrow) p_exp
+
+|| parser for second form of generator, e.g. x <- 1, 2 * x ...
+p_recurrence :: parser qual
+p_recurrence = p_liftA3 Qrecur (p_pat <* p_lArrow) (p_exp <* p_comma) p_rangePart
+
+|| generator or qualifying guard, e.g. x < 10
+p_qualifier :: parser qual
+p_qualifier = p_recurrence <|> p_generator <|> (Qguard <$> p_exp)
+
+p_comprehension :: parser expr
+p_comprehension
+    = p_inBrackets (p_liftA3 mkCompr p_getLoc (p_exp <* p_vBar) (p_someSepBy p_semi p_qualifier))
+      where
+        mkCompr loc e quals = ElistComp e quals (locAnno loc)
+
+
+|| parser for presections e.g. (1 +)
+p_preSection :: parser expr
+p_preSection
+    = p_inParens (p_liftA2 mkPreSection p_exp p_infix)
+      where
+        mkPreSection e op = Eap (Evar op) e
+
+|| parser for postsections e.g. (+ 1)
+|| note: p_infix1 used here to prevent parsing (- 1) as a postsection of binary "-", which would be ambiguous with prefix negation
+|| instead, use the stdlib function "subtract"
+p_postSection :: parser expr
+p_postSection
+    = p_inParens (p_liftA2 mkPostSection p_infix1 p_exp)
+      where
+        mkPostSection op e = ap2 stdConverse (Evar op) e
+
+p_rangePart :: parser expr
+p_rangePart = p_exp <* p_sym ".."
+
+|| parse range expressions e.g. [0 .. 9] or [0 ..]
+p_range :: parser expr
+p_range
+    = p_liftA2 mkRange p_rangePart (p_optional p_exp)
+      where
+        mkRange start Nothing     = Eap stdRangeFrom start
+        mkRange start (Just stop) = ap2 stdRange start stop
+
+|| parse rangeBy expressions e. g. [0, 2 .. 8], or [0, 2 ..]
+p_rangeBy :: parser expr
+p_rangeBy
+    = p_liftA3 mkRangeBy (p_exp <* p_comma) p_rangePart (p_optional p_exp)
+      where
+        mkRangeBy start next mstop
+            = ap2 stdRangeByFrom step start,        if isNothing mstop
+            = Eap (ap2 stdRangeBy step start) stop, otherwise
+              where
+                step = mkStep start next
+                stop = fromJust mstop
+
+        mkStep (Eint a) (Eint b) = Eint (b - a)       || compile-time determination of step value
+        mkStep ea       eb       = ap2 stdSub eb ea   || runtime determination of step value
+
+p_rangeExpr :: parser expr
+p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
+
+
+|| common parser for simple expressions and definition formals
+p_formalSimple :: parser expr
+p_formalSimple
+    = (Evar <$> p_var)         <|>
+      (Evar <$> p_constructor) <|>
+      p_literal
+
+|| simple (atomic) expressions
+p_simple :: parser expr
+p_simple
+    = p_formalSimple    <|>
+      p_parenExpr p_exp <|>
+      p_caseExpr        <|>
+      p_comprehension   <|>
+      p_listExpr  p_exp <|>
+      p_postSection     <|>
+      p_preSection      <|>
+      p_rangeExpr
+
+
+|| p_exp : handle infix expressions with operator precedence and associativity specified by operator tables
+||        uses an expression stack and an operator stack, parsing simples and oprs, and reducing the stacks
+||        when an operator is parsed with lower precedence than the top-of-stack operator
+
+|| the tokenizer and parser represent a negative literal as the application of a prefix neg operator to
+|| a positive literal, as it makes the tokenizer easier.  check for this and replace with the negative literal
+exprOrNegLit :: expr -> expr
+exprOrNegLit (Eap (Evar op) (Eint n)) = Eint (neg n), if _eq cmpname op stdNegName
+exprOrNegLit e                        = e
+
+|| the following mutually-recursive parsers are used for parsing both exp expressions and pat patterns
+|| by passing specialized sub-parsers as parameters
+||
+|| parse a simple (with an optional prefix op) and push it on the expr stack
+||
+|| NOTE: this might also be used for parsing type expressions, if the Eap and Evar and ap2 used in 
+|| p_expAp and reductions are parameterized so that they could be substituted by Tap / Tarr  and Tname
+|| would also have to change signatures to refer to (ast *) instead of expr
+|| at that point, it would be best to gather all the parameterized functions into an p_expInfo structure
+|| and pass that instead of the individual functions
+p_expExpr :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
+p_expExpr pPre pInf pTerm es ops
+    = (pPre >>= fpre) <|> (pTerm >>= fterm)
+      where
+        fpre op = p_expExpr pPre pInf pTerm es (op : ops)
+        fterm e = p_expOp   pPre pInf pTerm (e : es) ops
+
+|| parse a possible pOpr and push it on the opr stack
+p_expOp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
+p_expOp pPre pInf pTerm es ops
+    = (pInf >>= fbinop) <|> p_expAp pPre pInf pTerm es ops
+      where
+        fbinop op = p_expReduce pPre pInf pTerm es (op : ops)
+
+|| parse a possible application (juxtaposition of two exprs), and push it on the expr stack
+|| check first for termination of expression
+p_expAp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
+p_expAp pPre pInf pTerm es ops
+    = (pTerm >>= fexpr es) <|> p_expFinal es ops
+      where
+        fexpr (e1 : es') e2 = p_expOp pPre pInf pTerm (Eap e1 e2 : es') ops
+        fexpr _          _  = undef     || added to remove compiler warning
+
+|| check the relative precedence of the top two oprs on the opr stack
+|| reduce by combining with EOpr onto the expr stack
+|| implement associative comparison operators: a < b <= c becomes a < b & b <= c
+p_expReduce :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
+p_expReduce pPre pInf pTerm es ops
+    = go es ops
+      where
+        go (er : es1) (opr : opl : ops2)
+
+              || reduce a prefix operator on a single expr
+            = go (pe : es1) (opr : ops2), if _eq cmpassoc assocl AssocPrefix & precl >= precr
+            = go2 es1,                    otherwise
+              where
+                (precr, assocr)  = opPrecAssoc opr
+                (precl, assocl)  = opPrecAssoc opl
+                pe               = exprOrNegLit $ Eap (Evar opl) er
+
+                || reduce a binary operator on two exprs, expanding comparison operators
+                go2 (el : es2)
+                    = go (er : re : es2) (opr : stdAndName : ops2), if _eq cmpassoc assocl AssocCompare & _eq cmpassoc assocr AssocCompare
+                    = go (re : es2)      (opr : ops2),              if precl > precr \/ precl == precr & _eq cmpassoc assocl AssocLeft
+                      where
+                        || Note: this currently doesn't check if er is an application, which could
+                        || cause double execution of it due to the duplication in this expansion (The
+                        || problem also exists in the original Miranda compiler parser).  Instead, if
+                        || it is an Eap, we should bind it to a unique Evar in an Elet, then use that Evar
+                        || instead of er.  Question: does the Evar have to be globally unique, or could
+                        || it just be a lexical var that can't match a user var name?  How do multiple
+                        || occurrences nest, for e.g. (a < f x < g x < b)
+                        re = ap2 (Evar opl) el er
+
+                go2 es1 = p_expExpr pPre pInf pTerm (er : es1) (opr : opl : ops2)
+
+        go es ops = p_expExpr pPre pInf pTerm es ops
+
+|| do final reduce of expr and opr stacks.  Precedence is guaranteed to be decreasing due to
+|| previous p_expReduce operations, so reduction is just combining the top 2 exprs with the
+|| top opr and pushing it onto the expr stack until there is a single expr left
+p_expFinal :: [expr] -> [name] -> parser expr
+p_expFinal [e]            []         = p_pure e
+p_expFinal (e : es)       (op : ops) = p_expFinal (pe : es) ops, if _eq cmpassoc assoc AssocPrefix
+                                       where
+                                         assoc = snd $ opPrecAssoc op
+                                         pe    = exprOrNegLit $ Eap (Evar op) e
+p_expFinal (er : el : es) (op : ops) = p_expFinal (ap2 (Evar op) el er : es) ops
+p_expFinal _              _          = p_error 2 "error in expression"
+
+p_exp :: parser expr
+p_exp = p_expExpr p_prefix p_infix p_simple [] []
+
+|| caseExpr and caseAlt extend the standard Miranda syntax to allow explicit case <expr> of {<ctor args> -> expr} or
+|| case <expr> of {word# -> expr} as supported in the STG machine operational semantics.  Note that only simple ctor
+|| patterns, word# literals, variables and wildcards are supported, and the case scrutinee is evaluated strictly
+p_casePat :: parser pat
+p_casePat
+    = (p_pat >>= check) <|> p_expected "a restricted simple case pattern"
+      where
+        check x = p_pure x, if isCasePat x
+                = p_fail,   otherwise
+
+        isCasePat (Pvar x)       = True
+        isCasePat (Plit x)       = isUnboxed x
+        isCasePat (Pctor x vars) = all isPvarOrWild vars
+        isCasePat Pwildcard      = True
+        isCasePat p              = False
+
+p_caseAlt :: parser caseAlt
+p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs)
+
+p_caseExpr :: parser expr
+p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_exp) (p_ident "of" *> p_inLayout (p_some p_caseAlt))
+
+|| parse a conditional expression for the given expr
+p_cond :: expr -> parser cond
+p_cond e
+    = (p_comma *> (p_if <|> p_ow)) <|> p_expected "\", if\" or \", otherwise\""
+      where
+        p_if = p_ident "if"        *> (($Cif e) <$> p_exp <|> p_expected "an expression")
+        p_ow = p_ident "otherwise" *> p_pure (Cdefault e)
+
+|| parse conditional expressions for the given expr
+p_conds :: expr -> parser expr
+p_conds e
+    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_equal *> p_indent *> p_exp >>= p_cond))
+      where
+        mkCond c cs = Econd (c : cs)
+
+|| parse "where ..." definitions
+p_whdefs :: parser [defn]
+p_whdefs = map fst <$> (p_ident "where" *> p_some p_def)
+
+|| parse right hand side of an expression in a layout block
+|| note: this used to try parsing a condExpr, and if that failed parse an expr.  However, because a condExpr begins with an expr,
+|| this sets up an O(n^2) backtracking parse for nested exprs (like a case tree).  Instead, we parse an initial expr, then check to
+||  see if we should continue with a condExpr or not.
+p_rhs :: parser expr
+p_rhs
+    = p_inLayout (p_bind2 (p_exp >>= tryCond) (p_optional p_whdefs) mkRhs)
+      where
+        || try to parse a condExpr with the given expr, or return expr
+        tryCond e = p_conds e <|> p_pure e
+
+        mkRhs e Nothing = p_pure e
+        mkRhs e (Just defs)
+            = go (ex_foldM (converse insDefMult) m_empty fns)                   || insDefMult can return an exception
+              where
+                (fns, pats)        = partition isDefFn defs
+                go (Right (m, es)) = p_pure (Elet True m pats e)                || no exception; return the Elet
+                go (Left es)       = p_error 2 . showException . hd $ es        || report exception as parser error
+
+
+|| parse patterns and fnforms
+
+fnform == (name, [pat])                     || left-hand-side of a function definition
+
+|| restrict prefixes to negate, for use in patterns which use negated Eints
+p_patPrefix :: parser name
+p_patPrefix = p_prefix $p_satisfy (_eq cmpname stdNegName)
+
+p_formal :: parser expr
+p_formal
+    = p_formalSimple    <|>
+      p_parenExpr p_exp <|>
+      p_listExpr  p_exp
+
+|| parse a pattern or fnform
+|| the idea here is to first parse it as an expr, then walk the expr tree in a monad, collecting
+|| each argument as a pat.  When we get to the root of the spine, we should either have
+|| an Evar which is either a var or a constructor, which will differentiate whether it
+|| is a fnform or pat, or a literal, which is a pat.
+p_patOrFnForm :: parser (either pat fnform)
+p_patOrFnForm
+    = p_expExpr p_patPrefix p_infix p_formal [] [] >>= mkPatFn []
+      where
+        p_err = p_error 2 "error in pattern"
+
+        mkPatFn args (Eap e arg)
+            = mkPat [] arg >>= next
+              where
+                next arg' = mkPatFn (arg' : args) e
+
+        mkPatFn args (Evar v)
+            = p_pure . Left . Pctor v $ args, if isConstructor v
+            = p_pure . Left  $ vpat,          if null args
+            = p_pure . Right $ (v, args),     if ~isWildcard v
+            = p_err,                          otherwise
+              where
+                vpat = Pwildcard, if isWildcard v
+                     = Pvar v,    otherwise
+
+        mkPatFn args e
+            = p_pure . Left . Plit $ e,       if isLit e & null args
+            = p_err,                          otherwise
+
+        mkPat args e
+            = mkPatFn args e >>= checkPat
+              where
+                checkPat (Left p)  = p_pure p
+                checkPat (Right x) = p_err
+
+|| parse a pattern only
+p_pat :: parser pat
+p_pat
+    = (p_patOrFnForm >>= checkPat) <|> p_expected "a pattern"
+      where
+        checkPat (Left p)  = p_pure p
+        checkPat (Right x) = p_fail
+
+
+|| Miranda type expression parsing
+
+|| parse a type name
+p_tname :: parser name
+p_tname = p_identifier $p_satisfy isVar || don't allow symbol names which p_var would allow
+
+|| parse a type variable
+p_tvar :: parser texpr
+p_tvar
+    = p_any >>=? ftvar
+      where
+        ftvar (Tsymbol n) = p_pure . Tvar . length . getName $ n, if isTvarSymbol n
+        ftvar t           = p_fail
+
+|| parse an infix type operator, allowing the reserved name "->", but disallowing tvars and "!" (confuses with strictness annotation)
+p_tinfix :: parser name
+p_tinfix
+    = p_symbol $p_satisfy isTinfix
+      where
+        isTinfix n
+            = isVar n & ~isTvarSymbol n  & ns ~=$ "!" \/ ns ==$ "->"
+              where ns = getName n
+
+|| parse a type form (LHS of type declaration)
+p_tform :: parser tform
+p_tform
+    = p_liftA2 mkTform p_tname (p_many p_tvar) <|>
+      p_liftA3 mkInf p_tvar p_tinfix p_tvar
+      where
+        mkTform n    vars   = Tname n vars
+        mkInf   var1 n var2 = Tname n [var1, var2]
+
+|| parse a parenthesized type expression, either unit (), a single type expression (x), or a tuple (x, y, ..)
+|| used for parsing both expressions and patterns
+p_parenTexpr :: parser texpr
+p_parenTexpr
+    = mkParen <$> p_inParens (p_listManyOf p_type)
+      where
+        mkParen []  = builtinTypeUnit || ()
+        mkParen [x] = x               || (expr)
+        mkParen xs  = Ttuple xs       || (a, b ..)
+
+|| parse a list type
+p_listTexpr :: parser texpr
+p_listTexpr = Tlist <$> p_inBrackets p_type
+
+|| parse a type argument
+p_tArg :: parser texpr
+p_tArg = ((converse Tname []) <$> p_tname) <|>
+         p_tvar                            <|>
+         p_parenTexpr                      <|>
+         p_listTexpr
+
+|| parse a type argument with optional strictness ("!")
+p_tSArg :: parser texpr
+p_tSArg = p_liftA2 mkSarg p_tArg (p_optional (p_sym "!"))
+          where
+            mkSarg targ Nothing  = targ
+            mkSarg targ (Just x) = Tstrict targ
+
+|| parse a simple type and push it on the expr stack
+p_tExpr :: [texpr] -> [name] -> parser texpr
+p_tExpr es ops
+    = p_tArg >>= fexpr
+      where
+        fexpr e = p_tOp (e : es) ops
+
+|| parse a possible type operator and push it on the opr stack
+p_tOp :: [texpr] -> [name] -> parser texpr
+p_tOp es ops
+    = (p_tinfix >>= finfix) <|> p_tAp es ops
+      where
+        finfix s = p_tExpr es (s : ops)
+
+|| parse a possible type application (polymorphic type) and push it on the expr stack
+p_tAp :: [texpr] -> [name] -> parser texpr
+p_tAp es ops
+    = (p_tArg >>= fap e) <|> p_tFinal es ops
+      where
+        e : es'              = es
+        fap (Tname n vars) t = p_tOp (Tname n (vars ++ [t]) : es') ops
+        fap e              t = p_error 2 ((shows "cannot apply " . showsAst e . shows " to " . showsAst t) "")
+
+|| do a final reduce of the expr and opr stacks (all type infix ops are right-associative)
+p_tFinal :: [texpr] -> [name] -> parser texpr
+p_tFinal [e] []                      = p_pure e
+p_tFinal (er : el : es') (op : ops') = p_tFinal (Tarr el er : es') ops',          if getName op ==$ "->"
+                                     = p_tFinal ((Tname op [el, er]) : es') ops', otherwise
+p_tFinal _               _           = p_error 2 "error in expression"
+
+|| parse a type -- could possibly modify p_expExpr to handle this and get rid of the specialized parsers, above
+p_type :: parser texpr
+p_type = p_tExpr [] []
+
+
+|| Data Constructors
+
+|| restrict infix operators to constructors (e.g. ":" or "$Cons")
+p_cinfix :: parser name
+p_cinfix = p_infix $p_satisfy isConstructor
+
+p_construct :: parser tform
+p_construct
+    = p_liftA2 mkConstr p_constructor (p_many p_tSArg)       <|>
+      p_liftA3 mkInfConstr p_type p_cinfix p_type            <|>
+      p_liftA2 apConstr (p_inParens p_construct) (p_many p_tSArg)
+      where
+        mkConstr n vars                = Tname n vars
+        mkInfConstr t1 n t2            = Tname n [t1, t2]
+        apConstr (Tname n vars1) vars2 = Tname n (vars1 ++ vars2)
+        apConstr _               _     = undef  || added to remove compiler warning
+
+p_constructs :: parser [tform]
+p_constructs = p_someSepBy p_vBar p_construct
+
+
+|| Miranda definition parsing
+
+|| get the location info for the current token
+p_getLoc :: parser location
+p_getLoc ps
+    = (Just (mn, il, ic), ps)
+      where
+        (mn, _, _, ts) = ps
+        (_, il, ic)    = hd ts
+
+|| parse a type specification
+|| used at both top-level and by a signature at top level, so
+|| return both the DefSpec defn as well as the module inserter function to insert it into a module
+p_spec :: parser [(defn, modInserter)]
+p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var <* p_colons) (p_inLayout p_type) <|>
+         p_liftA2 mkType p_getLoc (p_listSomeOf p_tform <* p_colons <* p_ident "type")
+         where
+           mkVars  loc vs t = map (mkVar loc t) vs
+           mkType  loc vs   = map (mkTyp loc) vs
+           mkVar   loc t  v = (d, modInsSpec d) where d = DefSpec (Tname v []) t (locAnno loc)
+           mkTyp   loc    v = (d, modInsDef d)  where d = DefData v [] (locAnno loc)
+
+p_sig :: parser [defn]
+p_sig = (map fst . concat) <$> (p_some p_spec)
+
+|| parse a type definition
+|| only used at the top-level, so only return the module insertion function 
+|| Note: since we allow definition of infix operators, a type synonym
+||       can be ambiguously parsed as an infix operator (==) definition, so if there
+||       is an error in parsing a type synonym, it would be tried as an infix operator
+||       definition which may parse "deeper", resulting in a confusing error message later
+||       (e.g. in typecheck)
+p_tdef :: parser modInserter
+p_tdef
+    = p_liftA3 mkSyn  p_getLoc (p_tform <* p_eqeq)      (p_inLayout p_type <|> p_expected "a type synonym")          <|>
+      p_liftA3 mkData p_getLoc (p_tform <* p_sym "::=") (p_inLayout p_constructs <|> p_expected "a data definition") <|> 
+      p_liftA3 mkAbs  p_getLoc (p_ident "abstype" *> p_tform) (p_ident "with" *> p_inLayout p_sig)
+      where
+        mkSyn  loc tf  t    = modInsDef  (DefSyn  tf  t                  (locAnno loc))
+        mkData loc tf ctors = modInsData (DefData tf  ctors              (locAnno loc))
+        mkAbs  loc tf ts    = modInsAbs  (DefAbs  tf  ts builtinTypeType (locAnno loc))
+
+|| parse a definition
+p_def :: parser (defn, modInserter)
+p_def
+    = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal *> p_rhs)
+      where
+        mkDef loc (Left p)  rhs         = (d, modInsPat d) where d = DefPat  p    rhs (locAnno loc)
+        mkDef loc (Right (n, vars)) rhs = (d, modInsDef d) where d = DefFn n vars rhs (locAnno loc)
+
+
+
+|| Miranda library directive parsing
+
+p_fileSpec :: parser fileSpec
+p_fileSpec
+    = (mkStd <$> p_inAngles p_identifier) <|> (p_any >>=? fid)
+      where
+        mkStd n            = FileSpec stdlibPath (getName n)
+        fid (TlitString s) = p_pure (fileSpecFromString s), if #s > 0   || fileSpec cannot be the null string
+        fid t              = p_fail
+
+p_libPart :: parser libPart
+p_libPart
+    = p_getLoc >>= floc
+      where
+        floc loc
+            = (p_pure (LibAll loc) <* p_sym "+")                      <|>
+               (($LibIdent loc)  <$> p_varOrConstructor)              <|>
+               (($LibRemove loc) <$> (p_minus *> p_varOrConstructor)) <|>
+               (($LibFile loc)   <$> p_fileSpec)
+
+p_libQual :: parser libQual
+p_libQual
+    = mkQual <$> p_optional (p_ident "qualified")
+      where
+        mkQual Nothing  = LibUnqualified
+        mkQual (Just x) = LibQualified
+
+p_libAs :: parser libAs
+p_libAs
+    = mkAs <$> p_optional (p_ident "as" *> p_identifier)
+      where
+        mkAs Nothing  = LibNoAs
+        mkAs (Just s) = LibAs (getName s)
+
+p_alias :: parser libAlias
+p_alias
+    = p_alias' p_var         <|>
+      p_alias' p_constructor <|>
+      (AliasRemove <$> (p_minus *> p_var))
+      where
+        p_alias' p = p_liftA2 Alias (p <* p_sym "/") p
+
+p_binding :: parser libBinding
+p_binding = p_liftA2 BindVar  (p_var <* p_equal) (p_inLayout p_exp) <|>
+            p_liftA2 BindType (p_var <* p_eqeq)  (p_inLayout p_type)
+
+p_binder :: parser [libBinding]
+p_binder = p_inBraces (p_some p_binding)
+
+p_env :: parser libEnv
+p_env
+    = (p_liftA4 mkEnv p_getLoc p_fileSpec p_libQual p_libAs <*> p_optional p_binder) <*> p_many p_alias
+      where
+        mkEnv loc fs lq la mbi as
+            = (fs, loc, lq, la, fromMaybe [] mbi, as)
+
+p_libDir :: parser modInserter
+p_libDir
+    = p_percent *>
+          ((modInsInc <$> ((p_ident "import" <|> p_ident "include") *> p_inLayout p_env)) <|>
+           (modInsExp <$> (p_ident "export"  *> p_inLayout (p_some p_libPart)))           <|>
+           (modInsFre <$> (p_ident "free"    *> p_inBraces p_sig))                        <|>
+           p_expected "a library directive")
+
+
+|| Miranda top-level declarations
+
+p_decl :: parser [modInserter]
+p_decl
+    = (singleton         <$> p_tdef)   <|>      || try parsing a tdef before trying a def, so that a type synonym isn't incorrectly parsed as an inline fn def
+      ((singleton . snd) <$> p_def)    <|>
+      (map snd           <$> p_spec)   <|>
+      (singleton         <$> p_libDir)
+
+p_decls :: parser [modInserter]
+p_decls = concat <$> (p_some p_decl) <* p_end
+
+|| parse a top-level Library (Module)
+|| takes an inital module with the name and builtin environment initialized
+|| and fills it in with the top level declarations parsed from the input
+parse :: module -> string -> excpt module
+parse m input
+    = ex_error (Info psErr) (locOnlyInfo (mn, el, ec)), if isNothing mdecls
+    = makeModule m (fromJust mdecls),                   otherwise
+      where
+        mn           = view modName m
+        (mdecls, ps) = p_decls (mn, emptyError, [], tokenize input)
+        psErr        = view psErrStr ps
+        el           = view psErrLn ps
+        ec           = view psErrCn ps
+
+|| parse an expr
+parseExpr :: string -> (maybe expr, psSt)
+parseExpr input = p_exp ("interactive", emptyError, [], tokenize input)

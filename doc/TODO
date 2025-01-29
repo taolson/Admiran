@@ -1,0 +1,456 @@
+--- add command-line options for both compiler and runtime ---
+first, change config.m to export a Config data type, with lenses for the individual fields
+then add config to globalEnv, with a lens
+then for each module that uses a config entry, change to view the field from the config in the genv
+
+compiler options:
+    -L <path> (set lib path for <> imports) (mirac/lib)
+    -l <path> (set lib path for "" imports) (default ".")
+    -O (to include inlining pass or not)
+    -v (verbose output of top-level build)
+    -vinline (verbose inliner output)
+    -dumpAst (write <fn>.ast with showmodule after build)
+    -dumpStg (write <fn>.stg with stg insn output
+    -streamFusion <TF>
+    -useSel <TF>
+    -eagerCtors <TF>
+
+--- add lambdas to language ---
+grammar:       add (Elam [pat] expr anno) to ast; add Elam to showAst (need anno for free var analysis)
+ast:           add Elam to astRewriteSubs and astAccumSubs
+mirandaParser: add a p_lam to parse lambdas with "\" (p_many p_pat) p_exp; add p_lam to p_simple
+desugar:       add Elam, calling match on pats
+serialize:     add Elam as new ctor to serial / deserial
+rename:        add Elam (rename def pats)
+analyze:       add Elam for free var analysis and usage
+stg:           add Elam to generate a new code section
+
+
+--- advent 2024 bugs and performance regressions ---
+advent 2024 day06 found a case where the inliner inlined an Evar that was supposedly a singleCpx, but turned out to be
+used as an argument to a function call that was in a recursive function, resulting in a big performance regression
+compared to not allowing complex Evars to be inlined:
+
+=== 06 ===                          === 06 ===
+part 1: 4883                        part 1: 4883
+part 2: 1655                        part 2: 1655
+
+real    0m0.842s                    real    0m2.702s
+user    0m0.802s                    user    0m2.632s
+sys     0m0.030s                    sys     0m0.042s
+
+    jm      = makeJumpMap path
+    part2   = count (makesLoop gi jm) upos' |> showint
+
+We want to test that we aren't migrating the expr into an Elet {rec}?
+
+--- 
+advent 2024 day17 triggers a GC bug when run with the version of search that uses the virtual machine instead of the
+hand-coded version:
+
+*** heapRelocateValue: nonsensical tag 182 for obj 0x1110ea48e
+*** originated from TraceFrom 1
+
+Haven't see one of these in a long time, so something special is being set up when executing the vm.  Still likely due to
+a stale Reg or Env value
+
+
+--- possibly use an RWS monad instead of just State / MaybeState ---
+AST is currently written to use a state monad, where the state is implicitly split into a tuple of dynamically-scoped values
+and a tuple of lexically-scoped values.  Look at the effects of replacing this with a more explicit Reader/Writer/State monad,
+which has an explicitly split out Reader (immutable environment), Writer (appendable logger), and State (read/write state).
+
+Would it make it cleaner?  Easier to understand?  Performance effects?  Would we need a Maybe version of this as well (MRWS)
+
+Steps:
+    * write explicit Reader and Writer monads -- not needed
+    * write a combined RWS monad, which combines these with the existing State monad -- done
+    * rewrite ast to use RWS instead of state, get rid of "inLexEnv", as it is subsumed by local -- done
+
+    * start rewriting modules that traverse ast to use the new ast traversals
+        - modules which have pure (read-only) lexical state can be moved to the reader portion of rws
+        - modules which have mutable lexical state (analyze, ..?) should maybe move to an explicit stack frame model,
+          where frames are maps (nameMap, defnMap, etc.) and searches/updates run a fold through the frames, with a new
+          frame added then removed at every lexical boundary.  This seems to maybe be cleaner/faster than having a single
+          unified name/defn map (which relies upon all names being uniquified) but has to explicitly add/delete each name
+          upon entry/exit.
+
+
+--- codegen branch prediction performance ---
+x86-64 has no static branch prediction hints, so the processor always predicts not-taken for branches that haven't been seen, yet.
+The performance of the AllocFrame code generation could be improved, here, as currently if the allocation passes (most common) it
+does a forward jump around the section of code that sets up the GC call.  Instead, the code blocks should be re-arranged so that
+the branch tests for allocation fail, falling through to the passing case, and jumping out-of-band to the fail case.  However, this
+might take a bit of work to do, as currently we can get by with just using local relative branch labels (0b, 0f), but an out-of band
+branch might require the generation of a unique label, which requires carrying a generator state through codeGen (currently not done).
+
+A rewrite of codegen to use the rws monad could add the label generation state, though.
+
+
+--- GC roots ---
+Currently we are tracing all of Args, Regs, and Env as roots, even though only some of them are actually live.  This could be
+a problem, because if some are stale and point to a stale heap location that has been overwritten, we could get a bogus heap
+tag and panic.  To fix this, either the current (statically-known) live ranges of Args/Heaps/Env should be transmitted to the
+GC in an info word, or, perhaps the live values should be pushed onto the stack and the gc only traces from the stack (then
+those values must be popped from the stack after GC, to propagate any changes to them back to the args/regs/env)
+
+
+--- unify lexical environment implementations? ---
+currently there is a mix of two different lexical environment implementations in various modules:
+    inline, normalize, typecheck:     uses explicit stack of maps, adding a stack frame of a map in the new env
+    rename, stg:                     uses a combined map, inserting individual elements into the map when they are encountered
+
+inline needs the stack because there is a mix of maps and function boundary markers, but the others
+can all use either style.  Performance difference seems to be negligible between the two styles
+
+also, analyze uses the dynamic state to hold the use count (which would more naturally be in the lexical state), because astRewriteLex
+restores the entire lexical state after running the subAsts.  However, we could substitute a new version of astRewriteLex that uses
+a stack of bag frames for the uses in the lex state, and restores it by popping the top frame off.
+
+An example is analyze.m, where the lexically-scoped name map is kept in the State portion of RWS because we need to update uses
+of names in outer scopes and collect free var references, and the initializing / merging of info around lexical boundaries is
+somewhat messy.  Instead, we could keep a list of lexical frames, each with its own bag of name ref counts and free var set; when
+we encounter a new lexical scope, add a new frame with the bag initialized to the names -> 0 and an empty free var set.  Then when
+we encounter a name, check for it in each frame until it is found (if not found, add it to the free var set of that frame) and increment
+its use count. On exit from a lexical scope, pop the top frame (after using it for e.g. updating the freevar list of a defn or the use
+count of a defn in a Let map).
+
+
+--- exception ---
+Look at reorganizing how notes are handled in exceptions; currently they are their own exception type, and ExMult was added to
+handle a Note being added to another exception.  But the print order for typecheck errs is odd.  What we want is to have the 
+exception printed out so that:
+    - first is exception type (Error Warn), and location
+    - next is any additional location info (e.g. in definition of, in application of, etc.)
+    - next is a list of exceptions
+
+
+--- options / configuration ---
+Make an options module (similar to how exceptions is done) that enumerates all the compiler options in a algebraic type, and add it
+to mirac and the globalEnv passed through all the passes so each pass module can examine its options from it.
+
+Also write a general command line parser for options and add it to lib?
+
+--- tokenizer, parser ---
+The tokenizer returns lazy tuples for the tokloc values, which can build up a lot of saved state for things like line and column
+numbers.  Look at changing from a tuple representation to a data representation where the fields are strict.
+
+
+--- parser, mirandaParser ---
+Look at re-implementing with ideas from the paper "Error Reporting for PEG", which implements a 4-value state monad instead of maybeState.
+The 4 values are:
+    Error    -- an error occured
+    Fail     -- the parse failed
+    Epsn     -- parse was empty/pure (consumed no input)
+    Ok       -- parse succeeded
+
+
+--- unboxed vectors / arrays  (and byte vectors / arrays) ---
+While working on the synacor challenge code for Miranda2, computing a fast modified-ackerman function needs 3 large vectors (32K entries apiece),
+which currently triggers a gc bug (bad tag encountered during scanning one of the large arrays).  That still needs to be tracked down, but the GC
+scan is having to scan all of the entries of each array, even though we know they should all be resolved to ints, anyway.
+
+Maybe need to add an unboxed varient to vectors which only holds unboxed words (no thunks), which allows GC to skip scanning their contents and just
+bulk copy the entire array). If so, need to evaluate how much of the existing Vector code is applicable.
+
+--- derive ---
+auto derivation of show and ord for Tuple types:
+Add a deriveTupleInstances function to derive.m for deriving showtupleN and cmpTupleN functions, instead of having to manually place them in stdlib,
+mirandaExtensions, etc. Use it during the stg phase to create them on demand, for the whole program. This requires the following changes:
+
+    - change the makeTupleFnName to create a Builtin name rather than an Undefined name
+
+    - normal builtin fns have an explicit spec installed in the builtinEnv, but since the show/ord instances for tuple will be dynamically-
+      generated during the STG phase, the specs need to be dynamically generated as well, just as those for the tuple constructors.  This
+      may require having a special test for the tuple instance names (showtupleN, cmptupleN) in predef, and changes to lookupSpec to use them.
+
+NOTE: this turned out to be harder than expected -- delaying the derive of a showtuple or cmptuple until the stg stage means that we
+can't rely upon earlier stages to desugar/clean up the ast we make for the defn (in particular, literal strings and normalize).  Also,
+typecheck doesn't work (has the wrong type for the {to be derived} instances).
+
+Will need to re-think the strategy, here.
+
+Derive for show and ord are currently curried with a "go" function so that the Pvar for the value to be shown
+doesn't appear in the top-level defn.  This causes a lot of over-application ApplyToEnvs to be generated.  Instead,
+the derive functions should be rewritten to directly specify the value arg at the top level.
+
+
+--- inlined names ---
+idea: instead of tagging a name with a prefix '`' to mark it as a generated or inlined name, add a new constructor to name
+that acts like Internal, but can be used to distinguish compiler-generated or inlined names from user-defined names for reporting
+(seems cleaner than the '`' hack).
+
+work: adding new ctor and accessing functions; changing renameExpr to use the new ctor instead of a prefix, adding
+new ctor  to serialize
+
+--- interp ---
+When status tracing is turned off, or the interval is too large, we run out of Miranda heap space on advent2019.  However, simply printing
+a null string every 100000 cycles clears up the issue.  Need to investigate why doing periodic I/O triggers this, even though the I/O
+does nothing to the stgSt.
+
+
+--- stg ---
+code that has a lot of env vars passed down through a chain of thunks pushes and pops the entire list each thunk it goes through,
+even though, which causes a lot of push/pop insn generation in codegen.  Look at optimizing the stack for env save restores so we
+only push/pop the deltas and try to maintain the rest of the saved stack as much as possible (e.g. sorting the refs so the deepest
+ref [longest used] gets pushed first, keep refs on stack in-place if they are used subsequently and only load from the stack to the
+env for those values, etc.)
+
+many replications of the same code for different ctors; look into making a cache for already built versions of (tag, arity) -> codePtr
+
+
+--- Pattern Matching Optimizations --
+optimize simple patterns with wildcards, e.g.
+
+         (a, _, b, _) = foo              -> let a = builtinSel Tuple4 foo 0#; let b = builtinSel Tuple4 foo 2# ..
+
+
+--- add explicit fixity defns ---
+Currently there is a fixed precedence and associativity as defined in Miranda, but with the addition of the ability to define new operators,
+it would be good to be able to define their precedence and associativity as well (rather than defaulting to highest and rightassoc).  Since
+the associtivity spec is discovered during parsing, the parser would have to change to not handling associativity / precedence during initial
+parsing, and add a resolution phase (during desugaring?) to resolve to a tree of Eaps.  That would require a new expr type in the grammar:
+
+Einfix expr [(name, expr)], where the (name, expr) is an alternating list of infix operator names and non-infix expressions.
+
+Haskell uses infix{l,r} <int> <operator list> to specify this.  These should be implemented as a new Defn type:
+
+DefFix name num assoc
+
+
+Swift uses a more complex, but arguably better model of precedence groups, where the precedence is a partial order specified relative to
+other groups, e.g.
+
+assocr :                -- lowest assoc
+assocl ! above :        -- highest assoc
+
+assocr ++ above : below !
+.
+.
+
+module: add map of name -> fixity to the module data defn (fixity is assoc + precedence)
+        add lookupFixity function
+        add modInsFixity function
+
+serialize: add fixity map to serialization of a module
+
+parser: add parsing of infix{r,l,c, prefix} decls to add to module fixity map
+        change parsing of expr to generate a default expr tree by treating all operators as left-associative at the same precedence
+        need to mark explicit paren-enclosed exprs (use a dummy builtinParenExpr fn?)
+
+        unify type expr parsing and expr parsing?
+
+        can p_patOrFnForm be written correctly with the fixity changes?
+
+
+rewrite: rewrite Eap tree from default left-associative to correct tree using fixity info (use lookupFixity)
+
+
+--- Strictness / Escape analysis for thunks ---
+Extraneous updates for thunks that don't require one cause a lot of memory pressure in iterative loops, since the
+update isn't performed until the entire loop is finished.  Need to perform a strictness / escape analysis on thunks
+to mark them as NoUpdate if they aren't shared and don't escape the loop.
+
+
+--- More Inliner Optimizations (and debug) ---
+
+Use of lenses generates sub-optimal uses of builtinSel, where the sel doesn't have an opportunity to inspect the ctors in the lens to inline
+the sel.  Need to look at the actual code generation to see what can be added to inline to clean these up.
+
+Look into detecting loops that deconstruct arguments on entry with a unary constructor, and create a helper loop that
+removes the deconstruction on entry and the re-construction in the loop tail call(s) (mainly used for loops performing
+arithmetic, like sum, product, range, iterate on arith fn, etc.)
+
+Look into loop-invariant code motion to move common invariant calculations out of the loop (maybe passing them in as
+an additional argument)
+
+
+--- Stream Fusion ---
+Performance is low -- generally about 75% that of inlining without stream fusion, although small tests show good performance
+
+When testing out building the self-hosting compiler with stream fusion, building the compiler source itself with stream fusion enabled results in an
+infinite loop during building "name.m", crashing with an out-of-memory.  Seems to be spending all its time in stream.fromStream and stdlib.(++)
+
+
+--- Rename ---
+Look into replacing the generation of new names (using the piped-through state gen) with the "rapier" solution in the Haskell inlining
+paper -- pass a current environment through rename, and only create new names for Pvars that have an existing binding in the environment.
+Create the new name by trying consecutive numbers, starting with env size
+
+
+--- Nullary Constructor Defn ---
+Should nullary constructors (e.g. Nil, Nothing) be defined with a DefPat instead of a DefFn n []?  Currently everything works, but it seems odd that
+nullary constructors are DefFns....
+
+
+--- AVL ---
+Look into replacing AVL with a red/black tree, to see if that performs better
+
+
+--- Annotated AST ---
+Switching to an AST with annotations on each node can allow for better error handling (each node can have its own location info).
+Also, by making the AST a free type, annotations can be added as a pair, and the annotation type can change during the
+compilation pipeline (e.g. location info, then added type info after typecheck, then can change to a unique tag value for supercompilation).
+
+Will require some updating of pattern matches in desugar and rewrite for embedded patterns, and a lot of rewriting of mirandaParser 
+
+astF * ::=
+    Evar name                   |
+    Eap  (expr *) (expr *)      |
+    .
+    .
+ast * == (astF *, *)
+
+
+
+An alternative to this is to move anno to its own AST node type:
+    Note anno ast
+
+so that any ast can be annotated with a Note.  This will require fewer changes, overall, but code that explicitly tests for
+particular AST types would have to handle the case that the type desired may be wrapped in (many) Notes, first.
+Pattern matching on the first node during AST traversal would work ok, but complex patterns wouldn't.  Could make "smart"
+pattern matches that automatically drill down into Notes to do the matching
+
+
+--- Names ---
+    consider adding a num parameter to builtin names, to make Tuples easier to handle, by
+    holding the tuple arity in the num, rather than adding it as a string to the Tuple name
+
+    lookups of names used as keys in a map can be slow.  2 ideas:
+    1) implement a special nameMap, which consists of 4 hashed id
+       maps (one for each type of name), then hash the string(s)
+       of the name to get the id to use to look up.  Or use a trieMap
+       for the string portion(s) of a name
+
+    2) more intrusive: change to a symbol table, where names are
+       canonicalized into unique symbols (unique numeric id, name)
+       most of this would hapen during tokenization, but other parts
+       of the compiler that use direct names (parser, predef) would
+       have to canonicalize them to symbols, first.  That might be
+       tricky, as predef currently exposes a bunch of top-level names
+       for use in other modules, but those would have to be kept in
+       a global symbol table
+
+
+--- Lexer ---
+Look at rewriting to use a state (like parser, etc.) instead of CPS to make it easier to understand.
+
+
+--- Module ---
+Consider swapping the order of all of the lookup* functions, as they are the reverse of m_lookup and cause confusion.
+I think this was originally written in this order to allow easy map (lookupModule genv) ..., but they don't appear
+to be used that way at all.  This would allow some currying of the genv state in the definitions, too, as it would
+come last with the swap.
+
+
+--- Parser ---
+convert parserErrors to exceptions
+right now they are separate, and conversion occurs right at the end in parse
+
+
+--- MirandaParser ---
+|| Note: since we allow definition of infix operators, a type synonym
+||       can be ambiguously parsed as an infix operator (==) definition, so if there
+||       is an error in parsing a type synonym, it would be tried as an infix operator
+||       definition which may parse "deeper", resulting in a confusing error message later
+||       (e.g. in typecheck)
+
+Might have to be fixed by making the grammar more "Haskell-like", redefining how data and type synonyms are defined,
+to disamgiuate the parse
+def ::= xxx   -> data def = xxx
+def == xxx    -> type def = xxx
+
+
+--- normalize ---
+normalize currently creates thunks for intermediate results of complex expressions, but if the intermediate type is an
+unboxed word#, then subsequent operations on that value will assume the value is unboxed, but it is actually a thunk (heap addr)
+need to extend typecheck info to annotate the ast, so that subsequent passes can do type-based rewrites.  For simplify, if the
+type of an expr is word#, it should simplify using a "case expr of x' ->" rather than a "let x' = expr"
+
+
+--- Desugaring ---
+match generates extraneous fatbar (.. Efail) code when patterns are irrefutable.  This is cleaned up in
+rewrite, but could make some rewrite patterns simpler if they weren't generated in the first place.  Currently
+most are handled here by special tests for single pattern groups, but it might be more general to pass
+"irrefutable" status through the match function and only add fatbars for refutable patterns.  Then can also add the
+exception reporting for non-exhaustive patterns for non-full patterns that don't pass to an irrefutable match.
+
+Look at expanding the Cvectored caseSel to cases where the #peqns > 50% of the total #ctors, rather than limiting to
+maxCaseAll; see what impact it has on general code (it seems to increase the runtime marginally when recompiling itself)
+
+
+--- AST traversal ---
+when using astRewriteLex, there are times we want to continue rewriting from the rewritten ast (redo), rather than continuing
+with its sub-asts (calling the passed continuation).  Is there a way to do this cleanly, by providing a "redo" function to handle it
+in ast?
+can we compose rewriteTraversers with different state into a single traversal that unifies the state in a tuple and extracts/inserts
+each state element for each traverser?
+
+composeTD t1 t2 (e, s1, s2)
+   = astAccumSubs composed (e2, s1', s2')
+     where
+       (e1, s1') = t1 (e, s1)
+       (e2, s2') = t2 (e1, s2)
+
+look into implementing this the same as Haskell's Data.Traversable (borrowing function names and ideas from that class)        
+
+
+--- Unboxed Type Handling ---
+Working directly with unboxed types is currently tricky, because type checking occurs before simplification, and simplification can result in
+creating new thunks (which cannot hold unboxed types, since they must be evaluated immediately).  However, all type info is lost by then.  Look into
+annotating the AST with the type of each node, to allow detection of these cases during simplification.
+
+
+--- Extending case .. of .. expressions ---
+Explicit case <expr> of <alt> expressions are implemented to support STG primitive alts, i.e.
+case (a# +# b#) of 0# -> ... 1# -> ... to allow stdlib to pack/unpack results for primitive comparison operations.  Should
+the case exprs be extended to allow full Haskell case expressions (complex pats, literal pats, etc?)  If so, we need to
+add desugaring of explicit case expressions to use the match pattern compiler:
+
+    case expr of
+        pat1 -> e1
+        pat2 -> e2
+        .
+        .
+
+        -> match [expr] [equations]
+
+If not, need to add restrictions to mirandaParser to prevent general patterns from being used in case expressions.
+
+
+--- Using more Applicative style in desugar, rewrite, module ---
+Look into rewriting desugar, rewrite and module in a more applicative style (like typecheck),
+rather than explicitly threading the state during astRewrite
+
+
+--- Build Dependency Checking ---
+build dependency checking needs to happen recursively on modules: if a submodule uses another module that needs to be rebuilt, it 
+needs to be parsed again -- something needs to change in parseFiles
+
+
+--- Parameterized Module (%free) Handling ---
+    extend the Name sum type to include a "Free string string" with the first string being the module name and the second the
+    variable name
+ 
+    in insModFree, insert Unqualified <name> -> Free <moduleName> <name> in the globalEnv name map
+
+    extend free var analysis in analyze.m to include all Free vars (maybe already works?)
+
+    extend reifyIncludes to handle the bindings of the free vars, by doing a sort of "reverse binding": first
+    lookup the (unqualified) binding name in the included module's name map to get its Free name, then insert Free name -> Unqualified binding name
+    in the current module's name map.
+
+    modify lookupEnv to handle lookups of Free <modname> <name> by doing the lookup in the current module's name map, then
+    doing a second lookup of that (unqualified) name in the same name map.  This double lookup allows the Free var to be bound
+    to names that may be imported from other modules.
+
+    Problem still to solve:  The module with the free directive may be using the free vars within a definition (so the free vars will
+    filter all the way up to the top-level defn).  We need to make a closure for these to bind the actual binding name.
+
+
+--- add Phantom Type to AST ---
+Currently ast is a union of sub-types: expr, texpr, defn, etc., to allow for easy traversal of a unified tree.  However, it allows for
+illegal type combinations (e.g. using a defn where an expr is required).  Look at adding a phantom type to track the ast's sub-type, and
+add explicit sub-types to the signatures of functions operating on ASTs, e.g.:
+
+p_exp :: parser (ast expr)
