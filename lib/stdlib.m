@@ -85,7 +85,7 @@ cmpTags c1 c2
                                           2# -> GT
 
 || ord instance for word#
-cmpword# :: word# -> word# -> ordering
+cmpword# :: ordI word#
 cmpword# w1 w2
     = case w1 $cmp# w2 of
          0# -> EQ
@@ -93,11 +93,11 @@ cmpword# w1 w2
          2# -> GT
 
 || ord instance for unit
-cmpunit :: () -> () -> ordering
+cmpunit :: ordI ()
 cmpunit _ _ = EQ
 
 || ord instance for function (cannot compare)
-cmpFn :: (* -> **) -> (* -> **) -> ordering
+cmpFn :: ordI (* -> **)
 cmpFn fa fb = error "attempt to compare functions"
 
 || all ord operations are derived from the ord instance (ordI *)
