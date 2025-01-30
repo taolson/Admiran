@@ -5,6 +5,9 @@
 ||
 || version that uses substitution maps instead of compositions of substitution functions (O(logN) instead of O(N))
 || and applicative functors on tcSt
+||
+|| to do: add check for trying pass an unboxed word# to a polymorphic function, or storing one in a polymorphic data type
+||        should check for trying to bind a word# in a let be moved to the let/letrec, instead of in defPat?
 
 
 %export typecheck
@@ -317,7 +320,7 @@ infer (EprimInt n)    = tc_pure (builtinTypeWord, id_subst)
 infer (EprimChar c)   = tc_pure (builtinTypeWord, id_subst)
 infer (EprimString s) = tc_pure (builtinTypeWord, id_subst)
 infer (Evar n)
-    = tc_pure (Pwildcard, id_subst),  if isWildcard n   || wildcards used as type holes; (ab)use the Pwildcard ctor as the "type" for this
+    = tc_pure ((Tname n []), id_subst),  if isWildcard n   || wildcards used as type holes
     = lookupScheme n >>= instantiate, otherwise
 
 || handle polymorphic pseudo-functions pack and sel
@@ -552,8 +555,6 @@ unify' :: unifyMode -> texpr -> texpr -> substMap -> tcState substMap
 unify' um t1 t2 sm
     = go t1 t2
       where
-        go Pwildcard     t             = tc_error $ TypeHole (normalize t)                      || report the type hole type
-        go t             Pwildcard     = tc_error $ TypeHole (normalize t)
         go (Tvar tvn)    t2            = go t1' t2',         if m_member cmpint tvn sm          || unify 
                                        = extend' sm tvn t2', if _eq cmpunifyMode um Check       || extend for subsumption
                                        = extend  sm tvn t2', otherwise                          || extend for inference
@@ -566,7 +567,12 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = tc_error $ Unify (normalize t1) (normalize t2)
+        go t1            t2            = tc_error $ TypeHole (normalize t2),             if isTWild t1
+                                       = tc_error $ TypeHole (normalize t1),             if isTWild t2
+                                       = tc_error $ Unify (normalize t1) (normalize t2), otherwise
+                                         where
+                                           isTWild (Tname n _) = isWildcard n
+                                           isTWild _           = False
 
 || unify a pair of texpr lists
 unifyLists :: unifyMode -> [texpr] -> [texpr] -> substMap -> tcState substMap
@@ -614,7 +620,6 @@ typecheckGroup ns
               where
                 f genv
                   = installSpec,                                           if isNothing mspec
-                  = installSpec *> reportHole,                             if isTWild t'
                   = inLexEnv m_empty locSubsumes id_subst $st_bind verify, otherwise            || verify inferred against specified type
                     where
                       mspec          = lookupSpec genv n
@@ -627,11 +632,7 @@ typecheckGroup ns
                       verify Nothing = incorrDeclErr
                       verify _       = tc_pure () 
 
-                      isTWild (Tname n _) = isWildcard n
-                      isTWild _           = False
-
                       installSpec    = tc_over tcSpecs (m_insert cmpname n spec')
-                      reportHole     = tc_over tcErrs ((Error, TypeHole normt, loc) :)
                       incorrDeclErr  = tc_over tcErrs ((Error, IncorrDecl spec spec', loc) :)
                       locSubsumes sm = tc_over tcLoc (mergeLocInfo loc) $st_right subsumes t t' sm
 
