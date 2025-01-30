@@ -27,7 +27,8 @@ is a C compiler for assembling the generated asm files and linking them with the
 Miranda2 is an "extended subset" of Miranda, and does not (currently) implement every feature
 in the original Miranda language:
 * num type (combined floating-point or infinite-precision integers) replaced with 64-bit int
-* "magic" show and comparison operators that work on any type replaced with manual showI and ordI "typeclass" instances
+* "magic" show and comparison operators that work on any type replaced with manual show and ord "typeclass" instances
+  and distinct infix operators for comparing ints, chars, and strings
 * no %free directive for parameterized modules
 
 ### Miranda2 new language features not in Miranda
@@ -45,11 +46,12 @@ in the original Miranda language:
 ### Differences from Haskell
 Haskell's design was strongly influenced by Miranda, so they have a lot of similarities.
 The main differences are:
-* No typeclasses (so no generic Show, Ord, functors or monads). Instead, instances
+* No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
   of a "typeclass" dictionary are passed explicitly to functions that require them
 * Miranda typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
 * Data and type definitions use a different syntax (::= and ==, respectively)
 * Miranda2 allows only restricted simple patterns for case alternates
+* Some layout and offside-rule differences
 
 ## Distribution Subdirectories
 * `bin/` executables are put here
@@ -98,5 +100,6 @@ to see if the .x2 file is up-to-date, and will re-build from the .m file if it i
 force a rebuild from the source file.
 
 ## Why did I write this?
-To learn more about how functional languages are implemented (graph reduction).  To have a fun project to work on
-that can provide a nearly endless list of ToDos.  To have a fun language to write Advent Of Code solutions in.
+To learn more about how functional languages are implemented.  To have a fun project to work on that can provide
+a nearly endless list of ToDos (see doc/TODO!).  To have a fun language to write Advent Of Code solutions in.  Maybe
+it can be useful for someone else interested in these things.
