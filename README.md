@@ -1,7 +1,12 @@
-# Miranda2
+# Miranda2, a pure, lazy, functional language and compiler
 Miranda2 is a pure, lazy, functional language and compiler, based upon the
 original Miranda language designed by David Turner, with additional features
 from Haskell and other functional languages.
+
+## System Requirements
+Miranda2 currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
+is a C compiler for assembling the generated asm files and linking them with the C runtime library.
+(this is automatically done when compiling a Miranda source file).
 
 ## Features
 * Compiles to x86-64 assembly language
@@ -17,11 +22,6 @@ from Haskell and other functional languages.
   - parser combinators
 * small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
 * 20x to 50x faster than the original Miranda compiler/combinator interpreter
-
-## System Requirements
-Miranda2 currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
-is a C compiler for assembling the generated asm files and linking them with the C runtime library.
-(this is automatically done when compiling a Miranda source file).
 
 ### Miranda language features removed from Miranda2
 Miranda2 is an "extended subset" of Miranda, and does not (currently) implement every feature
@@ -52,19 +52,19 @@ The main differences are:
 * Miranda2 allows only restricted simple patterns for case alternates
 
 ## Distribution Subdirectories
-* `bin/` executables are put here.
-* `compiler/` contains the Miranda2 source files for the mirac compiler.
-* `lib/` contains the sources for the various libraries, and the runtime.c file.
-* `examples/` contains some example programs to show Miranda2 syntax and to try the compiler out.
+* `bin/` executables are put here
+* `compiler/` contains the Miranda2 source files for the mirac compiler
+* `lib/` contains the sources for the various libraries, and the runtime.c file
+* `examples/` contains some example programs to show Miranda2 syntax and to try the compiler out
 
 ## Configuring and Bootstrapping Miranda2
 The Miranda2 compiler (mirac) is written in Miranda2, and requires bootstrapping from a pre-built
 bootstrap compiler.  This is mostly automated in the Makefile, but needs a manual configuration step first:
 
 Edit the config.m file in the compiler directory to modify the values for:
-> hostOS                = Linux         || set to Linux or MacOS
-> miranda2LibPath       = "../lib"      || set to absolute path name for the lib directory, e.g.
-                                        || "/home/tim/Programming/Miranda2/lib"
+`hostOS                = Linux         || set to Linux or MacOS`
+`miranda2LibPath       = "../lib"      || set to absolute path name for the lib directory, e.g.`
+`                                      || "/home/tim/Programming/Miranda2/lib"`
 
 then go back to the top-level directory and type "make".
 
@@ -77,7 +77,7 @@ The script will bootstrap the compiler in 4 stages:
 4. re-compile with miracStage2, to verify that the compiler is stable (produces the same asm file), and install in bin as mirac
 
 When complete, it should report
-> === mirac compiler built succesfully ===
+`=== mirac compiler built succesfully ===`
 and install as mirac in the supplied bin directory.
 
 It is suggested that you add the bin directory to your PATH variable in your shell, to allow the mirac compiler to be run from anywhere.
