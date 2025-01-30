@@ -29,13 +29,14 @@ bin/miracStage1: bin/miracBoot
 bin/miracStage2: bin/miracStage1
 	@echo "\n=== building stage2 compiler with stage1 compiler ===\n"
 	make clean; cd compiler; ../bin/miracStage1 mirac
+	mv compiler/mirac.s compiler/mirac.s.REF
 	mv compiler/mirac bin/miracStage2
 
 # make final mirac compiler by recompiling with stage2 compiler; ensure compilers match
 bin/mirac: bin/miracStage2
 	@echo "\nbuilding mirac compiler with stage2 compiler ===\n"
 	make clean; cd compiler; ../bin/miracStage2 mirac
-	diff compiler/mirac bin/miracStage2
+	diff compiler/mirac.s compiler/mirac.s.REF
 	@echo "\n=== mirac compiler built successfully ==="
 	mv compiler/mirac bin/mirac
 
