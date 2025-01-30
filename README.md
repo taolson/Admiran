@@ -62,9 +62,10 @@ The Miranda2 compiler (mirac) is written in Miranda2, and requires bootstrapping
 bootstrap compiler.  This is mostly automated in the Makefile, but needs a manual configuration step first:
 
 Edit the config.m file in the compiler directory to modify the values for:
-`hostOS                = Linux         || set to Linux or MacOS`
-`miranda2LibPath       = "../lib"      || set to absolute path name for the lib directory, e.g.`
-`                                      || "/home/tim/Programming/Miranda2/lib"`
+
+>`hostOS                = Linux         || set to Linux or MacOS`
+>`miranda2LibPath       = "../lib"      || set to absolute path name for the lib directory, e.g.`
+>`                                      || "/home/tim/Programming/Miranda2/lib"`
 
 then go back to the top-level directory and type "make".
 
