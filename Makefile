@@ -17,6 +17,7 @@ all:	bin/mirac
 # make bootstrap compiler from correct asm source
 bin/miracBoot:	boot/$(MIRAC_BOOT) lib/runtime.c
 	@echo "\n=== building bootstrap compiler ===\n"
+	@mkdir -p bin
 	$(CC) $(CCOPTS) -o bin/miracBoot boot/$(MIRAC_BOOT) lib/runtime.c
 
 # make stage1 compiler by compiling compiler sources with bootstrap compiler
