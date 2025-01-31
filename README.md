@@ -82,7 +82,7 @@ The script will bootstrap the compiler in 4 stages:
 4. re-compile with miracStage2, to verify that the compiler is stable (produces the same asm file), and install in bin as mirac
 
 When complete, it should report
-`=== mirac compiler built succesfully ===`
+`=== mirac compiler built successfully ===`
 and install as mirac in the supplied bin directory.
 
 It is suggested that you add the bin directory to your PATH variable in your shell, to allow the mirac compiler to be run from anywhere.
