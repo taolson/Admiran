@@ -122,7 +122,7 @@ p_satisfy p tst
             = p_fail,   otherwise
 
 || 1 or more p
-p_some :: parser* -> parser [*]
+p_some :: parser * -> parser [*]
 p_some p = p_liftA2 (:) p (p_many p)
 
 || 0 or more p
@@ -130,7 +130,7 @@ p_many :: parser * -> parser [*]
 p_many p = p_some p $p_alt p_pure []
 
 || 1 or more p seperated by ps
-p_someSepBy :: parser* -> parser ** -> parser [**]
+p_someSepBy :: parser * -> parser ** -> parser [**]
 p_someSepBy ps p = p_liftA2 (:) p (p_many (ps $p_right p))
 
 || 0 or more p seperated by ps
