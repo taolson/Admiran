@@ -196,4 +196,4 @@ main
       where
         go [fn]        = gen fn "main"
         go [fn, start] = gen fn start
-        go _           = error "usage: mirac <file name> {entry name}", otherwise
+        go _           = error "usage: mirac <file name> {entry name}"
