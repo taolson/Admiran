@@ -55,6 +55,7 @@ The main differences are:
 
 ## Distribution Subdirectories
 * `bin/` executables are put here
+* `boot/` contains the asm source for the two pre-built bootstrap compilers (one for Linux, one for MacOS)
 * `compiler/` contains the Miranda2 source files for the mirac compiler
 * `lib/` contains the sources for the various libraries, and the runtime.c file
 * `examples/` contains some example programs to show Miranda2 syntax and to try the compiler out
