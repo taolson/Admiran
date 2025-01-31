@@ -88,6 +88,21 @@ and install as mirac in the supplied bin directory.
 It is suggested that you add the bin directory to your PATH variable in your shell, to allow the mirac compiler to be run from anywhere.
 
 ## Examples
+Here's a small example of a Miranda2 program, to generate and print a list of the first 100 primes:
+
+    || primes.m -- generate primes the lazy recursive way
+    
+    %import <io>
+    %import <mirandaExtensions>
+    
+    primes
+        = 2 : filter isPrime [3 ..]     || a lazy, infinite list of primes (mutually-recursive with isPrime)
+          where
+            isPrime n   = all (coPrime n) $ takeWhile (< n $div 2 + 1) primes
+            coPrime n m = n $mod m ~= 0
+    
+    main = primes |> take 100 |> showlist showint |> putStrLn
+
 Some small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
 by typing mirac <module name> e.g. mirac fib
 
