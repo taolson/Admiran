@@ -4,9 +4,7 @@ from source file to asm binary.  We'll tour these in a bottom-up order, based up
 
 The overall pipeline looks like:
 
-`source > tokenize > parse`
-
-go from source code file of a module to its initial AST representation
+`source > tokenize > parse`: go from source code file of a module to its initial AST representation
 
 `AST pipeline passes (as defined in mirac.m):`
 
@@ -31,13 +29,9 @@ go from source code file of a module to its initial AST representation
     , reifyExports                || process export libParts and create export nameMap
     ]
 
-`ASTs > stg`
+`ASTs > stg`: convert all module ASTs to a single Spineless, Tagless G-machine (STG) representation
 
-convert all module ASTs to a single Spineless, Tagless G-machine (STG) representation
-
-`stg > codegen`
-
-convert the STG representation to x86-64 assembly language
+`stg > codegen`: convert the STG representation to x86-64 assembly language
 
 ## grammar.m
 We'll start with `grammar.m`, which defines the AST for Miranda2 that will be used and refined in all the subsequent passes.
