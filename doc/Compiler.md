@@ -4,9 +4,13 @@ from source file to asm binary.  We'll tour these in a bottom-up order, based up
 
 The overall pipeline looks like:
 
-`source > tokenize > parse`: go from source code file of a module to its initial Abstract Syntax Tree (AST) representation
+### `source -> tokenize -> parse -> AST transformation passes -> STG -> codegen`
+A module's text is tokenized, then parsed into an Abstract Syntax Tree (AST).  From there it is
+run through a sequence of AST transformation passes.  All of the collected module ASTs are combined
+and lowered to a Spineless, Tagless G-machine representation (STG), which is then converted to
+x86-64 assembly code.
 
-`AST pipeline passes (as defined in mirac.m):`
+### AST transformation passes (as defined in `mirac.m`):
 
     [ reifyImports
     , reifyDefns isDefData        || reify data type and constructor names early for desugaring constructor patterns
@@ -29,10 +33,6 @@ The overall pipeline looks like:
     , reifyExports                || process export libParts and create export nameMap
     ]
 
-`ASTs > stg`: convert all module ASTs to a single Spineless, Tagless G-machine (STG) representation
-
-`stg > codegen`: convert the STG representation to x86-64 assembly language
-
 ## `name.m`
 We'll start with `name.m`, which defines the `name` data type used throughout the compiler to specify variable, 
 function, constructor, and type names.  `name`s can be one of:
@@ -45,7 +45,6 @@ function, constructor, and type names.  `name`s can be one of:
 * `Internal`: a resolved, non-top-level name which is qualified with a unique integer
 
 The module also defines a number of common functions on `name`s.
-
 
 ## `grammar.m`
 `grammar.m` defines the AST for Miranda2 that will be used and refined in all the subsequent passes.
@@ -81,7 +80,7 @@ to define various functions to pretty-print an `ast`.  Then come common operatio
 Then we define two important map data types that are used frequently throughout the compiler:
 
 * `nameMap`: a map from an Unqualified or Unresolved name to a Qualified Name
-* `defnMap`: a map from a Qualified name to a top-level `defn` in a module
+* `defnMap`: a map from a Qualified name to a `defn`
 
 Finally, we define a fixed precedence and associativity table for common operators.  This will likely be replaced with a
 user-definable mechanism later on.
@@ -92,17 +91,48 @@ of information and rewrites of the `ast`.
 
 ### Accumulation traversals
 An `ast` traversal can be used to collect information from an `ast`.  Accumulation traversals for bottom-up, top-down, and
-top-down with continuation are defined.  Also, an accumulation traversal called `astAccumLex` is defined, in which the
+top-down with continuation are defined.  The top-down with continuation traversal passes the explicit continuation of
+traversing the sub-ASTs of an AST node into the astAccum function, to allow it to do things like short-circuit the traversal
+or substitute a custom traversal for the sub-ASTs. Also, an accumulation traversal called `astAccumLex` is defined, in which the
 accumulator state passed through the traversal is split into a dynamically-scoped component and a lexically-scoped component.
 This allows top-down lexical information (such as location) to be attached to the traversal and automatically removed when the
 traversal returns.
 
 ### Rewriting traversals
 An `ast` traversal can also be used to rewrite an `ast`, passing state information along during the traversal.   The state is
-handled with a `state` monad (defined in `lib/state.m`).  Rewriting traversals for bottom-up top-down, top-down with continuation,
-and, analogous to `astAccumLex`, an `astRewriteLex` implements top-down rewriting with additional lexical scope state attached.
+handled with a `state` monad (defined in `lib/state.m`).  Rewriting traversals for bottom-up, top-down, top-down with continuation
+are defined, and, analogous to `astAccumLex`, an `astRewriteLex` implements top-down rewriting with additional lexical scope state
+attached.
 
 ## `tokenizer.m`
+The tokenizer module implements functions to convert a character stream (lazy list of characters) to a `tokloc` stream (lazy list
+of tokens along with their source location), by removing whitespace and grouping characters to form a token. The main function is
+`tokenizePos`, which takes the current line and column numbers and calls specialized tokenizers based upon the next 1 or 2
+characters of the input string.  Each of the specialized tokenizers is written in a Continuation Passing Style (CPS) to allow a
+called tokenizer to "return" multiple values (e.g. updated row, col, and character stream) to a continuation, without having to
+use a tuple to structure/destructure the values.  This resulted in a measureable performance improvement, because the tokenizer is
+called for each character in the input string.
+
+### Qualified Identifiers and Symbols
+The tokenizer processes identifiers by first checking to see if the next character immediately following the ident is a `.`. If
+so, the identifer is treated as the module name of an Unresolved identifier or symbol, which is tokenized from the characters
+following the `.`.  If not, the identifier is returned as an Unqualified identifier.
+
+### Handling `$`
+The tokenizer handles `$` in two different ways: if the `$` is immediately followed (with no whitespace) by a letter or `_`, it
+signifies an identifer that is to be used as an infix operator, e.g. `$div` or `$parser.p_cons`, and returns that identifier as
+a Tsymbol.  Otherwise it is treated as a standalone symbol (defined in `stdlib.m` as `apply`) or part of another symbol.
+
+### Handling a `#` suffix
+`tokenizeStr`, `tokenizeLitInt`, and `tokenizeLitChar` all check to see if the next character after tokenization is a `#`.  If so,
+`tokenizeStr` appends the `#` as part of the name (to be processed as a normal identifier, but with the explicit `#` suffix).
+`tokenizeLitInt` and `tokenizeLitChar` use it to return a different token type (`TprimInt` and `TprimChar`, respectively), to be
+used later as unboxed primitive values.
+
+### Expanding escape characters in strings
+Literal strings are tokenized in `tokenizeString` by repeatedly calling `tokenizeChar`, which handles the correct tokenization of
+escaped characters like `\n` or `\x32`
+
 
 ## `parser.m` and `mirandaParser.m`
 
