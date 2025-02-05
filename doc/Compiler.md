@@ -4,7 +4,8 @@ from source file to asm binary.  We'll tour these in a bottom-up order, based up
 
 The overall pipeline looks like:
 
-### `source -> tokenize -> parse -> AST transformation passes -> STG -> codegen`
+`source -> tokenize -> parse -> AST transformation passes -> STG -> codegen`
+
 A module's text is tokenized, then parsed into an Abstract Syntax Tree (AST).  From there it is
 run through a sequence of AST transformation passes.  All of the collected module ASTs are combined
 and lowered to a Spineless, Tagless G-machine representation (STG), which is then converted to
@@ -52,7 +53,7 @@ It firsts defines a number of type aliases for `ast`:
 
 * `expr`: a value expression
 * `cond`: conditional expressions (ones qualified by `if` or `otherwise`)
-* `caseAlt: a case expression alternate
+* `caseAlt`: a case expression alternate
 * `qual`: a list comprehension generator, recurrence, or guard
 * `pat`: a pattern
 * `texpr`: a type expression
@@ -86,7 +87,7 @@ Finally, we define a fixed precedence and associativity table for common operato
 user-definable mechanism later on.
 
 ## `ast.m`
-`ast.m` (which should probably be named `traversal.m`) defines functions for traversing an `ast`, including accumulations
+`ast.m` (which should probably be named "traversal") defines functions for traversing an `ast`, including accumulations
 of information and rewrites of the `ast`.
 
 ### Accumulation traversals
@@ -120,7 +121,7 @@ following the `.`.  If not, the identifier is returned as an Unqualified identif
 
 ### Handling `$`
 The tokenizer handles `$` in two different ways: if the `$` is immediately followed (with no whitespace) by a letter or `_`, it
-signifies an identifer that is to be used as an infix operator, e.g. `$div` or `$parser.p_cons`, and returns that identifier as
+signifies an identifer that is to be used as an infix operator, e.g. `$div` or `$parser.p_satisfy`, and returns that identifier as
 a Tsymbol.  Otherwise it is treated as a standalone symbol (defined in `stdlib.m` as `apply`) or part of another symbol.
 
 ### Handling a `#` suffix
@@ -131,10 +132,64 @@ used later as unboxed primitive values.
 
 ### Expanding escape characters in strings
 Literal strings are tokenized in `tokenizeString` by repeatedly calling `tokenizeChar`, which handles the correct tokenization of
-escaped characters like `\n` or `\x32`
+escaped characters like `\n` or `\x32`.
 
+## `parser.m`
+Parsing is split into two separate modules `parser.m` and `mirandaParser.m`.  `parser.m` implements the basic parsing combinators
+for processing a `tokloc` stream, while `mirandaParser.m` implements parsing combinators specific to the Miranda2 grammar.  This
+split allows `parser.m` to be used in the `predef.m` module as well (to parse builtin type specifications); otherwise a dependency
+loop between `mirandaParser.m` and `predef.m` would exist.
 
-## `parser.m` and `mirandaParser.m`
+### Parser state
+The parser is based on `lib/maybeState.m`, which implements a state monad augmented by a maybe monad.  This allows a parser to
+return a (`Just` value) upon success, or a `Nothing` upon failure, with `p_bind` (and its associated applicative functors)
+automatically short-circuiting the reutrn of any failure in a chain of parser combinators.
+
+The state passed through the parsers, `psSt`, is a tuple of
+* the module name
+* the deepest error encountered during parsing, so far
+* a stack of active indent levels to handle offside-rule processing
+* the (lazy) list of tokloc values from the tokenizer
+
+Most of the parser combinators are written in a curried form, not mentioning the parser as an operand.
+Instead, state is handled implicitly by lower-level combinators (e.g. `p_any`), or by the combinator p_get, which returns
+the current state.  This, combined with the automatic early-out handling of parsing failures results in high-level parser
+combinators which are easier to read. For example, the parser `p_inParens`:
+
+    p_inParens :: parser * -> parser *
+    p_inParens p = p_char '(' >> p << p_char ')'
+
+parses the parser `p` surrounded by parenthesis tokens, without having to show the automatic handling of conditions
+like:
+* end-of-file encountered
+* offside-rule indentation error
+* token match failure on any of the parsers
+
+### Error handling
+The error portion of the parser state `psErr` is a tuple of
+* error string
+* severity
+* line number
+* column number
+
+#### `p_error`
+When the parser `p_error` is called with a severity value and error string, it compares the error against the `psErr`
+held in the parser state, and replaces the `psErr` value with whichever compares `max` (the deepest via line/col
+number, or, if equal, the severity.  This is a heuristic to pick which error to report when all parsing alternatives
+have failed, the theory being that the best error to report is likely to be the one that proceeded the furthest
+before encountering an error.
+
+#### `p_alt`
+The alternative parser, `p_alt` tries to run a primary parser, and, if that fails, runs the alternative parser
+with the original parser state ("rewinding" the tokloc stream), except it will update the `psErr` part of the
+state with that of the first parser.
+
+## `p_any`
+The parser `p_any` is the most basic token parser.  It is the one that explicitly handles most of the fundamental
+parsing errors (end-of-input, error from tokenizer, and the offside-rule error.  Most other parser combinators
+use it indirectly.
+
+`mirandaParser.m`
 
 ## `exception.m`
 
