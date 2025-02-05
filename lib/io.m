@@ -73,7 +73,7 @@ readFileStream (Handle fs#)
                                         _ -> []                 || and return end of stream
                                 _  -> restart fs#               || filled buffer; restart readFileStream
                 s  -> s ++ restart fs#                          || strictly read as much of the buffer as possible, with lazy refill of the buffer
-        
+
 || strict write to an handle, writing the buffer out to the file when it becomes full
 writeFileStream :: handle -> string -> io ()
 writeFileStream (Handle fs#) s

@@ -218,7 +218,7 @@ v_sortBy cmp v
                                 check vj
                                     = st_pure (), if _gt cmp vj pivot
                                     = swapWith j, otherwise
-                
+
 || binary search a sorted vector for a matching entry, based upon the result of the cmp fn
 v_search :: (* -> ordering) -> vector * -> maybe *
 v_search cmp v

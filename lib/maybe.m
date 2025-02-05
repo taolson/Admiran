@@ -59,7 +59,7 @@ mb_filterM p
         check x       = mb_liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
-        
+
 mb_foldM :: (** -> * -> maybe **) -> ** -> [*] -> maybe **
 mb_foldM f z0 xs
     = foldr c mb_pure xs z0

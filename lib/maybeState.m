@@ -54,7 +54,7 @@ mst_filterM p
         check x       = mst_liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
-        
+
 mst_foldM :: (*** -> ** -> maybeState * ***) -> *** -> [**] -> maybeState * ***
 mst_foldM f z0 xs
     = foldr c mst_pure xs z0

@@ -90,7 +90,7 @@ rws_filterM p
         check x       = rws_liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
-        
+
 rws_foldM :: (***** -> **** -> rws * ** *** *****) -> ***** -> [****] -> rws * ** *** *****
 rws_foldM f z0 xs
     = foldr c rws_pure xs z0

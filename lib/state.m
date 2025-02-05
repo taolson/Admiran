@@ -64,7 +64,7 @@ st_filterM p
         check x       = st_liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
-        
+
 st_foldM :: (*** -> ** -> state * ***) -> *** -> [**] -> state * ***
 st_foldM f z0 xs
     = foldr c st_pure xs z0
