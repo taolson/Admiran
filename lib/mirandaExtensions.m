@@ -87,11 +87,11 @@ digitVal c
 || numeric functions
 
 signum :: int -> int
-signum (I# n)
-    = case n $cmp# 0# of
-        0# ->  0
-        1# -> -1
-        2# ->  1
+signum n
+    = case cmpint n 0 of
+        EQ ->  0
+        LT -> -1
+        GT ->  1
 
 even, odd :: int -> bool
 even x = x .&. 1 == 0
@@ -209,7 +209,7 @@ mapSnd f (a, b) = (a, f b)
 
 mapBoth :: (* -> **) -> (*, *) -> (**, **)
 mapBoth f (a, b) = (f a, f b)
- 
+
 swapPair :: (*, **) -> (**, *)
 swapPair (a, b) = (b, a)
 
