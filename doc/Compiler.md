@@ -35,8 +35,8 @@ x86-64 assembly code.
     ]
 
 ## `name.m`
-We'll start with `name.m`, which defines the `name` data type used throughout the compiler to specify variable, 
-function, constructor, and type names.  `name`s can be one of:
+We'll start with the module `name.m`, which defines the `name` data type used throughout the compiler to specify
+variable, function, constructor, and type names.  `name`s can be one of:
 
 * `Unqualified`: a name that has not yet been qualified with a module
 * `Unresolved`: a name that is qualified by a module in the source code, but hasn't been resolved (verified)
@@ -48,7 +48,7 @@ function, constructor, and type names.  `name`s can be one of:
 The module also defines a number of common functions on `name`s.
 
 ## `grammar.m`
-`grammar.m` defines the AST for Miranda2 that will be used and refined in all the subsequent passes.
+The `grammar` module defines the AST for Miranda2 that will be used and refined in all the subsequent passes.
 It firsts defines a number of type aliases for `ast`:
 
 * `expr`: a value expression
@@ -87,8 +87,8 @@ Finally, we define a fixed precedence and associativity table for common operato
 user-definable mechanism later on.
 
 ## `ast.m`
-`ast.m` (which should probably be named "traversal") defines functions for traversing an `ast`, including accumulations
-of information and rewrites of the `ast`.
+The `ast` module (which should probably be named "traversal") defines functions for traversing an `ast`, including
+accumulations of information and rewrites of the `ast`.
 
 ### Accumulation traversals
 An `ast` traversal can be used to collect information from an `ast`.  Accumulation traversals for bottom-up, top-down, and
@@ -106,7 +106,7 @@ are defined, and, analogous to `astAccumLex`, an `astRewriteLex` implements top-
 attached.
 
 ## `tokenizer.m`
-The tokenizer module implements functions to convert a character stream (lazy list of characters) to a `tokloc` stream (lazy list
+The `tokenizer` module implements functions to convert a character stream (lazy list of characters) to a `tokloc` stream (lazy list
 of tokens along with their source location), by removing whitespace and grouping characters to form a token. The main function is
 `tokenizePos`, which takes the current line and column numbers and calls specialized tokenizers based upon the next 1 or 2
 characters of the input string.  Each of the specialized tokenizers is written in a Continuation Passing Style (CPS) to allow a
@@ -135,15 +135,15 @@ Literal strings are tokenized in `tokenizeString` by repeatedly calling `tokeniz
 escaped characters like `\n` or `\x32`.
 
 ## `parser.m`
-Parsing is split into two separate modules `parser.m` and `mirandaParser.m`.  `parser.m` implements the basic parsing combinators
-for processing a `tokloc` stream, while `mirandaParser.m` implements parsing combinators specific to the Miranda2 grammar.  This
-split allows `parser.m` to be used in the `predef.m` module as well (to parse builtin type specifications); otherwise a dependency
-loop between `mirandaParser.m` and `predef.m` would exist.
+Parsing is split into two separate modules `parser` and `mirandaParser`.  `parser` implements the basic parsing combinators
+for processing a `tokloc` stream, while `mirandaParser` implements parsing combinators specific to the Miranda2 grammar.  This
+split allows `parser` to be used in the `predef` module as well (to parse builtin type specifications); otherwise a dependency
+loop between the `mirandaParser` and `predef` modules would exist.
 
 ### Parser state
-The parser is based on `lib/maybeState.m`, which implements a state monad augmented by a maybe monad.  This allows a parser to
+The parser is based on `lib/maybeState`, which implements a state monad augmented by a maybe monad.  This allows a parser to
 return a (`Just` value) upon success, or a `Nothing` upon failure, with `p_bind` (and its associated applicative functors)
-automatically short-circuiting the reutrn of any failure in a chain of parser combinators.
+automatically short-circuiting the return of any failure in a chain of parser combinators.
 
 The state passed through the parsers, `psSt`, is a tuple of
 * the module name
@@ -175,21 +175,36 @@ The error portion of the parser state `psErr` is a tuple of
 #### `p_error`
 When the parser `p_error` is called with a severity value and error string, it compares the error against the `psErr`
 held in the parser state, and replaces the `psErr` value with whichever compares `max` (the deepest via line/col
-number, or, if equal, the severity.  This is a heuristic to pick which error to report when all parsing alternatives
+number, or, if equal, the severity).  This is a heuristic to pick which error to report when all parsing alternatives
 have failed, the theory being that the best error to report is likely to be the one that proceeded the furthest
 before encountering an error.
 
 #### `p_alt`
-The alternative parser, `p_alt` tries to run a primary parser, and, if that fails, runs the alternative parser
+The alternative parser, `p_alt` tries to run the primary parser, and, if that fails, runs the alternative parser
 with the original parser state ("rewinding" the tokloc stream), except it will update the `psErr` part of the
 state with that of the first parser.
 
-## `p_any`
+#### `p_any`
 The parser `p_any` is the most basic token parser.  It is the one that explicitly handles most of the fundamental
 parsing errors (end-of-input, error from tokenizer, and the offside-rule error.  Most other parser combinators
 use it indirectly.
 
-`mirandaParser.m`
+#### `p_guard` and `p_satisfy`
+The parser combinator `p_guard` takes a primary parser and a predicate parser, and passes the results of running
+the primary parser to the predicate parser.  If the predicate parser (the "guard" test) fails, then the
+`p_unexpected` parser is run, which fails and runs p_error with the message "unexpected" and the current token.
+The parser combinator `p_satisfy` takes a parser and a predicate function, and passes the result of the parser to a
+`p_guard` parser, which tests the result with the predicate function, and if it is false, fails, invoking the
+`p_unexpected` alternate of the `p_guard`.
+
+Most other token parsers are written to use a combination of `p_any` and `p_satisfy`, for example `p_token`, a
+parser which expects a particular literal token value:
+
+    p_token :: token -> parser token
+    p_token t = p_any $p_satisfy (_eq cmptoken t)
+
+
+## `mirandaParser.m`
 
 ## `exception.m`
 
