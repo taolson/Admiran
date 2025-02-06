@@ -35,11 +35,11 @@ makeStdlibType s = Tname (makeStdlibName s) []
 makeStdlibVar :: string -> expr
 makeStdlibVar s = Evar (makeStdlibName s)
 
-|| make a list expression from a Miranda list of expressions
+|| make a Miranda2 list expression from a list of expressions
 makeList :: [expr] -> expr
 makeList elts = foldr (ap2 builtinCons) builtinNil elts
 
-|| make a tuple expression from a Miranda list of expressions
+|| make a Miranda2 tuple expression from a list of expressions
 makeTupleExpr :: [expr] -> expr
 makeTupleExpr [elt] = elt       || single element
 makeTupleExpr elts
@@ -47,7 +47,7 @@ makeTupleExpr elts
       where
         ntuple = Evar (builtinTupleName (#elts))
 
-|| make a tuple pattern from a Miranda list of names
+|| make a Miranda2 tuple pattern from a list of names
 makeTuplePat :: [name] -> pat
 makeTuplePat [n] = Pvar n               || single name
 makeTuplePat ns  = Pctor (builtinTupleName (#ns)) (map Pvar ns)
