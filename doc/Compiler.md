@@ -11,7 +11,7 @@ run through a sequence of AST transformation passes.  All of the collected modul
 and lowered to a Spineless, Tagless G-machine representation (STG), which is then converted to
 x86-64 assembly code.
 
-### AST transformation passes (as defined in `mirac.m`):
+### AST transformation passes (as defined in the module `mirac`):
 
     [ reifyImports
     , reifyDefns isDefData        || reify data type and constructor names early for desugaring constructor patterns
@@ -35,7 +35,7 @@ x86-64 assembly code.
     ]
 
 ## `name.m`
-We'll start with the module `name.m`, which defines the `name` data type used throughout the compiler to specify
+We'll start with the module `name`, which defines the `name` data type used throughout the compiler to specify
 variable, function, constructor, and type names.  `name`s can be one of:
 
 * `Unqualified`: a name that has not yet been qualified with a module
@@ -45,7 +45,7 @@ variable, function, constructor, and type names.  `name`s can be one of:
 * `Builtin`: a resolved name for a builtin function or type
 * `Internal`: a resolved, non-top-level name which is qualified with a unique integer
 
-The module also defines a number of common functions on `name`s.
+The module also defines a number of common operations on `name`s.
 
 ## `grammar.m`
 The `grammar` module defines the AST for Miranda2 that will be used and refined in all the subsequent passes.
@@ -76,7 +76,7 @@ reporting probably needs to be more fine-grained than that.  Also, it would be n
 inferred type after typechecking.  So in the future, the annotation field may be expanded and applied to other ast nodes, or
 replaced with something else.
 
-After this, `grammar.m` goes on to define `showS`, a faster way of appending strings by composing functions, then uses it
+After this, `grammar` goes on to define `showS`, a faster way of appending strings by composing functions, then uses it
 to define various functions to pretty-print an `ast`.  Then come common operations on `expr`s, `pat`s, `texpr`s, and `defn`s,
 Then we define two important map data types that are used frequently throughout the compiler:
 
@@ -101,7 +101,7 @@ traversal returns.
 
 ### Rewriting traversals
 An `ast` traversal can also be used to rewrite an `ast`, passing state information along during the traversal.   The state is
-handled with a `state` monad (defined in `lib/state.m`).  Rewriting traversals for bottom-up, top-down, top-down with continuation
+handled with a `state` monad (defined in `lib/state`).  Rewriting traversals for bottom-up, top-down, top-down with continuation
 are defined, and, analogous to `astAccumLex`, an `astRewriteLex` implements top-down rewriting with additional lexical scope state
 attached.
 
@@ -115,20 +115,22 @@ use a tuple to structure/destructure the values.  This resulted in a measureable
 called for each character in the input string.
 
 ### Qualified Identifiers and Symbols
-The tokenizer processes identifiers by first checking to see if the next character immediately following the ident is a `.`. If
-so, the identifer is treated as the module name of an Unresolved identifier or symbol, which is tokenized from the characters
-following the `.`.  If not, the identifier is returned as an Unqualified identifier.
+The `tokenizeQualified` tokenizer  processes identifiers by first checking to see if the next character immediately following
+the ident is a `.`. If so, the identifer is treated as the module name of an Unresolved identifier or symbol, which is tokenized
+from the characters following the `.`.  If not, the identifier is returned as an Unqualified identifier.
 
 ### Handling `$`
-The tokenizer handles `$` in two different ways: if the `$` is immediately followed (with no whitespace) by a letter or `_`, it
+The tokenizers handle `$` in two different ways: if the `$` is immediately followed (with no whitespace) by a letter or `_`, it
 signifies an identifer that is to be used as an infix operator, e.g. `$div` or `$parser.p_satisfy`, and returns that identifier as
-a Tsymbol.  Otherwise it is treated as a standalone symbol (defined in `stdlib.m` as `apply`) or part of another symbol.
+a Tsymbol.  Otherwise it is treated as a stand-alone symbol (defined in `stdlib` as the function `apply`) or as part of another
+symbol.
 
 ### Handling a `#` suffix
 `tokenizeStr`, `tokenizeLitInt`, and `tokenizeLitChar` all check to see if the next character after tokenization is a `#`.  If so,
 `tokenizeStr` appends the `#` as part of the name (to be processed as a normal identifier, but with the explicit `#` suffix).
 `tokenizeLitInt` and `tokenizeLitChar` use it to return a different token type (`TprimInt` and `TprimChar`, respectively), to be
-used later as unboxed primitive values.
+used later as unboxed primitive values.  A `#` character otherwise is parsed as a stand-alone symbol (defined in `stdlib` as a
+prefix operator function to return the length of a list), or as part of another symbol.
 
 ### Expanding escape characters in strings
 Literal strings are tokenized in `tokenizeString` by repeatedly calling `tokenizeChar`, which handles the correct tokenization of
@@ -151,15 +153,16 @@ The state passed through the parsers, `psSt`, is a tuple of
 * a stack of active indent levels to handle offside-rule processing
 * the (lazy) list of tokloc values from the tokenizer
 
-Most of the parser combinators are written in a curried form, not mentioning the parser as an operand.
-Instead, state is handled implicitly by lower-level combinators (e.g. `p_any`), or by the combinator p_get, which returns
-the current state.  This, combined with the automatic early-out handling of parsing failures results in high-level parser
-combinators which are easier to read. For example, the parser `p_inParens`:
+Most of the parser combinators are written in a curried form, with an implicit `psSt` operand at the end (rather than
+explicitly in the parser's function definition argument list).  Instead, state is handled implicitly by lower-level
+parsers (e.g. `p_any`), or by the parserr p_get, which returns the current state.  This, combined with the automatic
+early-out handling of parsing failures results in high-level parser combinators which are easier to read. For example, the
+parser `p_inParens`:
 
     p_inParens :: parser * -> parser *
     p_inParens p = p_char '(' >> p << p_char ')'
 
-parses the parser `p` surrounded by parenthesis tokens, without having to show the automatic handling of conditions
+parses using the parser `p` surrounded by parenthesis tokens, without having to show the automatic handling of conditions
 like:
 * end-of-file encountered
 * offside-rule indentation error
@@ -184,18 +187,24 @@ The alternative parser, `p_alt` tries to run the primary parser, and, if that fa
 with the original parser state ("rewinding" the tokloc stream), except it will update the `psErr` part of the
 state with that of the first parser.
 
+#### `p_expected` and `p_unexpected`
+The parsers `p_expected` and `p_unexpected` are used to report an error as the alternative parser of a `p_alt`.
+`p_expected` takes a string to report as the expected result, and is used in various parsers in `mirandaParser`
+to give additional information to a parse error.  `p_unexpected` is used as a default alternative parser (mainly
+used by `p_guard` and `p_satisfy`) to report an error on failure.
+
+#### `p_guard` and `p_satisfy`
+The parser `p_guard` takes a primary parser and a predicate parser, and passes the results of running
+the primary parser to the predicate parser.  If the predicate parser (the "guard" test) fails, then the
+`p_unexpected` parser is run, which fails and runs p_error with the message "unexpected" and the current token.
+The parser `p_satisfy` takes a parser and a predicate function, and passes the result of the parser to a
+`p_guard` parser, which tests the result with the predicate function, and if it is false, fails, invoking the
+`p_unexpected` alternate of the `p_guard`.
+
 #### `p_any`
 The parser `p_any` is the most basic token parser.  It is the one that explicitly handles most of the fundamental
 parsing errors (end-of-input, error from tokenizer, and the offside-rule error.  Most other parser combinators
 use it indirectly.
-
-#### `p_guard` and `p_satisfy`
-The parser combinator `p_guard` takes a primary parser and a predicate parser, and passes the results of running
-the primary parser to the predicate parser.  If the predicate parser (the "guard" test) fails, then the
-`p_unexpected` parser is run, which fails and runs p_error with the message "unexpected" and the current token.
-The parser combinator `p_satisfy` takes a parser and a predicate function, and passes the result of the parser to a
-`p_guard` parser, which tests the result with the predicate function, and if it is false, fails, invoking the
-`p_unexpected` alternate of the `p_guard`.
 
 Most other token parsers are written to use a combination of `p_any` and `p_satisfy`, for example `p_token`, a
 parser which expects a particular literal token value:
@@ -203,8 +212,118 @@ parser which expects a particular literal token value:
     p_token :: token -> parser token
     p_token t = p_any $p_satisfy (_eq cmptoken t)
 
-
 ## `mirandaParser.m`
+The Miranda2 grammar is parsed in the `mirandaParser` module, which groups parser combinators into:
+* expression parsing
+* pattern and fnform parsing
+* type expression parsing
+* data constructor parsing
+* definition parsing
+* library directive parsing
+
+### Expression parsers
+Expression parsers parse the Miranda2 expression grammar, including:
+* variables and constructors
+* parenthesized expressions, unit (), and tuples
+* list expressions
+* list comprehensions
+* range expressions
+* pre- and post-section expressions
+* case expressions
+* conditional expressions
+* infix expressions
+
+#### Parsing list expressions
+List expressions are comma-separated lists of expressions that build nested applications of
+`builtinCons` and `builtinNil` functions to build a list at runtime, e.g. the list
+`[1, 2, 3]` would parse into the expression `Eap builtinCons 1 (Eap builtinCons 2 (Eap builtinCons 3 builtinNil))`
+
+#### Parsing list comprehensions
+List comprehensions are a shorthand for performing possibly nested map and filter operations on lists, e.g.
+
+    [(a, b, c) | a, b, c <- [1 .. 100]; a * a + b * b == c * c] || list of Pythagorean triples
+
+or an iteration of a recurrence:
+
+    [a | (a, b) <- (1, 1), (b, a + b) ..]       || list of Fibonnaci numbers
+
+These are parsed by the parser combinators `p_generator`, `p_recurrence`, `p_qualifier`, and `p_comprehension`,
+and generate an `ElistComp` `ast` node.
+
+#### Parsing range expressions
+Range expressions are a list shorthand for an iteration of integer values, e.g.:
+* `[1 .. 10]   ` : expands to stdlib.range 1 10
+* `[10, 8 .. 0]` : expands to stdlib.rangeBy -2 10 0
+* `[0 ..]      ` : expands to stdlib.rangeFrom 0
+
+These get turned into Eap nodes, applying the appropriate function from stdlib, by the parsers `p_rangePart`,
+`p_range`, `p_rangeBy`, and `p_rangeExpr`.
+
+#### Parsing pre-section and post-section expressions
+Pre-sections are partial applications of an infix operator, applying a value to the left-hand side of the
+operator, e.g. `(1 +)`, while post-sections apply a value to the right-hand side, e.g. `(: [])`.  Pre-sections
+expand to a partial application of the operator, while post-sections expand to the partial application of
+the function stdlib.converse (flip the two operands of a function) to the expression.
+
+#### Parsing case expressions
+Miranda2 adds a limited form of case expression to the Miranda grammar, mainly to support directly coding
+the case expressions allowed by the STG machine semantics and for calling builtin functions. An example
+of such a case expression is:
+
+    case n of
+      I# n# -> case n# +# 1# of
+                 n2# -> I# n2#
+
+which is strict evaluation of a boxed integer n to an unboxed word n#, adding an unboxed word 1# to
+it with the builtinAdd function, and returning the boxed integer result.  The limitation is that the
+`CaseAlt` expressions can only be simple patterns: either an unboxed word literal, or a constructor with only
+variable or wildcard pattern arguments.  Parsing of these are handled with the `p_casePat`, `p_caseAlt`, and
+`p_caseExpr` parsers, with `p_casePat` checking the pattern of a `CaseAlt` for legality.
+
+#### Parsing conditional expressions
+Conditional expressions are expressions on the right-hand-side of an equality definition that can be used to
+qualify the definition, e.g.:
+
+    r = "zero",    if x == 0
+      = "less",    if x < 0
+      = "greater", otherwise
+
+These are handled by the parsers `p_cond` and `p_conds`, which use the `p_indent` and `p_outdent` parsers from
+the `parser` module to control the layout formatting.
+
+#### Parsing infix expressions
+General infix expressions are handled by passing prefix operator, infix operator, and term parsers
+to the parameterized parser `p_expExpr` for it to use when parsing those components of a complex
+infix expression.  This allows `p_expExpr` to be used for parsing both expressions and pattern expressions
+by varying the parameterized parsers.
+
+`p_expExpr`, `p_expOp`, `p_expAp`, `p_expReduce`, and `p_expFinal` form a mutually-recursive group of parsers
+that operate on a stack of pending expressions and a stack of pending infix operators, using the pre-defined
+operator precedence/associativity table from the `grammar` module.
+
+##### `p_expExpr`
+This parser parses either a prefix operator, pushing it onto the operator stack and recursively continuing,
+or parsing a term, pushing it onto the expression stack and continuing with `p_expOp`.
+
+##### `p_expOp`
+This parser parses either an infix operator, pushing it onto the operator stack and continuing with `p_expReduce`,
+or trying to parse an application by calling `p_expAp`.
+
+##### `p_expAp`
+This parser tries to parse a term, pushing it onto the expression stack and continuing with `p_expOp`, or calls
+`p_expFinal`, to perform a final reduction on the pending expression and operator stacks.
+
+##### `p_expReduce`
+This parser performs reduction on the expression and operator stacks, based upon the relative precedence and
+associativity of the operators on the operator stack.  It first tries to reduce prefix operators, including
+conversion of a prefix `neg` operator and a literal int to a literal negative int.  Binary operators are
+reduced similarly, applying the binary operator to the top two expressions on the expression stack.  Special
+handling is performed on operators with "AssocCompare" associativity: these allow operator "chaining",
+converting expressions like: `0 <= x < maxX` into `0 <= x & x < maxX`, automatically inserting calls to stdlib.(&).
+
+##### `p_expFinal`
+This parser performs the final reduction steps remaining on the expression and operator stacks, and returns the final
+parsed expression.
 
 ## `exception.m`
 
