@@ -25,7 +25,7 @@
 %import "tokenizer"
 
 
-|| Miranda expression parsing
+|| Miranda2 expression parsing
 
 || parse an identifier
 p_identifier :: parser name
@@ -343,7 +343,7 @@ p_rhs
                 go (Left es)       = p_error 2 . showException . hd $ es        || report exception as parser error
 
 
-|| parse patterns and fnforms
+|| Miranda2 pattern and fnform parsing
 
 fnform == (name, [pat])                     || left-hand-side of a function definition
 
@@ -401,7 +401,7 @@ p_pat
         checkPat (Right x) = p_fail
 
 
-|| Miranda type expression parsing
+|| Miranda2 type expression parsing
 
 || parse a type name
 p_tname :: parser name
@@ -496,7 +496,7 @@ p_type :: parser texpr
 p_type = p_tExpr [] []
 
 
-|| Data Constructors
+|| Miranda2 Data Constructor parsing
 
 || restrict infix operators to constructors (e.g. ":" or "$Cons")
 p_cinfix :: parser name
@@ -517,7 +517,7 @@ p_constructs :: parser [tform]
 p_constructs = p_someSepBy p_vBar p_construct
 
 
-|| Miranda definition parsing
+|| Miranda2 definition parsing
 
 || get the location info for the current token
 p_getLoc :: parser location
@@ -569,7 +569,7 @@ p_def
 
 
 
-|| Miranda library directive parsing
+|| Miranda2 library directive parsing
 
 p_fileSpec :: parser fileSpec
 p_fileSpec
@@ -634,7 +634,7 @@ p_libDir
            p_expected "a library directive")
 
 
-|| Miranda top-level declarations
+|| Miranda2 top-level declarations
 
 p_decl :: parser [modInserter]
 p_decl
