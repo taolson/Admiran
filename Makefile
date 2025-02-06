@@ -9,8 +9,7 @@ MIRAC_BOOT := miracLinux.s
 CCOPTS := -O2 -fno-pie -no-pie -z noexecstack
 endif
 
-#
-.PHONY:	clean
+.PHONY:	clean distclean
 
 all:	bin/mirac
 
