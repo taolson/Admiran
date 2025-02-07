@@ -320,8 +320,8 @@ infer (EprimInt n)    = tc_pure (builtinTypeWord, id_subst)
 infer (EprimChar c)   = tc_pure (builtinTypeWord, id_subst)
 infer (EprimString s) = tc_pure (builtinTypeWord, id_subst)
 infer (Evar n)
-    = tc_pure ((Tname n []), id_subst),  if isWildcard n   || wildcards used as type holes
-    = lookupScheme n >>= instantiate, otherwise
+    = tc_pure ((Tname n []), id_subst), if isWildcard n || wildcards used as type holes
+    = lookupScheme n >>= instantiate,   otherwise
 
 || handle polymorphic pseudo-functions pack and sel
 || the constructor name to use for the function is passed as the first argument
