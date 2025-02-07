@@ -155,7 +155,7 @@ The state passed through the parsers, `psSt`, is a tuple of
 
 Most of the parser combinators are written in a curried form, with an implicit `psSt` operand at the end (rather than
 explicitly in the parser's function definition argument list).  Instead, state is handled implicitly by lower-level
-parsers (e.g. `p_any`), or by the parserr p_get, which returns the current state.  This, combined with the automatic
+parsers (e.g. `p_any`), or by the parser `p_get`, which returns the current state.  This, combined with the automatic
 early-out handling of parsing failures results in high-level parser combinators which are easier to read. For example, the
 parser `p_inParens`:
 
@@ -220,8 +220,9 @@ The Miranda2 grammar is parsed in the `mirandaParser` module, which groups parse
 * data constructor parsing
 * definition parsing
 * library directive parsing
+* top-level module declaration parsing
 
-### Expression parsers
+### Parsing expressions
 Expression parsers parse the Miranda2 expression grammar, including:
 * variables and constructors
 * parenthesized expressions, unit (), and tuples
@@ -247,14 +248,14 @@ or an iteration of a recurrence:
 
     [a | (a, b) <- (1, 1), (b, a + b) ..]       || list of Fibonnaci numbers
 
-These are parsed by the parser combinators `p_generator`, `p_recurrence`, `p_qualifier`, and `p_comprehension`,
+These are parsed by the parsers `p_generator`, `p_recurrence`, `p_qualifier`, and `p_comprehension`,
 and generate an `ElistComp` `ast` node.
 
 #### Parsing range expressions
 Range expressions are a list shorthand for an iteration of integer values, e.g.:
-* `[1 .. 10]   ` : expands to stdlib.range 1 10
-* `[10, 8 .. 0]` : expands to stdlib.rangeBy -2 10 0
-* `[0 ..]      ` : expands to stdlib.rangeFrom 0
+* `[1 .. 10]   `  expands to `stdlib.range 1 10`
+* `[10, 8 .. 0]`  expands to `stdlib.rangeBy -2 10 0`
+* `[0 ..]      `  expands to `stdlib.rangeFrom 0`
 
 These get turned into Eap nodes, applying the appropriate function from stdlib, by the parsers `p_rangePart`,
 `p_range`, `p_rangeBy`, and `p_rangeExpr`.
@@ -276,12 +277,12 @@ of such a case expression is:
 
 which is strict evaluation of a boxed integer n to an unboxed word n#, adding an unboxed word 1# to
 it with the builtinAdd function, and returning the boxed integer result.  The limitation is that the
-`CaseAlt` expressions can only be simple patterns: either an unboxed word literal, or a constructor with only
-variable or wildcard pattern arguments.  Parsing of these are handled with the `p_casePat`, `p_caseAlt`, and
+`CaseAlt`patterns can only be either an unboxed word literal, or a constructor with only variable or
+wildcard pattern arguments.  Parsing of these are handled with the `p_casePat`, `p_caseAlt`, and
 `p_caseExpr` parsers, with `p_casePat` checking the pattern of a `CaseAlt` for legality.
 
 #### Parsing conditional expressions
-Conditional expressions are expressions on the right-hand-side of an equality definition that can be used to
+Conditional expressions are expressions on the right-hand side of an equality definition that can be used to
 qualify the definition, e.g.:
 
     r = "zero",    if x == 0
@@ -324,6 +325,65 @@ converting expressions like: `0 <= x < maxX` into `0 <= x & x < maxX`, automatic
 ##### `p_expFinal`
 This parser performs the final reduction steps remaining on the expression and operator stacks, and returns the final
 parsed expression.
+
+## Parsing patterns and `fnform`s
+Patterns are used on the left-hand side of an equality definition or a `caseAlt to destructure an expression value.
+`fnform`s are the left-hand side of function definitions: the function name and its argument patterns.  Both are
+parsed with `p_patOrFnForm`, which uses `p_expExpr`, limiting prefix parsing to `neg` (for integer literals) and
+term parsing to `p_formal`: vars, constructors, literals, and paren expressions and list expressions of those.
+
+After successful parsing of a pattern with `p_expExpr`, the parsed expression is walked through `mkPatFn`, which 
+ensures all of the arguments in the expr are valid patterns, and then classifies it as a pattern or `fnform`
+based upon the name of the first `Evar` and the number of arguments.
+
+### Parsing type expressions
+Type expression parsers parse the Miranda2 type expression grammar, including:
+* type names and type variables
+* parenthesized type expressions, type Unit (), and type tuples
+* type list expression (a single type within brackets)
+
+The individual parsers are structured similarly to their value expression counterparts.
+
+### Parsing data constructors
+Data constructors are the right-hand side of a Data definition; they are parsed by the `p_construct` and
+`p_constructs` parsers.  `p_construct` handles parsing individual constructors with arguments (optionally
+strict).  It also parses infix constructors.   `p_constructs` parses a list of these, separated by `p_vBar` (|).
+
+### Parsing Definitions
+A Miranda2 definition can be:
+* a function definition, e.g. `inc n = n + 1`
+* a pattern definition, e.g. `(a, _, b) = x`
+* a type definition, e.g. `nameMap == m_map name name`
+* a type specification, e.g. `inc :: int -> int`
+
+These are handled by the parsers `p_def`, `p_tdef`, and `p_spec`.  In addition to returning the definition upon a
+successful parse, these parsers also return a `modInserter`; a function, which when called with a `module`
+argument, inserts the definition into the approprate data structure in the module.  This allows definitions at
+the top-level of the module to be added to the module easily, after being collected into a list of `modInserter`s.
+
+### Parsing Library directives
+Miranda2 library directives begin with a `%`:
+* `%import <fileSpec> {qualified} {as <identifier>} ['-' <identifier> | <identifier> '/' <identifier>]*
+* '%export ['+' | <fileSpec> | '-' <identifier> | <identifier>]*
+
+They are parsed with the parsers `p_fileSpec`, `p_libPart`, `p_libQual`, `p_libAs`, `p_alias`, `p_env`, and
+`p_libDir`.  There are also some (deprecated) parsers for handling `%free` and the `%free` directive's `lib_binding`s.
+
+### Parsing top-level `module` declarations
+Declarations at the top-level of a `module` are parsed with `p_decl`, and `p_decls` parsers, which try parsing
+definitions in the order `p_tdef`, `p_def`, `p_spec`, and `p_libDir`.  Type definitions (`p_tdef`) are tried first,
+because there is an ambiguity in attempting to parse type definitions and data definitions with the addition of
+user-defined infix operators in Miranda2:
+
+    foo == bar  || type alias, but could also incorrectly be parsed, along with
+    baz = 42    || this following definition as: (foo == bar) baz = 42, e.g. an inline function `==`.
+
+`p_decls` returns a list of `modInserter`s to be inserted into the `module`.
+
+The two functions exported from the `mirandaParser` module are `parse`, and `parseExpr`.  `parse` takes a module
+and an input string (lazy list of characters), and calls `p_decls` with an initialized `psSt`.  If the parse
+is successful; `parse` calls `makeModule` with the `module` and the list of `modInserter`s to insert all of the
+top-level declarations.  Otherwise, it creates an error with the error info from `psSt` and returns that.
 
 ## `exception.m`
 
