@@ -9,7 +9,6 @@
 %import <map>
 %import <maybe>
 %import <mirandaExtensions>
-%import <set>
 %import "analyze"
 %import "ast"
 %import "codegen"
@@ -31,7 +30,6 @@
 %import "rewrite"
 %import "serialize"
 %import "stg"
-%import "tokenizer"
 %import "typecheck"
 
 
