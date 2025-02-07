@@ -201,7 +201,7 @@ The parser `p_satisfy` takes a parser and a predicate function, and passes the r
 `p_guard` parser, which tests the result with the predicate function, and if it is false, fails, invoking the
 `p_unexpected` alternate of the `p_guard`.
 
-#### `p_any`
+### `p_any`
 The parser `p_any` is the most basic token parser.  It is the one that explicitly handles most of the fundamental
 parsing errors (end-of-input, error from tokenizer, and the offside-rule error.  Most other parser combinators
 use it indirectly.
@@ -326,8 +326,8 @@ converting expressions like: `0 <= x < maxX` into `0 <= x & x < maxX`, automatic
 This parser performs the final reduction steps remaining on the expression and operator stacks, and returns the final
 parsed expression.
 
-## Parsing patterns and `fnform`s
-Patterns are used on the left-hand side of an equality definition or a `caseAlt to destructure an expression value.
+### Parsing patterns and fnforms
+Patterns are used on the left-hand side of an equality definition or a `caseAlt` to destructure an expression value.
 `fnform`s are the left-hand side of function definitions: the function name and its argument patterns.  Both are
 parsed with `p_patOrFnForm`, which uses `p_expExpr`, limiting prefix parsing to `neg` (for integer literals) and
 term parsing to `p_formal`: vars, constructors, literals, and paren expressions and list expressions of those.
