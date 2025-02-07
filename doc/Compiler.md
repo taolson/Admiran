@@ -363,8 +363,9 @@ the top-level of the module to be added to the module easily, after being collec
 
 ### Parsing Library directives
 Miranda2 library directives begin with a `%`:
-* `%import <fileSpec> {qualified} {as <identifier>} ['-' <identifier> | <identifier> '/' <identifier>]*
-* '%export ['+' | <fileSpec> | '-' <identifier> | <identifier>]*
+
+    %import <fileSpec> {qualified} {as <identifier>} ['-' <identifier> | <identifier> '/' <identifier>]*
+    %export ['+' | <fileSpec> | '-' <identifier> | <identifier>]*
 
 They are parsed with the parsers `p_fileSpec`, `p_libPart`, `p_libQual`, `p_libAs`, `p_alias`, `p_env`, and
 `p_libDir`.  There are also some (deprecated) parsers for handling `%free` and the `%free` directive's `lib_binding`s.
