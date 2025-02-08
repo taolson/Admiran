@@ -32,7 +32,7 @@
 %import "rename"
 
 || functions which don't return (call error and terminate)
-noReturnNames = map (Qualified "stdlib") ["exit", "error", "blackHole", "undef", "caseFail", "matchFail", "cmpFn"]
+noReturnNames = map makeStdlibName ["exit", "error", "blackHole", "undef", "caseFail", "matchFail", "cmpFn"]
 
 || functions we shouldn't inline
 isIOfn :: name -> bool
@@ -40,8 +40,8 @@ isIOfn n = getModName n ==$ "io"
 
 || functions we shouldn't inline
 noInlineNames :: [name]
-noInlineNames = map (Qualified "stdlib") ["trace", "getTag", "cmpTags"]                ++
-                map (Qualified "stream") ["toStream", "fromStream", "readByteStreamS"] ++
+noInlineNames = map makeStdlibName               ["trace", "getTag", "cmpTags"]                ++
+                map (Qualified streamModuleName) ["toStream", "fromStream", "readByteStreamS"] ++
                 noReturnNames
 
 || builtin functions that can be inlined by computing at compile-time
