@@ -1,15 +1,4 @@
 || inline.m -- inlining saturated calls to known non-recursive functions and simplification transformations
-||
-|| todo: currently the analysis info (free vars, uses, complexity) is recomputed after each inlining pass for the function group being
-||       inlined.  This might be able to be changed to updating those vars during the inline pass, rather than re-performing the
-||       analysis each time.  Performace doesn't seem to bad right now, though.
-||
-|| re-calculation of fuel when eliminating dead code seems wrong -- fuel can actually increase above the original limit
-||
-|| look into idea of join points -- let-bound tail calls of fully-saturated functions, and tag them as such (in analyzer?)
-|| when generating code for a join point, let does no allocation, and the call is just an "adjust stack pointer and jump"
-|| Paper: "Compiling Without Continuations"
-
 
 %export inline streamSubst
 

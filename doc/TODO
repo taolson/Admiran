@@ -16,6 +16,7 @@ compiler options:
     -eagerCtors <TF>
 
 --- add lambdas to language ---
+
 grammar:       add (Elam [pat] expr anno) to ast; add Elam to showAst (need anno for free var analysis)
 ast:           add Elam to astRewriteSubs and astAccumSubs
 mirandaParser: add a p_lam to parse lambdas with "\" (p_many p_pat) p_exp; add p_lam to p_simple
@@ -27,6 +28,7 @@ stg:           add Elam to generate a new code section
 
 
 --- advent 2024 bugs and performance regressions ---
+
 advent 2024 day06 found a case where the inliner inlined an Evar that was supposedly a singleCpx, but turned out to be
 used as an argument to a function call that was in a recursive function, resulting in a big performance regression
 compared to not allowing complex Evars to be inlined:
@@ -253,6 +255,19 @@ to mark them as NoUpdate if they aren't shared and don't escape the loop.
 
 
 --- More Inliner Optimizations (and debug) ---
+Ccurrently the analysis info (free vars, uses, complexity) is recomputed after each inlining pass for the function group being
+inlined.  This might be able to be changed to updating those vars during the inline pass, rather than re-performing the
+analysis each time.  Performace doesn't seem to bad right now, though.
+
+Re-calculation of fuel when eliminating dead code seems wrong -- fuel can actually increase above the original limit.
+When showing the inliner activity with inlineVerbose, it appears some cases of dead code elimination occur multiple
+times for the same definition, which probably accounts for the fuel increasing too much.  If a definition is inlined
+multiple times, and then has no uses, could it wind up trying to be deleted multiple times?  May need to add some sort
+of deleted flag to the function somehow, to prevent this.
+
+Look into idea of join points -- let-bound tail calls of fully-saturated functions, and tag them as such (in analyzer?)
+when generating code for a join point, let does no allocation, and the call is just an "adjust stack pointer and jump"
+Paper: "Compiling Without Continuations"
 
 Use of lenses generates sub-optimal uses of builtinSel, where the sel doesn't have an opportunity to inspect the ctors in the lens to inline
 the sel.  Need to look at the actual code generation to see what can be added to inline to clean these up.
