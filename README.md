@@ -94,6 +94,7 @@ Here's a small example of a Miranda2 program, to generate and print a list of th
 
     || primes.m -- generate primes the lazy recursive way
     || From David Turner's original "sieve" example
+    
     %import <io>
     
     primes :: [int]

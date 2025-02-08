@@ -1,3 +1,6 @@
+|| primes.m -- generate primes the lazy recursive way
+|| From David Turner's original "sieve" example
+
 %import <io>
 
 primes :: [int]
