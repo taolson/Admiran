@@ -93,16 +93,15 @@ It is suggested that you add the bin directory to your PATH variable in your she
 Here's a small example of a Miranda2 program, to generate and print a list of the first 100 primes:
 
     || primes.m -- generate primes the lazy recursive way
-    
+    || From David Turner's original "sieve" example
     %import <io>
-    %import <mirandaExtensions>
     
-    primes
-        = 2 : filter isPrime [3 ..]     || a lazy, infinite list of primes (mutually-recursive with isPrime)
-          where
-            isPrime n   = all (coPrime n) $ takeWhile (< n $div 2 + 1) primes
-            coPrime n m = n $mod m ~= 0
+    primes :: [int]
+    primes = sieve [2 ..]
+             where
+               sieve (p : xs) = p : sieve [x | x <- xs; x $mod p ~= 0]
     
+    main :: io ()
     main = primes |> take 100 |> showlist showint |> putStrLn
 
 Some small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
