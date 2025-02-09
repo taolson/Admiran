@@ -126,6 +126,12 @@ The `tokenizeQualified` tokenizer  processes identifiers by first checking to se
 the ident is a `.`. If so, the identifer is treated as the module name of an Unresolved identifier or symbol, which is tokenized
 from the characters following the `.`. If not, the identifier is returned as an Unqualified identifier.
 
+Note that the compiler code itself currently doesn't use qualified identifiers internally, since it was originally written
+before the qualified identifiers mechanism was added.  Instead, external names in a module that are likely to conflict with
+similar names from other modules have a short prefix appended to them that acts like a qualifier, e.g. `ex_bind` in the
+`exception` module, `st_bind` in the `lib/state` module, etc.  These will eventually be rewritten to use the qualified
+identifiers feature.
+
 ### Handling `$`
 
 The tokenizers handle `$` in two different ways: if the `$` is immediately followed (with no whitespace) by a letter or `_`, it
@@ -389,7 +395,8 @@ strict). It also parses infix constructors. `p_constructs` parses a list of thes
 A Miranda2 definition can be:
 * a function definition, e.g. `inc n = n + 1`
 * a pattern definition, e.g. `(a, _, b) = x`
-* a type definition, e.g. `nameMap == m_map name name`
+* an algebraic data type definition, e.g. `maybe * ::= Nothing | Just *`
+* a type alias definition, e.g. `nameMap == m_map name name`
 * a type specification, e.g. `inc :: int -> int`
 
 These are handled by the parsers `p_def`, `p_tdef`, and `p_spec`. In addition to returning the definition upon a
@@ -445,9 +452,9 @@ An `exception` is defined as a tuple of `exceptionType`, `exceptionInfo`, and `l
 defined as either a list of `Error`s (for reporting an error), or a result, along with a list of possible
 `Warn`s and `Note`s, used for returning a result along with additional information.
 
-### monad interface for `except`
+### monad implementation for `except`
 
-`excpt`s have a monad interface (and associated functor and applicative interfaces) to allow them to be chained
+`excpt`s have a monad implementation (and associated functor and applicative implementation) to allow them to be chained
 together with a monadic bind, to automatically handle short-circuiting computation on an `Error` and collecting
 and merging `Note` and `Warn` exception information for the chain of `excpt`s.  The monadic bind operation
 (`ex_bind`) is written as:
@@ -466,7 +473,19 @@ and the monadic pure operation creates an `excpt` with a value and no `Error`s o
     ex_pure :: * -> excpt *
     ex_pure x = Right (x, [])
 
+In addition to `ex_pure`, there are variants to create a singleton `Error` (`ex_error`) and a
+singleton `Note` (`ex_note`).
+
 ## `config.m`
+
+Configuration parameters for the compiler are defined in the `config` module, and exported to
+other modules in the compiler. In the future it is likely that some may be able to be re-defined
+by options on the compiler command line (such as the enable/disable of inlining).
+
+These configuration parameters affect the operation of the compiler that is *built* after the
+parameter has changed.  But since that compiler was built with the previous compiler before the
+change, it must be built *again* with the new version for the full effect of the parameter change
+to take effect.
 
 ## `predef.m`
 

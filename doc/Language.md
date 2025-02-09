@@ -2,6 +2,15 @@
 
 ## Miranda
 
+Miranda2 is primarily based upon the Miranda language written by David Turner.  Much of the existing documentation
+on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
+key differences:
+
+* The `num` type in Miranda (unified arbitrary-precision integers and floats) is replaced with `int` (64-bit integers)
+* The polymorphic functions "show" and the general comparison operators (==, ~=, <, <=, >, >=), which work on any
+
+A brief overview of Miranda can be found here: [An Overview of Miranda](https://www.cs.kent.ac.uk/people/staff/dat/miranda/Overview.html)
+
 ## Literal Constants
 Miranda2 has 3 types of literal constants:
   * 64-bit integer, e.g. 1, 0xff, 123_456_789
