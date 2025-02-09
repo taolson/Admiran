@@ -6,8 +6,10 @@ Miranda2 is primarily based upon the Miranda language written by David Turner.  
 on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
 key differences:
 
-* The `num` type in Miranda (unified arbitrary-precision integers and floats) is replaced with `int` (64-bit integers)
-* The polymorphic functions "show" and the general comparison operators (==, ~=, <, <=, >, >=), which work on any
+* num type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
+* polymorphic show and comparison operators that work on any type replaced with manual show and
+  ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
+* no %free directive for parameterized modules
 
 A brief overview of Miranda can be found here: [An Overview of Miranda](https://www.cs.kent.ac.uk/people/staff/dat/miranda/Overview.html)
 
