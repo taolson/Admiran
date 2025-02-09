@@ -1,14 +1,17 @@
 # Miranda2, a pure, lazy, functional language and compiler
+
 Miranda2 is a pure, lazy, functional language and compiler, based upon the
 original Miranda language designed by David Turner, with additional features
 from Haskell and other functional languages.
 
 ## System Requirements
+
 Miranda2 currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
 is a C compiler for assembling the generated asm files and linking them with the C runtime library.
 (this is automatically done when compiling a Miranda source file).
 
 ## Features
+
 * Compiles to x86-64 assembly language
 * Runs under MacOS or Linux
 * Whole program compilation with inter-module inlining and optimizations
@@ -24,6 +27,7 @@ is a C compiler for assembling the generated asm files and linking them with the
 * 20x to 50x faster than the original Miranda compiler/combinator interpreter
 
 ### Miranda language features removed from Miranda2
+
 Miranda2 is an "extended subset" of Miranda, and does not (currently) implement every feature
 in the original Miranda language:
 * num type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
@@ -32,6 +36,7 @@ in the original Miranda language:
 * no %free directive for parameterized modules
 
 ### Miranda2 new language features not in Miranda
+
 * Monadic IO scheme instead of sys_message streams
 * User-defined infix operators and infix constructors
 * Wildcards in pattern matching
@@ -46,6 +51,7 @@ or expression
   data types and type aliases
 
 ### Differences from Haskell
+
 Haskell's design was strongly influenced by Miranda, so they have a lot of similarities.
 The main differences are:
 * No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
@@ -56,6 +62,7 @@ The main differences are:
 * Some layout and offside-rule differences
 
 ## Distribution Subdirectories
+
 * `bin/` executables are put here
 * `boot/` contains the asm source for the two pre-built bootstrap compilers (one for Linux, one for MacOS)
 * `doc/` project documentation (mostly incomplete, in-progress right now)  ToDo list
@@ -64,6 +71,7 @@ The main differences are:
 * `examples/` contains some example programs to show Miranda2 syntax and to try the compiler out
 
 ## Configuring and Bootstrapping Miranda2
+
 The Miranda2 compiler (mirac) is written in Miranda2, and requires bootstrapping from a pre-built
 bootstrap compiler.  This is mostly automated in the Makefile, but needs a manual configuration step first:
 
@@ -90,6 +98,7 @@ and install as mirac in the supplied bin directory.
 It is suggested that you add the bin directory to your PATH variable in your shell, to allow the mirac compiler to be run from anywhere.
 
 ## Examples
+
 Here's a small example of a Miranda2 program, to generate and print a list of the first 100 primes:
 
     || primes.m -- generate primes the lazy recursive way
@@ -112,6 +121,7 @@ Note that mirac is a whole-program compiler, so you only need to specify the top
 all other required modules will be built as required.
 
 ## .x2 File Extensions
+
 After the mirac compiler builds a module (before whole-program merging), it creates a ".x2" file for the module.  This is
 a serialized version of the internal optimized Abstract Syntax Tree (AST) of the module, which can be loaded by the compiler
 instead of recompiling from source, again.  The compiler checks the corresponding modification times of the .m and .x2 files
@@ -119,6 +129,7 @@ to see if the .x2 file is up-to-date, and will re-build from the .m file if it i
 force a rebuild from the source file.
 
 ## Why did I write this?
+
 To learn more about how functional languages are implemented.  To have a fun project to work on that can provide
 a nearly endless list of ToDos (see doc/TODO!).  To have a fun language to write Advent Of Code solutions in.  Maybe
 it can be useful for someone else interested in these things.
