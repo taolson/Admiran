@@ -69,6 +69,7 @@ The main differences are:
 * `compiler/` contains the Miranda2 source files for the mirac compiler
 * `lib/` contains the sources for the various libraries, and the runtime.c file
 * `examples/` contains some example programs to show Miranda2 syntax and to try the compiler out
+* `tools/` contains some tools built with Miranda2 for use on Miranda2 files
 
 ## Configuring and Bootstrapping Miranda2
 
