@@ -1,6 +1,6 @@
 MIRAC= ../bin/mirac
 
-EXAMPLES= hello fib eDigits primes sloc zebra
+EXAMPLES= hello fib eDigits primes zebra
 
 .SUFFIXES:
 .SUFFIXES: .m
