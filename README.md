@@ -129,7 +129,7 @@ instead of recompiling from source, again.  The compiler checks the correspondin
 to see if the .x2 file is up-to-date, and will re-build from the .m file if it is newer.  The .x2 files can be removed to
 force a rebuild from the source file.
 
-The program `tools/dumpX2.m` can be used to pretty-print the contents of .x2 files and show what the final result of
+The program `tools/dumpX2.m` can be used to pretty-print the contents of .x2 files and show the final result of
 the inlined and optimized modules.
 
 ## Why did I write this?
