@@ -2,7 +2,7 @@
 ||
 ||  "Stream Fusion -- From Lists to Streams to Nothing at All"
 ||
-|| this module can be used explicitly, but is also can be used in the compiler "inline" pass,
+|| This module can be used explicitly, but can also be used in the compiler "inline" pass,
 || which builds a substitution map from standard list functions to the stream equivalents.
 || To handle this, the names have a structure:
 ||     - names of internal stream versions end in "S"

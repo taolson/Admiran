@@ -30,10 +30,10 @@ cCompilerName         = "cc"
 
 || enable/disable features
 useInlining           = True
-useDemandAnalysis     = False
-useStreamFusion       = False
 useSel                = False
-useEagerCtors         = False
+useDemandAnalysis     = False   || experimental; may not work
+useEagerCtors         = False   || experimental; may not work
+useStreamFusion       = False   || experimental; currently doesn't work; use stream functions explicitly in code, instead
 
 || verbose output configuration
 demandVerbose         = False
