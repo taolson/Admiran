@@ -1,10 +1,11 @@
 || dumpX2 -- pretty-print the .x2 file for a module, showing the type specs and definitions
 
 
-%import <io>    (>>=)/io_bind (<$>)/io_fmap (>>)/io_right
 %import <either>
+%import <io>                    (>>=)/io_bind (<$>)/io_fmap (>>)/io_right
 %import <maybe>
 %import <mirandaExtensions>
+%import <state>
 %import "../compiler/ast"
 %import "../compiler/config"
 %import "../compiler/dependency"
@@ -22,7 +23,7 @@ deserialize fn
     = mtimeFile fx >>= exists
       where
         fx         = withSuffix "x2" fn
-        doDeserial = io_pure . fst . deserialModule
+        doDeserial = io_pure . st_evalState deserialModule
 
         exists tsm
             = error (fx ++ " required, but not found"), if tsm < 0
