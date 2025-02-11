@@ -1,6 +1,6 @@
 MIRAC= ../bin/mirac
 
-TOOLS= badlines dumpX2 sloc
+TOOLS= badlines dumpSTG dumpX2 sloc
 
 .SUFFIXES:
 .SUFFIXES: .m
