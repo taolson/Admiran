@@ -1,6 +1,6 @@
 # Brief Miranda2 Language Reference
 
-## Miranda
+## Miranda2 and Miranda
 
 Miranda2 is primarily based upon the Miranda language written by David Turner.  Much of the existing documentation
 on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
@@ -13,71 +13,149 @@ key differences:
 
 A brief overview of Miranda can be found here: [An Overview of Miranda](https://www.cs.kent.ac.uk/people/staff/dat/miranda/Overview.html)
 
-## Literal Constants
-Miranda2 has 3 types of literal constants:
-  * 64-bit integer, e.g. 1, 0xff, 123_456_789
-  * a character, e.g. 'x', '\n', '\012'
-  * a string, e.g. "Hello, World!", "This has a \n newline in it."
-as well as unboxed versions of those, which map to raw 64-bit words (specified by a '#' suffix):
-  * 64-bit word, e.g. 0#, 0xffff#
-  * char-valued word, e.g. '\n'# (== 10#)
-  * a packed byte array, e.g. "Test"#
+The following reference is based upon the structure and information of the Haskell 2010 Language Reference.
+
+### Program Structure
+
+A Miranda2 program consists of a hierarchical collection of **modules**.  Modules provied a way to control namespaces and re-use
+software in oarge programs.  The top-level module consists of a collection of **declarations**.  Declarations define values and
+types used in the module, and potentially exported to other modules.
+
+### Values and Types
+
+An expression evaluates to a **value**, and has a static **type**. Values and types are not mixed in Miranda2. The Hindley-Milner
+type system allows user-defined type aliases and datatypes that can use parametric polymorphism.
+
+### Namespaces
+
+There are 5 different kinds of names in Miranda2, which are grouped into 4 namespaces:
+
+* Module names
+* Variable names and Type names
+* Constructor names
+* Type Variable names
+
+#### Module Names
+
+Module names are simple strings which directly map to the **basename** of the module's file path.  They are used
+in `%import` and `%export` declarations, and can be used to qualify variable, constructor, and type names.  Module
+names can be aliased in an `%import` declaration to provide a shorthand for qualifiers.
+
+#### Variable names and Type names
+
+Variable names and type names share the same namespace in Miranda2.  They are either
+
+* Alphanumeric strings which begin with a lower-case letter, `'`, or `_` :
+  * `foo` `alpha5'` `_eq`
+* Symbolic character strings which specify infix names:
+  * `+` `>>=` `!!`
+
+Alphanumeric variable and type names can be used in an infix manner when preceded by a `$`, e.g. `x $mod 7`.
+Symbolic variable and type names can be used in a non-infix manner when surrounded by parenthesis, e.g.
+`map (*) xs`.
+
+Variable and type names can be **qualified** with a module name to disambiguate them in the case of a potential
+name clash, or to provide more documentation on the origin of the name, e.g. `stdlib.map foo xs` or
+`a vector.|+| b`.
+
+#### Constructor names
+
+Constructor names begin with an upper-case letter (or a `:`, in the case of an infix constructor).  For example,
+`list * ::= Null | * : (list *)` defines a data type `list` with two constructors: `Null` and the infix constructor
+`:`.
+
+#### Type Variable Names
+
+A type variable is used to specify a polymorphic type argument in a type definition or type specification.
+They are written as a string of `*` characters, disambiguated by the length of the string.  For example,
+`either * ** ::= Left * | Right **` defines a data type `either` which has two type arguments `*` and `**`.
+
+## Lexical Structure
+
+### Comments
+
+### Identifiers and Operators
+
+### Integer Literals
+
+### Character and String Literals
+
+### Layout
 
 ## Expressions
-An expression is one of
-* a simple (atomic) expression
-* a function application
-* an infix operator expression
 
-### Simple Expressions
-A simple expression is one of
-* an identifier (starts with a lower-case letter)
-* a constructor (starts with an upper-case letter)
-* a literal
-* a finite list of the same type, e.g. [1, 2, 3], ["this", "is", "a", "list"]
-* a tuple of various types, e.g. ('a', 52, 
-* a range of integer values (see Ranges)
-* a list comprehension
+### Variables, Constructors, Operators, and Literals
 
-#### Operator Sections
-An operator section is a partial-application of an infix operator in parenthesis,
-which can be used as an operand to pass to a higher-ordered function, or applied
-to another value.  Examples are (7 +), a pre-section of (+) which returns a function
-and adds 7 to it, or (: []), a post-section of (:) which takes a value and makes a
-singleton list out of it, and (&), which is how to pass the boolean AND infix operator
-as a function value.
+### Curried Applications
 
-#### Ranges
-integer ranges can be specified as a list, with a starting value, an optional second value
-to specify a step size, a "..", and an optional final value:
+### Sections
 
-    [1 .. 10]           || range from 1 to 10, inclusive
-    [10, 9 .. 1]        || reverse of above
-    [n, n + 5 ..]       || infinite list starting at value of n and increasing by 5 each step
+### Conditionals
 
-#### List Comprehensions
+### Lists
 
-## Infix Operators
+### Tuples
 
-## Identifiers
+### Parenthesized Expressions
 
-## Literals
+### Arithmetic Sequences
 
-## Layout Rules
+### List Comprehensions
 
-## List Comprehensions
+### Case Expressions
 
-## Definitions
+### Datatypes (Types?)
 
-## Pattern Matching
+### Pattern Matching
 
-## Types
+## Declarations and Bindings
 
-### Type Synonyms
+### User-Defined Data Types
 
-### Algebraic Data Types
+### Nested Declarations
+
+### Function and Pattern Bindings
 
 ## Modules
 
-## State and I/O Monads
+### Module Structure
 
+### Exports
+
+### Imports
+
+### Separate Compilation
+
+## Predefined Types
+
+### Standard Miranda2 Types
+
+### Strict Evaluation
+
+## Library Modules
+
+### Stdlib
+
+### Miranda Extensions
+
+### AVL-Based Persistant Data Types
+
+#### Map
+
+#### Set
+
+#### Bag
+
+## Maybe and Either
+
+### State and IO
+
+### Dequeue
+
+### Vector
+
+### Stream
+
+### Others
+
+## Runtime
