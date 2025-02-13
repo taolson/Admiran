@@ -1,6 +1,6 @@
 # Miranda2 Language Reference
 
-## Miranda2 and Miranda
+## Introduction
 
 Miranda2 is primarily based upon the Miranda language written by David Turner.  Much of the existing documentation
 on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
@@ -9,6 +9,9 @@ key differences:
 * num type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
 * polymorphic show and comparison operators that work on any type replaced with manual show and
   ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
+* patterns with repeated variables and "n + k" arithmetic patterns are no longer allowed
+* `div` and `mod` functions are now standard functions instead of implicitly infix and must be used as
+  `$div` and `$mod` for infix operation
 * no %free directive for parameterized modules
 
 An overview of Miranda can be found here: [An Overview of Miranda](https://www.cs.kent.ac.uk/people/staff/dat/miranda/Overview.html)
