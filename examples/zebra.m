@@ -31,7 +31,7 @@ givens =
     , cPair             NextTo          "kool"          "horse"                 || The person who smokes Kool lives next to th eperson who owns a horse.
     , cPair             SameLoc         "lucky strike"  "orange juice"          || The person who smokes Lucky Strike drinks orange juice.
     , cPair             SameLoc         "japanese"      "parliment"             || the Japanese smokes Parliment.
-    , cPair             NextTo          "norwegian"     "blue"                  || The Norwegian lives in the blue house.
+    , cPair             NextTo          "norwegian"     "blue"                  || The Norwegian lives next to the blue house.
     ]
 
 
