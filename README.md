@@ -8,7 +8,7 @@ from Haskell and other functional languages.
 
 Miranda2 currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
 is a C compiler for assembling the generated asm files and linking them with the C runtime library.
-(this is automatically done when compiling a Miranda source file).
+(this is automatically done when compiling a Miranda2 source file).
 
 ## Features
 
@@ -56,7 +56,7 @@ Haskell's design was strongly influenced by Miranda, so they have a lot of simil
 The main differences are:
 * No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
   of a "typeclass" dictionary are passed explicitly to functions that require them
-* Miranda typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
+* Miranda2 typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
 * Data and type definitions use a different syntax (::= and ==, respectively)
 * Miranda2 allows only restricted simple patterns for case alternates
 * Some layout and offside-rule differences
