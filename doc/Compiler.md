@@ -71,7 +71,7 @@ alias is defined as a tuple of annotation information that is attached to every 
 * complexity: an int indicating the rough size (number of AST nodes) of the `defn`, used to inform inlining
 * use count: an count of the number of distinct uses of this `defn`, used in inlining, unused warning reporting, and dead-code elimination
 * free vars: a set of names that are used as variables in the `defn`, but not defined in the `defn`'s scope
-* strictness: an int (bit set) with the individual bits specifying whether the corresponding argument index is strict or not
+* strictness: an int (bit set) with the individual bits specifying whether the corresponding parameter index is strict or not
 
 During the initial design, it was thought that the anno info would only need to be attached to a `defn`, but general error
 reporting probably needs to be more fine-grained than that. Also, it would be nice to annotate every AST node with its
@@ -172,7 +172,7 @@ The state passed through the parsers, `psSt`, is a tuple of
 * the (lazy) list of tokloc values from the tokenizer
 
 Most of the parser combinators are written in a curried form, with an implicit `psSt` operand at the end (rather than
-explicitly in the parser's function definition argument list). Instead, state is handled implicitly by lower-level
+explicitly in the parser's function definition parameter list). Instead, state is handled implicitly by lower-level
 parsers (e.g. `p_any`), or by the parser `p_get`, which returns the current state. This, combined with the automatic
 early-out handling of parsing failures results in high-level parser combinators which are easier to read. For example, the
 parser `p_inParens`:
@@ -309,7 +309,7 @@ of such a case expression is:
 which is strict evaluation of a boxed integer n to an unboxed word n#, adding an unboxed word 1# to
 it with the builtinAdd function, and returning the boxed integer result. The limitation is that the
 `CaseAlt`patterns can only be either an unboxed word literal, or a constructor with only variable or
-wildcard pattern arguments. Parsing of these are handled with the `p_casePat`, `p_caseAlt`, and
+wildcard pattern parameters. Parsing of these are handled with the `p_casePat`, `p_caseAlt`, and
 `p_caseExpr` parsers, with `p_casePat` checking the pattern of a `CaseAlt` for legality.
 
 #### Parsing conditional expressions
@@ -333,7 +333,8 @@ by varying the parameterized parsers.
 
 `p_expExpr`, `p_expOp`, `p_expAp`, `p_expReduce`, and `p_expFinal` form a mutually-recursive group of parsers
 that operate on a stack of pending expressions and a stack of pending infix operators, using the pre-defined
-operator precedence/associativity table from the `grammar` module.
+operator precedence/associativity table from the `grammar` module.  This is an implementation of Dijkstra's
+"Shunting Yard Algorithm".
 
 ##### `p_expExpr`
 
@@ -367,13 +368,13 @@ parsed expression.
 ### Parsing patterns and fnforms
 
 Patterns are used on the left-hand side of an equality definition or a `caseAlt` to destructure an expression value.
-`fnform`s are the left-hand side of function definitions: the function name and its argument patterns. Both are
+`fnform`s are the left-hand side of function definitions: the function name and its parameter patterns. Both are
 parsed with `p_patOrFnForm`, which uses `p_expExpr`, limiting prefix parsing to `neg` (for integer literals) and
 term parsing to `p_formal`: vars, constructors, literals, and paren expressions and list expressions of those.
 
 After successful parsing of a pattern with `p_expExpr`, the parsed expression is walked through `mkPatFn`, which 
-ensures all of the arguments in the expr are valid patterns, and then classifies it as a pattern or `fnform`
-based upon the name of the first `Evar` and the number of arguments.
+ensures all of the parameters in the expr are valid patterns, and then classifies it as a pattern or `fnform`
+based upon the name of the first `Evar` and the number of parameters.
 
 ### Parsing type expressions
 
@@ -387,7 +388,7 @@ The individual parsers are structured similarly to their value expression counte
 ### Parsing data constructors
 
 Data constructors are the right-hand side of a Data definition; they are parsed by the `p_construct` and
-`p_constructs` parsers. `p_construct` handles parsing individual constructors with arguments (optionally
+`p_constructs` parsers. `p_construct` handles parsing individual constructors with parameters (optionally
 strict). It also parses infix constructors. `p_constructs` parses a list of these, separated by `p_vBar` (|).
 
 ### Parsing Definitions
@@ -484,12 +485,50 @@ by options on the compiler command line (such as the enable/disable of inlining)
 
 These configuration parameters affect the operation of the compiler that is *built* after the
 parameter has changed.  But since that compiler was built with the previous compiler before the
-change, it must be built *again* with the new version for the full effect of the parameter change
-to take effect.
+change, it must be built *again* with the new version for the parameter change to fully take effect
+on the compiler, as well as whatever it compiles afterwards.
 
 ## `predef.m`
 
+The `predef` module defines the names and definitions of the `Builtin` environment, along with
+common names and definitions from the `stdlib` module that are used internally by the compiler.  It
+also provides a number of common functions used by other compiler modules for generating ASTs of
+builtin structures, such as `makeList`, `makeTupleExpr`, and `makeTuplePat`.
+
+The type specifications for the builtin environment definitions are defined in a `defnMap` for use when
+typechecking code that uses builtin definitions.  This is done in an interesting way:  to make
+the type specifications  more human-readable in the source code, the `predef` module imports `parser`, and
+parses the textual type specs with a mini-version of the Miranda2 type spec parser in
+the `mirandaParser` module.  This lets the type specs be defined in a more natural way, e.g.
+
+    "+#                :: word# -> word# -> word#"
+
+instead of
+
+    DefSpec (Tname (Builtin "+#") []) (Tarr (Tname (Builtin "word#") [])
+                                      (Tarr (Tname (Builtin "word#") [])
+                                      (Tarr (Tname (Builtin "word#") []))))
+
 ## `dependency.m`
+
+Definitions in a Miranda2 module may be written in any order, and module imports may be arranged in any
+order.  However, various stages of the compilation pipeline require information in specific order, e.g.
+a module imported by another module must be built before the importing module is built.  To handle this,
+the `dependency` module implements general dependency graph operations for:
+
+* making dependency graphs
+* determining a total ordering for the dependencies in a graph
+* discovering if an ordering is cyclic or not
+* finding the Strongly Connected Components (SCCs) of a graph (mutually-recursive definitions)
+
+modules that use the `dependency` module are:
+
+* `demand` - for ordering definitions to help determine which definition parameters can be strict
+* `inline` - to perform inlining in dependency order to allow new inlined definitions to be further inlined
+* `mirac` - to build modules in dependency order, or report a cyclic dependency error
+* `reify` - to expand type synonyms in dependency order to fully expand to base types
+* `rename` - to expand "rename patterns" from `desugar` in dependency order
+* `rewrite` - to discover SCCs of `ELet` bindings and rewrite them in correct nested order for later type checking
 
 ## `module.m`
 
