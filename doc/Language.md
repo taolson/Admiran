@@ -21,7 +21,7 @@ The following reference is based upon the structure and information of the Haske
 ### Program Structure
 
 A Miranda2 program consists of a hierarchical collection of *modules*.  Modules provied a way to control namespaces and re-use
-software in oarge programs.  The top-level module consists of a collection of *declarations*.  Declarations define values and
+software in large programs.  The top-level module consists of a collection of *declarations*.  Declarations define values and
 types used in the module, and potentially exported to other modules.
 
 ### Values and Types
@@ -49,7 +49,7 @@ names can be aliased in an `%import` declaration to provide a shorthand for qual
 Variable names and type names share the same namespace in Miranda2.  They are either
 
 * Alphanumeric strings which begin with a lower-case letter, `'`, or `_` :
-  * `foo` `alpha5'` `_eq`
+  * `foo` `alphaBeta5'` `_eq`
 * Symbolic character strings which specify infix names:
   * `+` `>>=` `!!`
 
@@ -64,14 +64,16 @@ name clash, or to provide more documentation on the origin of the name, e.g. `st
 #### Constructor names
 
 Constructor names begin with an upper-case letter (or a `:`, in the case of an infix constructor).  For example,
-`list * ::= Null | * : (list *)` defines a data type `list` with two constructors: `Null` and the infix constructor
-`:`.
+
+    list * ::= Null | * : (list *)
+
+defines a (recursive) data type `list` with two constructors: `Null` and the infix constructor `:`.
 
 #### Type Variable Names
 
-A type variable is used to specify a polymorphic type argument in a type definition or type specification.
+A type variable is used to specify a polymorphic type parameter in a type definition or type specification.
 They are written as a string of `*` characters, disambiguated by the length of the string.  For example,
-`either * ** ::= Left * | Right **` defines a data type `either` which has two type arguments `*` and `**`.
+`either * ** ::= Left * | Right **` defines a data type `either` which has two type parameters `*` and `**`.
 
 ## Lexical Structure
 
@@ -80,7 +82,8 @@ Whitespace (spaces, tabs, newlines, and comments) are ignored, except for contri
 
 ### Comments
 
-Comments in Miranda2 begin with two consecutive vertical bars (i.e. `||`) and extend to the end of the line.
+Comments in Miranda2 begin with a token of two consecutive vertical bars (i.e. `||`) and extend to the end of the line.
+Note that `|||` parses as an operator, not a comment, because there are more than two vertical bars.
 
 ### Identifiers and Operators
 
@@ -110,13 +113,14 @@ also be used with a decimal or hexadecimal value to specify an escape character,
 
 Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
 are indented with respect to each other.  After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
-or a `%import` or `%export` declaration, or the `of` in a `case .. of` expression, then column number of the
+or a `%import` or `%export` declaration, or the `of` in a `case .. of` expression, the column number of the
 following lexeme is captured, and used to disambiguate where the expression ends.  If a subsequent line starts
 at or beyond the current layout column, it is considered to be a continuation of the current construct.  Otherwise,
 it signals the end of the current construct and starts a new one. For example:
 
     x = (3 + y)         || the next lexeme after the "=" sets the
         * 17            || indentation for the rest of the definition
+    y = 52              || a new definition, because it starts to the left
 
     case b of           || the next lexeme after the "of" sets the
       False -> "F"      || indentation for the rest of the case expression
@@ -124,10 +128,10 @@ it signals the end of the current construct and starts a new one. For example:
     where
       b = x < y
 
-A semicolon (`;`) can also be used to specify the end of a construct:
+A semicolon (`;`) can be used to specify the end of a construct instead of indentation:
 
     x = (3 + y) * 17; y = 52
-    case b of False -> "F"; True -> "T"
+    case b of False -> "F"; True -> "T"; where b = x < y
 
 ## Expressions
 
