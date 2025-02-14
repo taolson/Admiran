@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Miranda2 is primarily based upon the Miranda language written by David Turner.  Much of the existing documentation
+Miranda2 is primarily based upon the Miranda language written by David Turner. Much of the existing documentation
 on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
 key differences:
 
@@ -20,14 +20,30 @@ The following reference is based upon the structure and information of the Haske
 
 ### Program Structure
 
-A Miranda2 program consists of a hierarchical collection of *modules*.  Modules provied a way to control namespaces and re-use
-software in large programs.  The top-level module consists of a collection of *declarations*.  Declarations define values and
-types used in the module, and potentially exported to other modules.
+A Miranda2 program consists of a collection of *modules*. Modules provied a way to control namespaces and re-use
+software in large programs. The top level of a module consists of a collection of *declarations*. Declarations
+define values and types used in the module as well as module imports and exports. At the next lower level are
+*expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Miranda2's
+*lexical structure*, which defines the individual tokens that make up a Miranda2 program.
+
+Declarations in a module are unordered: there is no requirement that a declaration used by others must occur before
+its uses.
 
 ### Values and Types
 
-An expression evaluates to a *value*, and has a static *type*. Values and types are not mixed in Miranda2. The Hindley-Milner
-type system allows user-defined type aliases and datatypes that can use parametric polymorphism.
+An expression evaluates to a *value*, and has a static *type*. Values and types are not mixed in Miranda2, For example, the declaration
+
+    x :: int
+    x = 42
+
+Defines a type specification for the definition `x`, which is `int`, and a value of `x`, which is `42`.
+
+The Hindley-Milner type system allows user-defined type aliases and datatypes that can use parametric polymorphism.
+For example a user-defined tree datatype which can be built from values of any type can be written as:
+
+    tree * ::= Leaf | Node * (tree *) (tree *)
+
+with the `*` being a parametric type variable which can match any type.
 
 ### Namespaces
 
@@ -40,13 +56,13 @@ There are 5 different kinds of names in Miranda2, which are grouped into 4 names
 
 #### Module Names
 
-Module names are simple strings which directly map to the *basename* of the module's file path.  They are used
-in `%import` and `%export` declarations, and can be used to qualify variable, constructor, and type names.  Module
+Module names are simple strings which directly map to the *basename* of the module's file path. They are used
+in `%import` and `%export` declarations, and can be used to qualify variable, constructor, and type names. Module
 names can be aliased in an `%import` declaration to provide a shorthand for qualifiers.
 
 #### Variable names and Type names
 
-Variable names and type names share the same namespace in Miranda2.  They are either
+Variable names and type names share the same namespace in Miranda2. They are either
 
 * Alphanumeric strings which begin with a lower-case letter, `'`, or `_` :
   * `foo` `alphaBeta5'` `_eq`
@@ -63,7 +79,7 @@ name clash, or to provide more documentation on the origin of the name, e.g. `st
 
 #### Constructor names
 
-Constructor names begin with an upper-case letter (or a `:`, in the case of an infix constructor).  For example,
+Constructor names begin with an upper-case letter (or a `:`, in the case of an infix constructor). For example,
 
     list * ::= Null | * : (list *)
 
@@ -72,7 +88,7 @@ defines a (recursive) data type `list` with two constructors: `Null` and the inf
 #### Type Variable Names
 
 A type variable is used to specify a polymorphic type parameter in a type definition or type specification.
-They are written as a string of `*` characters, disambiguated by the length of the string.  For example,
+They are written as a string of `*` characters, disambiguated by the length of the string. For example,
 `either * ** ::= Left * | Right **` defines a data type `either` which has two type parameters `*` and `**`.
 
 ## Lexical Structure
@@ -104,7 +120,7 @@ the numeric value) to help reading large numbers, e.g. `1_234_567` or `0x1234_56
 ### Character and String Literals
 
 Character literals are written between apostrophes, as in `'a'`, and strings between double quotes, as in
-`"Hello"`.  Both character and string literals can use escape codes, formed from a backslash (`\`) followed
+`"Hello"`. Both character and string literals can use escape codes, formed from a backslash (`\`) followed
 by a character escape for specifying standard control characters `\a \b \f \n \r \t \v` or to quote
 a character itself, e.g. `\\` for a single backslash, or `\"` for a double quote character. Numeric coes can
 also be used with a decimal or hexadecimal value to specify an escape character, e.g. `\10` or `\x7f`.
@@ -112,10 +128,10 @@ also be used with a decimal or hexadecimal value to specify an escape character,
 ### Layout
 
 Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
-are indented with respect to each other.  After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
+are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
 or a `%import` or `%export` declaration, or the `of` in a `case .. of` expression, the column number of the
-following lexeme is captured, and used to disambiguate where the expression ends.  If a subsequent line starts
-at or beyond the current layout column, it is considered to be a continuation of the current construct.  Otherwise,
+following lexeme is captured, and used to disambiguate where the expression ends. If a subsequent line starts
+at or beyond the current layout column, it is considered to be a continuation of the current construct. Otherwise,
 it signals the end of the current construct and starts a new one. For example:
 
     x = (3 + y)         || the next lexeme after the "=" sets the
@@ -135,7 +151,99 @@ A semicolon (`;`) can be used to specify the end of a construct instead of inden
 
 ## Expressions
 
+In general, a Miranda2 expression is a sequence of simple (atomic) expressions and function applications
+interleaved by infix operators.  Simple expressions can be:
+
+* a variable, constructor, or literal
+* a parenthesized expression
+* a pre-section or post-section
+* a list expression
+* a tuple expression
+* a range expression
+* a list comprehension
+* a case expression
+
 ### Variables, Constructors, Operators, and Literals
+
+Miranda2 provides special syntax to support infix notation.  An *operator* is a function that can be applied
+using infix syntax, or partially-applied using a *section*.  An *operator* is either an *operator symbol*,
+such as `+` or `<$>`, or is an ordinary identifier prefixed by a `$`, such as `$div`.  Dually, an operator
+symbol can be converted to an ordinary identifier by enclosing it in parenthesis, e.g. `(+) x y` is
+equivalent to `x + y`.
+
+Expressions involving infix operators are disambiguated by the precedence and associativity assigned to the operator.
+This currently is a fixed table defined in the compiler's `grammar` module, which closely follows Haskell's fixity
+definitions for the corresponding operators, and is replicated here:
+
+      op  prec   assoc      operation meaning
+      ---------------------------------------
+      $     0    Right      function application with lowest precedence
+      $!    0    Right      strict function application with lowest precedence
+      |>    1    Left       reverse function application / chaining '&' in Haskell
+      >>=   1    Left       generic monad bind
+      >=>   1    Right      generic monad Kleisli composition arrow
+      >>    1    Left       generic monad right
+      <<    1    Left       generic monad left
+      :     1    Right      list constructor
+      ++    1    Right      list append
+      --    1    Right      list difference
+      \/    2    Right      boolean OR
+      &     3    Right      boolean AND
+      ~     4    Prefix     boolean NOT
+      <$>   4    Left       generic functor fmap
+      <*>   4    Left       generic applicative apply
+      <*    4    Left       generic applicative left
+      *>    4    Left       generic applicative right
+
+      >     5    Compare    comparisons for int type
+      >=    5    Compare
+      ==    5    Compare
+      ~=    5    Compare
+      <=    5    Compare
+      <     5    Compare
+
+      >.    5    Compare    comparisons for char type
+      >=.   5    Compare
+      ==.   5    Compare
+      ~=.   5    Compare
+      <=.   5    Compare
+      <.    5    Compare
+
+      >$    5    Compare    comparisons for string type
+      >=$   5    Compare
+      ==$   5    Compare
+      ~=$   5    Compare
+      <=$   5    Compare
+      <$    5    Compare
+
+      .&.   5    Left       bitwise boolean AND
+      .|.   5    Left       bitwise boolean OR
+      .^.   5    Left       bitwise boolean XOR
+      .<<.  6    Left       bit shift left
+      .>>.  6    Left       arithmetic bit shift right
+
+      +     6    Left       arithmetic on int type
+      -     6    Left
+      neg   7    Prefix
+      *     8    Left
+      div   8    Left
+      mod   8    Left
+      /     8    Left
+      ^     9    Right
+
+      .    10    Right      function composition
+      .>   10    Left       flipped function composition
+      #    11    Prefix     list length
+      !    12    Left       list indexing
+      !!   12    Left       vector indexing
+
+Comparison operators (shown with `Compare` associativity) allow chaining:
+
+    0 <= n < 10
+
+is equivalent to
+
+    0 <= n & n < 10
 
 ### Curried Applications
 
