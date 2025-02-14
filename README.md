@@ -58,7 +58,7 @@ The main differences are:
   of a "typeclass" dictionary are passed explicitly to functions that require them
 * Miranda2 typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
 * Data and type definitions use a different syntax (::= and ==, respectively)
-* Miranda2 allows only restricted simple patterns for case alternates
+* Miranda2 allows only restricted simple patterns for case alternatives
 * Some layout and offside-rule differences
 
 ## Distribution Subdirectories
