@@ -60,13 +60,13 @@ Module names are simple strings which directly map to the *basename* of the modu
 in `%import` and `%export` declarations, and can be used to qualify variable, constructor, and type names. Module
 names can be aliased in an `%import` declaration to provide a shorthand for qualifiers.
 
-#### Variable names and Type names
+#### Variable Names and Type Names
 
 Variable names and type names share the same namespace in Miranda2. They are either
 
 * Alphanumeric strings which begin with a lower-case letter, `'`, or `_` :
   * `foo` `alphaBeta5'` `_eq`
-* Symbolic character strings which specify infix names:
+* Symbolic character strings which specify infix operator names:
   * `+` `>>=` `!!`
 
 Alphanumeric variable and type names can be used in an infix manner when preceded directly by a `$`,
@@ -151,8 +151,8 @@ A semicolon (`;`) can be used to specify the end of a construct instead of inden
 
 ## Expressions
 
-In general, a Miranda2 expression is a sequence of simple (atomic) expressions and function applications
-interleaved by infix operators.  Simple expressions can be:
+A Miranda2 expression is a sequence of term expressions and function applications
+interleaved by infix operators.  Term expressions can be:
 
 * a variable, constructor, or literal
 * a parenthesized expression
@@ -163,89 +163,84 @@ interleaved by infix operators.  Simple expressions can be:
 * a list comprehension
 * a case expression
 
-### Variables, Constructors, Operators, and Literals
-
-Miranda2 provides special syntax to support infix notation.  An *operator* is a function that can be applied
-using infix syntax, or partially-applied using a *section*.  An *operator* is either an *operator symbol*,
-such as `+` or `<$>`, or is an ordinary identifier prefixed by a `$`, such as `$div`.  Dually, an operator
-symbol can be converted to an ordinary identifier by enclosing it in parenthesis, e.g. `(+) x y` is
-equivalent to `x + y`.
+### Operator Precedence and Associativity
 
 Expressions involving infix operators are disambiguated by the precedence and associativity assigned to the operator.
 This currently is a fixed table defined in the compiler's `grammar` module, which closely follows Haskell's fixity
 definitions for the corresponding operators, and is replicated here:
 
-      op  prec   assoc      operation meaning
-      ---------------------------------------
-      $     0    Right      function application with lowest precedence
-      $!    0    Right      strict function application with lowest precedence
-      |>    1    Left       reverse function application / chaining '&' in Haskell
-      >>=   1    Left       generic monad bind
-      >=>   1    Right      generic monad Kleisli composition arrow
-      >>    1    Left       generic monad right
-      <<    1    Left       generic monad left
-      :     1    Right      list constructor
-      ++    1    Right      list append
-      --    1    Right      list difference
-      \/    2    Right      boolean OR
-      &     3    Right      boolean AND
-      ~     4    Prefix     boolean NOT
-      <$>   4    Left       generic functor fmap
-      <*>   4    Left       generic applicative apply
-      <*    4    Left       generic applicative left
-      *>    4    Left       generic applicative right
-
-      >     5    Compare    comparisons for int type
-      >=    5    Compare
-      ==    5    Compare
-      ~=    5    Compare
-      <=    5    Compare
-      <     5    Compare
-
-      >.    5    Compare    comparisons for char type
-      >=.   5    Compare
-      ==.   5    Compare
-      ~=.   5    Compare
-      <=.   5    Compare
-      <.    5    Compare
-
-      >$    5    Compare    comparisons for string type
-      >=$   5    Compare
-      ==$   5    Compare
-      ~=$   5    Compare
-      <=$   5    Compare
-      <$    5    Compare
-
-      .&.   5    Left       bitwise boolean AND
-      .|.   5    Left       bitwise boolean OR
-      .^.   5    Left       bitwise boolean XOR
-      .<<.  6    Left       bit shift left
-      .>>.  6    Left       arithmetic bit shift right
-
-      +     6    Left       arithmetic on int type
-      -     6    Left
-      neg   7    Prefix
-      *     8    Left
-      div   8    Left
-      mod   8    Left
-      /     8    Left
-      ^     9    Right
-
-      .    10    Right      function composition
-      .>   10    Left       flipped function composition
-      #    11    Prefix     list length
-      !    12    Left       list indexing
-      !!   12    Left       vector indexing
+| op   | prec | assoc   | operation meaning
+| -----|------|---------|-----------------------------------------|
+| $    |  0   | Right   | function application                    |
+| $!   |  0   | Right   | strict function application             |
+| |>   |  1   | Left    | reverse function application / chaining |
+| >>=  |  1   | Left    | generic monad bind                      |
+| >=>  |  1   | Right   | generic monad Kleisli composition arrow |
+| >>   |  1   | Left    | generic monad right                     |
+| <<   |  1   | Left    | generic monad left                      |
+| :    |  1   | Right   | list constructor                        |
+| ++   |  1   | Right   | list append                             |
+| --   |  1   | Right   | list difference                         |
+| \/   |  2   | Right   | boolean OR                              |
+| &    |  3   | Right   | boolean AND                             |
+| ~    |  4   | Prefix  | boolean NOT                             |
+| <$>  |  4   | Left    | generic functor fmap                    |
+| <*>  |  4   | Left    | generic applicative apply               |
+| <*   |  4   | Left    | generic applicative left                |
+| *>   |  4   | Left    | generic applicative right               |
+| -----|------|---------|-----------------------------------------|
+| >    |  5   | Compare | comparisons for int type                |
+| >=   |  5   | Compare |                                         |
+| ==   |  5   | Compare |                                         |
+| ~=   |  5   | Compare |                                         |
+| <=   |  5   | Compare |                                         |
+| <    |  5   | Compare |                                         |
+| -----|------|---------|-----------------------------------------|
+| >.   |  5   | Compare | comparisons for char type               |
+| >=.  |  5   | Compare |                                         |
+| ==.  |  5   | Compare |                                         |
+| ~=.  |  5   | Compare |                                         |
+| <=.  |  5   | Compare |                                         |
+| <.   |  5   | Compare |                                         |
+| -----|------|---------|-----------------------------------------|
+| >$   |  5   | Compare | comparisons for string type             |
+| >=$  |  5   | Compare |                                         |
+| ==$  |  5   | Compare |                                         |
+| ~=$  |  5   | Compare |                                         |
+| <=$  |  5   | Compare |                                         |
+| <$   |  5   | Compare |                                         |
+| -----|------|---------|-----------------------------------------|
+| .&.  |  5   | Left    | bitwise boolean AND                     |
+| .|.  |  5   | Left    | bitwise boolean OR                      |
+| .^.  |  5   | Left    | bitwise boolean XOR                     |
+| .<<. |  6   | Left    | bit shift left                          |
+| .>>. |  6   | Left    | arithmetic bit shift right              |
+| -----|------|---------|-----------------------------------------|
+| +    |  6   | Left    | arithmetic on int type                  |
+| -    |  6   | Left    |                                         |
+| neg  |  7   | Prefix  |                                         |
+| *    |  8   | Left    |                                         |
+| div  |  8   | Left    |                                         |
+| mod  |  8   | Left    |                                         |
+| /    |  8   | Left    |                                         |
+| ^    |  9   | Right   |                                         |
+| -----|------|---------|-----------------------------------------|
+| .    | 10   | Right   | function composition                    |
+| .>   | 10   | Left    | flipped function composition            |
+| #    | 11   | Prefix  | list length                             |
+| !    | 12   | Left    | list indexing                           |
+| !!   | 12   | Left    | vector indexing                         |
 
 Comparison operators (shown with `Compare` associativity) allow chaining:
+`0 <= n < 10` is equivalent to `0 <= n & n < 10`
 
-    0 <= n < 10
+### Function Application and Curried Applications
 
-is equivalent to
+*Function application* is written as the juxtoposition of the function name and its arguments,
+e.g. `fact 5` or `max2 a b`.  Function application has the highest precedence, and is left
+associative.
 
-    0 <= n & n < 10
-
-### Curried Applications
+Functions in Miranda2 
 
 ### Sections
 
