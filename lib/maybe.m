@@ -27,10 +27,6 @@ isJust :: maybe * -> bool
 isJust (Just x) = True
 isJust _        = False
 
-appendMaybe :: maybe * -> maybe * -> maybe *
-appendMaybe Nothing b = b
-appendMaybe a       _ = a
-
 catMaybes :: [maybe *] -> [*]
 catMaybes xs = [x | Just x <- xs]
 

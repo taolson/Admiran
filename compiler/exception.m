@@ -126,7 +126,7 @@ mergeLocInfo (p1, ml1) (p2, ml2)
     = (p1 ++ p2, ml'), otherwise
       where
         n   = getName (hd p1)
-        ml' = appendMaybe ml1 ml2
+        ml' = ml1 $mb_alt ml2
 
 showsLocInfo :: locInfo -> showS
 showsLocInfo (ns, ml)
