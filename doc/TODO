@@ -15,6 +15,7 @@ compiler options:
     -useSel <TF>
     -eagerCtors <TF>
 
+
 --- add lambdas to language ---
 
 grammar:       add (Elam [pat] expr anno) to ast; add Elam to showAst (need anno for free var analysis)
@@ -119,6 +120,11 @@ count of a defn in a Let map).
 
 
 --- exception ---
+Should all exceptions be unified, here?
+lexer exceptions are returned in-line in the token stream as a form of token (Terror), rather than as an either alternative
+parser exceptions are collected while parsing alternative potential parse paths, and need to be compared by location and
+       severity when merging (keeping the deepest error as part of the parser state) -- would need a form of "no error" as default
+
 Look at reorganizing how notes are handled in exceptions; currently they are their own exception type, and ExMult was added to
 handle a Note being added to another exception.  But the print order for typecheck errs is odd.  What we want is to have the 
 exception printed out so that:
@@ -132,6 +138,7 @@ Make an options module (similar to how exceptions is done) that enumerates all t
 to mirac and the globalEnv passed through all the passes so each pass module can examine its options from it.
 
 Also write a general command line parser for options and add it to lib?
+
 
 --- tokenizer, parser ---
 The tokenizer returns lazy tuples for the tokloc values, which can build up a lot of saved state for things like line and column
@@ -154,6 +161,7 @@ scan is having to scan all of the entries of each array, even though we know the
 
 Maybe need to add an unboxed varient to vectors which only holds unboxed words (no thunks), which allows GC to skip scanning their contents and just
 bulk copy the entire array). If so, need to evaluate how much of the existing Vector code is applicable.
+
 
 --- derive ---
 auto derivation of show and ord for Tuple types:
@@ -184,6 +192,7 @@ that acts like Internal, but can be used to distinguish compiler-generated or in
 
 work: adding new ctor and accessing functions; changing renameExpr to use the new ctor instead of a prefix, adding
 new ctor  to serialize
+
 
 --- interp ---
 When status tracing is turned off, or the interval is too large, we run out of Miranda heap space on advent2019.  However, simply printing
@@ -395,6 +404,7 @@ maxCaseAll; see what impact it has on general code (it seems to increase the run
 
 Look at unifying the "match" function for desugaring multiple complex function definitions and "patCaseTree" for
 desugaring a LHS pattern.
+
 
 --- AST traversal ---
 when using astRewriteLex, there are times we want to continue rewriting from the rewritten ast (redo), rather than continuing

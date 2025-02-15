@@ -1,9 +1,4 @@
 || exception.m -- errors and warnings
-||
-|| should all exceptions be unified, here?
-|| lexer exceptions are returned in-line in the token stream as a form of token (Terror), rather than as an either alternative
-|| parser exceptions are collected while parsing alternative potential parse paths, and need to be compared by location and
-||        severity when merging (keeping the deepest error as part of the parser state) -- would need a form of "no error" as default
 
 
 %export +
