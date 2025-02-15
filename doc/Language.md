@@ -173,7 +173,7 @@ definitions for the corresponding operators, and is replicated here:
 | -----|------|---------|-----------------------------------------|
 | $    |  0   | Right   | function application                    |
 | $!   |  0   | Right   | strict function application             |
-| |>   |  1   | Left    | reverse function application / chaining |
+| \|>  |  1   | Left    | reverse function application / chaining |
 | >>=  |  1   | Left    | generic monad bind                      |
 | >=>  |  1   | Right   | generic monad Kleisli composition arrow |
 | >>   |  1   | Left    | generic monad right                     |
@@ -211,7 +211,7 @@ definitions for the corresponding operators, and is replicated here:
 | <$   |  5   | Compare |                                         |
 |      |      |         |                                         |
 | .&.  |  5   | Left    | bitwise boolean AND                     |
-| .|.  |  5   | Left    | bitwise boolean OR                      |
+| .\|. |  5   | Left    | bitwise boolean OR                      |
 | .^.  |  5   | Left    | bitwise boolean XOR                     |
 | .<<. |  6   | Left    | bit shift left                          |
 | .>>. |  6   | Left    | arithmetic bit shift right              |
