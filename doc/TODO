@@ -393,6 +393,8 @@ exception reporting for non-exhaustive patterns for non-full patterns that don't
 Look at expanding the Cvectored caseSel to cases where the #peqns > 50% of the total #ctors, rather than limiting to
 maxCaseAll; see what impact it has on general code (it seems to increase the runtime marginally when recompiling itself)
 
+Look at unifying the "match" function for desugaring multiple complex function definitions and "patCaseTree" for
+desugaring a LHS pattern.
 
 --- AST traversal ---
 when using astRewriteLex, there are times we want to continue rewriting from the rewritten ast (redo), rather than continuing

@@ -1,6 +1,4 @@
 || desugar.m -- AST desugaring to a more simplified AST form
-||
-|| TODO: look at unifying the desugaring of explicit case exprs with "matchCtor"
 
 
 %export desugar
