@@ -188,34 +188,34 @@ definitions for the corresponding operators, and is replicated here:
 | <*>  |  4   | Left    | generic applicative apply               |
 | <*   |  4   | Left    | generic applicative left                |
 | *>   |  4   | Left    | generic applicative right               |
-     
+|      |      |         |                                         |
 | >    |  5   | Compare | comparisons for int type                |
 | >=   |  5   | Compare |                                         |
 | ==   |  5   | Compare |                                         |
 | ~=   |  5   | Compare |                                         |
 | <=   |  5   | Compare |                                         |
 | <    |  5   | Compare |                                         |
-
+|      |      |         |                                         |
 | >.   |  5   | Compare | comparisons for char type               |
 | >=.  |  5   | Compare |                                         |
 | ==.  |  5   | Compare |                                         |
 | ~=.  |  5   | Compare |                                         |
 | <=.  |  5   | Compare |                                         |
 | <.   |  5   | Compare |                                         |
-
+|      |      |         |                                         |
 | >$   |  5   | Compare | comparisons for string type             |
 | >=$  |  5   | Compare |                                         |
 | ==$  |  5   | Compare |                                         |
 | ~=$  |  5   | Compare |                                         |
 | <=$  |  5   | Compare |                                         |
 | <$   |  5   | Compare |                                         |
-
+|      |      |         |                                         |
 | .&.  |  5   | Left    | bitwise boolean AND                     |
 | .|.  |  5   | Left    | bitwise boolean OR                      |
 | .^.  |  5   | Left    | bitwise boolean XOR                     |
 | .<<. |  6   | Left    | bit shift left                          |
 | .>>. |  6   | Left    | arithmetic bit shift right              |
-
+|      |      |         |                                         |
 | +    |  6   | Left    | arithmetic on int type                  |
 | -    |  6   | Left    |                                         |
 | neg  |  7   | Prefix  |                                         |
@@ -224,7 +224,7 @@ definitions for the corresponding operators, and is replicated here:
 | mod  |  8   | Left    |                                         |
 | /    |  8   | Left    |                                         |
 | ^    |  9   | Right   |                                         |
-
+|      |      |         |                                         |
 | .    | 10   | Right   | function composition                    |
 | .>   | 10   | Left    | flipped function composition            |
 | #    | 11   | Prefix  | list length                             |
