@@ -7,7 +7,7 @@
 stg ::= Insn string | Label string | Comment string
 
 || custom showI instance for stg to format insns and labels
-showstg :: stg -> string
+showstg :: showI stg
 showstg (Insn s)    = "    " ++ s
 showstg (Label s)   = s
 showstg (Comment s) = "\n# " ++ s
