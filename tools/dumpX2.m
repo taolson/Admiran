@@ -2,7 +2,7 @@
 
 
 %import <either>
-%import <io>                    (>>=)/io_bind (<$>)/io_fmap (>>)/io_right
+%import <io>                    (>>=)/io_bind
 %import <maybe>
 %import <mirandaExtensions>
 %import <state>

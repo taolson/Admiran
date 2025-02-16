@@ -1,7 +1,7 @@
 || dumpSTG -- extract and dump the STG Instructions from a .s file comments
 
 %import <io>                    (>>=)/io_bind
-%import <maybe>                 (>>=?)/mb_bind
+%import <maybe>
 %import <mirandaExtensions>
 
 stg ::= Insn string | Label string | Comment string
