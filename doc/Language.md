@@ -6,13 +6,13 @@ Miranda2 is primarily based upon the Miranda language written by David Turner. M
 on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
 key differences:
 
-* num type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
+* `num` type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
 * polymorphic show and comparison operators that work on any type replaced with manual show and
   ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
 * patterns with repeated variables and "n + k" arithmetic patterns are no longer allowed
 * `div` and `mod` functions are now standard functions instead of implicitly infix and must be used as
   `$div` and `$mod` for infix operation
-* no %free directive for parameterized modules
+* no `%free` directive for parameterized modules
 
 An overview of Miranda can be found here: [An Overview of Miranda](https://www.cs.kent.ac.uk/people/staff/dat/miranda/Overview.html)
 
@@ -31,12 +31,12 @@ its uses.
 
 ### Values and Types
 
-An expression evaluates to a *value*, and has a static *type*. Values and types are not mixed in Miranda2, For example, the declaration
+An expression evaluates to a *value*, and has a static *type*. For example, the declaration
 
     x :: int
     x = 42
 
-Defines a type specification for the definition `x`, which is `int`, and a value of `x`, which is `42`.
+Defines a type specification for the definition `x`, which is type `int`, and a value of `x`, which is `42`.
 
 The Hindley-Milner type system allows user-defined type aliases and datatypes that can use parametric polymorphism.
 For example a user-defined tree datatype which can be built from values of any type can be written as:
@@ -84,6 +84,7 @@ Constructor names begin with an upper-case letter (or a `:`, in the case of an i
     list * ::= Null | * : (list *)
 
 defines a (recursive) data type `list` with two constructors: `Null` and the infix constructor `:`.
+Cpnstructor names, like variable and type names, can be qualified with a module name.
 
 #### Type Variable Names
 
@@ -98,8 +99,9 @@ Whitespace (spaces, tabs, newlines, and comments) are ignored, except for contri
 
 ### Comments
 
-Comments in Miranda2 begin with a token of two consecutive vertical bars (i.e. `||`) and extend to the end of the line.
-Note that `|||` parses as an operator, not a comment, because there are more than two vertical bars.
+Comments in Miranda2 begin with a token of two consecutive vertical bars (i.e. `||`) and extend to the
+end of the line. Note that `|||` parses as as a comment and not a synbolic operator, so comments
+effectively prevent defining symbolic operators that begin with `||`.
 
 ### Identifiers and Operators
 
@@ -156,12 +158,14 @@ interleaved by infix operators.  Term expressions can be:
 
 * a variable, constructor, or literal
 * a parenthesized expression
-* a pre-section or post-section
+* a presection or postsection
 * a list expression
 * a tuple expression
 * a range expression
 * a list comprehension
 * a case expression
+
+which are detailed in later sections.
 
 ### Operator Precedence and Associativity
 
@@ -237,38 +241,88 @@ Comparison operators (shown with `Compare` associativity) allow chaining:
 ### Function Application and Curried Applications
 
 *Function application* is written as the juxtoposition of the function name and its arguments,
-e.g. `fact 5` or `max2 a b`.  Function application has the highest precedence, and is left
+e.g. `fact 5` or `max2 (a + 7) b`.  Function application has the highest precedence, and is left
 associative.
 
-Functions in Miranda2 
+Functions in Miranda2 are *curried*, which means that functions of multiple arguments can be
+thought of as functions of a single argument returning another function. So
+
+    max2 (a + 7) b
+
+can be written as
+
+    (max2 (a + 7)) b
+
+where `max2` takes a single int argument, and returns a function which accepts the second argument.
+Currying allows a partial application of a function to be passed to another higher-order
+function.  For example, mapping the `max2` of `a` to all the values in a list:
+
+    map (max2 a) [1 .. 10]
 
 ### Sections
 
-### Conditionals
+Infix operators can also be curried using the special notation of *presections* and *postsections*.
+A presection, written as ( *e* *op* ), uses the expression *e* as the left-hand side of the binary
+operation *op*, and returns a function which takes an argument for the right-hand side.  A
+postsection, written as ( *op* *e ), uses the expression *e* as the right-hand side of *op*, and
+returns a function which takes an argument for the left-hand side.  For example, to add `1` to
+every value in a list:
+
+    map (+ 1) xs
+
+Note that (- 1) is parsed as the prefix negation operator `-` on 1, rather than a postsection
+on a binary `-`. To perform the later, the standard library function `subtract` can be used.
 
 ### Lists
 
+Lists are a builtin recursive data type in Miranda2, with two constructors: `[]` and `:`.  `[]`
+is the empty list, and `:` is an infix constructor appending a value to the front of an existing list.
+Terms in a list expression must all have the same type; otherwise it is a type error.
+
+A List expression is a comma-separated list of expressions within square brackets, e.g.
+
+    [1, 2, 3]                   || equivalent to (1 : (2 : 3 : []))
+    ['a', 'b', 'c', 'd']        || equivalent to ('a' : ('b' : ('c' : ('d' : []))))
+    [a * 7, b - 3, fst (2, 3)]  || equivalent to (a * 7 : (b - 3 : (fst (2, 3) : [])))
+
+String literals in Miranda are represented as a list of `char`: `"Hi!"` is equivalent to
+`'H' : ('i' : ('!' : []))`
+
 ### Tuples
 
-### Parenthesized Expressions
+Tuples are a builtin data type in Miranda2, and can be of any length. Terms in a tuple
+expression can be of different types. Tuples are written as comma-separated list of expressions
+within parentheses, e.g.
 
-### Arithmetic Sequences
+    ('a', 5)
+    (x * 3, y - 2, z)
+    ([1, 2, 3], "test")
+
+A tuple of zero expressions, `()` is also known as a `Unit` expression.  It is a single value `()`
+of type `unit` (also represented as `()`).  It is commonly used as a return type for I/O or other
+state monad operations that only perform side-effects and don't return a value.
+
+### Range Expressions
 
 ### List Comprehensions
 
 ### Case Expressions
 
-### Datatypes (Types?)
-
 ### Pattern Matching
 
 ## Declarations and Bindings
 
-### User-Defined Data Types
+### Function and Pattern Bindings
 
 ### Nested `where` Declarations
 
-### Function and Pattern Bindings
+### Conditional Expressions
+
+### Type Specifications
+
+### User-Defined Data Types
+
+### Type Aliases
 
 ## Modules
 
