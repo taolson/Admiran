@@ -310,8 +310,7 @@ state monad operations that only perform side-effects and don't return a value.
 
 A *range expression* describes an *int* list with a starting value, an optional increment value
 (determined by a second value), and an optional final value, written in the form:
-
-    [ exp1 [, exp2] .. [exp3] ]
+[ *exp1* [, *exp2* ] .. [* exp3* ] ]
 
 Finite range expressions have an inclusive final value:
 
@@ -325,15 +324,11 @@ Infinite range expressions don't have a final value:
 
 ### List Comprehensions
 
-A *list comprehension* has the form:
-
-    [ exp | qual1 ; ... qualn ]
+A *list comprehension* has the form [ *exp* | *qual1* ; ... *qualn* ]
 
 which collects a list of all *exp* such that *qualifiers*.  If there are two or more qualifiers, they
 are separated by semicolons.  Each qualifier is either a *generator*, of which the two forms are:
-
-    pattern-list <- exp         (first form)
-    pattern <- exp, exp ..      (second form, a recurrence)
+*pat-list* <- *exp*  (first form) or *pat* <- *exp1*, *exp2* .. (second form, a recurrence)
 
 or else a *filter*, which is a boolean expression restricting the range of the variables introduced
 by preceding generators. The variables introduced on the left of each `<-` are local to the list
