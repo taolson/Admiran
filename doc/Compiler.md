@@ -127,9 +127,9 @@ the ident is a `.`. If so, the identifer is treated as the module name of an Unr
 from the characters following the `.`. If not, the identifier is returned as an Unqualified identifier.
 
 Note that the compiler code itself currently doesn't use qualified identifiers internally, since it was originally written
-before the qualified identifiers mechanism was added.  Instead, external names in a module that are likely to conflict with
+before the qualified identifiers mechanism was added. Instead, external names in a module that are likely to conflict with
 similar names from other modules have a short prefix appended to them that acts like a qualifier, e.g. `ex_bind` in the
-`exception` module, `st_bind` in the `lib/state` module, etc.  These will eventually be rewritten to use the qualified
+`exception` module, `st_bind` in the `lib/state` module, etc. These will eventually be rewritten to use the qualified
 identifiers feature.
 
 ### Handling `$`
@@ -333,7 +333,7 @@ by varying the parameterized parsers.
 
 `p_expExpr`, `p_expOp`, `p_expAp`, `p_expReduce`, and `p_expFinal` form a mutually-recursive group of parsers
 that operate on a stack of pending expressions and a stack of pending infix operators, using the pre-defined
-operator precedence/associativity table from the `grammar` module.  This is an implementation of Dijkstra's
+operator precedence/associativity table from the `grammar` module. This is an implementation of Dijkstra's
 "Shunting Yard Algorithm".
 
 ##### `p_expExpr`
@@ -444,7 +444,7 @@ It defines an `exceptionType` to classify exceptions into `Note`s, `Warn`s, or `
 
 `locInfo` is a type which pairs a possible `location` (as defined in the `grammar` module) with a hierarchical
 "path" of definitions that specify the exact definition which contains the location, used when reporting an
-exception to provide additional location information.  Additional functions to create and manipulate `locInfo`
+exception to provide additional location information. Additional functions to create and manipulate `locInfo`
 values are defined to create and manipulate `locInfo`s.
 
 ### `exception` and `excpt` types
@@ -457,7 +457,7 @@ defined as either a list of `Error`s (for reporting an error), or a result, alon
 
 `excpt`s have a monad implementation (and associated functor and applicative implementation) to allow them to be chained
 together with a monadic bind, to automatically handle short-circuiting computation on an `Error` and collecting
-and merging `Note` and `Warn` exception information for the chain of `excpt`s.  The monadic bind operation
+and merging `Note` and `Warn` exception information for the chain of `excpt`s. The monadic bind operation
 (`ex_bind`) is written as:
 
     ex_bind :: excpt * -> (* -> excpt **) -> excpt **
@@ -484,22 +484,22 @@ other modules in the compiler. In the future it is likely that some may be able 
 by options on the compiler command line (such as the enable/disable of inlining).
 
 These configuration parameters affect the operation of the compiler that is *built* after the
-parameter has changed.  But since that compiler was built with the previous compiler before the
+parameter has changed. But since that compiler was built with the previous compiler before the
 change, it must be built *again* with the new version for the parameter change to fully take effect
 on the compiler, as well as whatever it compiles afterwards.
 
 ## `predef.m`
 
 The `predef` module defines the names and definitions of the `Builtin` environment, along with
-common names and definitions from the `stdlib` module that are used internally by the compiler.  It
+common names and definitions from the `stdlib` module that are used internally by the compiler. It
 also provides a number of common functions used by other compiler modules for generating ASTs of
 builtin structures, such as `makeList`, `makeTupleExpr`, and `makeTuplePat`.
 
 The type specifications for the builtin environment definitions are defined in a `defnMap` for use when
-typechecking code that uses builtin definitions.  This is done in an interesting way:  to make
+typechecking code that uses builtin definitions. This is done in an interesting way:  to make
 the type specifications  more human-readable in the source code, the `predef` module imports `parser`, and
 parses the textual type specs with a mini-version of the Miranda2 type spec parser in
-the `mirandaParser` module.  This lets the type specs be defined in a more natural way, e.g.
+the `mirandaParser` module. This lets the type specs be defined in a more natural way, e.g.
 
     "+#                :: word# -> word# -> word#"
 
@@ -512,8 +512,8 @@ instead of
 ## `dependency.m`
 
 Definitions in a Miranda2 module may be written in any order, and module imports may be arranged in any
-order.  However, various stages of the compilation pipeline require information in specific order, e.g.
-a module imported by another module must be built before the importing module is built.  To handle this,
+order. However, various stages of the compilation pipeline require information in specific order, e.g.
+a module imported by another module must be built before the importing module is built. To handle this,
 the `dependency` module implements general dependency graph operations for:
 
 * making dependency graphs
@@ -529,8 +529,86 @@ modules that use the `dependency` module are:
 * `reify` - to expand type synonyms in dependency order to fully expand to base types
 * `rename` - to expand "rename patterns" from `desugar` in dependency order
 * `rewrite` - to discover SCCs of `ELet` bindings and rewrite them in correct nested order for later type checking
+  and to mark (mutually) recursive definitions
 
 ## `module.m`
+
+The `module` module defines the data structure of a library `module` along with associated functions to insert and
+extract components of the module.  A `module` is defined as
+
+    module ::=
+    Module
+        fileSpec                   || module file
+        buildStatus                || Unbuilt, Built, Serialized
+        (either [libPart] nameMap) || exports, initially a list of libParts, eventually reified into a nameMap
+        [libEnv]                   || imports
+        defnMap                    || top-level definitions
+        [defn]                     || top-level patterns before they are desugared to a simple pattern
+        defnMap                    || top-level type specifications
+        nameMap                    || top-level environment for this module, mapping Unqualified names to Qualified names
+
+where a `libEnv` is the components of an `%import` directive:
+
+    libEnv == (fileSpec, location, libQual, libAs, [libBinding], [libAlias])
+
+and a `libPart` is a component of an `%export` directive:
+
+    libPart ::=
+      LibIdent   name     location |      || export this identifier
+      LibRemove  name     location |      || remove this identifier from the export
+      LibFile    fileSpec location |      || export all identifers exported from this module
+      LibAll              location        || export all identifiers in this module
+
+### Operations on `defnMap`
+
+`module` also defines a set of useful functions that operate on `defnMap` and potentially report
+an exception (such as a `NameClash`):
+
+* `insDefnMapUnchecked` insert `name`, `defn` into a `defnMap` without name collision checking
+* `insDefnMap` insert `name`, `defn` intto a `defnMap`, checking for name collision
+* `insDefMult` insert a `defFn` into a `defnMap`, possibly merging it with `defFn`s with the same name
+* `insDefnMapMerge`
+* `makeDefnDependencyList` make a `dependencyList` of all definitions in a defnMap
+
+### `modInserter` functions
+
+The `makeModule` function takes a list of `modInserter` values and successively applies them to a module,
+reporting any error that is encountered.  Each `modInserter` function inserts a specific type of module
+component into a module.  Most of these simply qualify their respective `defn`s with the module's name,
+but the `modInserter` for data definitions does extra work:
+
+* qualify and insert the entire data definition into the `defnMap` for the module
+* qualify and insert a type specification for each constructor of the module
+* create and insert constructor functions for each constructor of the module
+
+The later also handles creating and inserting specialized constructor functions for any
+constructors which have *strict* fields, by first evaluating the field value before packing
+it with the rest of the field values.
+
+### `globalEnv` functions
+
+A global environment `globalEnv` is a state passed through the various module-modifying
+passes of the compiler; it holds the current `module` being modified, a `moduleMap` of all
+the modules in the build for cross-module lookups for type checking and inlining, and a
+counter sourcing `int`s for generating unique `Internal` names.
+
+Various lookup functions are provided for searching the `globalEnv` for:
+
+* a `module`
+* a `Qualified` `name` from an `Unqualified` `name`
+* a definition from a `Qualified` `name`
+* a type spec from a `Qualified` `name`
+* a `module`s exportMap from a `fileSpec`
+* all of the associated constructor `name`s from a given constructor `name`
+* the arity of a function from a `name`
+
+### `nameMap` functions
+
+Functions are also provided to perform insertions and deletions of `name`s in `nameMap`s
+to support the `%import` and `%export` directives.  These are included in the `module`
+module instead of the `name` module, because they can cause exceptions, which relies upon
+the `exception` module, and would otherwise create a circular-dependency upon the `name`
+module.
 
 ## `reify.m`
 
