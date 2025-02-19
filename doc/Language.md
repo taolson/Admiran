@@ -31,12 +31,12 @@ its uses.
 
 ### Values and Types
 
-An expression evaluates to a *value*, and has a static *type*. For example, the declaration
+An expression evaluates to a *value*, and has a static *type*. For example, the declarations
 
     x :: int
     x = 42
 
-Defines a type specification for the definition `x`, which is type `int`, and a value of `x`, which is `42`.
+declare a type specification for the definition `x`, which is type `int`, and a value of `x`, which is `42`.
 
 The Hindley-Milner type system allows user-defined type aliases and datatypes that can use parametric polymorphism.
 For example a user-defined tree datatype which can be built from values of any type can be written as:
@@ -57,21 +57,21 @@ There are 5 different kinds of names in Miranda2, which are grouped into 4 names
 #### Module Names
 
 Module names are simple strings which directly map to the *basename* of the module's file path. They are used
-in `%import` and `%export` declarations, and can be used to qualify variable, constructor, and type names. Module
-names can be aliased in an `%import` declaration to provide a shorthand for qualifiers.
+in `%import` and `%export` directives, and can be used to qualify variable, constructor, and type names. Module
+names can be aliased in an `%import` directive to provide a shorthand for qualifiers.
 
 #### Variable Names and Type Names
 
 Variable names and type names share the same namespace in Miranda2. They are either
 
 * Alphanumeric strings which begin with a lower-case letter, `'`, or `_` :
-  * `foo` `alphaBeta5'` `_eq`
+  * e.g. `foo` `alphaBeta5'` `_eq`
 * Symbolic character strings which specify infix operator names:
-  * `+` `>>=` `!!`
+  * e.g. `+` `>>=` `!!`
 
 Alphanumeric variable and type names can be used in an infix manner when preceded directly by a `$`,
 e.g. `x $mod 7`. Symbolic variable and type names can be used in a non-infix manner when surrounded by parenthesis,
-e.g. `map (*) xs`.
+e.g. `foldl (+) 0 xs`.
 
 Variable and type names can be *qualified* with a module name to disambiguate them in the case of a potential
 name clash, or to provide more documentation on the origin of the name, e.g. `stdlib.map foo xs` or
@@ -79,12 +79,15 @@ name clash, or to provide more documentation on the origin of the name, e.g. `st
 
 #### Constructor names
 
-Constructor names begin with an upper-case letter (or a `:`, in the case of an infix constructor). For example,
+Constructor names are either
 
-    list * ::= Null | * : (list *)
+* Alphanumeric strings which being with an upper-case letter
+  * e.g. `Nothing` `Lit` `V2`
+* Symbolic character strings beginning with `:` which specify infix constructors:
+  * e.g. `:>` `:+:`
 
-defines a (recursive) data type `list` with two constructors: `Null` and the infix constructor `:`.
-Cpnstructor names, like variable and type names, can be qualified with a module name.
+Like variable and type names, alphanumeric constructors can be used in an infix manner when preceded directly
+by a `$`, and symbolic constructors can be used in a non-infix manner when surrounded by parenthesis.
 
 #### Type Variable Names
 
@@ -100,7 +103,7 @@ Whitespace (spaces, tabs, newlines, and comments) are ignored, except for contri
 ### Comments
 
 Comments in Miranda2 begin with a token of two consecutive vertical bars (i.e. `||`) and extend to the
-end of the line. Note that `|||` parses as as a comment and not a synbolic operator, so comments
+end of the line. Note that `|||` parses as as a comment and not a symbolic operator, so comments
 effectively prevent defining symbolic operators that begin with `||`.
 
 ### Identifiers and Operators
@@ -131,7 +134,7 @@ also be used with a decimal or hexadecimal value to specify an escape character,
 
 Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
 are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
-or a `%import` or `%export` declaration, or the `of` in a `case .. of` expression, the column number of the
+or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, the column number of the
 following lexeme is captured, and used to disambiguate where the expression ends. If a subsequent line starts
 at or beyond the current layout column, it is considered to be a continuation of the current construct. Otherwise,
 it signals the end of the current construct and starts a new one. For example:
@@ -241,30 +244,30 @@ Comparison operators (shown with `Compare` associativity) allow chaining:
 ### Function Application and Curried Applications
 
 *Function application* is written as the juxtoposition of the function name and its arguments,
-e.g. `fact 5` or `max2 (a + 7) b`.  Function application has the highest precedence, and is left
+e.g. `fact 5` or `max (a + 7) b`.  Function application has the highest precedence, and is left
 associative.
 
 Functions in Miranda2 are *curried*, which means that functions of multiple arguments can be
 thought of as functions of a single argument returning another function. So
 
-    max2 (a + 7) b
+    max (a + 7) b
 
 can be written as
 
-    (max2 (a + 7)) b
+    (max (a + 7)) b
 
-where `max2` takes a single int argument, and returns a function which accepts the second argument.
+where `max` takes a single int argument, and returns a function which accepts the second argument.
 Currying allows a partial application of a function to be passed to another higher-order
-function.  For example, mapping the `max2` of `a` to all the values in a list:
+function.  For example, mapping the `max` of `a` to all the values in a list:
 
-    map (max2 a) [1 .. 10]
+    map (max a) [1 .. 10]
 
 ### Sections
 
 Infix operators can also be curried using the special notation of *presections* and *postsections*.
 A presection, written as ( *e* *op* ), uses the expression *e* as the left-hand side of the binary
 operation *op*, and returns a function which takes an argument for the right-hand side.  A
-postsection, written as ( *op* *e ), uses the expression *e* as the right-hand side of *op*, and
+postsection, written as ( *op* *e* ), uses the expression *e* as the right-hand side of *op*, and
 returns a function which takes an argument for the left-hand side.  For example, to add `1` to
 every value in a list:
 
@@ -276,8 +279,7 @@ on a binary `-`. To perform the later, the standard library function `subtract` 
 ### Lists
 
 Lists are a builtin recursive data type in Miranda2, with two constructors: `[]` and `:`.  `[]`
-is the empty list, and `:` is an infix constructor appending a value to the front of an existing list.
-Terms in a list expression must all have the same type; otherwise it is a type error.
+is the empty list, and `:` is an infix constructor appending a value to the head of an existing list.
 
 A List expression is a comma-separated list of expressions within square brackets, e.g.
 
@@ -285,17 +287,19 @@ A List expression is a comma-separated list of expressions within square bracket
     ['a', 'b', 'c', 'd']        || equivalent to ('a' : ('b' : ('c' : ('d' : []))))
     [a * 7, b - 3, fst (2, 3)]  || equivalent to (a * 7 : (b - 3 : (fst (2, 3) : [])))
 
-String literals in Miranda are represented as a list of `char`: `"Hi!"` is equivalent to
-`'H' : ('i' : ('!' : []))`
+Terms in a list expression must all have the same type; otherwise it is a type error.
 
-### Tuples
+String literals in Miranda are represented as a list of `char`: `"Hi!"` is equivalent to
+`['H', 'i', '!']`
+
+### Tuples and Unit
 
 Tuples are a builtin data type in Miranda2, and can be of any length. Terms in a tuple
 expression can be of different types. Tuples are written as comma-separated list of expressions
 within parentheses, e.g.
 
     ('a', 5)
-    (x * 3, y - 2, z)
+    (x * 3, "Hi " ++ "There", z)
     ([1, 2, 3], "test")
 
 A tuple of zero expressions, `()` is also known as a `Unit` expression.  It is a single value `()`
@@ -304,17 +308,74 @@ state monad operations that only perform side-effects and don't return a value.
 
 ### Range Expressions
 
+A *range expression* describes an *int* list with a starting value, an optional increment value
+(determined by a second value), and an optional final value, written in the form:
+
+    [ exp1 [, exp2] .. [exp3] ]
+
+Finite range expressions have an inclusive final value:
+
+    [0 .. 4]    || equivalent to [0, 1, 2, 3, 4] or stdlib.range 0 4
+    [9, 7 .. 1] || equivalent to [9, 7, 5, 3, 1] or stdlib.rangeBy (-2) 9 1
+
+Infinite range expressions don't have a final value:
+
+    [0 ..]        || equivalent to stdlib.rangeFrom 0
+    [x, x + d ..] || equivalent to stdlib.rangeByFrom d x
+
 ### List Comprehensions
+
+A *list comprehension* has the form:
+
+    [ exp | qual1 ; ... qualn ]
+
+which collects a list of all *exp* such that *qualifiers*.  If there are two or more qualifiers, they
+are separated by semicolons.  Each qualifier is either a *generator*, of which the two forms are:
+
+    pattern-list <- exp         (first form)
+    pattern <- exp, exp ..      (second form, a recurrence)
+
+or else a *filter*, which is a boolean expression restricting the range of the variables introduced
+by preceding generators. The variables introduced on the left of each `<-` are local to the list
+comprehension.
+
+Some examples:
+
+   sqs = [n * n | n <- [1 ..]]                                  || infinite list of square numbers
+   factors n = [r | r <- [1 .. n $div 2]; n $mod r == 0]        || list of factors of a number
+   knightsMoves i j = [(i + a, j + b) | a, b <- [-2 .. 2]; a * a + b * b == 5]
+
+Note that the list of variables on the left-hand side of the `<-` is shorthand for multiple generators,
+e.g. `i, j <- exp` expands to `i <- exp; j <- exp`.
+
+The second form of generator allows the construction of lists from arbitrary recurrence relations, so
+`[x | x <- a, f x ..]` generates the list `[x, f x, f (f x) ..]`
+
+An example of this is a definition of the Fibonacci sequence:
+
+    fibs = [a | (a, b) <- (1, 1), (b, a + b) ..]
+
+A *pattern* on the left-hand side of `<-` can be *refutable*; if the pattern does not match, then the generated
+value is silently discarded.  So to collect all `x` values from pairs of `(x, y)` where the y value is 0:
+
+    xs = [x | (x, 0) <- pairlist]
+
+Variables introduced on the left-hand size of `<-` can be used in subsequent qualifiers.  For example, to collect
+the combinations of all elements in a list, two at a time:
+
+    combs xs = [(x, y) | x : ys <- tails xs; y <- ys]
+
+where `tails` returns the successive tails of a list.
 
 ### Case Expressions
 
 ### Pattern Matching
 
-## Declarations and Bindings
+## Definitions and Bindings
 
 ### Function and Pattern Bindings
 
-### Nested `where` Declarations
+### Nested `where` Definitions
 
 ### Conditional Expressions
 
@@ -328,9 +389,9 @@ state monad operations that only perform side-effects and don't return a value.
 
 ### Module Structure
 
-### Exports
+### Export Directives
 
-### Imports
+### Import Directives
 
 ### Separate Compilation
 
