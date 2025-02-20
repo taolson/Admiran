@@ -7,7 +7,6 @@
 
 %export normalize
 
-%import <either>
 %import <lens>
 %import <map>
 %import <maybe>
