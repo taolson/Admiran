@@ -310,7 +310,7 @@ state monad operations that only perform side-effects and don't return a value.
 
 A *range expression* describes an *int* list with a starting value, an optional increment value
 (determined by a second value), and an optional final value, written in the form:
-[ *exp1* [, *exp2* ] .. [* exp3* ] ]
+[ *exp1* [, *exp2* ] .. [*exp3* ] ]
 
 Finite range expressions have an inclusive final value:
 
@@ -326,19 +326,18 @@ Infinite range expressions don't have a final value:
 
 A *list comprehension* has the form [ *exp* | *qual1* ; ... *qualn* ]
 
-which collects a list of all *exp* such that *qualifiers*.  If there are two or more qualifiers, they
-are separated by semicolons.  Each qualifier is either a *generator*, of which the two forms are:
-*pat-list* <- *exp*  (first form) or *pat* <- *exp1*, *exp2* .. (second form, a recurrence)
-
-or else a *filter*, which is a boolean expression restricting the range of the variables introduced
+which collects a list of all *exp* such that *qualifiers* hold.  If there are two or more qualifiers,
+they are separated by semicolons.  Each qualifier is either a *generator*, of which the two forms are:
+*pat-list* <- *exp*  (first form) or *pat* <- *exp1*, *exp2* .. (second form, a recurrence) or else a
+*filter*, which is a boolean expression restricting the range of the variables introduced
 by preceding generators. The variables introduced on the left of each `<-` are local to the list
 comprehension.
 
 Some examples:
 
-   sqs = [n * n | n <- [1 ..]]                                  || infinite list of square numbers
-   factors n = [r | r <- [1 .. n $div 2]; n $mod r == 0]        || list of factors of a number
-   knightsMoves i j = [(i + a, j + b) | a, b <- [-2 .. 2]; a * a + b * b == 5]
+    sqs = [n * n | n <- [1 ..]]                                  || infinite list of square numbers
+    factors n = [r | r <- [1 .. n $div 2]; n $mod r == 0]        || list of factors of a number
+    knightsMoves i j = [(i + a, j + b) | a, b <- [-2 .. 2]; a * a + b * b == 5]
 
 Note that the list of variables on the left-hand side of the `<-` is shorthand for multiple generators,
 e.g. `i, j <- exp` expands to `i <- exp; j <- exp`.
@@ -363,6 +362,53 @@ the combinations of all elements in a list, two at a time:
 where `tails` returns the successive tails of a list.
 
 ### Case Expressions
+
+Case expressions in Miranda2 are the mechanism for interfacing with builtin functions that operate on unboxed words
+and are evaluated strictly. They can also be used to evaluate an expression and perform a conditional switch
+on the resulting constructor. A case expression has the general form
+
+    case expS of
+        pat1 -> exp1
+        pat2 -> exp2
+        .
+        .
+
+where expS (the *scrutinee* expression) is evaluated strictly, and must evaluate to either
+* an unboxed word# value (for results of builtin functions)
+* a saturated constructor value
+
+and the patterns on the left-hand side of the case alternatives are either
+* a variable to be bound to the evaluated result
+* a literal unboxed word# to match with the result to select between alternatives
+* a saturated constructor pattern with only variable or wildcard parameters
+
+The first instance can be used to perform low-level builtin operations, e.g.
+
+    case a# +# b# of r# -> I# r#        || builtin addition on unboxed words
+
+The second instance is typically used when performing a switch on a builtin cmp# function:
+
+    case a# cmp# 0# of
+      0# -> EQ  || cmp# returns 0# if arguments are equal
+      1# -> LT  || cmp# returns 1# if arg1 < arg2
+      2# -> GT  || cmp# returns 2# if arg1 > arg2
+
+The third form can be used to evaluate strictly any expression returning a saturated constructor,
+e.g.
+
+    case mx of          || switch based upon a maybe int value
+      Nothing -> 0
+      Just x  -> x + 1
+
+or
+    case tupval of
+      (a, _) -> a       || strictly extract the fst component of a tuple
+
+As in definitions and library directives, case expressions are layout sensitive, with the first lexeme
+after the `of` setting the indentation for the rest of the case alternates.  Case alternates can also
+be placed on the same line, separated by a semicolon:
+
+    case boolval of False -> "f"; True -> "t"
 
 ### Pattern Matching
 
