@@ -445,28 +445,32 @@ Depending upon the definition or expression in which the pattern is used, a fail
 
 Some examples of patterns:
 
-    || define a function "addPair" that takes a tuple argument and adds its components
-    || single constructor tuple with all variable patterns is irrefutable:
+* define a function "addPair" that takes a tuple argument and adds its components
+  single constructor tuple with all variable patterns is irrefutable:
+
     addPair (a, b) = a + b
 
-    || define a function "map" with two separate pattern matches:
-    || match on second value has 2 possible constructors: [] and (:),
-    || if first match fails, proceed to try the second.  Since both constructors
-    || are handled, the overall match is irrefutable.
+* define a function "map" with two separate pattern matches:
+  match on second value has 2 possible constructors: [] and (:),
+  if first match fails, proceed to try the second.  Since both constructors
+  are handled, the overall match is irrefutable.
+
     map _ []       = []             || ignoring first argument, if second is the empty list, return it
     map f (x : xs) = f x : map f xs || if not, bind the first argument to f, and match a non-empty list pattern
 
-    || destructure a complex nested tuple "p" with a pattern definition
-    || binds a to first tuple arg, binds b to snd part of second tuple arg,
-    || and must match the string "test" in the third tuple arg. This pattern
-    || is refutable, and will cause a runtime error if the pattern fails to
-    || match the value in p.
+* destructure a complex nested tuple "p" with a pattern definition
+  binds a to first tuple arg, binds b to snd part of second tuple arg,
+  and must match the string "test" in the third tuple arg. This pattern
+  is refutable, and will cause a runtime error if the pattern fails to
+  match the value in p.
+
     (a, (_, b), "test") = p
 
-    || compare a character with 'a', matching on GT/LT/EQ indication
-    || match on result as 3 possible constructors: GT/LT/EQ.  If the
-    || first pattern fails, the second pattern is the wildcard pattern
-    || "_", so overall pattern match is irrefutable.
+* compare a character with 'a', matching on GT/LT/EQ indication
+  match on result as 3 possible constructors: GT/LT/EQ.  If the
+  first pattern fails, the second pattern is the wildcard pattern
+  `_`, so overall pattern match is irrefutable.
+
     case cmpchar c 'a' of
         GT -> c - code 'a' + 10
         _  -> c - code '0'
