@@ -38,8 +38,8 @@ An expression evaluates to a *value*, and has a static *type*. For example, the 
 
 declare a type specification for the definition `x`, which is type `int`, and a value of `x`, which is `42`.
 
-The Hindley-Milner type system allows user-defined type aliases and datatypes that can use parametric polymorphism.
-For example a user-defined tree datatype which can be built from values of any type can be written as:
+The Hindley-Milner type system allows user-defined type aliases and data types that can use parametric polymorphism.
+For example a user-defined tree data type which can be built from values of any type can be written as:
 
     tree * ::= Leaf | Node * (tree *) (tree *)
 
@@ -130,6 +130,14 @@ by a character escape for specifying standard control characters `\a \b \f \n \r
 a character itself, e.g. `\\` for a single backslash, or `\"` for a double quote character. Numeric coes can
 also be used with a decimal or hexadecimal value to specify an escape character, e.g. `\10` or `\x7f`.
 
+### Unboxed Word# Literals
+
+Miranda2 also provides access to raw, unboxed word# values, for use in interfacing to low-level builtin
+functions, or to write performance-tuned functions without boxing / unboxing overhead.
+
+Integer word# values are written as an integer literal immediately followed by a '#', e.g. `42#`.
+Unboxed characters can also be written with character literals, e.g. `'a'#`.
+
 ### Layout
 
 Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
@@ -157,7 +165,7 @@ A semicolon (`;`) can be used to specify the end of a construct instead of inden
 ## Expressions
 
 A Miranda2 expression is a sequence of term expressions and function applications
-interleaved by infix operators.  Term expressions can be:
+interleaved by infix operators. Term expressions can be:
 
 * a variable, constructor, or literal
 * a parenthesized expression
@@ -244,7 +252,7 @@ Comparison operators (shown with `Compare` associativity) allow chaining:
 ### Function Application and Curried Applications
 
 *Function application* is written as the juxtoposition of the function name and its arguments,
-e.g. `fact 5` or `max (a + 7) b`.  Function application has the highest precedence, and is left
+e.g. `fact 5` or `max (a + 7) b`. Function application has the highest precedence, and is left
 associative.
 
 Functions in Miranda2 are *curried*, which means that functions of multiple arguments can be
@@ -258,7 +266,7 @@ can be written as
 
 where `max` takes a single int argument, and returns a function which accepts the second argument.
 Currying allows a partial application of a function to be passed to another higher-order
-function.  For example, mapping the `max` of `a` to all the values in a list:
+function. For example, mapping the `max` of `a` to all the values in a list:
 
     map (max a) [1 .. 10]
 
@@ -266,9 +274,9 @@ function.  For example, mapping the `max` of `a` to all the values in a list:
 
 Infix operators can also be curried using the special notation of *presections* and *postsections*.
 A presection, written as ( *e* *op* ), uses the expression *e* as the left-hand side of the binary
-operation *op*, and returns a function which takes an argument for the right-hand side.  A
+operation *op*, and returns a function which takes an argument for the right-hand side. A
 postsection, written as ( *op* *e* ), uses the expression *e* as the right-hand side of *op*, and
-returns a function which takes an argument for the left-hand side.  For example, to add `1` to
+returns a function which takes an argument for the left-hand side. For example, to add `1` to
 every value in a list:
 
     map (+ 1) xs
@@ -278,7 +286,7 @@ on a binary `-`. To perform the later, the standard library function `subtract` 
 
 ### Lists
 
-Lists are a builtin recursive data type in Miranda2, with two constructors: `[]` and `:`.  `[]`
+Lists are a builtin recursive data type in Miranda2, with two constructors: `[]` and `:`. `[]`
 is the empty list, and `:` is an infix constructor appending a value to the head of an existing list.
 
 A List expression is a comma-separated list of expressions within square brackets, e.g.
@@ -302,8 +310,8 @@ within parentheses, e.g.
     (x * 3, "Hi " ++ "There", z)
     ([1, 2, 3], "test")
 
-A tuple of zero expressions, `()` is also known as a `Unit` expression.  It is a single value `()`
-of type `unit` (also represented as `()`).  It is commonly used as a return type for I/O or other
+A tuple of zero expressions, `()` is also known as a `Unit` expression. It is a single value `()`
+of type `unit` (also represented as `()`). It is commonly used as a return type for I/O or other
 state monad operations that only perform side-effects and don't return a value.
 
 ### Range Expressions
@@ -326,8 +334,8 @@ Infinite range expressions don't have a final value:
 
 A *list comprehension* has the form [ *exp* | *qual1* ; ... *qualn* ]
 
-which collects a list of all *exp* such that *qualifiers* hold.  If there are two or more qualifiers,
-they are separated by semicolons.  Each qualifier is either a *generator*, of which the two forms are:
+which collects a list of all *exp* such that *qualifiers* hold. If there are two or more qualifiers,
+they are separated by semicolons. Each qualifier is either a *generator*, of which the two forms are:
 *pat-list* <- *exp*  (first form) or *pat* <- *exp1*, *exp2* .. (second form, a recurrence) or else a
 *filter*, which is a boolean expression restricting the range of the variables introduced
 by preceding generators. The variables introduced on the left of each `<-` are local to the list
@@ -350,11 +358,12 @@ An example of this is a definition of the Fibonacci sequence:
     fibs = [a | (a, b) <- (1, 1), (b, a + b) ..]
 
 A *pattern* on the left-hand side of `<-` can be *refutable*; if the pattern does not match, then the generated
-value is silently discarded.  So to collect all `x` values from pairs of `(x, y)` where the y value is 0:
+value is silently discarded, as if it had failed a filter qualifier. So to collect all `x` values from pairs of
+`(x, y)` where the y value is 0:
 
     xs = [x | (x, 0) <- pairlist]
 
-Variables introduced on the left-hand size of `<-` can be used in subsequent qualifiers.  For example, to collect
+Variables introduced on the left-hand size of `<-` can be used in subsequent qualifiers. For example, to collect
 the combinations of all elements in a list, two at a time:
 
     combs xs = [(x, y) | x : ys <- tails xs; y <- ys]
@@ -363,9 +372,9 @@ where `tails` returns the successive tails of a list.
 
 ### Case Expressions
 
-Case expressions in Miranda2 are the mechanism for interfacing with builtin functions that operate on unboxed words
-and are evaluated strictly. They can also be used to evaluate an expression and perform a conditional switch
-on the resulting constructor. A case expression has the general form
+Case expressions in Miranda2 are the mechanism for interfacing with builtin functions that operate on unboxed
+words, and are evaluated strictly. They can also be used to evaluate an expression strictly and perform a
+conditional switch on the resulting constructor. A case expression has the general form:
 
     case expS of
         pat1 -> exp1
@@ -400,17 +409,67 @@ e.g.
       Nothing -> 0
       Just x  -> x + 1
 
-or
     case tupval of
       (a, _) -> a       || strictly extract the fst component of a tuple
 
 As in definitions and library directives, case expressions are layout sensitive, with the first lexeme
-after the `of` setting the indentation for the rest of the case alternates.  Case alternates can also
+after the `of` setting the indentation for the rest of the case alternates. Case alternates can also
 be placed on the same line, separated by a semicolon:
 
     case boolval of False -> "f"; True -> "t"
 
 ### Pattern Matching
+
+*Patterns* appear in function definitions, pattern bindings, list comprehensions, and case expressions,
+and are used to destructure structured data from lists, tuples, and algebraic data type values.
+Patterns look like a saturated constructor application for the particular constructor they are matching
+on, or a list expression, with pattern arguments that are either:
+* a variable to bind to the corresponding argument's value
+* a literal int, char, or string, which must match the corresponding argument's value
+* a *wildcard* pattern, which ignores the corresponding argument's value
+* another pattern, which is used to further destructure the corresponding argument
+
+Patterns can be *irrefutable* or *refutable*, depending upon their pattern arguments. An
+*irrefutable* pattern will always match a value, and consists of a single-constructor data
+type with pattern arguments that are one of:
+* a variable, e.g. `I# n  || extract the unboxed word# value from an int`
+* a wildcard, e.g. `(_, a) || extract snd value of a tuple, ignoring the fst`
+* a nested irrefutable pattern, e.g. `(I# n, (_, a))`
+
+Refutable patterns can fail to match, either due to a constructor or list expression not matching,
+a literal pattern argument not matching, or a nested refutable pattern argument not matching.
+Depending upon the definition or expression in which the pattern is used, a failed match will:
+* cause a runtime pattern match error
+* proceed to try to match the next pattern
+* ignore the value and continue with the next generator value (list comprehension)
+
+Some examples of patterns:
+
+    || define a function "addPair" that takes a tuple argument and adds its components
+    || single constructor tuple with all variable patterns is irrefutable:
+    addPair (a, b) = a + b
+
+    || define a function "map" with two separate pattern matches:
+    || match on second value has 2 possible constructors: [] and (:),
+    || if first match fails, proceed to try the second.  Since both constructors
+    || are handled, the overall match is irrefutable.
+    map _ []       = []             || ignoring first argument, if second is the empty list, return it
+    map f (x : xs) = f x : map f xs || if not, bind the first argument to f, and match a non-empty list pattern
+
+    || destructure a complex nested tuple "p" with a pattern definition
+    || binds a to first tuple arg, binds b to snd part of second tuple arg,
+    || and must match the string "test" in the third tuple arg. This pattern
+    || is refutable, and will cause a runtime error if the pattern fails to
+    || match the value in p.
+    (a, (_, b), "test") = p
+
+    || compare a character with 'a', matching on GT/LT/EQ indication
+    || match on result as 3 possible constructors: GT/LT/EQ.  If the
+    || first pattern fails, the second pattern is the wildcard pattern
+    || "_", so overall pattern match is irrefutable.
+    case cmpchar c 'a' of
+        GT -> c - code 'a' + 10
+        _  -> c - code '0'
 
 ## Definitions and Bindings
 
@@ -422,7 +481,7 @@ be placed on the same line, separated by a semicolon:
 
 ### Type Specifications
 
-### User-Defined Data Types
+### Algebraic Data Types
 
 ### Type Aliases
 
