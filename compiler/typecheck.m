@@ -518,36 +518,30 @@ inferMap dm
 
 || type unification
 
-|| extend a substMap  with a substitution, possibly reporting an error
-extend :: substMap -> int -> texpr -> tcState substMap
-extend sm tvn t
-    = tc_pure sm,                                             if _eq cmptexpr t tv              || substituting a Tvar for itself is a no-op
-    = tc_error (Occurs tvn' t'),                              if s_member cmpint tvn (t_ftv t)  || cannot create an infinite type
-    = tc_pure (m_union cmpint (m_fmap (t_subst sm') sm) sm'), otherwise                         || update existing texprs in map with new subst and add to map
-      where
-        sm'         = m_singleton tvn t
-        tv          = Tvar tvn
-        Tarr tv' t' = normalize $ Tarr tv t
-        Tvar tvn'   = tv'
+|| unification can either be for inference, or checking that the inferred type subsumes the specified type
+unifyMode ::= Infer | Check
 
-|| same as extend, but checks for an Occurs error against the free variables of the original second type
-|| which has been saved in the tcSt
-extend' :: substMap -> int -> texpr -> tcState substMap
-extend' sm tvn t
+|| extend a substMap  with a substitution, possibly reporting an error
+|| if unifyMode is Check, check for an Occurs error against the free variables
+|| of the original second type, which have been saved in the tcSt
+extend :: unifyMode -> substMap -> int -> texpr -> tcState substMap
+extend um sm tvn t
     = tc_view tcFvars >>= f
       where
-        f fvars
-            = tc_pure sm,                                             if _eq cmptexpr t tv
-            = tc_error (Occurs tvn' t'),                              if s_member cmpint tvn fvars
-            = tc_pure (m_union cmpint (m_fmap (t_subst sm') sm) sm'), otherwise
+        f oFvars
+            = tc_pure sm,                if _eq cmptexpr t tv
+            = tc_error (Occurs tvn' t'), if s_member cmpint tvn $ fvars um
+            = tc_pure  extended,         otherwise
               where
                 sm'         = m_singleton tvn t
+                mapped      = m_fmap (t_subst sm') sm
+                extended    = m_union cmpint mapped sm'
                 tv          = Tvar tvn
                 Tarr tv' t' = normalize $ Tarr tv t
                 Tvar tvn'   = tv'                
 
-|| unification can either be for inference, or checking that the inferred type subsumes the specified type
-unifyMode ::= Infer | Check
+                fvars Infer = t_ftv t
+                fvars Check = oFvars
 
 || unify two texprs by possibly extending the substitution, or report an error
 || tcSt is passed in to provide info for error reporting, but is unmodified
@@ -555,12 +549,11 @@ unify' :: unifyMode -> texpr -> texpr -> substMap -> tcState substMap
 unify' um t1 t2 sm
     = go t1 t2
       where
-        go (Tvar tvn)    t2            = go t1' t2',         if m_member cmpint tvn sm          || unify 
-                                       = extend' sm tvn t2', if _eq cmpunifyMode um Check       || extend for subsumption
-                                       = extend  sm tvn t2', otherwise                          || extend for inference
+        go (Tvar tvn)    t2            = go t1' t2',           if m_member cmpint tvn sm        || unify 
+                                       = extend um sm tvn t2', otherwise                        || extend
                                            where
-                                           t1' = subst sm tvn
-                                           t2' = t_subst sm t2
+                                             t1' = subst sm tvn
+                                             t2' = t_subst sm t2
         go t1            (Tvar tvn)    = go (Tvar tvn) t1,       if _eq cmpunifyMode um Infer   || Infer is bidirectional; Check is one-sided
         go (Tname n1 ta) (Tname n2 tb) = unifyLists um ta tb sm, if _eq cmpname n1 n2 & #ta == #tb
         go (Ttuple ta)   (Ttuple tb)   = unifyLists um ta tb sm, if #ta == #tb
