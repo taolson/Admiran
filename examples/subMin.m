@@ -26,5 +26,10 @@ subMin xs
         || subtracts the final min value from the element
         tally min' x = (min2 cmpint min' x, x - min)
 
+        || what would happen if we tried to compute x - min strictly using
+        || a case expression?  Comment out the previous version and
+        || uncomment this version and see!
+        ||tally min' x = case x - min of x' -> (min2 cmpint min' x, x')
+
 main :: io ()
 main = subMin [-50 .. 50] |> showlist showint |> putStrLn
