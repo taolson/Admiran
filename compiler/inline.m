@@ -486,7 +486,9 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
         checkIdentSub ea (EprimInt 0) = repl ea
         checkIdentSub _  _            = base
 
+        checkIdentMul (EprimInt 0) eb = repl (EprimInt 0)
         checkIdentMul (EprimInt 1) eb = repl eb
+        checkIdentMul ea (EprimInt 0) = repl (EprimInt 0)
         checkIdentMul ea (EprimInt 1) = repl ea
         checkIdentMul _  _            = base
 
