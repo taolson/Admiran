@@ -1,0 +1,29 @@
+|| subMin.m -- demonstration of finding the minimum value in a list and subtracting it
+||             from all the elements in the list in a single pass
+||
+|| Normally this operation would be written in two passes of the list: the first to
+|| find the minimum value, and the second to subtract that from all the elements.
+|| However, in a lazily-evaluated language, this is possible to do in a single pass by
+|| "tying the knot": in this case, refering to the final, but still-to-be computed value
+|| "min" within the code that is simultaneously computing the min and subtracting it.
+|| As long as the reference to "min" is lazy, it will not be evaluated until it is demanded,
+|| in this case, when the final list is printed to the output.
+
+%import <io>
+%import <mirandaExtensions>
+
+|| find the minimum value of a list of ints and subtract that from each element in the list
+subMin :: [int] -> [int]
+subMin xs
+    = xs'
+      where
+        || mapAccumL maps a function and an accumulator over a list
+        || returning the final accumulator and the mapped list
+        || in this case, the accumulator value is the current min value
+        (min, xs') = mapAccumL tally (hd xs) xs
+
+        || the tally function simultaneously computes a new min value and
+        || subtracts the final min value from the element
+        tally min' x = (min2 cmpint min' x, x - min)
+
+main = subMin [-50 .. 50] |> showlist showint |> putStrLn
