@@ -189,7 +189,7 @@ ma <|> mb
 
 || add an error to the state and fail with Nothing
 tc_error, tc_errorNote :: exceptionInfo -> tcState *
-tc_error ei st     = (Nothing, addTcErr  ei (view tcLoc st) st)
+tc_error     ei st = (Nothing, addTcErr  ei (view tcLoc st) st)
 tc_errorNote ei st = (Nothing, addTcNote ei (view tcLoc st) st)
 
 || lift lens operations into tcState
@@ -529,9 +529,9 @@ extend um sm tvn t
     = tc_view tcFvars >>= f
       where
         f oFvars
-            = tc_pure sm,                if _eq cmptexpr t tv
-            = tc_error (Occurs tvn' t'), if s_member cmpint tvn $ fvars um
-            = tc_pure  extended,         otherwise
+            = tc_pure sm,                if _eq cmptexpr t tv                   || no extension for equal texprs
+            = tc_error (Occurs tvn' t'), if s_member cmpint tvn $ fvars um      || tvn occurs in free vars of t, which implies an infinite type
+            = tc_pure  extended,         otherwise                              || extend sm with tvn ~ t
               where
                 sm'         = m_singleton tvn t
                 mapped      = m_fmap (t_subst sm') sm
@@ -560,10 +560,13 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = tc_error $ TypeHole (normalize t2),             if isTWild t1
-                                       = tc_error $ TypeHole (normalize t1),             if isTWild t2
-                                       = tc_error $ Unify (normalize t1) (normalize t2), otherwise
+        go t1            t2            = tc_error $ TypeHole nt2,  if isTWild t1
+                                       = tc_error $ TypeHole nt1,  if isTWild t2
+                                       = tc_error $ Unify nt1 nt2, otherwise
                                          where
+                                           nt1 = normalize t1
+                                           nt2 = normalize t2
+
                                            isTWild (Tname n _) = isWildcard n
                                            isTWild _           = False
 
