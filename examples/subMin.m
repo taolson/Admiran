@@ -6,7 +6,7 @@
 || However, in a lazily-evaluated language, this is possible to do in a single pass by
 || "tying the knot": in this case, refering to the final, but still-to-be computed value
 || "min" within the code that is simultaneously computing the min and subtracting it.
-|| As long as the reference to "min" is lazy, it will not be evaluated until it is demanded,
+|| As long as the reference to "min" is lazy, it will not be evaluated until it is demanded;
 || in this case, when the final list is printed to the output.
 
 %import <io>
@@ -26,4 +26,5 @@ subMin xs
         || subtracts the final min value from the element
         tally min' x = (min2 cmpint min' x, x - min)
 
+main :: io ()
 main = subMin [-50 .. 50] |> showlist showint |> putStrLn
