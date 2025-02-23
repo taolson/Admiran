@@ -30,10 +30,10 @@ is a C compiler for assembling the generated asm files and linking them with the
 
 Miranda2 is an "extended subset" of Miranda, and does not (currently) implement every feature
 in the original Miranda language:
-* num type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
+* `num` type (combined floating-point or arbitrary-precision integers) replaced with 64-bit `int`
 * polymorphic show and comparison operators that work on any type replaced with manual show and
   ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
-* no %free directive for parameterized modules
+* no `%free` directive for parameterized modules
 
 ### Miranda2 new language features not in Miranda
 
