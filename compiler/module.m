@@ -351,7 +351,7 @@ modInsAbs d m
 || make a module from an initial module and a sequence of modInserter functions
 makeModule :: module -> [modInserter] -> excpt module
 makeModule m insrs
-    = ex_foldM rapply m insrs'
+    = ex_foldM (|>) m insrs'
       where
         mn     = view modName m
         stdlib = FileSpec stdlibPath stdlibModuleName
@@ -458,14 +458,6 @@ lookupArity genv n
 genvAnno :: globalEnv -> anno
 genvAnno = locAnno . initLocation . view modName . view genvMod
 
-|| extract all of the top-level definitions from a specified module
-definedInModule :: string -> nameMap -> nameMap
-definedInModule s e
-    = m_filter cmpname (fromModule s) e
-      where
-        fromModule s (Qualified mn v) = s ==$ mn
-        fromModule s x                = False
-
 
 || nameMap operations
 || note: these logically would be defined in the name module, but the operations here
@@ -527,3 +519,11 @@ mergeEnvironments loc qual as e1 e2
         addName LibQualified m (k, v)
             = ex_pure m,            if isUnqualified k
             = insNameMap loc k v m, otherwise
+
+|| extract all of the top-level definitions from a specified module
+definedInModule :: string -> nameMap -> nameMap
+definedInModule s e
+    = m_filter cmpname (fromModule s) e
+      where
+        fromModule s (Qualified mn v) = s ==$ mn
+        fromModule s x                = False
