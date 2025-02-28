@@ -417,7 +417,7 @@ They are parsed with the parsers `p_fileSpec`, `p_libPart`, `p_libQual`, `p_libA
 
 ### Parsing top-level `module` declarations
 
-Declarations at the top-level of a `module` are parsed with `p_decl`, and `p_decls` parsers, which try parsing
+Declarations at the top-level of a `module` are parsed with `p_decl` and `p_decls` parsers, which try parsing
 definitions in the order `p_tdef`, `p_def`, `p_spec`, and `p_libDir`. Type definitions (`p_tdef`) are tried first,
 because there is an ambiguity in attempting to parse type definitions and data definitions with the addition of
 user-defined infix operators in Miranda2:
