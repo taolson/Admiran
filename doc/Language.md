@@ -318,7 +318,7 @@ state monad operations that only perform side-effects and don't return a value.
 
 A *range expression* describes an *int* list with a starting value, an optional increment value
 (determined by a second value), and an optional final value, written in the form:
-[ *exp1* [, *exp2* ] .. [*exp3* ] ]
+`[` *exp1* [ `,` *exp2* ] `..` [ *exp3* ] `]`
 
 Finite range expressions have an inclusive final value:
 
@@ -332,19 +332,27 @@ Infinite range expressions don't have a final value:
 
 ### List Comprehensions
 
-A *list comprehension* has the form [ *exp* | *qual1* ; ... *qualn* ]
+A *list comprehension* has the form `[` *exp* `|` *qual1* `;` ... *qualN* `]`
 
 which collects a list of all *exp* such that *qualifiers* hold. If there are two or more qualifiers,
 they are separated by semicolons. Each qualifier is either a *generator*, of which the two forms are:
-*pat-list* <- *exp*  (first form) or *pat* <- *exp1*, *exp2* .. (second form, a recurrence) or else a
-*filter*, which is a boolean expression restricting the range of the variables introduced
+*pat-list* `<-` *exp*  (first form) or *pat* `<-` *exp1* `,` *exp2* `..` (second form, a recurrence)
+or else a *filter*, which is a boolean expression restricting the range of the variables introduced
 by preceding generators. The variables introduced on the left of each `<-` are local to the list
 comprehension.
 
-Some examples:
+#### List comprehension examples
 
-    sqs = [n * n | n <- [1 ..]]                                  || infinite list of square numbers
-    factors n = [r | r <- [1 .. n $div 2]; n $mod r == 0]        || list of factors of a number
+Create an infinite list of square numbers:
+
+    sqs = [n * n | n <- [1 ..]]
+
+List all the factors of a number:
+
+    factors n = [r | r <- [1 .. n $div 2]; n $mod r == 0]
+
+Find all the moves a knight can make from coordinates i j:
+
     knightsMoves i j = [(i + a, j + b) | a, b <- [-2 .. 2]; a * a + b * b == 5]
 
 Note that the list of variables on the left-hand side of the `<-` is shorthand for multiple generators,
@@ -443,7 +451,7 @@ Depending upon the definition or expression in which the pattern is used, a fail
 * proceed to try to match the next pattern
 * ignore the value and continue with the next generator value (list comprehension)
 
-Some examples of patterns:
+#### Pattern matching examples
 
 define a function "addPair" that takes a tuple argument and adds its components
 single constructor tuple with all variable patterns is irrefutable:
@@ -475,32 +483,121 @@ first pattern fails, the second pattern is the wildcard pattern
         GT -> c - code 'a' + 10
         _  -> c - code '0'
 
-## Definitions and Bindings
+## Function Definitions
 
-### Function and Pattern Bindings
+A function definition binds a variable to a function value.  The general form of a function
+definition is *fnvar* *pat0* { *pat1* .. } `=` *rhs*, where *fnvar* is the function variable
+name (or asymbolic variable name surrounded by parenthesis) to be bound to the function, *pat0*
+ .. *patN* are patterns to be bound to the arguments when the function is applied, and *rhs* is
+a *right-hand side* expression which is evaluated in the context of the bound arguments.
+
+Some examples of function definitions:
+
+    square x = x * x
+
+    manhattanDist (ax, ay) (bx, by) = abs (ax - bx) + abs (ay - by)
+
+### Function arity and under-applied and over-applied functions
+
+The number of pattern arguments in a function definition define the function's *arity*, which should be
+the "natural" number of arguments that the function operates on.  A function definition must have at
+least one pattern argument (otherwise it is a pattern definition).  Functions are curried, and can be
+under-applied (calling a function with fewer arguments than its arity dictates) or over-appied (calling
+a function with more arguments than its arity dictates).  Under-applied functions return a
+*partially-applied function*, capturing the supplied arguments and returning a function with an arity
+matching the number of missing arguments of the original function.  These are useful for passing
+partially-applied functions to a higher-order function such as `map`:
+
+    add a b = a + b             || function with "natural" arity 2
+    foo = map (add 7) [1 .. 20] || function "add" under-applied to pass to map
+
+A common case for over-applying a function is to define a function with fewer than the required number
+of arguments and explicitly return another function:
+
+    subtract b = go where go a = a - b  || function with "natural" arity 1
+    x = subtract 7 5                    || subtract over-applied, passing 5 to "go"
+
+This is useful in situations where the function is commonly used as an argument in higher-order functions,
+or when a recursive function (which normally cannot be inlined) can be split into a non-recursive part
+that captures common arguments and a recursive part, such as the definition of `foldr` in the `stdlib`
+module:
+
+    foldr f z
+        = go
+          where
+            go []       = z
+            go (x : xs) = f x (go xs)
+
+    sum = foldr (+) 0
+
+The definition of sum calls foldr with its natural arity of 2, allowing sum to inline the foldr definition
+and be turned into:
+
+    sum = go
+          where
+            go [] = 0
+            go (x : xs) = x + go xs
+
+`foldr` could also be directly over-applied:
+
+    x = foldr (+) 0 [1 .. 100]
+
+### Functions with multiple definitions
+
+Functions can be defined "piece-wise" using multiple consecutive function definitions with the same
+*fnvar* name, and different *pat* pattern arguments.  The multiple definitions are conceptually
+processed in-order, from top to bottom, until a pattern match for all pattern arguments is found, in
+which case the corresponding right-hand side expression is evaluated.  If no pattern match is found,
+a runtime pattern match error occurs.  A common example of this is matching on the two list constructors
+`[]` and `:`:
+
+    length []       = 0
+    length (_ : xs) = 1 + length xs
+
+## Pattern Definitions
+
+A pattern definition defines one or more pattern variables by destructuring the right-hand side
+expression:
+
+    (a, b) = f x        || a and b are bound to the components of the tuple returned from f x
+    _ : xs' = xs        || bind xs' to the tail of the list xs (equivalent to xs' = tl xs)
+
+    Efatbar (Pvar n) e1 e2 = expr       || destructure a complex nested expression
+
+If a refutable pattern fails to match, a runtime pattern match error occurs.
+
+## Right-Hand Side Expressions
 
 ### Nested `where` Definitions
 
 ### Conditional Expressions
 
-### Type Specifications
+## Module Declarations
 
-### Algebraic Data Types
+Declarations at the top-level of a module consist of
+* top-level function and pattern definitions
+* type specifications
+* type alias definitions
+* Algebraic Data Type definitions
+* `%import` and `%export` library directives
+
+### Type Specifications
 
 ### Type Aliases
 
-## Modules
-
-### Module Structure
-
-### Export Directives
+### Algebraic Data Types
 
 ### Import Directives
 
-### Separate Compilation
+An import directive is of the form `%import` *fileSpec* { *libQual* } { *libAs* } 
+
+#### `stdlib`
+
+### Export Directives
 
 ## Predefined Types
 
 ### Standard Miranda2 Types
 
-### Strict Evaluation
+
+## Strict Evaluation
