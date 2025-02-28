@@ -8,13 +8,25 @@
 
 ### Typecheck errors
 
-## Runtime errors
+#### Understanding typecheck error reports
+
+#### Adding top-level type specifications
+
+#### Using type holes
+
+## Run-time errors
 
 ### Missing case and pattern match errors
 
 ### Errors due to partial functions
 
-## Runtime debugging
+### Black Holes
+
+### Stack overflow
+
+### Space leaks and out-of-memory errors
+
+## Run-time debugging
 
 ### Using `stdlib.trace`
 
