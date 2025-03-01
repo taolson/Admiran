@@ -568,9 +568,61 @@ If a refutable pattern fails to match, a runtime pattern match error occurs.
 
 ## Right-Hand Side Expressions
 
+THe simplest form of a right-hand side expression is just a regular expression, as defined
+previously.  It is also possible to give several alternative expressions, distinguished by
+*guards*, known as a *conditional expression*.
+
+### Conditional Expressions and Guards
+
+A *guard* consists of the word `if` followed by a boolean expression.  An example
+of a right-hand side expression with several alternatives is the gcd function:
+
+    gcd a b = gcd (a - b) b, if a > b
+            = gcd a (b - a), if a < b
+            = a,             if a == b  || can also be written "otherwise"
+
+Note that the guards are written on the right, following a comma.  The layout is significant,
+as the offside rule is used to resolve any ambiguities during parsing.
+
+The last guard can be written as `otherwise`, to indicate that this is the case which applies
+if all other guards are false.  If the last guard is not an `otherwise`, then the entire
+expression is refutable, and will fall through to try a following definition (in the case of a 
+function with multiple sequential definitions), or cause a runtime error.
+
 ### Nested `where` Definitions
 
-### Conditional Expressions
+A right-hand side expression is optionally followed by a `where` clause and a set of nested
+definitions. The `where` lexeme sets the layout indentation level for the rest of the `where`
+definitions:
+
+    foo x = p + q, if p < q
+          = p - q, otherwise
+            where
+              p = x * 2 + 1
+              q = 3 * x - 5
+
+The nested `where` definitions are local to the enclosing definition.  Note that the `where`
+definitions themselves, like top-level definitions, may include conditional expressions and
+nested `where` definitions.
+
+### Recursive and Mutually-Recursive Definitions
+
+As stated previously, definitions may occur in any order, and may be recursive with themselves,
+or mutually-recursive with prior or subsequent definitions.  For example:
+
+    even 0 = True
+    even x = odd (x - 1)
+
+    odd 0 = False
+    odd x = even (x - 1)
+
+Pattern definitions, like function definitions, may also be recursive, as shown in this
+example of Miranda2's fix-point function:
+
+    fix f = x where x = f x
+
+Here, the value of `x` is defined in terms of calling the function `f` with itself, resulting
+in a (lazy) infinite recursive expansion of `f (f (f (f ..)))`
 
 ## Module Declarations
 
