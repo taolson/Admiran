@@ -927,7 +927,7 @@ void sysGetArg (value rd, value idx)
 }
 
 
-// perform a shell command and return its result
+// perform a shell command and return its exit status
 void sysCmd (value rd, value sval)
 {
   streamObj *obj  = (streamObj *) untagHeapObj (sval);
@@ -935,7 +935,7 @@ void sysCmd (value rd, value sval)
   char      *cmd  = obj -> strm;
   int rslt;
 
-  cmd[slen] = 0;                 // zero-terminate the filename string for C         
+  cmd[slen] = 0;                 // zero-terminate the command string for C         
   rslt = system (cmd);
   Reg[untagWord (rd)] = tagWord (rslt);
 }
