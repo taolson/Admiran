@@ -20,7 +20,7 @@ The following reference is based upon the structure and information of the Haske
 
 ### Program Structure
 
-A Miranda2 program consists of a collection of *modules*. Modules provied a way to control namespaces and re-use
+A Miranda2 program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
 software in large programs. The top level of a module consists of a collection of *declarations*. Declarations
 define values and types used in the module as well as module imports and exports. At the next lower level are
 *expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Miranda2's
@@ -64,10 +64,10 @@ names can be aliased in an `%import` directive to provide a shorthand for qualif
 
 Variable names and type names share the same namespace in Miranda2. They are either
 
-* Alphanumeric strings which begin with a lower-case letter, `'`, or `_` :
-  * e.g. `foo` `alphaBeta5'` `_eq`
-* Symbolic character strings which specify infix operator names:
-  * e.g. `+` `>>=` `!!`
+* Alphanumeric strings which begin with a lower-case letter, `'`, or `_`, e.g.
+  * `foo` `alphaBeta5'` `_eq`
+* Symbolic character strings which specify infix operator names, e.g.
+  * `+` `>>=` `!!`
 
 Alphanumeric variable and type names can be used in an infix manner when preceded directly by a `$`,
 e.g. `x $mod 7`. Symbolic variable and type names can be used in a non-infix manner when surrounded by parenthesis,
@@ -75,16 +75,16 @@ e.g. `foldl (+) 0 xs`.
 
 Variable and type names can be *qualified* with a module name to disambiguate them in the case of a potential
 name clash, or to provide more documentation on the origin of the name, e.g. `stdlib.map foo xs` or
-`a vector.|+| b`.
+`a vector.+ b`.
 
 #### Constructor names
 
 Constructor names are either
 
-* Alphanumeric strings which being with an upper-case letter
-  * e.g. `Nothing` `Lit` `V2`
-* Symbolic character strings beginning with `:` which specify infix constructors:
-  * e.g. `:>` `:+:`
+* Alphanumeric strings which being with an upper-case letter, e.g.
+  * `Nothing` `Lit` `V2`
+* Symbolic character strings beginning with `:` which specify infix constructors, e.g.
+  * `:>` `:+:`
 
 Like variable and type names, alphanumeric constructors can be used in an infix manner when preceded directly
 by a `$`, and symbolic constructors can be used in a non-infix manner when surrounded by parenthesis.
@@ -97,13 +97,13 @@ They are written as a string of `*` characters, disambiguated by the length of t
 
 ## Lexical Structure
 
-The lexical structure of a Miranda2 program consists of a sequence of *lexemes*, separated by whitespace.
-Whitespace (spaces, tabs, newlines, and comments) are ignored, except for contributing to the layout rules.
+The lexical structure of a Miranda2 program consists of a sequence of *tokens*, separated by whitespace.
+Whitespace (spaces, tabs, newlines, and comments) is ignored, except for contributing to the layout rules.
 
 ### Comments
 
-Comments in Miranda2 begin with a token of two consecutive vertical bars (i.e. `||`) and extend to the
-end of the line. Note that `|||` parses as as a comment and not a symbolic operator, so comments
+Comments in Miranda2 begin with a token starting with two consecutive vertical bars (i.e. `||`) and
+extend to the end of the line. Note that `|||` parses as as a comment and not a symbolic operator, so comments
 effectively prevent defining symbolic operators that begin with `||`.
 
 ### Identifiers and Operators
@@ -130,28 +130,28 @@ by a character escape for specifying standard control characters `\a \b \f \n \r
 a character itself, e.g. `\\` for a single backslash, or `\"` for a double quote character. Numeric coes can
 also be used with a decimal or hexadecimal value to specify an escape character, e.g. `\10` or `\x7f`.
 
-### Unboxed Word# Literals
+### Unboxed `Word#` Literals
 
-Miranda2 also provides access to raw, unboxed word# values, for use in interfacing to low-level builtin
-functions, or to write performance-tuned functions without boxing / unboxing overhead.
+Miranda2 also provides access to raw, unboxed, 64-bit `word#` values, for use in interfacing to
+low-level builtin functions, or to write performance-tuned functions without boxing / unboxing overhead.
 
-Integer word# values are written as an integer literal immediately followed by a '#', e.g. `42#`.
+Integer `word#` values are written as an integer literal immediately followed by a '#', e.g. `42#`.
 Unboxed characters can also be written with character literals, e.g. `'a'#`.
 
 ### Layout
 
 Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
 are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
-or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, the column number of the
-following lexeme is captured, and used to disambiguate where the expression ends. If a subsequent line starts
-at or beyond the current layout column, it is considered to be a continuation of the current construct. Otherwise,
-it signals the end of the current construct and starts a new one. For example:
+or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, or the `where` in a where
+clause, the column number of the following token is captured, and used to disambiguate where the expression ends.
+If a subsequent line starts at or beyond the current layout column, it is considered to be a continuation of the
+current construct. Otherwise, it signals the end of the current construct and starts a new one. For example:
 
-    x = (3 + y)         || the next lexeme after the "=" sets the
+    x = (3 + y)         || the next token after the "=" sets the
         * 17            || indentation for the rest of the definition
     y = 52              || a new definition, because it starts to the left
 
-    case b of           || the next lexeme after the "of" sets the
+    case b of           || the next token after the "of" sets the
       False -> "F"      || indentation for the rest of the case expression
       True  -> "T"
     where
@@ -165,7 +165,7 @@ A semicolon (`;`) can be used to specify the end of a construct instead of inden
 ## Expressions
 
 A Miranda2 expression is a sequence of term expressions and function applications
-interleaved by infix operators. Term expressions can be:
+interleaved with infix operators. Term expressions can be:
 
 * a variable, constructor, or literal
 * a parenthesized expression
@@ -359,7 +359,7 @@ Note that the list of variables on the left-hand side of the `<-` is shorthand f
 e.g. `i, j <- exp` expands to `i <- exp; j <- exp`.
 
 The second form of generator allows the construction of lists from arbitrary recurrence relations, so
-`[x | x <- a, f x ..]` generates the list `[x, f x, f (f x) ..]`
+`[x | x <- a, f x ..]` generates the list `[a, f a, f (f a) ..]`
 
 An example of this is a definition of the Fibonacci sequence:
 
@@ -391,12 +391,12 @@ conditional switch on the resulting constructor. A case expression has the gener
         .
 
 where expS (the *scrutinee* expression) is evaluated strictly, and must evaluate to either
-* an unboxed word# value (for results of builtin functions)
+* an unboxed `word#` value (for results of builtin functions)
 * a saturated constructor value
 
 and the patterns on the left-hand side of the case alternatives are either
 * a variable to be bound to the evaluated result
-* a literal unboxed word# to match with the result to select between alternatives
+* a literal unboxed `word#` to match with the result to select between alternatives
 * a saturated constructor pattern with only variable or wildcard parameters
 
 The first instance can be used to perform low-level builtin operations, e.g.
@@ -420,7 +420,7 @@ e.g.
     case tupval of
       (a, _) -> a       || strictly extract the fst component of a tuple
 
-As in definitions and library directives, case expressions are layout sensitive, with the first lexeme
+As in definitions and library directives, case expressions are layout sensitive, with the first token
 after the `of` setting the indentation for the rest of the case alternates. Case alternates can also
 be placed on the same line, separated by a semicolon:
 
@@ -487,7 +487,7 @@ first pattern fails, the second pattern is the wildcard pattern
 
 A function definition binds a variable to a function value.  The general form of a function
 definition is *fnvar* *pat0* { *pat1* .. } `=` *rhs*, where *fnvar* is the function variable
-name (or asymbolic variable name surrounded by parenthesis) to be bound to the function, *pat0*
+name (or a symbolic variable name surrounded by parenthesis) to be bound to the function, *pat0*
  .. *patN* are patterns to be bound to the arguments when the function is applied, and *rhs* is
 a *right-hand side* expression which is evaluated in the context of the bound arguments.
 
@@ -502,7 +502,7 @@ Some examples of function definitions:
 The number of pattern arguments in a function definition define the function's *arity*, which should be
 the "natural" number of arguments that the function operates on.  A function definition must have at
 least one pattern argument (otherwise it is a pattern definition).  Functions are curried, and can be
-under-applied (calling a function with fewer arguments than its arity dictates) or over-appied (calling
+under-applied (calling a function with fewer arguments than its arity dictates) or over-applied (calling
 a function with more arguments than its arity dictates).  Under-applied functions return a
 *partially-applied function*, capturing the supplied arguments and returning a function with an arity
 matching the number of missing arguments of the original function.  These are useful for passing
@@ -548,11 +548,13 @@ Functions can be defined "piece-wise" using multiple consecutive function defini
 *fnvar* name, and different *pat* pattern arguments.  The multiple definitions are conceptually
 processed in-order, from top to bottom, until a pattern match for all pattern arguments is found, in
 which case the corresponding right-hand side expression is evaluated.  If no pattern match is found,
-a runtime pattern match error occurs.  A common example of this is matching on the two list constructors
-`[]` and `:`:
+a runtime pattern match error occurs.  Each definition in a multiple function definition must have the
+same number of pattern arguments, or a compiler Arity error occurs.  A common example of a multiple
+definition function is matching on the two list constructors`[]` and `:`:
 
     length []       = 0
     length (_ : xs) = 1 + length xs
+
 
 ## Pattern Definitions
 
@@ -568,13 +570,13 @@ If a refutable pattern fails to match, a runtime pattern match error occurs.
 
 ## Right-Hand Side Expressions
 
-THe simplest form of a right-hand side expression is just a regular expression, as defined
+The simplest form of a right-hand side expression is just a regular expression, as defined
 previously.  It is also possible to give several alternative expressions, distinguished by
 *guards*, known as a *conditional expression*.
 
 ### Conditional Expressions and Guards
 
-A *guard* consists of the word `if` followed by a boolean expression.  An example
+A *guard* consists of the keyword `if` followed by a boolean expression.  An example
 of a right-hand side expression with several alternatives is the gcd function:
 
     gcd a b = gcd (a - b) b, if a > b
@@ -589,10 +591,15 @@ if all other guards are false.  If the last guard is not an `otherwise`, then th
 expression is refutable, and will fall through to try a following definition (in the case of a 
 function with multiple sequential definitions), or cause a runtime error.
 
+A *conditional expression* is of the form `=` exp `,` guard.  Multiple conditional expressions
+can be on the right-hand side of a definition, using different guards, and are evaluated from
+top to bottom until a matching guard condition is found.  Each of the conditional expressions
+in a definition must have the same result expression type.
+
 ### Nested `where` Definitions
 
 A right-hand side expression is optionally followed by a `where` clause and a set of nested
-definitions. The `where` lexeme sets the layout indentation level for the rest of the `where`
+definitions. The `where` keyword sets the layout indentation level for the rest of the `where`
 definitions:
 
     foo x = p + q, if p < q
@@ -624,6 +631,37 @@ example of Miranda2's fix-point function:
 Here, the value of `x` is defined in terms of calling the function `f` with itself, resulting
 in a (lazy) infinite recursive expansion of `f (f (f (f ..)))`
 
+## Type Expressions
+
+Similar to expressions defined previously, Miranda2 has a similar syntax for *type expressions*.
+A type expression is a sequence of type term expressions and type applications interleaved with
+infix type constructor operators.  Type term expressions can be:
+
+* a type name, e.g. `int`, `char`, `string`
+* a type variable, e.g. `*`, `**`
+* a fully-saturated type constructor
+
+### Type Constructors and Type Applications
+
+a *type constructor* is a parameterized type name or infix type constructor that allows
+polymorphic types to be specified and used. A *type application* is applies a type
+constructor to one or more type expressions. Type constructors, unlike data constructors,
+must be fully-saturated (cannot be partially-applied). Type applications for list types,
+tuple types and function types have special syntax: a list constructor is a type expression
+enclosed in square brackets, e.g.:
+
+    [int], [*], [[char]]
+
+A tuple constructor application is a list of comma-separated type expressions enclosed in
+parenthesis, e.g.:
+
+    (int, char), ([char], int, (*, int))
+
+An infix function constructor application is a `->` between two type expressions, e.g.
+
+    int -> string               || specifies a function from int to string
+    char -> char -> bool        || specifies a function of two chars to a bool
+
 ## Module Declarations
 
 Declarations at the top-level of a module consist of
@@ -634,6 +672,25 @@ Declarations at the top-level of a module consist of
 * `%import` and `%export` library directives
 
 ### Type Specifications
+
+While type specifications aren't required in Miranda2, they can be provided for top-level function and pattern
+definitions to help document the definition, as well as to help type inference report more concise errors.
+
+A type specification is of the form *var* `::` *texpr* where *var* is a function
+name or variable and *texpr* is a type expression, e.g.:
+
+    (+) :: int -> int -> int
+
+is a type specification for the function `+`, which takes two `int`s and returns an `int`
+
+    map :: (* -> **) -> [*] -> [**]
+
+is a type specification for the function `map`, which is a higher-order function which takes a function
+from type `*` to type `**`, and a list of type `*`, and returns a list of type `**`.
+
+    args :: [(int, char)]
+
+is a type specification for the value `args`, which is a list of tuples.
 
 ### Type Aliases
 
