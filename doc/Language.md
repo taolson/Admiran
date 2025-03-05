@@ -692,7 +692,55 @@ from type `*` to type `**`, and a list of type `*`, and returns a list of type `
 
 is a type specification for the value `args`, which is a list of tuples.
 
+Explicit type specifications can also be used to create stricter types than the most general type that
+would be inferred.  For example,
+
+    fstInt :: [int] -> maybe int
+    fstInt []      = Nothing
+    fstInt (x : _) = Just x
+
+would restrict the use of fstInt to only operate on lists of ints, even though without the explicit
+type specification, type inferrence would infer the most general type as
+
+    fstInt :: [*] -> maybe *
+
+and allow it to be applied to any list.
+
+#### Polymorphic Recursion
+
+There is one situation where explicit type specifications are required: when writing recursive
+functions that have *polymorphic recursion*, i.e. where the type parameter can change with each
+recursive invocation, instead of being a constant.  One example of this is in the library module
+`dequeue`, which implements a double-ended queue using *finger trees*:
+
+    dequeue * ::=
+        ...
+        FTN (dequeue *) (dequeue (dequeue *)) (dequeue *)
+
+The FTN constructor builds a tree with the left and right components being a `dequeue` of the
+parametric parameter type `*`, but the middle component is a `dequeue` of `dequeue *`.  When
+writing functions to operate on this data type, e.g.
+
+    dq_size :: dequeue * -> int
+    dq_size (FTN l m r) = dq_size l + 3 * dq_size m + dq_size r
+
+the type specification is required, otherwise type checking will report an error that it cannot
+unify the type parameter `*` with `dequeue *`.
+
 ### Type Aliases
+
+A *type alias* is a way of creating a type name that is a synonym for an existing type.  It can be used
+to shorten more complex types and to better document the intended use of a top-level function or value.
+A type alias is of the form *typeName* { *tvar* } `==` *texpr*, e.g.:
+
+    string     == [char]                || equates "string" to a list of chars
+    errSt      == (string, int, int)    || an error state with an error string and row/col numbers
+    m_map * ** == avlTree (*, **)       || polymorphic map type with key and value types
+    intMap *   == m_map int *           || a synonym for an m_map with int keys
+    * ==> **   == m_map * **            || an infix type synonym for map
+
+Type aliases are expanded to their equivalent base types during type checking, and type checking errors will
+use the equivalent base type when reporting the error.
 
 ### Algebraic Data Types
 
