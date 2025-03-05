@@ -33,7 +33,7 @@ dq_null :: dequeue * -> bool
 dq_null FT0 = True
 dq_null _   = False
 
-dq_size :: dequeue * -> num
+dq_size :: dequeue * -> int
 dq_size FT0         = 0
 dq_size (FT1 a)     = 1
 dq_size (FT2 a b)   = 2
