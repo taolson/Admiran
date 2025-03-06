@@ -699,8 +699,8 @@ would be inferred.  For example,
     fstInt []      = Nothing
     fstInt (x : _) = Just x
 
-would restrict the use of fstInt to only operate on lists of ints, even though without the explicit
-type specification, type inferrence would infer the most general type as
+would restrict the use of `fstInt` to only operate on lists of ints, while without the explicit
+type specification, type inference would infer the most general type as
 
     fstInt :: [*] -> maybe *
 
@@ -718,20 +718,21 @@ recursive invocation, instead of being a constant.  One example of this is in th
         FTN (dequeue *) (dequeue (dequeue *)) (dequeue *)
 
 The FTN constructor builds a tree with the left and right components being a `dequeue` of the
-parametric parameter type `*`, but the middle component is a `dequeue` of `dequeue *`.  When
+parametric type variable `*`, but the middle component is a `dequeue` of `dequeue *`.  When
 writing functions to operate on this data type, e.g.
 
     dq_size :: dequeue * -> int
     dq_size (FTN l m r) = dq_size l + 3 * dq_size m + dq_size r
 
 the type specification is required, otherwise type checking will report an error that it cannot
-unify the type parameter `*` with `dequeue *`.
+unify the type variable `*` with the type `dequeue *`.
 
 ### Type Aliases
 
 A *type alias* is a way of creating a type name that is a synonym for an existing type.  It can be used
 to shorten more complex types and to better document the intended use of a top-level function or value.
-A type alias is of the form *typeName* { *tvar* } `==` *texpr*, e.g.:
+A type alias is of the form *typeName* { *tvar* } `==` *texpr*, or an infix type alias of the form
+*tvar1* *type operator* *tvar2* `==` *texpr*:
 
     string     == [char]                || equates "string" to a list of chars
     errSt      == (string, int, int)    || an error state with an error string and row/col numbers
@@ -743,6 +744,62 @@ Type aliases are expanded to their equivalent base types during type checking, a
 use the equivalent base type when reporting the error.
 
 ### Algebraic Data Types
+
+New types can be defined using *algebraic data types*, which introduce a new concrete data type with
+specified constructors.  Algebraic data types are of the form *var* { *tvar* } `::=` *ctor* { *texpr* } { `|` *ctor { *texpr* } }
+where *var* is the data type name, *ctor* is a constructor name, and *texpr* is a type expression.  An example
+of an algebraic data type is a binary tree of integers:
+
+    intTree ::= Leaf | Node int intTree intTree
+
+This introduces a new data type `tree` with constructors `Leaf` and `Node`.  `Leaf` is a constructor with no arguments,
+while the `Node` constructor creates a `tree` from an int value and a left and right intTree.
+
+An algebraic data type with a single constructor can be used to define a *record* type, such as:
+
+    person ::= Person string string int || first and last name, age
+
+and can be used to define an *enum* using multiple constructors with no arguments:
+
+    color ::= Red | Orange | Yellow | Green | Blue | Purple
+
+#### Polymorphic Data Types
+
+Polymorphic algebraic data types can be defined by introducing type variables on the left and right hand side
+of the `::=`.  For example, a generalized binary tree would be defined like:
+
+    tree * ::= Leaf | Node * (tree *) (tree *)
+
+Then used polymorphically for different tree types, e.g. `tree char` `tree (int, int)`, etc.
+
+Multiple type variables can be used:
+
+    either * ** ::= Left * | Right **
+The constructors defined in an algebraic data type can be used in pattern matching on the type in
+both function definitions, pattern bindings, list comprehensions, and case expressions:
+
+    olderThan :: person -> int -> bool
+    olderThan (Person _ _ age) limit = age > limit
+
+    stoplightAction :: color -> action
+    stoplightAction c = case c of
+                          Red    -> Stop
+                          Yellow -> Caution
+                          Green  -> Go
+                          a      -> ReportAction a
+
+#### Strict constructor fields
+
+By default, the fields in a constructor are stored as *thunks*; lazy computations that are
+only computed during pattern matching on the field.  However, sometimes this can lead to
+space leaks, storing long chains of computations waiting to be resolved.  To address this,
+Miranda2 allows optional strict fields in data constructors, by appending a `!` to the
+corresponding field type in the constructor:
+
+    strictPair ::= SP int! int!
+
+Whenever the constructor SP is used to construct a strict pair, it will first evaluate
+any strict arguments, rather than storing them as thunks.
 
 ### Import Directives
 
