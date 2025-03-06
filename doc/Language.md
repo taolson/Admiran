@@ -801,6 +801,34 @@ corresponding field type in the constructor:
 Whenever the constructor SP is used to construct a strict pair, it will first evaluate
 any strict arguments, rather than storing them as thunks.
 
+### Automatic Derivation of `ord` and `show`
+
+The Miranda2 compiler `mirac` will automatically derive functions to compare and show both
+type aliases and algebraic data types, if they aren't explicitly defined. The derived function
+names prepend a `cmp` or `show` to the type name, so, for example, defining the data type
+`expr` as:
+
+    expr ::= Lit int | Var string | Add expr expr
+
+will also define the functions
+
+    showexpr :: expr -> string
+    cmpexpr  :: expr -> expr -> ordering
+
+where `ordering` is a data type defined in the Miranda2 `stdlib`:
+
+    ordering ::= EQ | LT | GT
+
+`expr`s can then be compared by either using one of the builtin polymorphic comparison functions
+`_eq`, `_ne`, `_lt`, `_le`, `_gt`, `_ge`:
+
+    litZero :: expr -> bool
+    litZero e = _eq cmpexpr e (Lit 0)
+
+or used in polymorphic functions that perform comparisons for ordering:
+
+    sortedExprs = sortBy cmpexpr exprList
+
 ### Import Directives
 
 An import directive is of the form `%import` *fileSpec* { *libQual* } { *libAs* } 
