@@ -104,7 +104,7 @@ cmpFn fa fb = error "attempt to compare functions"
 compare :: ordI * -> * -> * -> ordering
 compare cmp a b = cmp a b
 
-|| note: these are partially-applied with only the first value to comprare, to allow better
+|| note: these are partially-applied with only the first value to compare, to allow better
 || inlining for presection/postsection use as in filter
 _eq, _ne, _lt, _le, _gt, _ge :: ordI * -> * -> * -> bool
 _eq cmp a = go where go b = case cmp a b of EQ -> True;  _ -> False
