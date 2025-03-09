@@ -38,7 +38,7 @@ An expression evaluates to a *value*, and has a static *type*. For example, the 
 
 declare a type specification for the definition `x`, which is type `int`, and a value of `x`, which is `42`.
 
-The Hindley-Milner type system allows user-defined type aliases and data types that can use parametric polymorphism.
+The Hindley-Milner type system allows user-defined type synonyms and data types that can use parametric polymorphism.
 For example a user-defined tree data type which can be built from values of any type can be written as:
 
     tree * ::= Leaf | Node * (tree *) (tree *)
@@ -460,7 +460,7 @@ single constructor tuple with all variable patterns is irrefutable:
 
 define a function "map" with two separate pattern matches:
 match on second value has 2 possible constructors: [] and (:),
-if first match fails, proceed to try the second.  Since both constructors
+if first match fails, proceed to try the second. Since both constructors
 are handled, the overall match is irrefutable.
 
     map _ []       = []
@@ -475,7 +475,7 @@ match the value in p.
     (a, (_, b), "test") = p
 
 compare a character with 'a', matching on GT/LT/EQ indication
-match on result as 3 possible constructors: GT/LT/EQ.  If the
+match on result as 3 possible constructors: GT/LT/EQ. If the
 first pattern fails, the second pattern is the wildcard pattern
 `_`, so overall pattern match is irrefutable.
 
@@ -485,7 +485,7 @@ first pattern fails, the second pattern is the wildcard pattern
 
 ## Function Definitions
 
-A function definition binds a variable to a function value.  The general form of a function
+A function definition binds a variable to a function value. The general form of a function
 definition is *fnvar* *pat0* { *pat1* .. } `=` *rhs*, where *fnvar* is the function variable
 name (or a symbolic variable name surrounded by parenthesis) to be bound to the function, *pat0*
  .. *patN* are patterns to be bound to the arguments when the function is applied, and *rhs* is
@@ -500,12 +500,12 @@ Some examples of function definitions:
 ### Function arity and under-applied and over-applied functions
 
 The number of pattern arguments in a function definition define the function's *arity*, which should be
-the "natural" number of arguments that the function operates on.  A function definition must have at
-least one pattern argument (otherwise it is a pattern definition).  Functions are curried, and can be
+the "natural" number of arguments that the function operates on. A function definition must have at
+least one pattern argument (otherwise it is a pattern definition). Functions are curried, and can be
 under-applied (calling a function with fewer arguments than its arity dictates) or over-applied (calling
-a function with more arguments than its arity dictates).  Under-applied functions return a
+a function with more arguments than its arity dictates). Under-applied functions return a
 *partially-applied function*, capturing the supplied arguments and returning a function with an arity
-matching the number of missing arguments of the original function.  These are useful for passing
+matching the number of missing arguments of the original function. These are useful for passing
 partially-applied functions to a higher-order function such as `map`:
 
     add a b = a + b             || function with "natural" arity 2
@@ -545,11 +545,11 @@ and be turned into:
 ### Functions with multiple definitions
 
 Functions can be defined "piece-wise" using multiple consecutive function definitions with the same
-*fnvar* name, and different *pat* pattern arguments.  The multiple definitions are conceptually
+*fnvar* name, and different *pat* pattern arguments. The multiple definitions are conceptually
 processed in-order, from top to bottom, until a pattern match for all pattern arguments is found, in
-which case the corresponding right-hand side expression is evaluated.  If no pattern match is found,
-a runtime pattern match error occurs.  Each definition in a multiple function definition must have the
-same number of pattern arguments, or a compiler Arity error occurs.  A common example of a multiple
+which case the corresponding right-hand side expression is evaluated. If no pattern match is found,
+a runtime pattern match error occurs. Each definition in a multiple function definition must have the
+same number of pattern arguments, or a compiler Arity error occurs. A common example of a multiple
 definition function is matching on the two list constructors`[]` and `:`:
 
     length []       = 0
@@ -570,30 +570,30 @@ If a refutable pattern fails to match, a runtime pattern match error occurs.
 
 ## Right-Hand Side Expressions
 
-The simplest form of a right-hand side expression is just a regular expression, as defined
-previously.  It is also possible to give several alternative expressions, distinguished by
+The simplest form of a right-hand side expression is just an expression, as defined
+previously. It is also possible to give several alternative expressions, distinguished by
 *guards*, known as a *conditional expression*.
 
 ### Conditional Expressions and Guards
 
-A *guard* consists of the keyword `if` followed by a boolean expression.  An example
+A *guard* consists of the keyword `if` followed by a boolean expression. An example
 of a right-hand side expression with several alternatives is the gcd function:
 
     gcd a b = gcd (a - b) b, if a > b
             = gcd a (b - a), if a < b
             = a,             if a == b  || can also be written "otherwise"
 
-Note that the guards are written on the right, following a comma.  The layout is significant,
+Note that the guards are written on the right, following a comma. The layout is significant,
 as the offside rule is used to resolve any ambiguities during parsing.
 
 The last guard can be written as `otherwise`, to indicate that this is the case which applies
-if all other guards are false.  If the last guard is not an `otherwise`, then the entire
+if all other guards are false. If the last guard is not an `otherwise`, then the entire
 expression is refutable, and will fall through to try a following definition (in the case of a 
 function with multiple sequential definitions), or cause a runtime error.
 
-A *conditional expression* is of the form `=` exp `,` guard.  Multiple conditional expressions
+A *conditional expression* is of the form `=` exp `,` guard. Multiple conditional expressions
 can be on the right-hand side of a definition, using different guards, and are evaluated from
-top to bottom until a matching guard condition is found.  Each of the conditional expressions
+top to bottom until a matching guard condition is found. Each of the conditional expressions
 in a definition must have the same result expression type.
 
 ### Nested `where` Definitions
@@ -608,14 +608,14 @@ definitions:
               p = x * 2 + 1
               q = 3 * x - 5
 
-The nested `where` definitions are local to the enclosing definition.  Note that the `where`
+The nested `where` definitions are local to the enclosing definition. Note that the `where`
 definitions themselves, like top-level definitions, may include conditional expressions and
 nested `where` definitions.
 
 ### Recursive and Mutually-Recursive Definitions
 
 As stated previously, definitions may occur in any order, and may be recursive with themselves,
-or mutually-recursive with prior or subsequent definitions.  For example:
+or mutually-recursive with prior or subsequent definitions. For example:
 
     even 0 = True
     even x = odd (x - 1)
@@ -635,7 +635,7 @@ in a (lazy) infinite recursive expansion of `f (f (f (f ..)))`
 
 Similar to expressions defined previously, Miranda2 has a similar syntax for *type expressions*.
 A type expression is a sequence of type term expressions and type applications interleaved with
-infix type constructor operators.  Type term expressions can be:
+infix type constructor operators. Type term expressions can be:
 
 * a type name, e.g. `int`, `char`, `string`
 * a type variable, e.g. `*`, `**`
@@ -667,7 +667,7 @@ An infix function constructor application is a `->` between two type expressions
 Declarations at the top-level of a module consist of
 * top-level function and pattern definitions
 * type specifications
-* type alias definitions
+* type synonym definitions
 * Algebraic Data Type definitions
 * `%import` and `%export` library directives
 
@@ -693,7 +693,7 @@ from type `*` to type `**`, and a list of type `*`, and returns a list of type `
 is a type specification for the value `args`, which is a list of tuples.
 
 Explicit type specifications can also be used to create stricter types than the most general type that
-would be inferred.  For example,
+would be inferred. For example,
 
     fstInt :: [int] -> maybe int
     fstInt []      = Nothing
@@ -710,7 +710,7 @@ and allow it to be applied to any list.
 
 There is one situation where explicit type specifications are required: when writing recursive
 functions that have *polymorphic recursion*, i.e. where the type parameter can change with each
-recursive invocation, instead of being a constant.  One example of this is in the library module
+recursive invocation, instead of being a constant. One example of this is in the library module
 `dequeue`, which implements a double-ended queue using *finger trees*:
 
     dequeue * ::=
@@ -718,7 +718,7 @@ recursive invocation, instead of being a constant.  One example of this is in th
         FTN (dequeue *) (dequeue (dequeue *)) (dequeue *)
 
 The FTN constructor builds a tree with the left and right components being a `dequeue` of the
-parametric type variable `*`, but the middle component is a `dequeue` of `dequeue *`.  When
+parametric type variable `*`, but the middle component is a `dequeue` of `dequeue *`. When
 writing functions to operate on this data type, e.g.
 
     dq_size :: dequeue * -> int
@@ -727,11 +727,11 @@ writing functions to operate on this data type, e.g.
 the type specification is required, otherwise type checking will report an error that it cannot
 unify the type variable `*` with the type `dequeue *`.
 
-### Type Aliases
+### Type Synonyms
 
-A *type alias* is a way of creating a type name that is a synonym for an existing type.  It can be used
+A *type synonym* is a way of creating a type name that is an alias for an existing type. It can be used
 to shorten more complex types and to better document the intended use of a top-level function or value.
-A type alias is of the form *typeName* { *tvar* } `==` *texpr*, or an infix type alias of the form
+A type synonym is of the form *typeName* { *tvar* } `==` *texpr*, or an infix type synonym of the form
 *tvar1* *type operator* *tvar2* `==` *texpr*:
 
     string     == [char]                || equates "string" to a list of chars
@@ -740,19 +740,19 @@ A type alias is of the form *typeName* { *tvar* } `==` *texpr*, or an infix type
     intMap *   == m_map int *           || a synonym for an m_map with int keys
     * ==> **   == m_map * **            || an infix type synonym for map
 
-Type aliases are expanded to their equivalent base types during type checking, and type checking errors will
+Type synonyms are expanded to their equivalent base types during type checking, and type checking errors will
 use the equivalent base type when reporting the error.
 
 ### Algebraic Data Types
 
 New types can be defined using *algebraic data types*, which introduce a new concrete data type with
-specified constructors.  Algebraic data types are of the form *var* { *tvar* } `::=` *ctor* { *texpr* } { `|` *ctor { *texpr* } }
-where *var* is the data type name, *ctor* is a constructor name, and *texpr* is a type expression.  An example
+specified constructors. Algebraic data types are of the form *var* { *tvar* } `::=` *ctor* { *texpr* } { `|` *ctor { *texpr* } }
+where *var* is the data type name, *ctor* is a constructor name, and *texpr* is a type expression. An example
 of an algebraic data type is a binary tree of integers:
 
     intTree ::= Leaf | Node int intTree intTree
 
-This introduces a new data type `tree` with constructors `Leaf` and `Node`.  `Leaf` is a constructor with no arguments,
+This introduces a new data type `tree` with constructors `Leaf` and `Node`. `Leaf` is a constructor with no arguments,
 while the `Node` constructor creates a `tree` from an int value and a left and right intTree.
 
 An algebraic data type with a single constructor can be used to define a *record* type, such as:
@@ -766,7 +766,7 @@ and can be used to define an *enum* using multiple constructors with no argument
 #### Polymorphic Data Types
 
 Polymorphic algebraic data types can be defined by introducing type variables on the left and right hand side
-of the `::=`.  For example, a generalized binary tree would be defined like:
+of the `::=`. For example, a generalized binary tree would be defined like:
 
     tree * ::= Leaf | Node * (tree *) (tree *)
 
@@ -791,8 +791,8 @@ both function definitions, pattern bindings, list comprehensions, and case expre
 #### Strict constructor fields
 
 By default, the fields in a constructor are stored as *thunks*; lazy computations that are
-only computed during pattern matching on the field.  However, sometimes this can lead to
-space leaks, storing long chains of computations waiting to be resolved.  To address this,
+only computed during pattern matching on the field. However, sometimes this can lead to
+space leaks, storing long chains of computations waiting to be resolved. To address this,
 Miranda2 allows optional strict fields in data constructors, by appending a `!` to the
 corresponding field type in the constructor:
 
@@ -804,7 +804,7 @@ any strict arguments, rather than storing them as thunks.
 ### Automatic Derivation of `ord` and `show`
 
 The Miranda2 compiler `mirac` will automatically derive functions to compare and show both
-type aliases and algebraic data types, if they aren't explicitly defined. The derived function
+type synonyms and algebraic data types, if they aren't explicitly defined. The derived function
 names prepend a `cmp` or `show` to the type name, so, for example, defining the data type
 `expr` as:
 
@@ -831,9 +831,49 @@ or used in polymorphic functions that perform comparisons for ordering:
 
 ### Import Directives
 
-An import directive is of the form `%import` *fileSpec* { *libQual* } { *libAs* } 
+An import directive is of the form `%import` *fileSpec* { `qualified` } { `as` *ident* } { *alias* }*
+where *fileSpec* is either the name of a module in the standard Miranda2 library (when enclosed in
+angle brackets e.g. `<map>`, or the path to a module relative to the current directory, when
+enclosed in double-quotes, e.g. `"parser"`, "../lib/dequeue".
+
+Names are imported *unqualified* by default, meaning that both the qualified name and the
+unqualified name can be used. If an import is specified as `qualified`, then the names
+are imported as qualified only. Qualified imports allow modules that export the same
+name to be imported, because the qualified names don't conflict.
+
+To shorten qualified names, an `as` *ident* can be used; then the alias identifier specified is used instead
+of the module name as the qualifier, e.g.
+
+    %import <mirandaExtensions> as ME
+
+    sortedNames xs = ME.sortBy cmpstring xs
+
+instead of
+
+    sortedNames xs = mirandaExtensions.sortBy cmpstring xs
+
+Both the `qualified` and `as` options can be used, which means that names must be referred to as the
+aliased qualified name.
+
+The import ends with an optional list of space-separated name *aliases*, which allow individual
+imported names to either be aliased to a new name, or removed from the import entirely. An alias
+is of the form *newName* / *oldName*, where *newName* is the new identifier or operator to be used
+in place of the exported name *oldName*. This can be used to modify a name that would otherwise conflict
+with one already in scope, or to change a function identifier into an operator, e.g.:
+
+    %import <state> (>>=)/st_bind -st_fmap
+
+would import the <state> module, changing the name of the function `st_bind` to the operator `>>=`, and
+removing the name `st_fmap` from the import.
+
+An import declaration can extend over multiple lines, as long as subsequent lines are indented past the
+column where the *fileSpec* begins.
 
 #### `stdlib`
+
+The library module `stdlib` provides a number of standard types, functions, and operators used by most
+programs, and used internally in the compiler. It is always implicitly imported in any module, and cannot
+be explicitly imported.
 
 ### Export Directives
 
