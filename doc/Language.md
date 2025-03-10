@@ -763,6 +763,15 @@ and can be used to define an *enum* using multiple constructors with no argument
 
     color ::= Red | Orange | Yellow | Green | Blue | Purple
 
+Note that an algebraic data type must have at least one constructor in its definition.  To define a new type
+with no constructors (used, for example, as a placeholder type for something to be defined in the future),
+you can use a type specification with the reserved name `type`, e.g.:
+
+    myType :: type
+
+Then `myType` can be used in subsequent type specifications and type synonyms as if it were a normally-defined
+type, until the type is replaced later with an actual concrete type.
+
 #### Polymorphic Data Types
 
 Polymorphic algebraic data types can be defined by introducing type variables on the left and right hand side
@@ -831,15 +840,17 @@ or used in polymorphic functions that perform comparisons for ordering:
 
 ### Import Directives
 
-An import directive is of the form `%import` *fileSpec* { `qualified` } { `as` *ident* } { *alias* }*
+An *import directive* imports the definitions exported from a module and makes them visible.
+It is of the form `%import` *fileSpec* { `qualified` } { `as` *ident* } { *alias* }*
 where *fileSpec* is either the name of a module in the standard Miranda2 library (when enclosed in
 angle brackets e.g. `<map>`, or the path to a module relative to the current directory, when
-enclosed in double-quotes, e.g. `"parser"`, "../lib/dequeue".
+enclosed in double-quotes, e.g. `"parser"`, `"../lib/dequeue"`.
 
 Names are imported *unqualified* by default, meaning that both the qualified name and the
 unqualified name can be used. If an import is specified as `qualified`, then the names
 are imported as qualified only. Qualified imports allow modules that export the same
-name to be imported, because the qualified names don't conflict.
+name to be imported, because the qualified names don't conflict, even if the unqualified
+versions do.
 
 To shorten qualified names, an `as` *ident* can be used; then the alias identifier specified is used instead
 of the module name as the qualifier, e.g.
@@ -863,10 +874,10 @@ with one already in scope, or to change a function identifier into an operator, 
 
     %import <state> (>>=)/st_bind -st_fmap
 
-would import the <state> module, changing the name of the function `st_bind` to the operator `>>=`, and
-removing the name `st_fmap` from the import.
+would import the `state` module, changing the name of the module's `st_bind` function to the operator
+`>>=`, and removing the name `st_fmap` from the import.
 
-An import declaration can extend over multiple lines, as long as subsequent lines are indented past the
+An import directive can extend over multiple lines, as long as subsequent lines are indented past the
 column where the *fileSpec* begins.
 
 #### `stdlib`
@@ -877,9 +888,37 @@ be explicitly imported.
 
 ### Export Directives
 
-## Predefined Types
+An *export directive* makes top-level definitions of the module available for importing into another module.
+It  is of the form `%export` { *libPart* }* where *libPart* is one of
+
+* `+`: export all top-level definitions in this module
+* *ident*: add identifier *ident* to the exports
+* `-` *ident*: remove identifier from the exports
+* *fileSpec*: re-export all exports in module *fileSpec* (which must be imported in this module)
+
+If an export directive is not present, then an implicit `%export +` is assumed.
+
+## Predefined (builtin) Types
+
+type
+word#
+unit
+list type
+tuple types
+
 
 ### Standard Miranda2 Types
 
+The Miranda2 standard library `<stdlib>` defines a number of types that are available to use in any module,
+and that are used in the `mirac` compiler:
+
+`showI *`
+`ordering`
+`ordI *`
+`bool`
+`int`
+`num`
+`char`
+`string`
 
 ## Strict Evaluation
