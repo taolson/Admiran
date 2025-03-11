@@ -133,7 +133,7 @@ also be used with a decimal or hexadecimal value to specify an escape character,
 ### Unboxed `Word#` Literals
 
 Miranda2 also provides access to raw, unboxed, 64-bit `word#` values, for use in interfacing to
-low-level builtin functions, or to write performance-tuned functions without boxing / unboxing overhead.
+low-level built-in functions, or to write performance-tuned functions without boxing / unboxing overhead.
 
 Integer `word#` values are written as an integer literal immediately followed by a '#', e.g. `42#`.
 Unboxed characters can also be written with character literals, e.g. `'a'#`.
@@ -286,7 +286,7 @@ on a binary `-`. To perform the later, the standard library function `subtract` 
 
 ### Lists
 
-Lists are a builtin recursive data type in Miranda2, with two constructors: `[]` and `:`. `[]`
+Lists are a built-in recursive data type in Miranda2, with two constructors: `[]` and `:`. `[]`
 is the empty list, and `:` is an infix constructor appending a value to the head of an existing list.
 
 A List expression is a comma-separated list of expressions within square brackets, e.g.
@@ -302,7 +302,7 @@ String literals in Miranda are represented as a list of `char`: `"Hi!"` is equiv
 
 ### Tuples and Unit
 
-Tuples are a builtin data type in Miranda2, and can be of any length. Terms in a tuple
+Tuples are a built-in data type in Miranda2, and can be of any length. Terms in a tuple
 expression can be of different types. Tuples are written as comma-separated list of expressions
 within parentheses, e.g.
 
@@ -380,7 +380,7 @@ where `tails` returns the successive tails of a list.
 
 ### Case Expressions
 
-Case expressions in Miranda2 are the mechanism for interfacing with builtin functions that operate on unboxed
+Case expressions in Miranda2 are the mechanism for interfacing with built-in functions that operate on unboxed
 words, and are evaluated strictly. They can also be used to evaluate an expression strictly and perform a
 conditional switch on the resulting constructor. A case expression has the general form:
 
@@ -391,7 +391,7 @@ conditional switch on the resulting constructor. A case expression has the gener
         .
 
 where expS (the *scrutinee* expression) is evaluated strictly, and must evaluate to either
-* an unboxed `word#` value (for results of builtin functions)
+* an unboxed `word#` value (for results of built-in functions)
 * a saturated constructor value
 
 and the patterns on the left-hand side of the case alternatives are either
@@ -399,11 +399,11 @@ and the patterns on the left-hand side of the case alternatives are either
 * a literal unboxed `word#` to match with the result to select between alternatives
 * a saturated constructor pattern with only variable or wildcard parameters
 
-The first instance can be used to perform low-level builtin operations, e.g.
+The first instance can be used to perform low-level built-in operations, e.g.
 
-    case a# +# b# of r# -> I# r#        || builtin addition on unboxed words
+    case a# +# b# of r# -> I# r#        || built-in addition on unboxed words
 
-The second instance is typically used when performing a switch on a builtin cmp# function:
+The second instance is typically used when performing a switch on a built-in cmp# function:
 
     case a# cmp# 0# of
       0# -> EQ  || cmp# returns 0# if arguments are equal
@@ -828,7 +828,7 @@ where `ordering` is a data type defined in the Miranda2 `stdlib`:
 
     ordering ::= EQ | LT | GT
 
-`expr`s can then be compared by either using one of the builtin polymorphic comparison functions
+`expr`s can then be compared by either using one of the built-in polymorphic comparison functions
 `_eq`, `_ne`, `_lt`, `_le`, `_gt`, `_ge`:
 
     litZero :: expr -> bool
@@ -898,27 +898,70 @@ It  is of the form `%export` { *libPart* }* where *libPart* is one of
 
 If an export directive is not present, then an implicit `%export +` is assumed.
 
-## Predefined (builtin) Types
+## Predefined (built-in) Types
 
-type
-word#
-unit
-list type
-tuple types
+The Miranda2 compiler `mirac` defines a number of built-in base types that cannot be defined by Miranda2
+type definitions:
+* word#
+* unit
+* list type
+* tuple types
 
+### `word#`
 
-### Standard Miranda2 Types
+The type `word#` represents a raw 64-bit machine word, which can represent an unboxed integer or heap
+address.  Low-level built-in functions operate exclusively on `word#` arguments and return `word#` results.
+`word#` values can be used as function or constructor arguments and returned as a value, but cannot be passed
+into polymorphic functions, stored in polymorphic data structures, or bound to a variable via a `where`
+clause or as part of a more complex expression.
+
+### `unit`
+
+The type `unit` is a type that is inhabited by a single value `Unit`, both represented in code by `()`.
+It is the type returned from functions that only perform side-effects and otherwise not return a value,
+such as certain IO functions.
+
+### `list` type
+
+The built-in `list` type is a polymorphic type representing a list of a base type.  It is equivalent
+to the algebraic data type:
+
+    list * ::= Nil | Cons * (list *)
+
+except that it has special syntax for representing and printing:
+
+    [texpr]     || is how the type "list texpr" is specified
+    []          || is how "Nil" is specified
+    (a : b)     || is how "Cons a b" is specified
+    
+### `tuple` types
+
+Miranda2 supports a family of n-ary tuple types which are dynamically created during compilation.  An
+n-ary tuple type is specified as a comma-separated list of type expressions, enclosed in parenthesis,
+and an n-ary tuple valule is specified as a comma-separated list of expressions, enclosed in
+parenthesis. Since tuple types are built-in and not created via algebraic data type definitions, they
+don't have support for the automatic derivation of ordI and showI instances.  Instead, they must have
+manually-written instances.  Instances for 2-tuples (pairs) are provided in the `<stdlib>` library,
+and instances for n-tuples 3 through 7 are provided in the `<mirandaExtensions>` library.  The instance
+functions are named `showtuple` *n* or `cmptuple` *n*, where *n* is the arity of the tuple, e.g.:
+
+    showtuple3 showint showint showchar (5, 6, 'a')
+    cmptuple2 cmpint cmpchar pa pb
+
+If n-ary tuples greater than 7 are used in code, associated `ordI` and `showI` instances must be
+provided if the tuple is explicitly compared, or showed.
+
+## Standard Miranda2 Types
 
 The Miranda2 standard library `<stdlib>` defines a number of types that are available to use in any module,
-and that are used in the `mirac` compiler:
-
-`showI *`
-`ordering`
-`ordI *`
-`bool`
-`int`
-`num`
-`char`
-`string`
+and that are used in the Miranda2 compiler:
+* `showI *`
+* `ordering`
+* `ordI *`
+* `bool`
+* `int`
+* `num`
+* `char`
+* `string`
 
 ## Strict Evaluation
