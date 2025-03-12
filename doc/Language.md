@@ -22,8 +22,8 @@ The following reference is based upon the structure and information of the Haske
 
 A Miranda2 program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
 software in large programs. The top level of a module consists of a collection of *declarations*. Declarations
-define values and types used in the module as well as module imports and exports. At the next lower level are
-*expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Miranda2's
+define functions, values, and types used in the module as well as module imports and exports. At the next lower
+level are *expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Miranda2's
 *lexical structure*, which defines the individual tokens that make up a Miranda2 program.
 
 Declarations in a module are unordered: there is no requirement that a declaration used by others must occur before
@@ -332,7 +332,7 @@ Infinite range expressions don't have a final value:
 
 ### List Comprehensions
 
-A *list comprehension* has the form `[` *exp* `|` *qual1* `;` ... *qualN* `]`
+A *list comprehension* has the form `[` *exp* `|` *qual1* { `;` *qualN* }* `]`
 
 which collects a list of all *exp* such that *qualifiers* hold. If there are two or more qualifiers,
 they are separated by semicolons. Each qualifier is either a *generator*, of which the two forms are:
@@ -453,30 +453,29 @@ Depending upon the definition or expression in which the pattern is used, a fail
 
 #### Pattern matching examples
 
-define a function "addPair" that takes a tuple argument and adds its components
-single constructor tuple with all variable patterns is irrefutable:
+Define a function "addPair" that takes a tuple argument and adds its components.
+A single constructor tuple with all variable patterns is irrefutable:
 
     addPair (a, b) = a + b
 
-define a function "map" with two separate pattern matches:
-match on second value has 2 possible constructors: [] and (:),
-if first match fails, proceed to try the second. Since both constructors
+Define a function "map" with two separate pattern matches. The
+match on the second value has 2 possible constructors: [] and (:).
+If the first match fails, proceed to try the second. Since both constructors
 are handled, the overall match is irrefutable.
 
     map _ []       = []
     map f (x : xs) = f x : map f xs
 
-destructure a complex nested tuple "p" with a pattern definition
-binds a to first tuple arg, binds b to snd part of second tuple arg,
-and must match the string "test" in the third tuple arg. This pattern
-is refutable, and will cause a runtime error if the pattern fails to
-match the value in p.
+Destructure a complex nested tuple "p" with a pattern definition.
+Binds `a` to the first tuple arg, binds `b` to `snd` part of second tuple arg,
+and must match the string `"test"` in the third tuple arg. This pattern
+is refutable, due to the pattern match with the literal string `"test"`, and
+will cause a runtime error if the pattern fails to match the value in p.
 
     (a, (_, b), "test") = p
 
-compare a character with 'a', matching on GT/LT/EQ indication
-match on result as 3 possible constructors: GT/LT/EQ. If the
-first pattern fails, the second pattern is the wildcard pattern
+Compare a character with `'a'`, matching on a `GT` / `LT` / `EQ` result.
+If the first pattern `GT` fails, the second pattern is the wildcard pattern
 `_`, so overall pattern match is irrefutable.
 
     case cmpchar c 'a' of
@@ -591,7 +590,7 @@ if all other guards are false. If the last guard is not an `otherwise`, then the
 expression is refutable, and will fall through to try a following definition (in the case of a 
 function with multiple sequential definitions), or cause a runtime error.
 
-A *conditional expression* is of the form `=` exp `,` guard. Multiple conditional expressions
+A *conditional expression* is of the form `=` *exp* `,` *guard*. Multiple conditional expressions
 can be on the right-hand side of a definition, using different guards, and are evaluated from
 top to bottom until a matching guard condition is found. Each of the conditional expressions
 in a definition must have the same result expression type.
@@ -763,7 +762,7 @@ and can be used to define an *enum* using multiple constructors with no argument
 
     color ::= Red | Orange | Yellow | Green | Blue | Purple
 
-Note that an algebraic data type must have at least one constructor in its definition.  To define a new type
+Note that an algebraic data type must have at least one constructor in its definition. To define a new type
 with no constructors (used, for example, as a placeholder type for something to be defined in the future),
 you can use a type specification with the reserved name `type`, e.g.:
 
@@ -902,15 +901,15 @@ If an export directive is not present, then an implicit `%export +` is assumed.
 
 The Miranda2 compiler `mirac` defines a number of built-in base types that cannot be defined by Miranda2
 type definitions:
-* word#
-* unit
-* list type
-* tuple types
+* `word#`
+* `unit`
+* `list` type
+* `tuple` types
 
 ### `word#`
 
 The type `word#` represents a raw 64-bit machine word, which can represent an unboxed integer or heap
-address.  Low-level built-in functions operate exclusively on `word#` arguments and return `word#` results.
+address. Low-level built-in functions operate exclusively on `word#` arguments and return `word#` results.
 `word#` values can be used as function or constructor arguments and returned as a value, but cannot be passed
 into polymorphic functions, stored in polymorphic data structures, or bound to a variable via a `where`
 clause or as part of a more complex expression.
@@ -923,7 +922,7 @@ such as certain IO functions.
 
 ### `list` type
 
-The built-in `list` type is a polymorphic type representing a list of a base type.  It is equivalent
+The built-in `list` type is a polymorphic type representing a list of a base type. It is equivalent
 to the algebraic data type:
 
     list * ::= Nil | Cons * (list *)
@@ -936,13 +935,13 @@ except that it has special syntax for representing and printing:
     
 ### `tuple` types
 
-Miranda2 supports a family of n-ary tuple types which are dynamically created during compilation.  An
+Miranda2 supports a family of n-ary tuple types which are dynamically created during compilation. An
 n-ary tuple type is specified as a comma-separated list of type expressions, enclosed in parenthesis,
-and an n-ary tuple valule is specified as a comma-separated list of expressions, enclosed in
+and an n-ary tuple value is specified as a comma-separated list of expressions, enclosed in
 parenthesis. Since tuple types are built-in and not created via algebraic data type definitions, they
-don't have support for the automatic derivation of ordI and showI instances.  Instead, they must have
-manually-written instances.  Instances for 2-tuples (pairs) are provided in the `<stdlib>` library,
-and instances for n-tuples 3 through 7 are provided in the `<mirandaExtensions>` library.  The instance
+don't have support for the automatic derivation of `ord` and `show` instances. Instead, they must have
+manually-written instances. Instances for 2-tuples (pairs) are provided in the `<stdlib>` library,
+and instances for n-tuples 3 through 7 are provided in the `<mirandaExtensions>` library. The instance
 functions are named `showtuple` *n* or `cmptuple` *n*, where *n* is the arity of the tuple, e.g.:
 
     showtuple3 showint showint showchar (5, 6, 'a')
