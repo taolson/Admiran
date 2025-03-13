@@ -113,7 +113,7 @@ astRewriteLex :: astRewriteTraverser (*, **) -> astRewriter (*, **)
 astRewriteLex r a
     = st_get >>= doLex
       where
-        doLex (ds, ls) = r (astRewriteSubs (astRewriteLex r)) a << (st_modify (converse setSnd ls))
+        doLex (ds, ls) = r (astRewriteSubs (astRewriteLex r)) a << st_modify (converse setSnd ls)
 
 
 || rewrite all sub-asts of an ast using the given astRewriteTraverser
