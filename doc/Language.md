@@ -127,8 +127,8 @@ the numeric value) to help reading large numbers, e.g. `1_234_567` or `0x1234_56
 Character literals are written between apostrophes, as in `'a'`, and strings between double quotes, as in
 `"Hello"`. Both character and string literals can use escape codes, formed from a backslash (`\`) followed
 by a character escape for specifying standard control characters `\a \b \f \n \r \t \v` or to quote
-a character itself, e.g. `\\` for a single backslash, or `\"` for a double quote character. Numeric coes can
-also be used with a decimal or hexadecimal value to specify an escape character, e.g. `\10` or `\x7f`.
+a character itself, e.g. `\\` for a single backslash, or `\"` for a double quote character. Numeric codes
+can also be used with a decimal or hexadecimal value to specify an escape character, e.g. `\10` or `\x7f`.
 
 ### Unboxed `Word#` Literals
 
@@ -142,10 +142,10 @@ Unboxed characters can also be written with character literals, e.g. `'a'#`.
 
 Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
 are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
-or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, or the `where` in a where
-clause, the column number of the following token is captured, and used to disambiguate where the expression ends.
-If a subsequent line starts at or beyond the current layout column, it is considered to be a continuation of the
-current construct. Otherwise, it signals the end of the current construct and starts a new one. For example:
+or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, the beginning column number
+of the following token is captured, and used to disambiguate where the expression ends. If a subsequent line
+starts at or beyond the current layout column, it is considered to be a continuation of the current construct.
+Otherwise, it signals the end of the current construct and starts a new one. For example:
 
     x = (3 + y)         || the next token after the "=" sets the
         * 17            || indentation for the rest of the definition
@@ -397,21 +397,30 @@ where expS (the *scrutinee* expression) is evaluated strictly, and must evaluate
 and the patterns on the left-hand side of the case alternatives are either
 * a variable to be bound to the evaluated result
 * a literal unboxed `word#` to match with the result to select between alternatives
+* a wildcard pattern (`_`), which ignores the corresponding value
 * a saturated constructor pattern with only variable or wildcard parameters
 
-The first instance can be used to perform low-level built-in operations, e.g.
+A variable pattern can be used to perform low-level built-in operations, e.g.
 
     case a# +# b# of r# -> I# r#        || built-in addition on unboxed words
 
-The second instance is typically used when performing a switch on a built-in cmp# function:
+A literal unboxed `word#` pattern is typically used when performing a switch on a built-in
+cmp# function:
 
     case a# cmp# 0# of
       0# -> EQ  || cmp# returns 0# if arguments are equal
       1# -> LT  || cmp# returns 1# if arg1 < arg2
       2# -> GT  || cmp# returns 2# if arg1 > arg2
 
-The third form can be used to evaluate strictly any expression returning a saturated constructor,
-e.g.
+A wildcard pattern can be used to specify a default "otherwise" case alternative which will
+always match if all of the previous case alternative patterns fail:
+
+    case cmpint x 0 of
+      EQ -> "equal"
+      _  -> "not equal"
+      
+A saturated constructor pattern can be used to evaluate strictly any expression returning
+a saturated constructor, e.g.
 
     case mx of          || switch based upon a maybe int value
       Nothing -> 0
@@ -421,8 +430,8 @@ e.g.
       (a, _) -> a       || strictly extract the fst component of a tuple
 
 As in definitions and library directives, case expressions are layout sensitive, with the first token
-after the `of` setting the indentation for the rest of the case alternates. Case alternates can also
-be placed on the same line, separated by a semicolon:
+after the `of` setting the indentation for the rest of the case alternatives. Case alternatives
+can also be placed on the same line, separated by a semicolon:
 
     case boolval of False -> "f"; True -> "t"
 
@@ -598,7 +607,6 @@ in a definition must have the same result expression type.
 ### Nested `where` Definitions
 
 A right-hand side expression is optionally followed by a `where` clause and a set of nested
-definitions. The `where` keyword sets the layout indentation level for the rest of the `where`
 definitions:
 
     foo x = p + q, if p < q
@@ -614,7 +622,7 @@ nested `where` definitions.
 ### Recursive and Mutually-Recursive Definitions
 
 As stated previously, definitions may occur in any order, and may be recursive with themselves,
-or mutually-recursive with prior or subsequent definitions. For example:
+or mutually-recursive with prior or subsequent definitions that are in-scope. For example:
 
     even 0 = True
     even x = odd (x - 1)
@@ -731,7 +739,7 @@ unify the type variable `*` with the type `dequeue *`.
 A *type synonym* is a way of creating a type name that is an alias for an existing type. It can be used
 to shorten more complex types and to better document the intended use of a top-level function or value.
 A type synonym is of the form *typeName* { *tvar* } `==` *texpr*, or an infix type synonym of the form
-*tvar1* *type operator* *tvar2* `==` *texpr*:
+*tvar1* *type_operator* *tvar2* `==` *texpr*:
 
     string     == [char]                || equates "string" to a list of chars
     errSt      == (string, int, int)    || an error state with an error string and row/col numbers
