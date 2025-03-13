@@ -1302,8 +1302,7 @@ genGetStartClosure ha
       genOpcode "ret" []
 
 || generate the EnterMiranda routine, which restores the Miranda register
-|| state, pushes a continuation to the ioClosure routine in the runtime,
-|| then enters the closure in Arg0
+|| state, then enters the closure in Arg0
 genEnterMiranda :: showS
 genEnterMiranda
     = genCGlobal "EnterMiranda"                         .
