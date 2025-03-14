@@ -1,6 +1,7 @@
 || zebra.m -- "who owns the zebra?" logic puzzle, solved using constraint logic
 
 
+%import <bitSet>
 %import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
 %import <mirandaExtensions>
 %import <io>
@@ -33,29 +34,6 @@ givens =
     , cPair             SameLoc         "japanese"      "parliment"             || the Japanese smokes Parliment.
     , cPair             NextTo          "norwegian"     "blue"                  || The Norwegian lives next to the blue house.
     ]
-
-
-|| bitSet type, for quick handling sets of small (< 64) domains
-bitSet == int
-
-bs_empty :: bitSet
-bs_empty = 0
-
-bs_singleton :: int -> bitSet
-bs_singleton n = 1 .<<. n
-
-bs_all :: int -> bitSet
-bs_all n = (1 .<<. n) - 1
-
-bs_null :: bitSet -> bool
-bs_null n = n == 0
-
-bs_member :: int -> bitSet -> bool
-bs_member n bs = (bs .&. (1 .<<. n)) ~= 0
-
-bs_insert, bs_delete :: int -> bitSet -> bitSet
-bs_insert n bs = bs .|. (1 .<<. n)
-bs_delete n bs = bs .&. complement (1 .<<. n)
 
 
 || a catValue is an index pair into the categories vector, and the bit index in that category (bitSet)
