@@ -976,11 +976,18 @@ and that are used in the Miranda2 compiler:
 `bool` is defined as the algebraic data type `bool ::= False | True`, used in conditional expressions,
 comparison operators, boolean *and* `&` and *or* `\/` operators, etc.
 
-### `int` and `char`
+### `int` and `num`
 
 `int` is defined as the algebraic data type `int ::= I# word#`, with `word#` being the built-in 64-bit
-unboxed machine word, and `I#` being a constructor that boxes a `word#` into an int.  `char` is defined
-similarly: `char ::= C# word#`, with `C#` being a constructor that boxes a `word#` into a char.
+unboxed machine word, and `I#` being a constructor that boxes a `word#` into an int.
+
+`num` is currently a type synonym for `int`, as Miranda2 currently does not implement floating-point
+values.
+
+### `char`
+
+`char` is defined similarly to `int`: `char ::= C# word#`, with `C#` being a constructor that boxes a
+`word#` into a char.
 
 ### `string`
 
