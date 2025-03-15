@@ -978,16 +978,17 @@ comparison operators, boolean *and* `&` and *or* `\/` operators, etc.
 
 ### `int` and `num`
 
-`int` is defined as the algebraic data type `int ::= I# word#`, with `word#` being the built-in 64-bit
-unboxed machine word, and `I#` being a constructor that boxes a `word#` into an int.
+`int` is the type which represents a 64-bit integer value, and is defined as the algebraic data type
+`int ::= I# word#`, with `word#` being the built-in 64-bit unboxed machine word, and `I#` being
+a constructor that boxes a `word#` into an int.
 
 `num` is currently a type synonym for `int`, as Miranda2 currently does not implement floating-point
 values.
 
 ### `char`
 
-`char` is defined similarly to `int`: `char ::= C# word#`, with `C#` being a constructor that boxes a
-`word#` into a char.
+`char` is the type which represents an ASCII character value, and is defined similarly to `int`:
+`char ::= C# word#`, with `C#` being a constructor that boxes a `word#` into a char.
 
 ### `string`
 
