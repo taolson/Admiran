@@ -962,13 +962,41 @@ provided if the tuple is explicitly compared, or showed.
 
 The Miranda2 standard library `<stdlib>` defines a number of types that are available to use in any module,
 and that are used in the Miranda2 compiler:
-* `showI *`
-* `ordering`
-* `ordI *`
 * `bool`
 * `int`
 * `num`
 * `char`
 * `string`
+* `showI *`
+* `ordering`
+* `ordI *`
 
-## Strict Evaluation
+### `bool`
+
+`bool` is defined as the algebraic data type `bool ::= False | True`, used in conditional expressions,
+comparison operators, boolean *and* `&` and *or* `\/` operators, etc.
+
+### `int` and `char`
+
+`int` is defined as the algebraic data type `int ::= I# word#`, with `word#` being the built-in 64-bit
+unboxed machine word, and `I#` being a constructor that boxes a `word#` into an int.  `char` is defined
+similarly: `char ::= C# word#`, with `C#` being a constructor that boxes a `word#` into a char.
+
+### `string`
+
+`string` is defined as a type synonym `string == [char]`, a synonym for a list of `char` values.
+
+### `showI *`
+
+`showI` is a type synonym for the polymorphic type `* -> string`, representing an "instance" of the
+"typeclass" `show`, as described in the section on automatic derivation.
+
+### `ordering` and `ordI *`
+
+`ordering` is defined as the algebraic data type `ordering ::= EQ | LT | GT` used by comparison operators
+to report the total ordering of two values of the same type, either equal, less-than, or greater-than.
+
+`ordI` is a type synonym for the polymorphic type `* -> * -> ordering`, which takes two values of the same
+type and returns their total ordering, as described in the section on automatic derivation.
+
+## Lazy (Call by Need) and Strict Evaluation
