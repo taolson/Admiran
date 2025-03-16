@@ -1017,9 +1017,9 @@ part of an effect action, such as I/O.  When a thunk is evaluated, it is *update
 ensures that a thunk will only be evaluated once, with subsequent evaluations returing the updated value.
 
 Lazy evaluation provides a number of benefits, such as:
-    * "short-circuiting" control flow operations can be defined as simple functions
-    * algorithms can sometimes be simplified, or written in a more natural way
-    * eliminate needless evaluation of a value which isn't required
+* "short-circuiting" control flow operations can be defined as simple functions
+* algorithms can sometimes be simplified, or written in a more natural way
+* eliminate needless evaluation of a value which isn't required
 
 However, there are some drawbacks, as well.  One of the main ones is that thunks take up space in the
 heap, and if a lazy computation is continually modified without requiring its evaluation, a chain of
