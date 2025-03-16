@@ -1008,3 +1008,61 @@ to report the total ordering of two values of the same type, either equal, less-
 type and returns their total ordering, as described in the section on automatic derivation.
 
 ## Lazy (Call by Need) and Strict Evaluation
+
+Miranda2 has Lazy (Call by Need) evaluation by default.  Instead of evaluating function arguments before
+calling a function, Miranda2 delays their evaluation by turning them into *thunks*: closures of an
+expression to evaluate bundled along with their environment in which the evaluation is to be performed.
+Thunks are evaluated on demand, when they are required by the program to determine control flow or as
+part of an effect action, such as I/O.  When a thunk is evaluated, it is *updated* with its value, which
+ensures that a thunk will only be evaluated once, with subsequent evaluations returing the updated value.
+
+Lazy evaluation provides a number of benefits, such as:
+    * "short-circuiting" control flow operations can be defined as simple functions
+    * algorithms can sometimes be simplified, or written in a more natural way
+    * eliminate needless evaluation of a value which isn't required
+
+However, there are some drawbacks, as well.  One of the main ones is that thunks take up space in the
+heap, and if a lazy computation is continually modified without requiring its evaluation, a chain of
+to-be-evaluated thunks can build up, resulting in a space leak.  An example of this is the following
+function, which attempts to find the length of a list:
+
+    len = go 0
+          where
+            go n []       = n
+            go n (_ : xs) = go (n + 1) xs
+
+In the function `go`, the computation for `n` is lazy: each step of the `go` function creates a new
+thunk `(n + 1)` which it passes to the next recursive iteration, resulting in a final value that is
+a chain of thunks:
+
+    (((0 + 1) + 1) + 1) ..
+
+To prevent this, `n` should be evaluated strictly.  In Miranda2, strict evaluation is performed when
+* the value is evaluated as part of a conditional expression guard, e.g. `... if n > 0`
+* the value is a scrutinee in a case expression
+* the value is used in a pattern match that forces its value (i.e. not a simple variable or wildcard)
+* the value is the first argument in a `seq` function, which forces evaluation of its first
+  argument before returning the second argument as a value.
+
+A rewrite of the problematic function above with strict evaluation of n could be:
+
+    lenStrict
+        = go 0
+          where
+            go n [] = n
+            go n (_ : xs) = case n + 1 of n' -> go n' xs
+
+or by using `stdlib.foldl`, which performs strict evaluation of its folded state:
+
+    lenStrict xs = foldl inc 0 xs where inc n _ = n + 1
+
+Many times data structures hold thunks that can result in space leaks.  To simplify making them
+strict, fields in an algebraic data type can be written with a `!` suffix, which causes the
+strict evaluation of that field whenever the constructor is called:
+
+    sizedList * ::= Sized int! [*]
+
+    insert :: * -> sizedList * -> sizedList *
+    insert x (Sized n xs) = Sized (n + 1) (x : xs)
+
+Here the computation (n + 1) is strict when the Sized constructor is called.
