@@ -80,7 +80,7 @@ Edit the config.am file in the compiler directory to modify the values for:
 
     hostOS                = Linux         || set to Linux or MacOS
     admiranLibPath        = "../lib"      || set to absolute path name for the lib directory, e.g.
-                                          || "/home/tim/Programming/Admiran/lib"`
+                                          || "/home/tim/Programming/Admiran/lib"
 
 then go back to the top-level directory and type "make".
 
