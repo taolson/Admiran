@@ -819,7 +819,7 @@ any strict arguments, rather than storing them as thunks.
 
 ### Automatic Derivation of `ord` and `show`
 
-The Admiran compiler `mirac` will automatically derive functions to compare and show both
+The Admiran compiler `amc` will automatically derive functions to compare and show both
 type synonyms and algebraic data types, if they aren't explicitly defined. The derived function
 names prepend a `cmp` or `show` to the type name, so, for example, defining the data type
 `expr` as:
@@ -907,7 +907,7 @@ If an export directive is not present, then an implicit `%export +` is assumed.
 
 ## Predefined (built-in) Types
 
-The Admiran compiler `mirac` defines a number of built-in base types that cannot be defined by Admiran
+The Admiran compiler `amc` defines a number of built-in base types that cannot be defined by Admiran
 type definitions:
 * `word#`
 * `unit`
