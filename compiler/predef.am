@@ -1,12 +1,12 @@
-|| predef.m -- references to pre-defined types, variables, and names that are builtin or in stdlib
+|| predef.am -- references to pre-defined types, variables, and names that are builtin or in stdlib
 
 
 %export + -p_spec
 
+%import <base>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import "config"
 %import "grammar"
 %import "name"
@@ -15,7 +15,7 @@
 
 
 stdlibPath :: [string]
-stdlibPath =  split (hd filePathSeparator) miranda2LibPath
+stdlibPath =  split (hd filePathSeparator) admiranLibPath
 
 makeBuiltinName :: string -> name
 makeBuiltinName s = Builtin s
@@ -35,11 +35,11 @@ makeStdlibType s = Tname (makeStdlibName s) []
 makeStdlibVar :: string -> expr
 makeStdlibVar s = Evar (makeStdlibName s)
 
-|| make a Miranda2 list expression from a list of expressions
+|| make a Admiran list expression from a list of expressions
 makeList :: [expr] -> expr
 makeList elts = foldr (ap2 builtinCons) builtinNil elts
 
-|| make a Miranda2 tuple expression from a list of expressions
+|| make a Admiran tuple expression from a list of expressions
 makeTupleExpr :: [expr] -> expr
 makeTupleExpr [elt] = elt       || single element
 makeTupleExpr elts
@@ -47,7 +47,7 @@ makeTupleExpr elts
       where
         ntuple = Evar (builtinTupleName (#elts))
 
-|| make a Miranda2 tuple pattern from a list of names
+|| make a Admiran tuple pattern from a list of names
 makeTuplePat :: [name] -> pat
 makeTuplePat [n] = Pvar n               || single name
 makeTuplePat ns  = Pctor (builtinTupleName (#ns)) (map Pvar ns)
@@ -70,7 +70,7 @@ makeTupleType = baseType . makeTupleCtorType
 
 || make a function name for a tuple, given the base function name and the tuple arity
 || note that this returns an Unqualified name, rather than Builtin or stdlib, because cmptupleN and showtupleN
-|| functions can be added as needed in other modules (e.g. mirandaExtensions)
+|| functions can be added as needed in other modules (e.g. admiranExtensions)
 makeTupleFnName :: string -> int -> name
 makeTupleFnName s n = Unqualified (s ++ "tuple" ++ showint n)
 
@@ -316,7 +316,7 @@ builtinSpecs
         insertSpec m d = m_insert cmpname (defnName d) d m
 
 || parse a type specification
-|| simple form of the version in mirandaParser to handle just the builtin specs above
+|| simple form of the version in admiranParser to handle just the builtin specs above
 p_spec :: string -> defn
 p_spec s
     = error ("error parsing '" ++ s ++ "' " ++ view psErrStr ps), if isNothing mspec

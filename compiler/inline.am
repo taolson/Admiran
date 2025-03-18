@@ -1,12 +1,12 @@
-|| inline.m -- inlining saturated calls to known non-recursive functions and simplification transformations
+|| inline.am -- inlining saturated calls to known non-recursive functions and simplification transformations
 
 %export inline streamSubst
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import <state>                 (>>=)/st_bind
 %import "analyze"

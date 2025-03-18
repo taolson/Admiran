@@ -1,4 +1,4 @@
-|| map.m -- implementation of a strict map from key to value, using AVL trees
+|| map.am -- implementation of a strict map from key to value, using AVL trees
 
 
 %export + m_empty m_null m_size m_first m_last m_toList

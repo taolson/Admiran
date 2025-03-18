@@ -1,4 +1,4 @@
-|| tokenizer.m -- lexical syntax tokenizer
+|| tokenizer.am -- lexical syntax tokenizer
 ||    this version uses continuation-passing style (CPS) to pass
 ||    character streams and locations between tokenizers; this saves
 ||    some extra constructor-building over using tuples to build up
@@ -17,8 +17,8 @@
 
 %export token cmptoken showToken tokloc cmptokloc showtokloc tokenize isTerror isTend
 
+%import <base>
 %import <maybe>
-%import <mirandaExtensions>
 %import "name"
 
 

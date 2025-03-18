@@ -1,5 +1,5 @@
 || 
-|| config.m -- compiler configuration parameters
+|| config.am -- compiler configuration parameters
 ||
 || currently these configuration parameters are defined in this module, but some or all of them may be migrated
 || to a data structure (passed as part of the RWS reader state to various compiler components), and modified
@@ -12,8 +12,8 @@ os ::= MacOS | Linux
 
 || these parameters must be set when installing the compiler
 hostOS                = Linux           || set to Linux or MacOS
-miranda2LibPath       = "../lib"        || set to the absolute path name fo the lib directory
-                                        || e.g. "/home/tim/Programming/Miranda2/lib"
+admiranLibPath        = "../lib"        || set to the absolute path name fo the lib directory
+                                        || e.g. "/home/tim/Programming/Admiran/lib"
 
 || os-dependant configuration parameters
 (codegenCsymbolPrefix, ccOpts)

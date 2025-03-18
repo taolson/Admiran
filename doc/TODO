@@ -20,7 +20,7 @@ compiler options:
 
 grammar:       add (Elam [pat] expr anno) to ast; add Elam to showAst (need anno for free var analysis)
 ast:           add Elam to astRewriteSubs and astAccumSubs
-mirandaParser: add a p_lam to parse lambdas with "\" (p_many p_pat) p_exp; add p_lam to p_simple
+admiranParser: add a p_lam to parse lambdas with "\" (p_many p_pat) p_exp; add p_lam to p_simple
 desugar:       add Elam, calling match on pats
 serialize:     add Elam as new ctor to serial / deserial
 rename:        add Elam (rename def pats)
@@ -145,7 +145,7 @@ The tokenizer returns lazy tuples for the tokloc values, which can build up a lo
 numbers.  Look at changing from a tuple representation to a data representation where the fields are strict.
 
 
---- parser, mirandaParser ---
+--- parser, admiranParser ---
 Look at re-implementing with ideas from the paper "Error Reporting for PEG", which implements a 4-value state monad instead of maybeState.
 The 4 values are:
     Error    -- an error occured
@@ -155,7 +155,7 @@ The 4 values are:
 
 
 --- unboxed vectors / arrays  (and byte vectors / arrays) ---
-While working on the synacor challenge code for Miranda2, computing a fast modified-ackerman function needs 3 large vectors (32K entries apiece),
+While working on the synacor challenge code for Admiran, computing a fast modified-ackerman function needs 3 large vectors (32K entries apiece),
 which currently triggers a gc bug (bad tag encountered during scanning one of the large arrays).  That still needs to be tracked down, but the GC
 scan is having to scan all of the entries of each array, even though we know they should all be resolved to ints, anyway.
 
@@ -166,7 +166,7 @@ bulk copy the entire array). If so, need to evaluate how much of the existing Ve
 --- derive ---
 auto derivation of show and ord for Tuple types:
 Add a deriveTupleInstances function to derive.m for deriving showtupleN and cmpTupleN functions, instead of having to manually place them in stdlib,
-mirandaExtensions, etc. Use it during the stg phase to create them on demand, for the whole program. This requires the following changes:
+base, etc. Use it during the stg phase to create them on demand, for the whole program. This requires the following changes:
 
     - change the makeTupleFnName to create a Builtin name rather than an Undefined name
 
@@ -195,7 +195,7 @@ new ctor  to serialize
 
 
 --- interp ---
-When status tracing is turned off, or the interval is too large, we run out of Miranda heap space on advent2019.  However, simply printing
+When status tracing is turned off, or the interval is too large, we run out of Admiran heap space on advent2019.  However, simply printing
 a null string every 100000 cycles clears up the issue.  Need to investigate why doing periodic I/O triggers this, even though the I/O
 does nothing to the stgSt.
 
@@ -217,7 +217,7 @@ optimize simple patterns with wildcards, e.g.
 
 
 --- add explicit fixity defns ---
-Currently there is a fixed precedence and associativity as defined in Miranda, but with the addition of the ability to define new operators,
+Currently there is a fixed precedence and associativity as defined in Admiran, but with the addition of the ability to define new operators,
 it would be good to be able to define their precedence and associativity as well (rather than defaulting to highest and rightassoc).  Since
 the associtivity spec is discovered during parsing, the parser would have to change to not handling associativity / precedence during initial
 parsing, and add a resolution phase (during desugaring?) to resolve to a tree of Eaps.  That would require a new expr type in the grammar:
@@ -316,7 +316,7 @@ Switching to an AST with annotations on each node can allow for better error han
 Also, by making the AST a free type, annotations can be added as a pair, and the annotation type can change during the
 compilation pipeline (e.g. location info, then added type info after typecheck, then can change to a unique tag value for supercompilation).
 
-Will require some updating of pattern matches in desugar and rewrite for embedded patterns, and a lot of rewriting of mirandaParser 
+Will require some updating of pattern matches in desugar and rewrite for embedded patterns, and a lot of rewriting of admiranParser 
 
 astF * ::=
     Evar name                   |
@@ -372,7 +372,7 @@ convert parserErrors to exceptions
 right now they are separate, and conversion occurs right at the end in parse
 
 
---- MirandaParser ---
+--- AdmiranParser ---
 || Note: since we allow definition of infix operators, a type synonym
 ||       can be ambiguously parsed as an infix operator (==) definition, so if there
 ||       is an error in parsing a type synonym, it would be tried as an infix operator
@@ -442,7 +442,7 @@ add desugaring of explicit case expressions to use the match pattern compiler:
 
         -> match [expr] [equations]
 
-If not, need to add restrictions to mirandaParser to prevent general patterns from being used in case expressions.
+If not, need to add restrictions to admiranParser to prevent general patterns from being used in case expressions.
 
 
 --- Using more Applicative style in desugar, rewrite, module ---

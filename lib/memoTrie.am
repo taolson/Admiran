@@ -1,11 +1,11 @@
-|| memoization of functions using a lazy mapping of indices in a trie
-|| based upon Haskell's Data.MemoTrie written by Conal Elliot
+|| memoTrie.am -- memoization of functions using a lazy mapping of indices in a trie
+||                based upon Haskell's Data.MemoTrie written by Conal Elliot
 
 
 %export + -tree -t_fmap
 
+%import <base>
 %import <maybe>
-%import <mirandaExtensions>
 
 
 tree * ::= Tree (tree *) * (tree *)

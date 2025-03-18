@@ -1,11 +1,11 @@
-||  v2.m -- 2D vectors and associated operations
+||  v2.am -- 2D vectors and associated operations
 
 
 %export +
 
+%import <base>
 %import <lens>
 %import <maybe>
-%import <mirandaExtensions>
 
 
 v2 * ::= V2 * *

@@ -1,9 +1,9 @@
-|| zipper.m -- implementation of a list with a cursor
+|| zipper.am -- implementation of a list with a cursor
 
 
 %export +
 
-%import <mirandaExtensions>
+%import <base>
 
 
 zipper * ::= Zipper [*] ! [*] !

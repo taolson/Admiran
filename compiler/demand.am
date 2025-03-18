@@ -1,18 +1,14 @@
-|| demand.m -- perform demand analysis on an AST, annotating DefFns with the strictness info of their vars,
-||             and marking thunks which are demanded to NoUpdate (anStrict == s_singleton (-1))
-||
-|| DEBUG: the setting of [-1] for demanded, single-use DefPats has problems:
-|| 1) they sometimes disappear (show as [] in final output), but haven't diagnosed why some disappear and others dont
-|| 2) is wrong anyway, because a single-use DefPat could escape, anyway, allowing them to be evaluated multiple times
+|| demand.am -- perform demand analysis on an AST, annotating DefFns with the strictness info of their vars,
+||              and marking thunks which are demanded to NoUpdate (anStrict == s_singleton (-1))
 
 
 %export demand
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
-%import <mirandaExtensions>
 %import <set>
 %import <state>                 (>>=)/st_bind (<$>)/st_fmap (<<)/st_left (>>)/st_right
 %import "ast"

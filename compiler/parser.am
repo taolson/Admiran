@@ -1,11 +1,11 @@
-|| parser.m -- basic parser combinators for a stream of tokens with locations
+|| parser.am -- basic parser combinators for a stream of tokens with locations
 
 
 %export + p_get p_put p_modify p_bind p_pure p_fail p_fmap p_apply p_liftA2 p_liftA3 p_liftA4 p_left p_right p_bind2 p_mapM p_foldM p_runState
 
+%import <base>
 %import <lens>
 %import <maybe>
-%import <mirandaExtensions>
 %import <maybeState>            p_get/mst_get p_put/mst_put p_modify/mst_modify p_bind/mst_bind p_pure/mst_pure p_fail/mst_fail p_fmap/mst_fmap
                                 p_apply/mst_apply p_liftA2/mst_liftA2 p_liftA3/mst_liftA3 p_liftA4/mst_liftA4 p_left/mst_left p_right/mst_right
                                 p_bind2/mst_bind2 p_mapM/mst_mapM p_foldM/mst_foldM p_runState/mst_runState

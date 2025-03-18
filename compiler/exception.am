@@ -1,12 +1,12 @@
-|| exception.m -- errors and warnings
+|| exception.am -- errors and warnings
 
 
 %export +
 
+%import <base>
 %import <either>
 %import <lens>
 %import <maybe>
-%import <mirandaExtensions>
 %import "grammar"
 %import "name"
 

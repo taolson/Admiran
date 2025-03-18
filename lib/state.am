@@ -1,4 +1,4 @@
-|| state.m -- strict state functor / applicative / monad
+|| state.am -- strict state functor / applicative / monad
 
 
 %export +

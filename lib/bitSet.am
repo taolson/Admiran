@@ -1,4 +1,4 @@
-|| bitSet -- representation of a set of small (< 64) natural numbers using an int
+|| bitSet.am -- representation of a set of small (< 64) natural numbers using an int
 
 
 %export +

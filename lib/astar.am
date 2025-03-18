@@ -1,4 +1,4 @@
-|| astar.m -- implementation of the A-Star search algorithm
+|| astar.am -- implementation of the A-Star search algorithm
 ||
 || Note on heuristic admissiblity: for the A-Star algorithm to return the minimum-cost solution, all of the estimates provided by the
 || estimate fn must be strictly less than or equal to the actual cost
@@ -6,9 +6,9 @@
 
 %export aStarSolve aStarReachable
 
+%import <base>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 
 

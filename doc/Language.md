@@ -1,9 +1,9 @@
-# Miranda2 Language Reference
+# Admiran Language Reference
 
 ## Introduction
 
-Miranda2 is primarily based upon the Miranda language written by David Turner. Much of the existing documentation
-on writing programs in Miranda is generally applicable to writing programs in Miranda2, but there are a number of
+Admiran is primarily based upon the Miranda language written by David Turner. Much of the existing documentation
+on writing programs in Miranda is generally applicable to writing programs in Admiran, but there are a number of
 key differences:
 
 * `num` type (combined floating-point or arbitrary-precision integers) replaced with 64-bit int
@@ -20,11 +20,11 @@ The following reference is based upon the structure and information of the Haske
 
 ### Program Structure
 
-A Miranda2 program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
+A Admiran program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
 software in large programs. The top level of a module consists of a collection of *declarations*. Declarations
 define functions, values, and types used in the module as well as module imports and exports. At the next lower
-level are *expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Miranda2's
-*lexical structure*, which defines the individual tokens that make up a Miranda2 program.
+level are *expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Admiran's
+*lexical structure*, which defines the individual tokens that make up a Admiran program.
 
 Declarations in a module are unordered: there is no requirement that a declaration used by others must occur before
 its uses.
@@ -47,7 +47,7 @@ with the `*` being a parametric type variable which can match any type.
 
 ### Namespaces
 
-There are 5 different kinds of names in Miranda2, which are grouped into 4 namespaces:
+There are 5 different kinds of names in Admiran, which are grouped into 4 namespaces:
 
 * Module names
 * Variable names and Type names
@@ -62,7 +62,7 @@ names can be aliased in an `%import` directive to provide a shorthand for qualif
 
 #### Variable Names and Type Names
 
-Variable names and type names share the same namespace in Miranda2. They are either
+Variable names and type names share the same namespace in Admiran. They are either
 
 * Alphanumeric strings which begin with a lower-case letter, `'`, or `_`, e.g.
   * `foo` `alphaBeta5'` `_eq`
@@ -97,12 +97,12 @@ They are written as a string of `*` characters, disambiguated by the length of t
 
 ## Lexical Structure
 
-The lexical structure of a Miranda2 program consists of a sequence of *tokens*, separated by whitespace.
+The lexical structure of a Admiran program consists of a sequence of *tokens*, separated by whitespace.
 Whitespace (spaces, tabs, newlines, and comments) is ignored, except for contributing to the layout rules.
 
 ### Comments
 
-Comments in Miranda2 begin with a token starting with two consecutive vertical bars (i.e. `||`) and
+Comments in Admiran begin with a token starting with two consecutive vertical bars (i.e. `||`) and
 extend to the end of the line. Note that `|||` parses as as a comment and not a symbolic operator, so comments
 effectively prevent defining symbolic operators that begin with `||`.
 
@@ -112,7 +112,7 @@ Identifiers and operators are variable, type, or constructor names, as specified
 
 ### Integer Literals
 
-Integers in Miranda2 are 64-bit signed machine integers. Integer literals can be specified in
+Integers in Admiran are 64-bit signed machine integers. Integer literals can be specified in
 
 * decimal: `42`, `-1`
 * hexadecimal: `0xffff`
@@ -132,7 +132,7 @@ can also be used with a decimal or hexadecimal value to specify an escape charac
 
 ### Unboxed `Word#` Literals
 
-Miranda2 also provides access to raw, unboxed, 64-bit `word#` values, for use in interfacing to
+Admiran also provides access to raw, unboxed, 64-bit `word#` values, for use in interfacing to
 low-level built-in functions, or to write performance-tuned functions without boxing / unboxing overhead.
 
 Integer `word#` values are written as an integer literal immediately followed by a '#', e.g. `42#`.
@@ -140,7 +140,7 @@ Unboxed characters can also be written with character literals, e.g. `'a'#`.
 
 ### Layout
 
-Miranda2 programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
+Admiran programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
 are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
 or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, the beginning column number
 of the following token is captured, and used to disambiguate where the expression ends. If a subsequent line
@@ -164,7 +164,7 @@ A semicolon (`;`) can be used to specify the end of a construct instead of inden
 
 ## Expressions
 
-A Miranda2 expression is a sequence of term expressions and function applications
+A Admiran expression is a sequence of term expressions and function applications
 interleaved with infix operators. Term expressions can be:
 
 * a variable, constructor, or literal
@@ -255,7 +255,7 @@ Comparison operators (shown with `Compare` associativity) allow chaining:
 e.g. `fact 5` or `max (a + 7) b`. Function application has the highest precedence, and is left
 associative.
 
-Functions in Miranda2 are *curried*, which means that functions of multiple arguments can be
+Functions in Admiran are *curried*, which means that functions of multiple arguments can be
 thought of as functions of a single argument returning another function. So
 
     max (a + 7) b
@@ -286,7 +286,7 @@ on a binary `-`. To perform the later, the standard library function `subtract` 
 
 ### Lists
 
-Lists are a built-in recursive data type in Miranda2, with two constructors: `[]` and `:`. `[]`
+Lists are a built-in recursive data type in Admiran, with two constructors: `[]` and `:`. `[]`
 is the empty list, and `:` is an infix constructor appending a value to the head of an existing list.
 
 A List expression is a comma-separated list of expressions within square brackets, e.g.
@@ -297,12 +297,12 @@ A List expression is a comma-separated list of expressions within square bracket
 
 Terms in a list expression must all have the same type; otherwise it is a type error.
 
-String literals in Miranda are represented as a list of `char`: `"Hi!"` is equivalent to
+String literals in Admiran are represented as a list of `char`: `"Hi!"` is equivalent to
 `['H', 'i', '!']`
 
 ### Tuples and Unit
 
-Tuples are a built-in data type in Miranda2, and can be of any length. Terms in a tuple
+Tuples are a built-in data type in Admiran, and can be of any length. Terms in a tuple
 expression can be of different types. Tuples are written as comma-separated list of expressions
 within parentheses, e.g.
 
@@ -380,7 +380,7 @@ where `tails` returns the successive tails of a list.
 
 ### Case Expressions
 
-Case expressions in Miranda2 are the mechanism for interfacing with built-in functions that operate on unboxed
+Case expressions in Admiran are the mechanism for interfacing with built-in functions that operate on unboxed
 words, and are evaluated strictly. They can also be used to evaluate an expression strictly and perform a
 conditional switch on the resulting constructor. A case expression has the general form:
 
@@ -631,7 +631,7 @@ or mutually-recursive with prior or subsequent definitions that are in-scope. Fo
     odd x = even (x - 1)
 
 Pattern definitions, like function definitions, may also be recursive, as shown in this
-example of Miranda2's fix-point function:
+example of Admiran's fix-point function:
 
     fix f = x where x = f x
 
@@ -640,7 +640,7 @@ in a (lazy) infinite recursive expansion of `f (f (f (f ..)))`
 
 ## Type Expressions
 
-Similar to expressions defined previously, Miranda2 has a similar syntax for *type expressions*.
+Similar to expressions defined previously, Admiran has a similar syntax for *type expressions*.
 A type expression is a sequence of type term expressions and type applications interleaved with
 infix type constructor operators. Type term expressions can be:
 
@@ -680,7 +680,7 @@ Declarations at the top-level of a module consist of
 
 ### Type Specifications
 
-While type specifications aren't required in Miranda2, they can be provided for top-level function and pattern
+While type specifications aren't required in Admiran, they can be provided for top-level function and pattern
 definitions to help document the definition, as well as to help type inference report more concise errors.
 
 A type specification is of the form *var* `::` *texpr* where *var* is a function
@@ -809,7 +809,7 @@ both function definitions, pattern bindings, list comprehensions, and case expre
 By default, the fields in a constructor are stored as *thunks*; lazy computations that are
 only computed during pattern matching on the field. However, sometimes this can lead to
 space leaks, storing long chains of computations waiting to be resolved. To address this,
-Miranda2 allows optional strict fields in data constructors, by appending a `!` to the
+Admiran allows optional strict fields in data constructors, by appending a `!` to the
 corresponding field type in the constructor:
 
     strictPair ::= SP int! int!
@@ -819,7 +819,7 @@ any strict arguments, rather than storing them as thunks.
 
 ### Automatic Derivation of `ord` and `show`
 
-The Miranda2 compiler `mirac` will automatically derive functions to compare and show both
+The Admiran compiler `mirac` will automatically derive functions to compare and show both
 type synonyms and algebraic data types, if they aren't explicitly defined. The derived function
 names prepend a `cmp` or `show` to the type name, so, for example, defining the data type
 `expr` as:
@@ -831,7 +831,7 @@ will also define the functions
     showexpr :: expr -> string
     cmpexpr  :: expr -> expr -> ordering
 
-where `ordering` is a data type defined in the Miranda2 `stdlib`:
+where `ordering` is a data type defined in the Admiran `stdlib`:
 
     ordering ::= EQ | LT | GT
 
@@ -849,7 +849,7 @@ or used in polymorphic functions that perform comparisons for ordering:
 
 An *import directive* imports the definitions exported from a module and makes them visible.
 It is of the form `%import` *fileSpec* { `qualified` } { `as` *ident* } { *alias* }*
-where *fileSpec* is either the name of a module in the standard Miranda2 library (when enclosed in
+where *fileSpec* is either the name of a module in the standard Admiran library (when enclosed in
 angle brackets e.g. `<map>`, or the path to a module relative to the current directory, when
 enclosed in double-quotes, e.g. `"parser"`, `"../lib/dequeue"`.
 
@@ -862,13 +862,13 @@ versions do.
 To shorten qualified names, an `as` *ident* can be used; then the alias identifier specified is used instead
 of the module name as the qualifier, e.g.
 
-    %import <mirandaExtensions> as ME
+    %import <base> as B
 
-    sortedNames xs = ME.sortBy cmpstring xs
+    sortedNames xs = B.sortBy cmpstring xs
 
 instead of
 
-    sortedNames xs = mirandaExtensions.sortBy cmpstring xs
+    sortedNames xs = base.sortBy cmpstring xs
 
 Both the `qualified` and `as` options can be used, which means that names must be referred to as the
 aliased qualified name.
@@ -907,7 +907,7 @@ If an export directive is not present, then an implicit `%export +` is assumed.
 
 ## Predefined (built-in) Types
 
-The Miranda2 compiler `mirac` defines a number of built-in base types that cannot be defined by Miranda2
+The Admiran compiler `mirac` defines a number of built-in base types that cannot be defined by Admiran
 type definitions:
 * `word#`
 * `unit`
@@ -943,13 +943,13 @@ except that it has special syntax for representing and printing:
     
 ### `tuple` types
 
-Miranda2 supports a family of n-ary tuple types which are dynamically created during compilation. An
+Admiran supports a family of n-ary tuple types which are dynamically created during compilation. An
 n-ary tuple type is specified as a comma-separated list of type expressions, enclosed in parenthesis,
 and an n-ary tuple value is specified as a comma-separated list of expressions, enclosed in
 parenthesis. Since tuple types are built-in and not created via algebraic data type definitions, they
 don't have support for the automatic derivation of `ord` and `show` instances. Instead, they must have
 manually-written instances. Instances for 2-tuples (pairs) are provided in the `<stdlib>` library,
-and instances for n-tuples 3 through 7 are provided in the `<mirandaExtensions>` library. The instance
+and instances for n-tuples 3 through 7 are provided in the `<base>` library. The instance
 functions are named `showtuple` *n* or `cmptuple` *n*, where *n* is the arity of the tuple, e.g.:
 
     showtuple3 showint showint showchar (5, 6, 'a')
@@ -958,10 +958,10 @@ functions are named `showtuple` *n* or `cmptuple` *n*, where *n* is the arity of
 If n-ary tuples greater than 7 are used in code, associated `ordI` and `showI` instances must be
 provided if the tuple is explicitly compared, or showed.
 
-## Standard Miranda2 Types
+## Standard Admiran Types
 
-The Miranda2 standard library `<stdlib>` defines a number of types that are available to use in any module,
-and that are used in the Miranda2 compiler:
+The Admiran standard library `<stdlib>` defines a number of types that are available to use in any module,
+and that are used in the Admiran compiler:
 * `bool`
 * `int`
 * `num`
@@ -982,7 +982,7 @@ comparison operators, boolean *and* `&` and *or* `\/` operators, etc.
 `int ::= I# word#`, with `word#` being the built-in 64-bit unboxed machine word, and `I#` being
 a constructor that boxes a `word#` into an int.
 
-`num` is currently a type synonym for `int`, as Miranda2 currently does not implement floating-point
+`num` is currently a type synonym for `int`, as Admiran currently does not implement floating-point
 values.
 
 ### `char`
@@ -1009,8 +1009,8 @@ type and returns their total ordering, as described in the section on automatic 
 
 ## Lazy (Call by Need) and Strict Evaluation
 
-Miranda2 has Lazy (Call by Need) evaluation by default. Instead of evaluating function arguments before
-calling a function, Miranda2 delays their evaluation by turning them into *thunks*: closures of an
+Admiran has Lazy (Call by Need) evaluation by default. Instead of evaluating function arguments before
+calling a function, Admiran delays their evaluation by turning them into *thunks*: closures of an
 expression to evaluate bundled along with their environment in which the evaluation is to be performed.
 Thunks are evaluated on demand, when they are required by the program to determine control flow or as
 part of an effect action, such as I/O. When a thunk is evaluated, it is *updated* with its value, which
@@ -1037,7 +1037,7 @@ a chain of thunks:
 
     (((0 + 1) + 1) + 1) ..
 
-To prevent this, `n` should be evaluated strictly. In Miranda2, strict evaluation is performed when
+To prevent this, `n` should be evaluated strictly. In Admiran, strict evaluation is performed when
 * the value is evaluated as part of a conditional expression guard, e.g. `... if n > 0`
 * the value is a scrutinee in a case expression
 * the value is used in a pattern match that forces its value (i.e. not a simple variable or wildcard)

@@ -1,17 +1,17 @@
-|| grammar.m -- Miranda2 expression, type, and definition grammars
+|| grammar.am -- Admiran expression, type, and definition grammars
 
 
 %export + -precAssocTable
 
+%import <base>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import "name"
 
 
-|| Miranda2 grammar
+|| Admiran grammar
 ||
 || The grammar has a unified AST to allow for easy traversal and rewriting, but these
 || types are synonyms to document the actual types
@@ -686,7 +686,7 @@ assoc ::= AssocLeft | AssocRight | AssocPrefix | AssocCompare
 || note: this sets up a fixed precedence and associativity for common operators; all others
 || are treated as the default of highest precedence (apPrec) and AssocRight
 || eventually this should be migrated to an ability to define the prec and assoc of an operator
-|| when the operator is defined, but that requires some work to the module, mirandaParser, and
+|| when the operator is defined, but that requires some work to the module, admiranParser, and
 || reify modules
 precAssocTable :: m_map string (int, assoc)
 precAssocTable

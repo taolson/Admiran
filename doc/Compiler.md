@@ -1,5 +1,5 @@
-# A tour of the mirac compiler internals
-The mirac compiler comprises a hierarchy of 26 modules, each performing a specific function in the compiler pass pipeline
+# A tour of the Admiran compiler internals
+The Admiran compiler comprises a hierarchy of 26 modules, each performing a specific function in the compiler pass pipeline
 from source file to asm binary. We'll tour these in a bottom-up order, based upon when they are used in the pipeline.
 
 The overall pipeline looks like:
@@ -11,7 +11,7 @@ run through a sequence of AST transformation passes. All of the collected module
 and lowered to a Spineless, Tagless G-machine representation (STG), which is then converted to
 x86-64 assembly code.
 
-### AST transformation passes (as defined in the module `mirac`):
+### AST transformation passes (as defined in the module `amc`):
 
     [ reifyImports
     , reifyDefns isDefData        || reify data type and constructor names early for desugaring constructor patterns
@@ -50,7 +50,7 @@ The module also defines a number of common operations on `name`s.
 
 ## `grammar.m`
 
-The `grammar` module defines the AST for Miranda2 that will be used and refined in all the subsequent passes.
+The `grammar` module defines the AST for Admiran that will be used and refined in all the subsequent passes.
 It firsts defines a number of type aliases for `ast`:
 
 * `expr`: a value expression
@@ -154,10 +154,10 @@ escaped characters like `\n` or `\x32`.
 
 ## `parser.m`
 
-Parsing is split into two separate modules `parser` and `mirandaParser`. `parser` implements the basic parsing combinators
-for processing a `tokloc` stream, while `mirandaParser` implements parsing combinators specific to the Miranda2 grammar. This
+Parsing is split into two separate modules `parser` and `admiranParser`. `parser` implements the basic parsing combinators
+for processing a `tokloc` stream, while `admiranParser` implements parsing combinators specific to the Admiran grammar. This
 split allows `parser` to be used in the `predef` module as well (to parse builtin type specifications); otherwise a dependency
-loop between the `mirandaParser` and `predef` modules would exist.
+loop between the `admiranParser` and `predef` modules would exist.
 
 ### Parser state
 
@@ -211,7 +211,7 @@ state with that of the first parser.
 #### `p_expected` and `p_unexpected`
 
 The parsers `p_expected` and `p_unexpected` are used to report an error as the alternative parser of a `p_alt`.
-`p_expected` takes a string to report as the expected result, and is used in various parsers in `mirandaParser`
+`p_expected` takes a string to report as the expected result, and is used in various parsers in `admiranParser`
 to give additional information to a parse error. `p_unexpected` is used as a default alternative parser (mainly
 used by `p_guard` and `p_satisfy`) to report an error on failure.
 
@@ -236,9 +236,9 @@ parser which expects a particular literal token value:
     p_token :: token -> parser token
     p_token t = p_any $p_satisfy (_eq cmptoken t)
 
-## `mirandaParser.m`
+## `admiranParser.m`
 
-The Miranda2 grammar is parsed in the `mirandaParser` module, which groups parser combinators into:
+The Admiran grammar is parsed in the `admiranParser` module, which groups parser combinators into:
 * expression parsing
 * pattern and fnform parsing
 * type expression parsing
@@ -249,7 +249,7 @@ The Miranda2 grammar is parsed in the `mirandaParser` module, which groups parse
 
 ### Parsing expressions
 
-Expression parsers parse the Miranda2 expression grammar, including:
+Expression parsers parse the Admiran expression grammar, including:
 * variables and constructors
 * parenthesized expressions, unit (), and tuples
 * list expressions
@@ -298,7 +298,7 @@ the function stdlib.converse (flip the two operands of a function) to the expres
 
 #### Parsing case expressions
 
-Miranda2 adds a limited form of case expression to the Miranda grammar, mainly to support directly coding
+Admiran adds a limited form of case expression to the Miranda grammar, mainly to support directly coding
 the case expressions allowed by the STG machine semantics and for calling builtin functions. An example
 of such a case expression is:
 
@@ -378,7 +378,7 @@ based upon the name of the first `Evar` and the number of parameters.
 
 ### Parsing type expressions
 
-Type expression parsers parse the Miranda2 type expression grammar, including:
+Type expression parsers parse the Admiran type expression grammar, including:
 * type names and type variables
 * parenthesized type expressions, type Unit (), and type tuples
 * type list expression (a single type within brackets)
@@ -393,7 +393,7 @@ strict). It also parses infix constructors. `p_constructs` parses a list of thes
 
 ### Parsing Definitions
 
-A Miranda2 definition can be:
+A Admiran definition can be:
 * a function definition, e.g. `inc n = n + 1`
 * a pattern definition, e.g. `(a, _, b) = x`
 * an algebraic data type definition, e.g. `maybe * ::= Nothing | Just *`
@@ -407,7 +407,7 @@ the top-level of the module to be added to the module easily, after being collec
 
 ### Parsing Library directives
 
-Miranda2 library directives begin with a `%`:
+Admiran library directives begin with a `%`:
 
     %import <fileSpec> {qualified} {as <identifier>} ['-' <identifier> | <identifier> '/' <identifier>]*
     %export ['+' | <fileSpec> | '-' <identifier> | <identifier>]*
@@ -420,14 +420,14 @@ They are parsed with the parsers `p_fileSpec`, `p_libPart`, `p_libQual`, `p_libA
 Declarations at the top-level of a `module` are parsed with `p_decl` and `p_decls` parsers, which try parsing
 definitions in the order `p_tdef`, `p_def`, `p_spec`, and `p_libDir`. Type definitions (`p_tdef`) are tried first,
 because there is an ambiguity in attempting to parse type definitions and data definitions with the addition of
-user-defined infix operators in Miranda2:
+user-defined infix operators in Admiran:
 
     foo == bar  || type alias, but could also incorrectly be parsed, along with
     baz = 42    || this following definition as: (foo == bar) baz = 42, e.g. an inline function `==`.
 
 `p_decls` returns a list of `modInserter`s to be inserted into the `module`.
 
-The two functions exported from the `mirandaParser` module are `parse`, and `parseExpr`. `parse` takes a module
+The two functions exported from the `admiranParser` module are `parse`, and `parseExpr`. `parse` takes a module
 and an input string (lazy list of characters), and calls `p_decls` with an initialized `psSt`. If the parse
 is successful; `parse` calls `makeModule` with the `module` and the list of `modInserter`s to insert all of the
 top-level declarations. Otherwise, it creates an error with the error info from `psSt` and returns that.
@@ -498,8 +498,8 @@ builtin structures, such as `makeList`, `makeTupleExpr`, and `makeTuplePat`.
 The type specifications for the builtin environment definitions are defined in a `defnMap` for use when
 typechecking code that uses builtin definitions. This is done in an interesting way:  to make
 the type specifications  more human-readable in the source code, the `predef` module imports `parser`, and
-parses the textual type specs with a mini-version of the Miranda2 type spec parser in
-the `mirandaParser` module. This lets the type specs be defined in a more natural way, e.g.
+parses the textual type specs with a mini-version of the Admiran type spec parser in
+the `admiranParser` module. This lets the type specs be defined in a more natural way, e.g.
 
     "+#                :: word# -> word# -> word#"
 
@@ -511,7 +511,7 @@ instead of
 
 ## `dependency.m`
 
-Definitions in a Miranda2 module may be written in any order, and module imports may be arranged in any
+Definitions in a Admiran module may be written in any order, and module imports may be arranged in any
 order. However, various stages of the compilation pipeline require information in specific order, e.g.
 a module imported by another module must be built before the importing module is built. To handle this,
 the `dependency` module implements general dependency graph operations for:
@@ -525,7 +525,7 @@ modules that use the `dependency` module are:
 
 * `demand` - for ordering definitions to help determine which definition parameters can be strict
 * `inline` - to perform inlining in dependency order to allow new inlined definitions to be further inlined
-* `mirac` - to build modules in dependency order, or report a cyclic dependency error
+* `amc` - to build modules in dependency order, or report a cyclic dependency error
 * `reify` - to expand type synonyms in dependency order to fully expand to base types
 * `rename` - to expand "rename patterns" from `desugar` in dependency order
 * `rewrite` - to discover SCCs of `ELet` bindings and rewrite them in correct nested order for later type checking
@@ -636,4 +636,4 @@ module.
 
 ## `codegen.m`
 
-## `mirac.m`
+## `amc.m`

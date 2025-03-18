@@ -1,13 +1,13 @@
-|| reify.m -- module environment reification of includes, exports, and expansion of type synonyms
+|| reify.am -- module environment reification of includes, exports, and expansion of type synonyms
 
 
 %export reifyImports reifyDefns reifyDefAbs reifyExports reifySyns reifyTypes
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import "ast"
 %import "dependency"
 %import "exception"             (>>=)/ex_bind (<$>)/ex_fmap

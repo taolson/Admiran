@@ -1,4 +1,4 @@
-|| vector.m -- immutable and mutable vectors, and the ST monad for sequencing in-place modification
+|| vector.am -- immutable and mutable vectors, and the ST monad for sequencing in-place modification
 ||  O(1) read accesses
 ||  O(N) write accesses (replace, //) for immutable vectors
 ||  O(1) write accesses (write, modify) for mutable vectors
@@ -7,15 +7,15 @@
 
 %export +
 
+%import <base>
 %import <maybe>
-%import <mirandaExtensions>
 %import <state>                 (>>=)/st_bind (<$>)/st_fmap (>>)/st_right
 %import <stream>
 
 
 || ST monad for performing actions on mutable vectors
 || Note: the ST monad in Haskell uses an existential type for the state, which is bound
-|| to the particular reference to the array being modified.  However, Miranda does not
+|| to the particular reference to the array being modified.  However, Admiran does not
 || have existential types, so here the ST monad is just the state monad with Unit state
 st * == state () *
 

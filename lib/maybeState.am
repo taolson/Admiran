@@ -1,4 +1,4 @@
-|| maybeState.m -- functor / applicative / monad / alternative for a state monad augmented with maybe
+|| maybeState.am -- functor / applicative / monad / alternative for a state monad augmented with maybe
 
 
 %export + mst_runState mst_evalState mst_execState

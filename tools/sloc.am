@@ -1,9 +1,9 @@
 || sloc.m -- report Source Lines Of Code for files specified on the command line (without counting pure comment lines)
 
 
+%import <base>
 %import <io>                    (>>=)/io_bind (>>)/io_right
 %import <maybe>
-%import <mirandaExtensions>
 
 
 || report whether line is a code line or not (any that isn't blank or only a comment)

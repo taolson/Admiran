@@ -1,10 +1,10 @@
 || dumpX2 -- pretty-print the .x2 file for a module, showing the type specs and definitions
 
 
+%import <base>
 %import <either>
 %import <io>                    (>>=)/io_bind
 %import <maybe>
-%import <mirandaExtensions>
 %import <state>
 %import "../compiler/ast"
 %import "../compiler/config"

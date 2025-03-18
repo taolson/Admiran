@@ -1,12 +1,12 @@
-|| dependency.m -- dependency graph operations
+|| dependency.am -- dependency graph operations
 
 
 %export makeDependencyGraph addDependency dependencyOrder findSCCs edges fwd rev
 
+%import <base>
 %import <either>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 
 

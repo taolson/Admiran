@@ -1,10 +1,10 @@
-|| lens.m -- optics for accessing nested structures
+|| lens.am -- optics for accessing nested structures
 
 
 %export +
 
+%import <base>
 %import <maybe>
-%import <mirandaExtensions>
 
 
 lens * **

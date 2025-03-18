@@ -1,14 +1,14 @@
-|| analyze.m -- perform free variable, usage, and complexity analysis on an AST
+|| analyze.am -- perform free variable, usage, and complexity analysis on an AST
 
 
 %export analyze analyzeWarn analyzeDefns analyzeExprCpx analyzeExprFree
 
 %import <bag>
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import <state>                 (>>=)/st_bind (<<)/st_left
 %import "ast"

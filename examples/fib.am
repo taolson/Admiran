@@ -1,4 +1,4 @@
-|| fib.m -- Fibonacci sequence, implemented multiple ways
+|| fib.am -- Fibonacci sequence, implemented multiple ways
 
 %import <io>            (>>=)/io_bind (>>)/io_right
 %import <memoTrie>

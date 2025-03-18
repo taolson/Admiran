@@ -1,13 +1,13 @@
-|| serialize.m -- conversions between data structures and serialized character streams
+|| serialize.am -- conversions between data structures and serialized character streams
 
 
 %export +
 
+%import <base>
 %import <bag>
 %import <either>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <lens>
 %import <set>
 %import <state>                 (>>=)/st_bind (<$>)/st_fmap (<*>)/st_apply

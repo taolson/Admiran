@@ -1,4 +1,4 @@
-||  stream.m -- implementation of streams from the paper:
+||  stream.am -- implementation of streams from the paper:
 ||
 ||  "Stream Fusion -- From Lists to Streams to Nothing at All"
 ||
@@ -18,11 +18,11 @@
 ||       just the right place.  Currently this means that the compatibility functions (e.g. map_, foldr_) cannot be
 ||        written using the (.) compose operator, but instead have to be written explicitly with nested function calls.
 
-%export + -uncurry      || uncurry defined in mirandaExtensions, but defined and used internally, here, to avoid dependency
+%export + -uncurry      || uncurry defined in <base>, but defined and used internally, here, to avoid dependency
 
 
 || note: in the original definition, the second type var is existential, restricting the operations that
-|| a stream operation can perform.  Since Miranda has no existential types, it is made explicit.
+|| a stream operation can perform.  Since Admiran has no existential types, it is made explicit.
 || the first type var is the type of the stream element, while the second var is the type of the stream
 || state
 stream * ** ::= Stream (** -> step * **) **
@@ -35,7 +35,7 @@ seither * ** ::= Sleft * | Sright **
 smaybe *     ::= Snothing | Sjust *
 
 
-|| internal stream versions of stdlib and mirandaExtension list functions
+|| internal stream versions of <stdlib> and <base> list functions
 
 || ord instance for stream
 cmpstream :: ordI * -> ordI (stream * **)
@@ -293,7 +293,7 @@ wordsS (Stream next st)
                                True  -> Yield (reverse xs) (Sjust [])
 
 
-|| backwards-compatible re-implementations of stdlib and mirandaExtension list functions,
+|| backwards-compatible re-implementations of <stdlib> and <base> list functions,
 || wrapping the internal stream functions with fromStream/toStream
 
 uncurry :: (* -> ** -> ***) -> (*, **) -> ***

@@ -1,11 +1,11 @@
-||  v3.m -- 3D vectors and associated operations
+||  v3.am -- 3D vectors and associated operations
 
 
 %export +
 
+%import <base>
 %import <lens>
 %import <maybe>
-%import <mirandaExtensions>
 
 
 v3 * ::= V3 * * *

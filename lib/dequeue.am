@@ -1,11 +1,11 @@
-|| dequeue.m -- a double-ended queue of elements that allows quick insertion / deletion at both ends
+|| dequeue.am -- a double-ended queue of elements that allows quick insertion / deletion at both ends
 || implemented using a fingerTree
 
 
 %export + -cmpdequeue -isSat
 
+%import <base>
 %import <maybe>
-%import <mirandaExtensions>     || (concatMap)
 
 
 dequeue * ::=

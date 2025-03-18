@@ -1,14 +1,14 @@
-|| mirac -- top level compiler
+|| amc.am -- top level of compiler
 
 
 %export +
 
+%import <base>
 %import <either>
 %import <io>                    (>>=)/io_bind (<$>)/io_fmap (>>)/io_right
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import "analyze"
 %import "ast"
 %import "codegen"
@@ -20,7 +20,7 @@
 %import "exception"
 %import "grammar"
 %import "inline"
-%import "mirandaParser"
+%import "admiranParser"
 %import "module"
 %import "name"
 %import "normalize"
@@ -49,14 +49,14 @@ serialize genv
         fx    = withSuffix "x2" (fullFileName fs)
         genv' = over genvMod (set modBuildStatus Serialized) genv
 
-|| either parse the .m file or deserialize the .x2 file of a fileSpec, depending
+|| either parse the .am file or deserialize the .x2 file of a fileSpec, depending
 || upon their relative modification times
 parseOrDeserial :: fileSpec -> io module
 parseOrDeserial f
     = mtimeFile fm >>= exists
       where
         fn         = fullFileName f
-        fm         = withSuffix "m" fn
+        fm         = withSuffix "am" fn
         fx         = withSuffix "x2" fn
         initModule = emptyModule f builtinEnv
         doDeserial = io_pure . fst . deserialModule
@@ -194,4 +194,4 @@ main
       where
         go [fn]        = gen fn "main"
         go [fn, start] = gen fn start
-        go _           = error "usage: mirac <file name> {entry name}"
+        go _           = error "usage: amc <file name> {entry name}"

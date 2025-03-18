@@ -1,4 +1,4 @@
-|| normalize.m -- rewrite ASTs to A-Normal form (all operands to calls are simple literals, vars, or thunks)
+|| normalize.am -- rewrite ASTs to A-Normal form (all operands to calls are simple literals, vars, or thunks)
 ||
 || also ensures that calls to known functions and constructors are applied with the exact arity,
 || breaking over-applied calls into sequential calls and returning a partial-application (PAP)
@@ -7,10 +7,10 @@
 
 %export normalize
 
+%import <base>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <state>                 (>>=)/st_bind
 %import "ast"
 %import "config"

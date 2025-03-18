@@ -1,14 +1,14 @@
 || 
-|| codegen.m -- x86-64 asm code generator for MacOS / Linux (System V calling convention)
+|| codegen.am -- x86-64 asm code generator for MacOS / Linux (System V calling convention)
 
 
 %export codegen
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import "config"
 %import "exception"
 %import "grammar"
@@ -55,7 +55,7 @@
 || showS difference lists representing their corresponding x86-64 assembly-language
 
 || generate a C string with escaped characters
-|| this is almost the same as Miranda's show for a string, except Miranda shows a single quote as escaped,
+|| this is almost the same as Admiran's show for a string, except Admiran shows a single quote as escaped,
 || which is not compatible with what other MacOS tools (asm) expect.  Also, it appears as if asm strings
 || assume that numeric escape sequences eg '\27' are implicitly octal, so explicitly use an octal representaion,
 || rather than decimal.
@@ -101,7 +101,7 @@ genAsmName n               = convertSpecial (showName n)
 genSection :: string -> showS
 genSection s = shows "\n\t." . shows s . shows "\n"
 
-|| generate a label for a Miranda function
+|| generate a label for a Admiran function
 genGlobal :: string -> showS
 genGlobal lbl
     = shows "\n\t.globl\t" . shows lbl . shows "\n" .
@@ -626,7 +626,7 @@ genInsn (Apply fopr args)
         genArgs fopr = genMoveToArgs args . genMove r2Ref fopr
 
         genApply
-            = genOpcode    "movq" [X86Imm (nargs), cvtReg 3]          . || put #args in Miranda R3 to pass to GeneralApply (R3 is temp at this point)
+            = genOpcode    "movq" [X86Imm (nargs), cvtReg 3]          . || put #args in Admiran R3 to pass to GeneralApply (R3 is temp at this point)
               genOpcode    "movq" [addX86Offset (-1) x86Env, tagword] . || load the heapInfo tagword, removing the tag bit from the addr first
               genOpcode    "cmpb" [X86Imm 2, tag]                     . || compare tag byte with 1
               genJmpOpcode "ja"   applyAddr                           . || tag was > 2; need to perform general apply
@@ -849,7 +849,7 @@ genInsn (Mul d a b)
       where
         (dreg, movd) = ensureX86DstReg x86Tmp1 d
 
-|| x86-64 idiv instruction performs integer division with round towards zero, while Miranda div
+|| x86-64 idiv instruction performs integer division with round towards zero, while Admiran div
 || is defined as round towards -Inf, so we need to fix up the quotient if the signs of the divisor
 || and the remainder are unequal
 genInsn (Div d a b)
@@ -867,7 +867,7 @@ genInsn (Div d a b)
       genOpcode    "movq" [x86rax, cvtRef d]     .      || and move it to the destination
       genOpcode    "pop"  [x86rdx]                      || restore original %rdx
 
-|| x86-64 idiv instruction performs integer division with round towards zero, while Miranda mod
+|| x86-64 idiv instruction performs integer division with round towards zero, while Admiran mod
 || is defined as round towards -Inf, so we need to fix up the remainder if the signs of the divisor
 || and the remainder are unequal
 genInsn (Mod d a b)
@@ -1249,7 +1249,7 @@ genHeapObj (hp, (hi, env))
 
         genTagBody _ = error "genTagBody: not a heap obj"
 
-|| generate code to save Miranda register state
+|| generate code to save Admiran register state
 genSaveState :: showS
 genSaveState
     = foldr (.) id (map saveArgs [0 .. 5])                    .
@@ -1263,7 +1263,7 @@ genSaveState
         saveArgs n = genOpcode "movq" [cvtArg n, cvtArgState n]
         saveRegs n = genOpcode "movq" [cvtReg n, cvtRegState n]
 
-|| generate code to restore Miranda state
+|| generate code to restore Admiran state
 genRestoreState :: showS
 genRestoreState
     = foldr (.) id (map restoreArgs [0 .. 5])              .
@@ -1275,7 +1275,7 @@ genRestoreState
         restoreArgs n = genOpcode "movq" [cvtArgState n, cvtArg n]
         restoreRegs n = genOpcode "movq" [cvtRegState n, cvtReg n]
 
-|| generate the GeneralApply routine, which saves the Miranda register
+|| generate the GeneralApply routine, which saves the Admiran register
 || state and jumps to a C code handler
 genGeneralApply :: showS
 genGeneralApply
@@ -1283,8 +1283,8 @@ genGeneralApply
       genSaveState             .
       genJmpOpcode "call" (cvtCJmpAddr "apply") || note: does not return, but call used to force correct stack alignment
 
-|| generate the GC routine, which saves the Miranda register state
-|| and calls a C code handler; then restores the Miranda register state and
+|| generate the GC routine, which saves the Admiran register state
+|| and calls a C code handler; then restores the Admiran register state and
 || returns to the gcAlloc restart point (which was pushed on the stack)
 genGC :: showS
 genGC
@@ -1301,27 +1301,27 @@ genGetStartClosure ha
       genMove   r0Ref ha           .
       genOpcode "ret" []
 
-|| generate the EnterMiranda routine, which restores the Miranda register
+|| generate the EnterAdmiran routine, which restores the Admiran register
 || state, then enters the closure in Arg0
-genEnterMiranda :: showS
-genEnterMiranda
-    = genCGlobal "EnterMiranda"                         .
+genEnterAdmiran :: showS
+genEnterAdmiran
+    = genCGlobal "EnterAdmiran"                         .
       genRestoreState                                   .  || restore saved state, including %rsp
       genInsn (EnterInd (Ref (Arg, 0)) [])
 
-|| generate the CallMiranda routine, which restores the Miranda register
+|| generate the CallAdmiran routine, which restores the Admiran register
 || state, then jumps to the codePtr in R0
-genCallMiranda :: showS
-genCallMiranda
-    = genCGlobal "CallMiranda" .
+genCallAdmiran :: showS
+genCallAdmiran
+    = genCGlobal "CallAdmiran" .
       genRestoreState          .
       genJmpOpcode "jmp" (cvtReg 0)     || does not return
 
-|| generate the RetMiranda routine, which restores the Miranda register
+|| generate the RetAdmiran routine, which restores the Admiran register
 || state, then returns to the closure on the top of the stack, passing Reg0 and Reg1
-genRetMiranda :: showS
-genRetMiranda
-    = genCGlobal "RetMiranda"  .
+genRetAdmiran :: showS
+genRetAdmiran
+    = genCGlobal "RetAdmiran"  .
       genRestoreState          .
       genInsn (Ret r0Opr r1Opr)
 
@@ -1332,9 +1332,9 @@ genInterface start
       genGeneralApply          .
       genGC                    .
       genGetStartClosure start .
-      genEnterMiranda          .
-      genCallMiranda           .
-      genRetMiranda
+      genEnterAdmiran          .
+      genCallAdmiran           .
+      genRetAdmiran
 
 || generate the expanded routines that replace generic handlers
 genGenerics :: showS

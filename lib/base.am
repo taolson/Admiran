@@ -1,4 +1,4 @@
-|| mirandaExtensions.m -- extensions to Miranda's standard library
+|| base.am -- common extensions to Admiran's standard library
 
 
 %export +

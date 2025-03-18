@@ -1,4 +1,4 @@
-|| io.m -- the IO monad for sequencing access to the outside world
+|| io.am -- the IO monad for sequencing access to the outside world
 
 
 %export + io_bind io_pure io_kbind io_mapM io_mapM_ io_foldM io_fmap io_apply io_liftA2 io_left io_right io_bind2
@@ -93,7 +93,7 @@ writeFileStream (Handle fs#) s
 readFile :: string -> io string
 readFile fn world
     = case allocByteStream# 256# of                     || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
-        s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Miranda string) to the byteStream
+        s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Admiran string) to the byteStream
                 _ -> case openFileRead# s# of           || openFile returns the fileStream with the contents
                        fs# -> readFileStream (Handle fs#) world
 
@@ -101,7 +101,7 @@ readFile fn world
 writeFile :: string -> string -> io ()
 writeFile fn s world
     = case allocByteStream# 256# of                     || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
-        s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Miranda string) to the byteStream
+        s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Admiran string) to the byteStream
                 _ -> case openFileWrite# s# of          || openFile returns the file buffer byteStream to write into
                        fs# -> writeFileStream (Handle fs#) s world
 
@@ -109,7 +109,7 @@ writeFile fn s world
 appendFile :: string -> string -> io ()
 appendFile fn s world
     = case allocByteStream# 256# of                     || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
-        s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Miranda string) to the byteStream
+        s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Admiran string) to the byteStream
                 _ -> case openFileAppend# s# of         || openFile returns the file buffer byteStream to write into
                        fs# -> writeFileStream (Handle fs#) s world
 
@@ -175,6 +175,6 @@ getContents world = hGetContents stdin world
 getArgs :: io [string]
 getArgs
     = case getArg# 0# of                                || getArg 0# returns the number of args in the argv vector (argc)
-        n# -> io_pure $ map getArg [1 .. I# n#]         || convert each arg lazily into a Miranda list of byteStreams
+        n# -> io_pure $ map getArg [1 .. I# n#]         || convert each arg lazily into a Admiran list of byteStreams
       where
         getArg (I# n#) = case getArg# n# of s# -> readByteStream s#

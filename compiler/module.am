@@ -1,13 +1,13 @@
-|| module.m -- Miranda top-level library modules
+|| module.am -- Admiran top-level library modules
 
 
 %export +
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>                 (>>=)/mb_bind 
-%import <mirandaExtensions>
 %import <set>
 %import "ast"
 %import "config"
@@ -29,7 +29,7 @@ fullFileName (FileSpec ps n) = intercalate filePathSeparator $ ps ++ [n]
 
 fileSpecFromString :: string -> fileSpec
 fileSpecFromString s
-    = FileSpec ps $ withoutSuffix "m" n
+    = FileSpec ps $ withoutSuffix "am" n
       where
         Just (ps, n) = viewR . split (hd filePathSeparator) $ s
 
@@ -77,7 +77,7 @@ libEnvAlias = lensTup6_5
 || with ones that are fully built (e.g. read in from a serialized version)
 buildStatus ::= Unbuilt | Built | Serialized
 
-|| Miranda top-level Library (Module) definition
+|| Admiran top-level Library (Module) definition
 module ::=
     Module
         fileSpec                   || module file

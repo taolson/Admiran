@@ -1,4 +1,4 @@
-|| eDigits -- calculate and print the digits of "e"
+|| eDigits.am -- calculate and print the digits of "e"
 ||
 || shows the use of mutable vectors sequenced in the io monad
 || and the use of case expressions to ensure strictness

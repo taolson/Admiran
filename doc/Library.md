@@ -1,8 +1,8 @@
-# Miranda2 Library Modules
+# Admiran Library Modules
 
 ## Stdlib
 
-## Miranda Extensions
+## Base
 
 ## AVL-Based Persistant Data Types
 

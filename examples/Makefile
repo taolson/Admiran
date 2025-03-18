@@ -1,16 +1,16 @@
-MIRAC= ../bin/mirac
+AMC= ../bin/amc
 
 EXAMPLES= hello fib eDigits primes subMin zebra
 
 .SUFFIXES:
-.SUFFIXES: .m
+.SUFFIXES: .am
 
 .PHONY: clean
 
 all: $(EXAMPLES)
 
-.m:
-	$(MIRAC) $<
+.am:
+	$(AMC) $<
 
 clean:
 	rm -f $(EXAMPLES) *.x2 *.s

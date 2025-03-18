@@ -1,4 +1,4 @@
-|| maybe.m -- sum type of "Nothing" and another type
+|| maybe.am -- sum type of "Nothing" and another type
 
 
 %export +

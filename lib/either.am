@@ -1,4 +1,4 @@
-|| either.m -- sum type of two distinct types
+|| either.am -- sum type of two distinct types
 
 
 %export +

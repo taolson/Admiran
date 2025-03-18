@@ -1,4 +1,4 @@
-|| hello.m -- canonical minimal "Hello, World!" program
+|| hello.am -- canonical minimal "Hello, World!" program
 
 %import <io>
 

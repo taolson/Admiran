@@ -1,4 +1,4 @@
-|| set.m -- implementation of a strict set using AVL trees
+|| set.am -- implementation of a strict set using AVL trees
 
 
 %export + s_empty s_null s_singleton s_size s_member s_first s_last s_delete s_toList s_foldr s_foldl

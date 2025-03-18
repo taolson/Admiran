@@ -1,4 +1,4 @@
-|| bag.m -- implementation of a strict multiset using AVL trees
+|| bag.am -- implementation of a strict multiset using AVL trees
 
 
 %export + b_empty b_null b_size b_member b_first b_last b_lookup b_findWithDefault b_elems b_keys b_keysSet b_toList b_deleteKey b_madjust b_adjust

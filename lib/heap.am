@@ -1,4 +1,4 @@
-|| heap.m -- tree-based priority queue
+|| heap.am -- tree-based priority queue
 
 
 %export heap h_empty h_null h_size h_singleton h_insert h_union h_viewMin h_fromList h_toList showheap

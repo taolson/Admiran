@@ -1,10 +1,10 @@
-|| rws.m -- reader+writer+state functor/applicative/monad with strict writer and state
+|| rws.am -- reader+writer+state functor/applicative/monad with strict writer and state
 
 
 %export +
 
+%import <base>
 %import <dequeue>
-%import <mirandaExtensions>
 
 
 || *    is reader (environment) type

@@ -1,16 +1,16 @@
-MIRAC= ../bin/mirac
+AMC= ../bin/amc
 
 TOOLS= badlines dumpSTG dumpX2 sloc
 
 .SUFFIXES:
-.SUFFIXES: .m
+.SUFFIXES: .am
 
 .PHONY: clean
 
 all: $(TOOLS)
 
-.m:
-	$(MIRAC) $<
+.am:
+	$(AMC) $<
 
 clean:
 	rm -f $(TOOLS) *.x2 *.s

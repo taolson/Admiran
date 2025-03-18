@@ -1,14 +1,14 @@
-# Miranda2, a pure, lazy, functional language and compiler
+# Admiran, a pure, lazy, functional language and compiler
 
-Miranda2 is a pure, lazy, functional language and compiler, based upon the
+Admiran is a pure, lazy, functional language and compiler, based upon the
 original Miranda language designed by David Turner, with additional features
 from Haskell and other functional languages.
 
 ## System Requirements
 
-Miranda2 currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
+Admiran currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
 is a C compiler for assembling the generated asm files and linking them with the C runtime library.
-(this is automatically done when compiling a Miranda2 source file).
+(this is automatically done when compiling a Admiran source file).
 
 ## Features
 
@@ -26,16 +26,16 @@ is a C compiler for assembling the generated asm files and linking them with the
 * small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
 * 20x to 50x faster than the original Miranda compiler/combinator interpreter
 
-### Miranda language features removed from Miranda2
+### Miranda language features removed from Admiran
 
-Miranda2 is an "extended subset" of Miranda, and does not (currently) implement every feature
+Admiran is an "extended subset" of Miranda, and does not (currently) implement every feature
 in the original Miranda language:
 * `num` type (combined floating-point or arbitrary-precision integers) replaced with 64-bit `int`
 * polymorphic show and comparison operators that work on any type replaced with manual show and
   ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
 * no `%free` directive for parameterized modules
 
-### Miranda2 new language features not in Miranda
+### Admiran new language features not in Miranda
 
 * Monadic IO scheme instead of sys_message streams
 * User-defined infix operators and infix constructors
@@ -56,9 +56,9 @@ Haskell's design was strongly influenced by Miranda, so they have a lot of simil
 The main differences are:
 * No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
   of a "typeclass" dictionary are passed explicitly to functions that require them
-* Miranda2 typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
+* Admiran typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
 * Data and type definitions use a different syntax (::= and ==, respectively)
-* Miranda2 allows only restricted simple patterns for case alternatives
+* Admiran allows only restricted simple patterns for case alternatives
 * Some layout and offside-rule differences
 
 ## Distribution Subdirectories
@@ -66,43 +66,43 @@ The main differences are:
 * `bin/` executables are put here
 * `boot/` contains the asm source for the two pre-built bootstrap compilers (one for Linux, one for MacOS)
 * `doc/` project documentation (mostly incomplete, in-progress right now)  ToDo list
-* `compiler/` contains the Miranda2 source files for the mirac compiler
+* `compiler/` contains the Admiran source files for the amc compiler
 * `lib/` contains the sources for the various libraries, and the runtime.c file
-* `examples/` contains some example programs to show Miranda2 syntax and to try the compiler out
-* `tools/` contains some tools built with Miranda2 for use on Miranda2 files
+* `examples/` contains some example programs to show Admiran syntax and to try the compiler out
+* `tools/` contains some tools built with Admiran for use on Admiran files
 
-## Configuring and Bootstrapping Miranda2
+## Configuring and Bootstrapping Admiran
 
-The Miranda2 compiler (mirac) is written in Miranda2, and requires bootstrapping from a pre-built
+The Admiran compiler (amc) is written in Admiran, and requires bootstrapping from a pre-built
 bootstrap compiler.  This is mostly automated in the Makefile, but needs a manual configuration step first:
 
-Edit the config.m file in the compiler directory to modify the values for:
+Edit the config.am file in the compiler directory to modify the values for:
 
     hostOS                = Linux         || set to Linux or MacOS
-    miranda2LibPath       = "../lib"      || set to absolute path name for the lib directory, e.g.
-                                          || "/home/tim/Programming/Miranda2/lib"`
+    admiranLibPath        = "../lib"      || set to absolute path name for the lib directory, e.g.
+                                          || "/home/tim/Programming/Admiran/lib"`
 
 then go back to the top-level directory and type "make".
 
 The script will bootstrap the compiler in 4 stages:
-1. compile the correct miracBoot asm with the runtime and install in the bin directory (miracBoot)
-2. compile the compiler sources and libraries with this bootstrap compiler (miracStage1). This compiler
+1. compile the correct amcBoot asm with the runtime and install in the bin directory (amcBoot)
+2. compile the compiler sources and libraries with this bootstrap compiler (amcStage1). This compiler
    is now configured correctly, but was built with the reduced-functionality bootstrap compiler (no
    typecheck or inline passes), so it needs to be rebuilt again with itself to enable those features.
-3. re-compile with miracStage1 to create miracStage2.
-4. re-compile with miracStage2, to verify that the compiler is stable (produces the same asm file), and install in bin as mirac
+3. re-compile with amcStage1 to create amcStage2.
+4. re-compile with amcStage2, to verify that the compiler is stable (produces the same asm file), and install in bin as amc
 
 When complete, it should report
-`=== mirac compiler built successfully ===`
-and install as mirac in the supplied bin directory.
+`=== amc compiler built successfully ===`
+and install as amc in the supplied bin directory.
 
-It is suggested that you add the bin directory to your PATH variable in your shell, to allow the mirac compiler to be run from anywhere.
+It is suggested that you add the bin directory to your PATH variable in your shell, to allow the amc compiler to be run from anywhere.
 
 ## Examples
 
-Here's a small example of a Miranda2 program, to generate and print a list of the first 100 primes:
+Here's a small example of a Admiran program, to generate and print a list of the first 100 primes:
 
-    || primes.m -- generate primes the lazy recursive way
+    || primes.am -- generate primes the lazy recursive way
     || From David Turner's original "sieve" example
     
     %import <io>
@@ -116,20 +116,20 @@ Here's a small example of a Miranda2 program, to generate and print a list of th
     main = primes |> take 100 |> showlist showint |> putStrLn
 
 Some small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
-by typing mirac <module name> e.g. mirac fib
+by typing amc <module name> e.g. amc fib
 
-Note that mirac is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
+Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
 all other required modules will be built as required.
 
 ## .x2 File Extensions
 
-After the mirac compiler builds a module (before whole-program merging), it creates a ".x2" file for the module.  This is
+After the amc compiler builds a module (before whole-program merging), it creates a ".x2" file for the module.  This is
 a serialized version of the internal optimized Abstract Syntax Tree (AST) of the module, which can be loaded by the compiler
-instead of recompiling from source, again.  The compiler checks the corresponding modification times of the .m and .x2 files
-to see if the .x2 file is up-to-date, and will re-build from the .m file if it is newer.  The .x2 files can be removed to
+instead of recompiling from source, again.  The compiler checks the corresponding modification times of the .am and .x2 files
+to see if the .x2 file is up-to-date, and will re-build from the .am file if it is newer.  The .x2 files can be removed to
 force a rebuild from the source file.
 
-The program `tools/dumpX2.m` can be used to pretty-print the contents of .x2 files and show the final result of
+The program `tools/dumpX2.am` can be used to pretty-print the contents of .x2 files and show the final result of
 the inlined and optimized modules.
 
 ## Why did I write this?

@@ -1,4 +1,4 @@
-// Miranda2 runtime, with a heap that automatically grows from an initial memory size to a maximum memory size,
+// Admiran runtime, with a heap that automatically grows from an initial memory size to a maximum memory size,
 // and has a dyamically-sized rootlist that grows down from the top of memory
 
 #define GC_DEBUG 0
@@ -16,9 +16,9 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 
-// naming convention: Miranda-defined functions and values callable from runtime.c
+// naming convention: Admiran-defined functions and values callable from runtime.c
 // start with an uppercase letter, while standard C functions (callable from runtime.c
-// or from Miranda code start with a lowercase letter.
+// or from Admiran code start with a lowercase letter.
 
 // configuration
 // NOTE: must match the corresponding values in the config.m file in the compiler
@@ -30,11 +30,11 @@ uint64_t gcInitMem = 0x02000000;  // initial memory size, in words (0x200000 = 1
 uint64_t gcMaxMem  = 0x20000000;  // maximum size, in words, to grow allocated memory (0x20000000 = 4GB)
 uint64_t gcMinFree = 0x1000;      // minimum size, in words, that must be available to proceed after a gcMajor (otherwise terminate with out of memory)
 
-// a Miranda tagged value type
+// a Admiran tagged value type
 typedef uint64_t word;
 typedef void    *value;
 
-// Miranda HeapObj structure definitions
+// Admiran HeapObj structure definitions
 enum heapInfoTag {Hfun, Hthunk, Hfwd, Hpap, Hfbalt, Hstream, Harray, HarrayR, Hreloc};   // note: must match enum values in codegen.m
 
 // a generic heapObj representation, only providing the tag byte for inspection and a data value (Hreloc)
@@ -100,17 +100,17 @@ typedef struct _arrayObj {
   value    data[0];
 } arrayObj;
 
-// functions and data to communicate between Miranda and C
-extern value GetStartClosure(); // get the closure address for the Miranda start routine 
-extern void  EnterMiranda ();   // enter a Miranda closure
-extern void  CallMiranda ();    // call a Miranda codeblock
-extern void  RetMiranda ();     // return a value to a Miranda continuation
-extern void  PackArgs0 ();      // needed to make Miranda-comptible return values
+// functions and data to communicate between Admiran and C
+extern value GetStartClosure(); // get the closure address for the Admiran start routine 
+extern void  EnterAdmiran ();   // enter a Admiran closure
+extern void  CallAdmiran ();    // call a Admiran codeblock
+extern void  RetAdmiran ();     // return a value to a Admiran continuation
+extern void  PackArgs0 ();      // needed to make Admiran-comptible return values
 extern void *ApplyToEnvFns[];   // array of functions to perform ApplyToEnv on a variable number of env values
-extern void *GlobalBase;        // marker for the base of the global heap area (static heapPtrs in Miranda code)
+extern void *GlobalBase;        // marker for the base of the global heap area (static heapPtrs in Admiran code)
 extern void *GlobalTop;         // marker for the top of the global heap area
 
-// state save/restore area for registers used by Miranda code
+// state save/restore area for registers used by Admiran code
 // Env is a static area to save the continuation closure environment from the stack when returning to a continuation
 // it solves the problem of needing to create a new continuation environment on the stack while in a continuation
 value Arg[maxArgs];     // note: must match configuration size in codegen.m
@@ -118,7 +118,7 @@ value Reg[maxRegs];     // note: must match configuration size in codegen.m
 value Env[maxEnv+2];    // +2 to reserve two slots at beginning of Env to emulate the tagword and codePtr of a heap closure
 value *Frm;             // save area for FrmReg
 value FrmSize;          // save area for frame size value (set when a new frame is allocated, for use by GC to ensure frame is contiguous)
-value *Stk;             // save area for Miranda stack pointer
+value *Stk;             // save area for Admiran stack pointer
 
 // heap and garbage collection 
 value *gcHeapTop;    // top of heap
@@ -128,7 +128,7 @@ value *gcRootsAlloc; // allocation pointer for roots list
 value *gcOldBase;    // base address of old space
 value *gcOldAlloc;   // allocation pointer in old space, used during GC to copy heapObjs to old space
 value *gcNewBase;    // base address of new space
-value *gcNewAlloc;   // GC allocation pointer in new space, used by Miranda during allocation
+value *gcNewAlloc;   // GC allocation pointer in new space, used by Admiran during allocation
 word  gcRequestSize; // current request size, used to check that a GC has reclaimed enough space
 value marked;        // temporary root to trace during GC
 word  gcOffset;      // offset value for a relocated address used during gcMajor
@@ -138,7 +138,7 @@ char  *gcRootInfo;
 word  gcRootIndex;
 int   gcDidReloc;
 
-// saved command line arguments for passing into Miranda
+// saved command line arguments for passing into Admiran
 int     sysArgc;
 char ** sysArgv;
 
@@ -388,7 +388,7 @@ void gcTraceObj (heapObj *obj)
 }
 
 // relocate the Frm region
-// Miranda code assumes that objects within the Frm are contiguous and addresses them based upon offsets from the Frm
+// Admiran code assumes that objects within the Frm are contiguous and addresses them based upon offsets from the Frm
 // register.  So the Frm is treated as a contiguous block of various-sized heapObjs that total FrmSize in size
 
 void gcRelocateFrm ()
@@ -449,7 +449,7 @@ void gcTraceRootsList ()
 // trace all of the heap roots, relocating directly-reachable heapObjs in the new area to the old area
 void gcTraceRoots ()
 {
-  // relocate the frame first, because objects it holds are assumed to be contiguous by Miranda code
+  // relocate the frame first, because objects it holds are assumed to be contiguous by Admiran code
   // otherwise, individual objects within the frame may be relocated individually
 
 #if GC_DEBUG > 2
@@ -698,7 +698,7 @@ heapObj *makeHpap (value hobj, word arity, word nargs)
 }
   
 
-// Apply operations that aren't handled in-line in Miranda code
+// Apply operations that aren't handled in-line in Admiran code
 
 // push an ApplyToEnv closure onto the stack
 void pushApplyToEnv (word arity, word nargs)
@@ -713,7 +713,7 @@ void pushApplyToEnv (word arity, word nargs)
 }
 
 // handle non-common cases of Apply
-// Miranda has set Reg[2] to the heapObj to apply, and Reg[3] to the number of arguments passed in Args
+// Admiran has set Reg[2] to the heapObj to apply, and Reg[3] to the number of arguments passed in Args
 void apply ()
 {
   value    fobj    = Reg[2];              // function codeObj (tagged)
@@ -731,7 +731,7 @@ void apply ()
     // correct arity; set up the env and call the closure's cp
     if (nargs == arity) {
       Reg[0] = obj -> cp;       // return codePtr to jump to in Reg[0]
-      CallMiranda ();
+      CallAdmiran ();
     }
 
     // over-applied: push extra args in an ApplyEnv closure and call with correct number of args
@@ -739,7 +739,7 @@ void apply ()
       ++overAppliedCount;
       pushApplyToEnv (arity, nargs);
       Reg[0] = obj -> cp;        // return codePtr to jump to in Reg[0]
-      CallMiranda ();
+      CallAdmiran ();
     }
 
     // under-applied with no args; return fobj as the value
@@ -747,7 +747,7 @@ void apply ()
       ++underAppliedNoArgsCount;
       Reg[0] = fobj;
       Reg[1] = PackArgs0;
-      RetMiranda ();
+      RetAdmiran ();
     }
 
     // under-applied: make an Hpap closure and return it
@@ -756,7 +756,7 @@ void apply ()
       heapObj *pap = makeHpap (fobj, arity, nargs);
       Reg[0]       = tagHeapObj (pap);  // tag Hpap for return
       Reg[1]       = PackArgs0;         // Reg[1] must hold the runtime routine to pack the args (0, in this case)
-      RetMiranda ();
+      RetAdmiran ();
     }
 
   case Hpap:
@@ -1004,7 +1004,7 @@ int main (int argc, char **argv)
   statsInit ();
   Stk    = gcMaxStack;
   Arg[0] = GetStartClosure ();
-  EnterMiranda ();
+  EnterAdmiran ();
 
   // unreached
   return 0;

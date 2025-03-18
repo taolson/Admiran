@@ -1,4 +1,4 @@
-|| avl.m -- AVL tree
+|| avl.am -- AVL tree
 
 
 %export + -height -computeHeight -delta -rotL -rotR -balanceL -balanceR

@@ -1,4 +1,4 @@
-|| typecheck.m -- Hindly-Milner type checker (with Milner-Mycroft typability allowing polymorphic recursion)
+|| typecheck.am -- Hindly-Milner type checker (with Milner-Mycroft typability allowing polymorphic recursion)
 ||
 || Milner-Mycroft polymorphic recursion allows the definition of datatypes like finger trees where a type parameter
 || can change with each recursive invocation (no monomorphic restriction)
@@ -13,11 +13,11 @@
 %export typecheck
 
 %import <bag>
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <maybeState>            (>>=)/mst_bind tc_pure/mst_pure tc_fail/mst_fail tc_maybe/mst_maybe (<$>)/mst_fmap
                                 tc_liftA2/mst_liftA2 tc_bind2/mst_bind2  (<*)/mst_left (*>)/mst_right
                                 tc_mapM/mst_mapM tc_foldM/mst_foldM

@@ -1,13 +1,13 @@
-|| trieMap -- strict map from a key to a value, where the key is a list of elements
+|| trieMap.am -- strict map from a key to a value, where the key is a list of elements
 || this has higher performance than a regular map if the keys have common prefixes
 || implemented using Patricia tries, which are prefix tries with variable-sized prefixes
 
 
 %export +
 
+%import <base>
 %import <either>
 %import <maybe>                 (>>=?)/mb_bind (<$>?)/mb_fmap (<|>?)/mb_alt
-%import <mirandaExtensions>
 
 
 || a trieBranch holds a prefix key and its associated sub-trie

@@ -1,8 +1,8 @@
 || check the files specified on the command line for lines that exceed 159 columns or are not empty but blank
 
 
+%import <base>
 %import <io>                    (>>=)/io_bind
-%import <mirandaExtensions>
 
 
 (<&>) = converse io_fmap

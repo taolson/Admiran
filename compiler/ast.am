@@ -1,11 +1,11 @@
-|| AST.m -- Abstract Syntax Tree Accumulations / Traversals
+|| ast.am -- Abstract Syntax Tree Accumulations / Traversals
 
 
 %export +
 
 %import <avl>
+%import <base>
 %import <map>
-%import <mirandaExtensions>
 %import <state>                 (>>=)/st_bind (<*>)/st_apply (<<)/st_left (>>)/st_right
 %import "grammar"
 %import "name"

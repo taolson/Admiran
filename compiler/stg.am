@@ -1,4 +1,4 @@
-|| stg.m -- convert AST to Spineless Tagless G-Machine VM representation, using eval-apply model
+|| stg.am -- convert AST to Spineless Tagless G-Machine VM representation, using eval-apply model
 
 
 %export codeObj codePtr stgCode heapInfo heapObj heapPtr stgHeap stackObj stgStack continuation
@@ -6,11 +6,11 @@
         selApplyPtr blackHolePtr localEnv stgInsn showvalue cmpopr showopr showstgInsn showheapObj showstackObj
         buildStg heapObjWords stringWords
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import <state>                 (>>=)/st_bind (<$>)/st_fmap (<<)/st_left (>>)/st_right
 %import "analyze"
@@ -959,8 +959,8 @@ makeStart n genv
             = _eq cmptexpr t (Tarr builtinTypeUnit (Ttuple [builtinTypeUnit, builtinTypeUnit])) \/
               _eq cmptexpr t (Tname (Qualified "io" "io") [builtinTypeUnit])
 
-|| build the STG code & heap reachable from the start name, and return the heapPtr of the
-|| start function, along with the stg code and heap
+|| build the STG code & heap reachable from the start name, and return the top-level
+|| localEnv map, along with the stg code and heap
 buildStg :: name -> globalEnv -> (localEnv, stgCode, stgHeap)
 buildStg n genv
     = (view bdLenv st', view bdCode st', view bdHeap st')

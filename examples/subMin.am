@@ -1,16 +1,16 @@
-|| subMin.m -- demonstration of finding the minimum value in a list and subtracting it
-||             from all the elements in the list in a single pass
+|| subMin.am -- demonstration of finding the minimum value in a list and subtracting it
+||              from all the elements in the list in a single pass
 ||
 || Normally this operation would be written in two passes of the list: the first to
 || find the minimum value, and the second to subtract that from all the elements.
 || However, in a lazily-evaluated language, this is possible to do in a single pass by
 || "tying the knot": in this case, refering to the final, but still-to-be computed value
 || "min" within the code that is simultaneously computing the min and subtracting it.
-|| As long as the reference to "min" is lazy, it will not be evaluated until it is demanded;
+|| As long as the reference to "min" is lazy, it will not be evaluated until it is demanded,
 || in this case, when the final list is printed to the output.
 
+%import <base>
 %import <io>
-%import <mirandaExtensions>
 
 || find the minimum value of a list of ints and subtract that from each element in the list
 subMin :: [int] -> [int]
@@ -29,7 +29,7 @@ subMin xs
         || what would happen if we tried to compute x - min strictly using
         || a case expression?  Comment out the previous version and
         || uncomment this version and see!
-        ||tally min' x = case x - min of x' -> (min2 cmpint min' x, x')
+        || tally min' x = case x - min of x' -> (min2 cmpint min' x, x')
 
 main :: io ()
 main = subMin [-50 .. 50] |> showlist showint |> putStrLn

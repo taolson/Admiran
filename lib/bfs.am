@@ -1,12 +1,12 @@
-|| bfs.m -- implementation of a shortest path finder using a breadth-first search
+|| bfs.am -- implementation of a shortest path finder using a breadth-first search
 
 
 %export bfsSolve
 
+%import <base>
 %import <avl>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 
 

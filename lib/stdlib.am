@@ -1,7 +1,7 @@
-|| stdlib.m -- standard environment
+|| stdlib.am -- standard environment
 
 
- %export + -null -unsafeWriteStdErr     || null defined in mirandaExtensions, but defined and used internally, here, to avoid dependency
+ %export + -null -unsafeWriteStdErr     || null defined in <base>, but defined and used internally, here, to avoid dependency
 
 
 || Note on unboxed primitive values:
@@ -19,9 +19,9 @@
 
 || Typeclasses
 || Miranda has a "magic" polymorphic implementation of comparison operators and the "show" function, and
-|| its implementation uses runtime tags to determine the actual comparison operation.  Miranda2 does not use
+|| its implementation uses runtime tags to determine the actual comparison operation.  Admiran does not use
 || runtime tags, so an ord instance must be explicitly passed in to any function performing comparisons.  Currently
-|| Miranda2 does not implement true typeclasses, so this is handled manually.  Types defined with ::= or == have
+|| Admiran does not implement true typeclasses, so this is handled manually.  Types defined with ::= or == have
 || ord and show instances automatically derived by the compiler, but can be overriden with explicit definitions.
 
 
@@ -468,7 +468,7 @@ cmplist cmp'
 
 || testing
 
-|| null is defined in mirandaExtensions, but is use internally here and not exported
+|| null is defined in <base>, but is use internally here and not exported
 || so that there is no circular dependency
 null :: [*] -> bool
 null [] = True
@@ -671,7 +671,7 @@ lay (x : xs) = x ++ '\n' : lay xs
 
 unlines xs = lay xs
 
-|| same as split '\n', but split is more general, and defined in mirandaExtensions,
+|| same as split '\n', but split is more general, and defined in <base>,
 || so a copy of it is used, here.
 lines :: string -> [string]
 lines s

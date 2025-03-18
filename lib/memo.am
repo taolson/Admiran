@@ -1,11 +1,11 @@
-|| memoization of a single-argument function with a state map
+|| memo.am -- memoization of a single-argument function with a state map
 ||
 
 %export memoSt memo
 
+%import <base>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <state>                 (>>=)/st_bind (<<)/st_left
 
 

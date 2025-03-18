@@ -1,13 +1,13 @@
-|| derive.m -- derive instances of show and ord for user-defined data types and synonyms
+|| derive.am -- derive instances of show and ord for user-defined data types and synonyms
 
 
 %export deriveInstances
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import "exception"
 %import "grammar"
 %import "module"

@@ -1,9 +1,9 @@
-|| zebra.m -- "who owns the zebra?" logic puzzle, solved using constraint logic
+|| zebra.am -- "who owns the zebra?" logic puzzle, solved using constraint logic
 
 
+%import <base>
 %import <bitSet>
 %import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
-%import <mirandaExtensions>
 %import <io>
 %import <vector>
 

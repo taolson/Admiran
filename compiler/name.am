@@ -1,10 +1,10 @@
-|| name.m -- qualified names
+|| name.am -- qualified names
 
 
 %export +
 
+%import <base>
 %import <maybe>
-%import <mirandaExtensions>
 
 
 || a name is an identifier, constructor, or symbol

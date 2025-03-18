@@ -1,13 +1,13 @@
-|| rewrite.m -- AST rewriting for simplification and optimizations
+|| rewrite.am -- AST rewriting for simplification and optimizations
 
 
 %export rewrite
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import <state>
 %import "ast"

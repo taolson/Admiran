@@ -1,13 +1,13 @@
-|| rename.m -- AST renaming for qualifying names and making internal names unique
+|| rename.am -- AST renaming for qualifying names and making internal names unique
 
 
 %export rename renameExpr
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import <state>                 (>>=)/st_bind
 %import "ast"

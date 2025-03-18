@@ -1,5 +1,5 @@
-|| primes.m -- generate primes the lazy recursive way
-|| From David Turner's original "sieve" example
+|| primes.am -- generate primes the lazy recursive way
+|| From David Turner's original Miranda "sieve" example
 
 %import <io>
 

@@ -1,6 +1,6 @@
-|| mirandaParser.m -- parser for Miranda2 programs
+|| admiranParser.m -- parser for Admiran programs
 ||
-|| supports the following extensions to the Miranda grammar:
+|| supports the following extensions to the Admiran grammar:
 ||
 ||     infix symbols can be used as identifiers in definitions, e.g. (+) :: int -> int -> int or a << b = a * 2 ^ b
 ||     wildcard pattern matches with _, e.g. (_ : xs') = xs
@@ -10,11 +10,11 @@
 
 %export parse parseExpr
 
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <mirandaExtensions>
 %import <set>
 %import "exception"
 %import "grammar"
@@ -25,7 +25,7 @@
 %import "tokenizer"
 
 
-|| Miranda2 expression parsing
+|| Admiran expression parsing
 
 || parse an identifier
 p_identifier :: parser name
@@ -343,7 +343,7 @@ p_rhs
                 go (Left es)       = p_error 2 . showException . hd $ es        || report exception as parser error
 
 
-|| Miranda2 pattern and fnform parsing
+|| Admiran pattern and fnform parsing
 
 fnform == (name, [pat])                     || left-hand-side of a function definition
 
@@ -401,7 +401,7 @@ p_pat
         checkPat (Right x) = p_fail
 
 
-|| Miranda2 type expression parsing
+|| Admiran type expression parsing
 
 || parse a type name
 p_tname :: parser name
@@ -496,7 +496,7 @@ p_type :: parser texpr
 p_type = p_tExpr [] []
 
 
-|| Miranda2 Data Constructor parsing
+|| Admiran Data Constructor parsing
 
 || restrict infix operators to constructors (e.g. ":" or "$Cons")
 p_cinfix :: parser name
@@ -517,7 +517,7 @@ p_constructs :: parser [tform]
 p_constructs = p_someSepBy p_vBar p_construct
 
 
-|| Miranda2 definition parsing
+|| Admiran definition parsing
 
 || get the location info for the current token
 p_getLoc :: parser location
@@ -569,7 +569,7 @@ p_def
 
 
 
-|| Miranda2 library directive parsing
+|| Admiran library directive parsing
 
 p_fileSpec :: parser fileSpec
 p_fileSpec
@@ -634,7 +634,7 @@ p_libDir
            p_expected "a library directive")
 
 
-|| Miranda2 top-level declarations
+|| Admiran top-level declarations
 
 p_decl :: parser [modInserter]
 p_decl
