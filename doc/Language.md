@@ -241,7 +241,7 @@ definitions for the corresponding operators, and is replicated here:
 | ^    |  9   | Right   |                                         |
 |      |      |         |                                         |
 | .    | 10   | Right   | function composition                    |
-| .>   | 10   | Left    | flipped function composition            |
+| .>   | 10   | Left    | reverse function composition            |
 | #    | 11   | Prefix  | list length                             |
 | !    | 12   | Left    | list indexing                           |
 | !!   | 12   | Left    | vector indexing                         |
