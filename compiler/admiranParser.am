@@ -1,4 +1,4 @@
-|| admiranParser.m -- parser for Admiran programs
+|| admiranParser.am -- parser for Admiran programs
 ||
 || supports the following extensions to the Admiran grammar:
 ||
