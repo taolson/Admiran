@@ -34,7 +34,7 @@ x86-64 assembly code.
     , reifyExports                || process export libParts and create export nameMap
     ]
 
-## `name.m`
+## `name.am`
 
 We'll start with the module `name`, which defines the `name` data type used throughout the compiler to specify
 variable, function, constructor, and type names. `name`s can be one of:
@@ -48,7 +48,7 @@ variable, function, constructor, and type names. `name`s can be one of:
 
 The module also defines a number of common operations on `name`s.
 
-## `grammar.m`
+## `grammar.am`
 
 The `grammar` module defines the AST for Admiran that will be used and refined in all the subsequent passes.
 It firsts defines a number of type aliases for `ast`:
@@ -88,7 +88,7 @@ Then we define two important map data types that are used frequently throughout 
 Finally, we define a fixed precedence and associativity table for common operators. This will likely be replaced with a
 user-definable mechanism later on.
 
-## `ast.m`
+## `ast.am`
 
 The `ast` module (which should probably be named "traversal") defines functions for traversing an `ast`, including
 accumulations of information and rewrites of the `ast`.
@@ -110,7 +110,7 @@ handled with a `state` monad (defined in `lib/state`). Rewriting traversals for 
 are defined, and, analogous to `astAccumLex`, an `astRewriteLex` implements top-down rewriting with additional lexical scope state
 attached.
 
-## `tokenizer.m`
+## `tokenizer.am`
 
 The `tokenizer` module implements functions to convert a character stream (lazy list of characters) to a `tokloc` stream (lazy list
 of tokens along with their source location), by removing whitespace and grouping characters to form a token. The main function is
@@ -152,7 +152,7 @@ prefix operator function to return the length of a list), or as part of another 
 Literal strings are tokenized in `tokenizeString` by repeatedly calling `tokenizeChar`, which handles the correct tokenization of
 escaped characters like `\n` or `\x32`.
 
-## `parser.m`
+## `parser.am`
 
 Parsing is split into two separate modules `parser` and `admiranParser`. `parser` implements the basic parsing combinators
 for processing a `tokloc` stream, while `admiranParser` implements parsing combinators specific to the Admiran grammar. This
@@ -236,7 +236,7 @@ parser which expects a particular literal token value:
     p_token :: token -> parser token
     p_token t = p_any $p_satisfy (_eq cmptoken t)
 
-## `admiranParser.m`
+## `admiranParser.am`
 
 The Admiran grammar is parsed in the `admiranParser` module, which groups parser combinators into:
 * expression parsing
@@ -434,7 +434,7 @@ top-level declarations. Otherwise, it creates an error with the error info from 
 
 `parse_expr` is exported to allow future parsing of program fragments for, e.g. interactive REPLs.
 
-## `exception.m`
+## `exception.am`
 
 The `exception` module unifies the handling of errors and warnings used throughout the rest of the compiler.
 It defines an `exceptionType` to classify exceptions into `Note`s, `Warn`s, or `Error`s, and an
@@ -477,7 +477,7 @@ and the monadic pure operation creates an `excpt` with a value and no `Error`s o
 In addition to `ex_pure`, there are variants to create a singleton `Error` (`ex_error`) and a
 singleton `Note` (`ex_note`).
 
-## `config.m`
+## `config.am`
 
 Configuration parameters for the compiler are defined in the `config` module, and exported to
 other modules in the compiler. In the future it is likely that some may be able to be re-defined
@@ -488,7 +488,7 @@ parameter has changed. But since that compiler was built with the previous compi
 change, it must be built *again* with the new version for the parameter change to fully take effect
 on the compiler, as well as whatever it compiles afterwards.
 
-## `predef.m`
+## `predef.am`
 
 The `predef` module defines the names and definitions of the `Builtin` environment, along with
 common names and definitions from the `stdlib` module that are used internally by the compiler. It
@@ -509,7 +509,7 @@ instead of
                                       (Tarr (Tname (Builtin "word#") [])
                                       (Tarr (Tname (Builtin "word#") []))))
 
-## `dependency.m`
+## `dependency.am`
 
 Definitions in a Admiran module may be written in any order, and module imports may be arranged in any
 order. However, various stages of the compilation pipeline require information in specific order, e.g.
@@ -531,7 +531,7 @@ modules that use the `dependency` module are:
 * `rewrite` - to discover SCCs of `ELet` bindings and rewrite them in correct nested order for later type checking
   and to mark (mutually) recursive definitions
 
-## `module.m`
+## `module.am`
 
 The `module` module defines the data structure of a library `module` along with associated functions to insert and
 extract components of the module.  A `module` is defined as
@@ -608,32 +608,71 @@ Functions are also provided to perform insertions and deletions of `name`s in `n
 to support the `%import` and `%export` directives.  These are included in the `module`
 module instead of the `name` module, because they can cause exceptions, which relies upon
 the `exception` module, and would otherwise create a circular-dependency upon the `name`
-module.
+module.  `insNameMap` functions check for name clashes with an existing name during insertion,
+and report `NameClash` exceptions, while the `delNameMap` function reports an `Undefined`
+exception if the name doesn't exist.
 
-## `reify.m`
+## `reify.am`
 
-## `derive.m`
+The `reify` module collects together functions that *reify* top-level environment names in a
+module, turning abstract `libEnv` imports, `libPart` exports, module definitions, and type
+synonms into concrete names in the module environment name map.
 
-## `desugar.m`
+### `reifyImports`
 
-## `rename.m`
+The `reifyImports` function collects the exported `nameMap`s from all the imported modules,
+performing any name aliasing as specified by the import's `libAlias` list and the `libQual`
+and `libAs` specifications, and inserts them into the module's top-level environment `nameMap`
+using the `insNameMap` functions defined in `module`.
 
-## `analyze.m`
+### `reifyDefns`
 
-## `rewrite.m`
+The `reifyDefns` function reifies the names of definitions in the module that match a qualifying
+predicate, such as `isDefData` or `notData`, inserting the Unqualified name -> Qualified name
+mapping into the environment `nameMap`.  For data definitions, all of the associated constructor
+names are inserted as well.
 
-## `typecheck.m`
+### `reifyExports`
 
-## `inline.m`
+The `reifyExports` function converts the abstract `libPart`s export directives into an export
+`nameMap`, inserting explicit identifiers from `LibIdent`s, all exported identifiers from
+`LibFile`s, and removing any identifiers in `LibRemove`s.
 
-## `normalize.m`
+### `reifySyns`
 
-## `demand.m`
+Type synonyms are reified into concrete base types (data definitions or builtin types) by
+expanding them in dependency order, which is handled in the `expandSyns` function.  This
+function also checks for any dependency cycles in the expansion, and reports a `DepCycle`
+exception if found.  This expansion is required to ensure that type checking compares
+the final concrete base types, rather than a synonym.
 
-## `serialize.m`
+### `reifyTypes`
 
-## `stg.m`
+Once the type synonyms are expanded, the type specifications and data definitions are expanded,
+replacing any type synonyms they use with their concrete base type.
 
-## `codegen.m`
+## `derive.am`
 
-## `amc.m`
+## `desugar.am`
+
+## `rename.am`
+
+## `analyze.am`
+
+## `rewrite.am`
+
+## `typecheck.am`
+
+## `inline.am`
+
+## `normalize.am`
+
+## `demand.am`
+
+## `serialize.am`
+
+## `stg.am`
+
+## `codegen.am`
+
+## `amc.am`
