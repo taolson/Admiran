@@ -12,5 +12,8 @@ all: $(TOOLS)
 .am:
 	$(AMC) $<
 
+install: $(TOOLS)
+	mv $(TOOLS) ../bin
+
 clean:
 	rm -f $(TOOLS) *.x2 *.s
