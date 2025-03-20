@@ -653,6 +653,42 @@ replacing any type synonyms they use with their concrete base type.
 
 ## `derive.am`
 
+Admiran does not (currently) implement Haskell-like typeclasses for ad-hoc polymorphism. Instead,
+instances of pseudo-typeclass implementations are passed explicitly to functions that require
+them.  The two most common typeclass instances are *showI*, to convert values of a type to strings,
+and *ordI*, to compare two values of a type and return an ordering.  Since these two instances are
+required for many common operations on new data types or type synonyms, the Admiran compiler
+automatically derives these implementations (if they aren't explicitly written by the user).  The
+`derive` module handles the generation of showI and ordI instances and their associated type
+specifications, installing them in the module's `defnMap`s.
+
+### `deriveShow`
+
+The `deriveShow` function takes a `defn` and returns a new `showI` instance for that defn, by
+creating a new `defn` with the same name, with "show" prepended.  If the `defn` is a `DefData`,
+it uses the `genDef` function to create a new `defn` to show each individual constructor in the
+`DefData` in a general fashion, by forming a string with the constructor name and a call to the
+`showI` instance for each type in the constructor's type parameters.  All of these individual
+`defn`s are bundled together into a `DefMult`, which will later be desugared into a single function
+with a case tree.
+
+If the `defn` is a `DefSyn`, the right-hand-side of the type synonym is recursively expanded in the
+`showForType` function to build the `showI` `defn`.
+
+### `deriveOrd`
+
+The `deriveOrd` function proceeds similarly to `deriveShow`, but builds a new `defn` with "cmp"
+prepended to the name, that takes two values of the type and produces a `stdlib.ordering` result.
+Since there are N-squared possible comparison functions to build, based upon the number N of
+individual constructors in a `defData`, the `genDef` function is optimized, building the full
+N-squared case tree if the number of constructors is <= 5, but defaulting to only generating
+full comparison functions for values with the same constructor, and defaulting to a general tag
+value comparison (where individual constructors are assigned consecutive tag values [0 ..]),
+otherwise.
+
+The top-level `deriveInstances` function finds the possibly derivable `defns` in the module,
+checks to see if their `showI` or `ordI` instances are missing, and derives them if so.
+
 ## `desugar.am`
 
 ## `rename.am`
