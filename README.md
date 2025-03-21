@@ -116,7 +116,7 @@ Here's a small example of an Admiran program, to generate and print a list of th
     main = primes |> take 100 |> showlist showint |> putStrLn
 
 Some small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
-by typing amc <module name> e.g. amc fib
+by typing `amc` *module name* e.g. `amc fib`
 
 Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
 all other required modules will be built as required.
