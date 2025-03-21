@@ -8,7 +8,7 @@ from Haskell and other functional languages.
 
 Admiran currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
 is a C compiler for assembling the generated asm files and linking them with the C runtime library.
-(this is automatically done when compiling a Admiran source file).
+(this is automatically done when compiling an Admiran source file).
 
 ## Features
 
@@ -100,7 +100,7 @@ It is suggested that you add the bin directory to your PATH variable in your she
 
 ## Examples
 
-Here's a small example of a Admiran program, to generate and print a list of the first 100 primes:
+Here's a small example of an Admiran program, to generate and print a list of the first 100 primes:
 
     || primes.am -- generate primes the lazy recursive way
     || From David Turner's original "sieve" example
