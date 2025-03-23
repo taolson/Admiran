@@ -632,12 +632,16 @@ zipWith fn
         go _        _        = []
 
 unzip2 :: [(*, **)] -> ([*], [**])
-unzip2 [] = ([], [])
-unzip2 ((a, b) : ts) = (a : as, b : bs) where (as, bs) = unzip2 ts
+unzip2 xs
+    = foldr go ([], []) xs
+      where
+        go (a, b) (as, bs) = (a : as, b : bs)
 
 unzip3 :: [(*, **, ***)] -> ([*], [**], [***])
-unzip3 [] = ([], [], [])
-unzip3 ((a, b, c) : ts) = (a : as, b : bs, c : cs) where (as, bs, cs) = unzip3 ts
+unzip3 xs
+    = foldr go ([], [], []) xs
+      where
+        go (a, b, c) (as, bs, cs) = (a : as, b : bs, c : cs)
 
 
 || string functions
