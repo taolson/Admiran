@@ -996,7 +996,7 @@ values.
 
 ### `showI *`
 
-`showI` is a type synonym for the polymorphic type `* -> string`, representing an "instance" of the
+`showI *` is a type synonym for the polymorphic type `* -> string`, representing an "instance" of the
 "typeclass" `show`, as described in the section on automatic derivation.
 
 ### `ordering` and `ordI *`
@@ -1004,7 +1004,7 @@ values.
 `ordering` is defined as the algebraic data type `ordering ::= EQ | LT | GT` used by comparison operators
 to report the total ordering of two values of the same type, either equal, less-than, or greater-than.
 
-`ordI` is a type synonym for the polymorphic type `* -> * -> ordering`, which takes two values of the same
+`ordI *` is a type synonym for the polymorphic type `* -> * -> ordering`, which takes two values of the same
 type and returns their total ordering, as described in the section on automatic derivation.
 
 ## Lazy (Call by Need) and Strict Evaluation
