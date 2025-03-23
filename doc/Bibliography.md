@@ -1,4 +1,4 @@
-= Bibliography of Resources
+# Bibliography of Resources
 
 These were the resources I found most helpful when writing Admiran
 
