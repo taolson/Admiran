@@ -75,7 +75,7 @@ alias is defined as a tuple of annotation information that is attached to every 
 
 During the initial design, it was thought that the anno info would only need to be attached to a `defn`, but general error
 reporting probably needs to be more fine-grained than that. Also, it would be nice to annotate every AST node with its
-inferred type after typechecking. So in the future, the annotation field may be expanded and applied to other ast nodes, or
+inferred type after typechecking. So in the future, the annotation field may be expanded and applied to other AST nodes, or
 replaced with something else.
 
 After this, `grammar` goes on to define `showS`, a faster way of appending strings by composing functions, then uses it
@@ -512,7 +512,7 @@ instead of
 ## `dependency.am`
 
 Definitions in a Admiran module may be written in any order, and module imports may be arranged in any
-order. However, various stages of the compilation pipeline require information in specific order, e.g.
+order. However, various passes of the compilation pipeline require information in specific order, e.g.
 a module imported by another module must be built before the importing module is built. To handle this,
 the `dependency` module implements general dependency graph operations for:
 
@@ -612,11 +612,20 @@ module.  `insNameMap` functions check for name clashes with an existing name dur
 and report `NameClash` exceptions, while the `delNameMap` function reports an `Undefined`
 exception if the name doesn't exist.
 
+## AST transformation passes
+
+Most of the following sections detail modules that implement AST transformation passes in the
+`buildModule` pipeline. A transformation pass has the type signature `globalEnv -> excpt globalEnv`,
+which performs an update on the `globalEnv` or returns a list of exceptions. Internally they use
+the functions provided in the `ast` module to traverse and rewrite ASTs, passing a state defined in
+and specific to the module through the traversal, and typically define *lenses* (defined in `lib/lens`)
+to focus in on particular elements of the state for reading or modifying.
+
 ## `reify.am`
 
 The `reify` module collects together functions that *reify* top-level environment names in a
-module, turning abstract `libEnv` imports, `libPart` exports, module definitions, and type
-synonms into concrete names in the module environment name map.
+module, turning abstract `libEnv` imports, `libPart` exports, module definitions, and type synonms
+into concrete names in the module environment name map.
 
 ### `reifyImports`
 
@@ -637,6 +646,17 @@ names are inserted as well.
 The `reifyExports` function converts the abstract `libPart`s export directives into an export
 `nameMap`, inserting explicit identifiers from `LibIdent`s, all exported identifiers from
 `LibFile`s, and removing any identifiers in `LibRemove`s.
+
+### `expand`
+
+The `expand` function is an `astRewriter` which performs expansion of type synonym references
+ in the `texpr`s of an AST.  `expand` assumes that any type synonyms in the free list of the
+`texpr` being expanded have already been expanded themselves (`expand` must be called in
+dependency order for type synonyms).  It also performs semantic checking on the type synonym
+use, verifying that its definition is a type synonym and that it is called with the correct
+arity.  It then performs expansion by replacing the Tname reference with the synonym, rewriting
+the corresponding type vars with the supplied type arguments (performing beta reduction on the
+type synonym definition).
 
 ### `reifySyns`
 
@@ -690,6 +710,31 @@ The top-level `deriveInstances` function finds the possibly derivable `defns` in
 checks to see if their `showI` or `ordI` instances are missing, and derives them if so.
 
 ## `desugar.am`
+
+The `desugar` module transforms the more complex AST types into equivalent productions using simpler
+AST types:
+* functions with multiple definitions are desugared into a single definition with a single
+  case tree or `EFatbar` expressions of multiple case trees
+* complex patterns are desugared into case trees
+* list comprehensions are desugared into nested function definitions and case expressions
+* if/otherwise conditionals are desugared into case trees
+
+in addition, literal values in expressions are rewritten to references to a common
+literal representation that uses the appropriate constructor with a primitive (unboxed) literal.
+
+### `match` algorithm and `equation`s
+
+The `match` algorithm for desugaring function definitions with multiple, possibly complex
+patterns into case trees is an implementation of the algorithm described in chapter 5, "Efficient
+Compilation of Pattern Matching" by Philip Wadler, in the book "The Implementation of Functional
+Programming Languages" by Simon L. Peyton Jones.  It transforms a list of `name`s and associated
+`equation`s into groups of `case` expressions, where each group is handled in the primary leg of
+an `Efatbar` expression, with any `Efail`s generated in the primary proceeding to the alternate leg
+of the `Efatbar`.
+
+An `equation` is a tuple of unmatched patterns, a final expression, and a rename map for already matched
+patterns, renaming explicit pattern var names with the common name.
+
 
 ## `rename.am`
 
