@@ -85,20 +85,18 @@ incCpx :: azSt -> azSt
 incCpx = over azCpx (+ 1)
 
 
-|| setUseCount is an astRewriteTraverser that is used to update the first-level defn annos
-|| with their use counts in the current azUses st.  It also reports a warning if the
+|| setUseCount is an astRewriter that is used to update the defn annos with their
+|| use counts in the current azUses st.  It also reports a warning if the
 || defn is unused
-setUseCount :: astRewriteTraverser azSt
-setUseCount k a st
-    = (a', st'), if isDefn a    || note: only process the first-level defns and return without traversing deeper
-    = k a st,    otherwise
+setUseCount :: bool -> astRewriter azSt
+setUseCount topLevel d st
+    = (d', st')
       where
-        n        = defnName a
-        count    = b_findWithDefault cmpname 0 n $ view azUses st
-        a'       = set defnAnUses count a
-        topLevel = (null . view azDefnPath) st
-        st'      = addAzWarn (Unused n) st, if count == 0 & ~topLevel
-                 = st,                      otherwise
+        n     = defnName d
+        count = b_findWithDefault cmpname 0 n $ view azUses st
+        d'    = set defnAnUses count d
+        st'   = addAzWarn (Unused n) st, if count == 0 & ~topLevel
+              = st,                      otherwise
 
 || analyzeAst is an astRewriteTraverser that is passed an explicit continuation to use to
 || traverse its subexpressions; this can be replaced with a custom traverser, or discarded to prevent further traversal.
@@ -110,9 +108,10 @@ analyzeAst :: astRewriteTraverser azSt
 analyzeAst k (Elet x1 defs x2 e) st
     = (Elet x1 defs2 x2 e', st4)
       where
+        topLevel      = null $ view azDefnPath st                                       || are we processing the top-level defns?
         (defs1, st1)  = astRewriteMap (astRewriteLex analyzeAst) defs st                || analyze the let defns
         (e', st2)     = astRewriteLex analyzeAst e st1                                  || analyze the let expr
-        (defs2, st3)  = astRewriteMap (astRewriteLex setUseCount) defs1 st2             || update the let defns with their use counts from other defns
+        (defs2, st3)  = astRewriteMap (setUseCount topLevel) defs1 st2                  || update the let defns with their use counts from other defns
                                                                                         || and the expr
         st4           = delUses (m_keys defs2) . incCpx $ st3
 
