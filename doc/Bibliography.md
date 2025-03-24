@@ -12,6 +12,8 @@ These were the resources I found most helpful when writing Admiran
 
 * ["Secrets of the Glasgow Haskell Compiler Inliner"](https://www.microsoft.com/en-us/research/publication/secrets-of-the-glasgow-haskell-compiler-inliner/)
 
+* ["Let-floating: moving bindings to give faster programs"](https://www.microsoft.com/en-us/research/publication/let-floating-moving-bindings-to-give-faster-programs/)
+
 * ["Unboxed values as first class citizens"](https://www.microsoft.com/en-us/research/publication/unboxed-values-as-first-class-citizens/)
 
 * ["Stream Fusion From Lists to Streams to Nothing at All"](https://www.cs.tufts.edu/~nr/cs257/archive/duncan-coutts/stream-fusion.pdf)
