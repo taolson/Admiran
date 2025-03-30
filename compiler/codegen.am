@@ -699,7 +699,7 @@ genInsn (Jeq a b cp)
     = genOpcode "cmpq" [cvtOpr b, cvtOpr a] .
       genCondJmp (Jeq a (Imm (Word 0)) cp)
 
-|| generate a thunk in the heap for the continuation, then push its heap addr onto the stack
+|| push a continuation closure on the stack
 || special handling for pushing a continuation to the generic applyToEnvPtr, selRetPtr or
 || selApply ptr: these get turned into direct calls to individually-expanded handlers
 genInsn (PushCont cp env)
