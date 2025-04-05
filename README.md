@@ -52,13 +52,16 @@ or expression
 
 ### Differences from Haskell
 
-Haskell's design was strongly influenced by Miranda, so they have a lot of similarities.
-The main differences are:
+Haskell's design was strongly influenced by Miranda, so Admiran has a lot of similarities
+with it. The main differences are:
 * No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
   of a "typeclass" dictionary are passed explicitly to functions that require them
 * Admiran typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
 * Data and type definitions use a different syntax (::= and ==, respectively)
 * Admiran allows only restricted simple patterns for case alternatives
+* Admiran conditional expressions `= <expr>, if <test>` vs Haskell guarded
+  expressions `| <test> = <expr>`
+    
 * Some layout and offside-rule differences
 
 ## Distribution Subdirectories
