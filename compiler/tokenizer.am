@@ -18,7 +18,6 @@
 %export token cmptoken showToken tokloc cmptokloc showtokloc tokenize isTerror isTend
 
 %import <base>
-%import <maybe>
 %import "name"
 
 

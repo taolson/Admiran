@@ -7,14 +7,12 @@
         buildStg heapObjWords stringWords
 
 %import <base>
-%import <either>
 %import <lens>
 %import <map>
 %import <maybe>
 %import <set>
 %import <state>                 (>>=)/st_bind (<$>)/st_fmap (<<)/st_left (>>)/st_right
 %import "analyze"
-%import "ast"
 %import "dependency"
 %import "exception"
 %import "grammar"

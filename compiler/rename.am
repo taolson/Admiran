@@ -16,7 +16,6 @@
 %import "grammar"
 %import "module"
 %import "name"
-%import "predef"
 
 
 || state passed through rename

@@ -9,9 +9,7 @@
 %import <map>
 %import <maybe>                 (>>=)/mb_bind 
 %import <set>
-%import "ast"
 %import "config"
-%import "dependency"
 %import "exception"             (>>=?)/ex_bind
 %import "grammar"
 %import "name"

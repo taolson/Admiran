@@ -12,7 +12,6 @@
 
 %export typecheck
 
-%import <bag>
 %import <base>
 %import <either>
 %import <lens>

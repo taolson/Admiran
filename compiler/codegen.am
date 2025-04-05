@@ -5,14 +5,11 @@
 %export codegen
 
 %import <base>
-%import <either>
-%import <lens>
 %import <map>
 %import <maybe>
 %import "config"
 %import "exception"
 %import "grammar"
-%import "module"
 %import "name"
 %import "stg"
 

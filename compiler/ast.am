@@ -8,7 +8,6 @@
 %import <map>
 %import <state>                 (>>=)/st_bind (<*>)/st_apply (<<)/st_left (>>)/st_right
 %import "grammar"
-%import "name"
 
 
 || an astAccum takes an ast and a state *, and pattern matches on the ast

@@ -10,7 +10,6 @@
 %import <map>
 %import <maybe>
 %import "analyze"
-%import "ast"
 %import "codegen"
 %import "config"
 %import "demand"
