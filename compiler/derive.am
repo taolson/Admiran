@@ -23,7 +23,7 @@ deriveShow d
         an          = defnAnno d
         tfd         = view defnTform d
         tvs         = tformVars tfd
-        instNames   = (zip2 tvs . map (Internal "showtv")) [0 ..]
+        instNames   = zip2 tvs . map (Internal "showtv") $ [0 ..]
         spec        = foldr (Tarr . ($Tarr stdString)) (tfd $Tarr stdString) tvs
         go          = Unqualified "go"
         ctors       = view dataCtors d
