@@ -10,7 +10,7 @@
 %import <base>
 %import <lens>
 %import <map>
-%import <maybe>
+%import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
 %import <state>                 (>>=)/st_bind
 %import "ast"
 %import "config"
@@ -56,7 +56,7 @@ getArity (Evar n) st
     = foldr lookFrame lookGenv $ view nmLenv st
       where
         lookGenv      = lookupArity (view nmGenv st) n
-        lookFrame f k = (fnArity $mb_fmap m_lookup cmpname n f) $mb_alt k
+        lookFrame f k = (fnArity <$>? m_lookup cmpname n f) <|>? k
 
 || handle polymorphic pseudo-functions pack and sel
 getArity (Tname n as) st
