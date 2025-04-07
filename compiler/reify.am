@@ -216,8 +216,8 @@ reifyTypes genv
         st            = expandDataDefs ddefs . expandSpecs specs . initTsSt $ genv
         (errs, warns) = partition isError (view tsErrs st)
 
-|| reify module abstype definitions by converting them to opaque DefData with no construtors,
-|| then re-expanding their signature specs
+|| reify module abstype definitions by converting them to opaque DefData with no constructors,
+|| then re-expanding their original signature specs
 reifyDefAbs :: globalEnv -> excpt globalEnv
 reifyDefAbs genv
     = ex_return (view tsGenv st) warns, if null errs
