@@ -676,6 +676,7 @@ Declarations at the top-level of a module consist of
 * type specifications
 * type synonym definitions
 * Algebraic Data Type definitions
+* Abstract Data Type definitions
 * `%import` and `%export` library directives
 
 ### Type Specifications
@@ -817,7 +818,7 @@ corresponding field type in the constructor:
 Whenever the constructor SP is used to construct a strict pair, it will first evaluate
 any strict arguments, rather than storing them as thunks.
 
-### Automatic Derivation of `ord` and `show`
+#### Automatic Derivation of `ord` and `show`
 
 The Admiran compiler `amc` will automatically derive functions to compare and show both
 type synonyms and algebraic data types, if they aren't explicitly defined. The derived function
@@ -844,6 +845,67 @@ where `ordering` is a data type defined in the Admiran `stdlib`:
 or used in polymorphic functions that perform comparisons for ordering:
 
     sortedExprs = sortBy cmpexpr exprList
+
+### Abstract Data Types
+
+Admiran modules support the creation and use of *abstract data types*, which are opaque
+types with an associated *type signature* - a list of type specifications for definitions
+that use the abstract type.  Within the defining module, the abstract type is implemented
+as a type synonym for an existing type, but in importing modules, the type is opaque,
+and can only be used by the functions and patterns specified in its type signature.
+An example of the definition and use of an abstract stack is shown below:
+
+##### module "stack"
+
+    %export +
+
+    abstype stack * with                    || define the polymorphic abstract type "stack"
+        empty    :: stack *                 || with this type signature
+        isEmpty  :: stack * -> bool
+        push     :: * -> stack * -> stack *
+        top      :: stack * -> *
+        pop      :: stack * -> stack *
+        cmpstack :: ordI * -> stack * -> stack * -> ordering
+
+    || implementation
+
+    stack * == [*]                              || internally, a stack is a type synonym for a list
+
+    || implementations of the type signature
+    || note: no type specifications here, as they are already
+    || defined in the signature
+    empty     = []
+    isEmpty s = null s
+    push a s  = a : s
+    top s     = hd s
+    pop s     = tl s
+    cmpstack  = cmplist
+
+##### module "test"
+
+    %import "stack"
+
+    evalStk == stack int
+
+    init :: evalStk
+    init = empty |> push 1 |> push 2 |> push 3
+
+    add :: evalStk -> (int, evalStk)
+    add s = (a + b, s2)
+            where
+              a  = top s
+              s1 = pop s
+              b  = top s1
+              s2 = pop s1
+
+    || "stack" is now an opaque type not associated with its implementation
+    || as a list: the following definition would generate a type error
+    foo = push [] 'x'
+
+Note that abstract data types do not have automatically-derived instances of `ord`
+and `show`.  If those instances are required, then their type specifications must
+appear in the signature, and an explicit definition based upon the implementation
+type synonym must appear in the implementation.
 
 ### Import Directives
 
