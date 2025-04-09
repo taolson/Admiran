@@ -1,5 +1,5 @@
 // Admiran runtime, with a heap that automatically grows from an initial memory size to a maximum memory size,
-// and has a dyamically-sized rootlist that grows down from the top of memory
+// and has a dynamically-sized rootlist that grows down from the top of memory
 
 #define GC_DEBUG 0
 #define SHOW_STATS 0
