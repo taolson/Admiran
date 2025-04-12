@@ -1,6 +1,6 @@
 || admiranParser.am -- parser for Admiran programs
 ||
-|| supports the following extensions to the Admiran grammar:
+|| supports the following extensions to the original Miranda grammar:
 ||
 ||     infix symbols can be used as identifiers in definitions, e.g. (+) :: int -> int -> int or a << b = a * 2 ^ b
 ||     wildcard pattern matches with _, e.g. (_ : xs') = xs

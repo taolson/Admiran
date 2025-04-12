@@ -1,4 +1,3 @@
-|| 
 || codegen.am -- x86-64 asm code generator for MacOS / Linux (System V calling convention)
 
 
