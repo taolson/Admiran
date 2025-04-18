@@ -11,9 +11,9 @@
 %import "name"
 
 
-|| Notes are info to be passed up to the top-level IO where they are displayed (but no control flow change)
-|| Warns are similar to Notes, but printed on Stderr instead of Stdout
-|| Error terminates after being passed up to the top-level IO and being printed on Stderr
+|| Notes  are informational messages
+|| Warns  are for minor recoverable exceptions
+|| Errors are for unrecoverable exceptions
 exceptionType ::= Note | Warn | Error
 
 showsExceptionType :: exceptionType -> showS
