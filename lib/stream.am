@@ -279,18 +279,24 @@ linesS (Stream next st)
 
 wordsS :: stream char * -> stream [char] (smaybe [char])
 wordsS (Stream next st)
-    = Stream next' (Sjust [])
+    = Stream next' Snothing
       where
         isSpace c = c ==. ' ' \/ c ==. '\t' \/ c ==. '\n'
 
-        next' Snothing = Done
+        next' Snothing
+            = case next st of
+                Done      -> Done
+                Skip _    -> Skip Snothing
+                Yield c _ -> case isSpace c of
+                             False -> Skip $ Sjust [c]
+                             True  -> Skip Snothing
         next' (Sjust xs)
             = case next st of
                 Done      -> Yield (reverse xs) Snothing
                 Skip _    -> Skip (Sjust xs)
                 Yield c _ -> case isSpace c of
                                False -> Skip $ Sjust (c : xs)
-                               True  -> Yield (reverse xs) (Sjust [])
+                               True  -> Yield (reverse xs) Snothing
 
 
 || backwards-compatible re-implementations of <stdlib> and <base> list functions,
