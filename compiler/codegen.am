@@ -527,6 +527,7 @@ genUnpackArgs
 || generate the individual ApplyToEnv continuation closure functions to apply r0
 || to the continuation env which is on the stack
 || instead of popping into the Env save area, we pop directly into the Args registers to prevent double-copying
+genApplyToEnvs :: showS
 genApplyToEnvs
     = foldr (.) id (map genAppToEnv [0 .. codegenMaxArgs - 1]) .
       genSection "data"                                        .
@@ -545,6 +546,7 @@ genApplyToEnvs
                 doPop n = genOpcode "popq" [cvtRef (Arg, n)]
 
 || generate the individual OverApplyThunk functions to push an ApplyToEnv, then enter the thunk
+genOverApplyThunk :: showS
 genOverApplyThunk
     = foldr (.) id (map genApp [1 .. codegenMaxArgs - 1])      || no over-application for 0 args
       where
