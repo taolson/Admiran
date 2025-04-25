@@ -382,7 +382,7 @@ desugarAst k (Ecase Cnone e alts) st
 || add defn names and locations to lexical state while traversing
 || rewrite literals to common dsLits references
 desugarAst k a st
-    = desugarDef k a top (over dsLoc (mergeLocInfo loc) st), if isDefn a
+    = desugarDef top k a (over dsLoc (mergeLocInfo loc) st), if isDefn a
     = desugarLit k a st,                                     if isLit a & ~isUnboxed a
     = k a st,                                                otherwise
       where
@@ -398,7 +398,8 @@ desugarAst k a st
 || * return the rewritten DefPat, along with the new accessor definitions in a DefMult
 || also includes optimizations for common, simple patterns
 || note: top-level patterns need to generate a Private name for the common tuple and qualify the accessors with the module name
-desugarDef k (DefPat (Pctor c pats) rhs an) topLevel st
+desugarDef :: bool -> astRewriteTraverser dsSt
+desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
     = k (DefMult Mpat (caseDef ns : accs)) st2, if numPatVars > 0
       where
         mn                    = view dsModName st
@@ -439,12 +440,12 @@ desugarDef k (DefPat (Pctor c pats) rhs an) topLevel st
         simpleCtor            = singleCtor c & all isPvar pats
 
 || a DefPat that isn't a Pctor or Pvar, or has no variables to bind is a bad pattern
-desugarDef k (DefPat p rhs an) topLevel st
+desugarDef topLevel k (DefPat p rhs an) st
     = (DefPat p rhs an, addDsErr (BadPattern p) st), if ~isPvar p
 
 || desugar patterns in a DefMult of function definitions, replacing it with a single DefFn
 || with an irrefutable pattern desugared using a case tree
-desugarDef k (DefMult Mfun defs) topLevel st
+desugarDef topLevel k (DefMult Mfun defs) st
     = k (DefFn fname (map Pvar varNames) caseExpr an) st2
       where
         d                = hd defs
@@ -459,11 +460,12 @@ desugarDef k (DefMult Mfun defs) topLevel st
         (caseTree, st2)  = match varNames (zip3 pats rhss (repeat m_empty)) st1
         caseExpr         = builtinFatbar caseTree . Eap stdCaseFail . genLoc $ view anLoc an
 
-desugarDef k a topLevel st = k a st
+desugarDef topLevel k a st = k a st
 
 
 || rewrite literal values in an expression to var references to a canonical literal
 || and collect them in a map
+desugarLit :: astRewriteTraverser dsSt
 desugarLit k e st
     = (Evar v', st'), if isNothing mv
     = (Evar v,  st),  otherwise

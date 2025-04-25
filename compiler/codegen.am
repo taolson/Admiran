@@ -98,7 +98,7 @@ genSection :: string -> showS
 genSection s = shows "\n\t." . shows s . shows "\n"
 
 || generate a label for a Admiran function
-genGlobal :: string -> showS
+genGlobal, genCGlobal :: string -> showS
 genGlobal lbl
     = shows "\n\t.globl\t" . shows lbl . shows "\n" .
       shows lbl . shows ":\n"
