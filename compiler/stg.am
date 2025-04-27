@@ -30,7 +30,6 @@ stgCode  == (m_map codePtr codeObj, codePtr)    || code map, next unused codePtr
 coLoc   = lensFst
 coInsns = lensSnd
 
-
 || a heap object is a list of environment values tagged with a heap Info containing info for execution and garbage collection
 heapInfo ::=
     || these heapObjects can be applied directly if the arities match the #args
@@ -300,7 +299,7 @@ allocHeap :: int -> state bdSt heapPtr
 allocHeap = allocResource bdHeapPtr
 
 || set stgHeap[heapPtr] to heapObj
-updateHeap :: heapPtr -> heapObj ->state bdSt heapPtr
+updateHeap :: heapPtr -> heapObj -> state bdSt heapPtr
 updateHeap hp obj st = (hp, over bdHeapMap (m_insert cmpheapPtr hp obj) st)
 
 lookupHeap :: heapPtr -> state bdSt heapObj
@@ -368,7 +367,6 @@ makeRef (Pvar n) st
         st2      = over bdLenv (m_insert cmpname n (Ref r)) st1
 
 makeRef _ _ = error "makeRef: non-Pvar"
-
 
 || run a build function in a new lexical environment of Arg and Env refs,
 || restoring the environment afterwards. The first argument specifies the

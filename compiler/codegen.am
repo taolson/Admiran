@@ -165,7 +165,6 @@ isX86Mem (X86Mem b o n)   = True
 isX86Mem (X86Idx b i s n) = True
 isX86Mem x                = False
 
-
 || add a numeric offset to an existing x86Opr
 addX86Offset :: int -> x86Opr -> x86Opr
 addX86Offset a (X86Imm n)       = X86Imm (n + a)
@@ -651,7 +650,6 @@ genInsn (Apply fopr args)
               where
                 overApp = "OverApplyThunk" ++ showint nargs
 
-
 || the generic ApplyToEnv is replaced by the individual ApplyToEnv routines, and is not directly called
 genInsn ApplyToEnv = id
 
@@ -673,7 +671,6 @@ genInsn (Ret val aty)
                 packFn = "PackArgs" ++ showint n
 
         genArity r = genMove (Reg, 1) aty                       || copy aty operand (a previously set value) to r1
-
 
 || The generic RetEnv is replaced by the individual UnpackArgs routines, and is not directly called
 genInsn RetEnv = id

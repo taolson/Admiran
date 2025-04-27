@@ -309,6 +309,7 @@ deserialAst
         ctor 37 =           EprimString <$> deserialString
         ctor n  = error ("deserialCtor: unknown ctor id " ++ showint n)
 
+
 || module serialization
 
 serialFileSpec :: serializer fileSpec

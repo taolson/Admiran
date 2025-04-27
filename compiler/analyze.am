@@ -115,7 +115,6 @@ analyzeAst k (Elet x1 defs x2 e) st
                                                                                         || and the expr
         st4           = delUses (m_keys defs2) . incCpx $ st3
 
-
 || add name references to uses and remove references to defining patterns
 analyzeAst k (Efatbar p e1 e2) st = k (Efatbar p e1 e2) << st_modify (delUses (patNames p) . incCpx)              $ st
 analyzeAst k (Evar n)          st = k (Evar n)          << st_modify (addUse n . incCpx . checkFail n)            $ st
@@ -149,7 +148,6 @@ analyzeAst k a st
                       = uses,                       otherwise
                 d'    = (set defnAnCpx cpx . set defnAnFree (b_keysSet free)) d
                 st2   = (set azCpx (inCpx + cpx + 1) . set azUses (b_union cmpname inUses free)) st1
-
 
 || internal version of analyze, used by analyze and analyzeWarn
 || tally complexity, free variables, and use counts for each defn and update their annos

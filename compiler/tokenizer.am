@@ -15,6 +15,7 @@
 ||    underscores (_) can be used when writing integers as grouping separators, e.g. 123_456_789 or 0x1234_abcd
 ||    $ is tokenized as an operator if it is not immediately followed by a letter ($ident is the infix form of ident)
 
+
 %export token cmptoken showToken tokloc cmptokloc showtokloc tokenize isTerror isTend
 
 %import <base>
@@ -56,13 +57,11 @@ showToken (Terror s)     = "ERROR " ++ s
 
 tokloc == (token, int, int)                   || token, line#, col#
 
-
 tokenize :: string -> [tokloc]
 tokenize = tokenizePos 1 1
 
 tokError :: string -> int -> int -> [tokloc]
 tokError err il ic = [(Terror err, il, ic), (Tend, il, ic)]
-
 
 tokenizer == int -> int -> string -> [tokloc]  || line#, col#, input
 

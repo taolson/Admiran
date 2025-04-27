@@ -61,11 +61,11 @@ clrFails = set rwFailCount 0
 addFails :: int -> rwSt -> rwSt
 addFails n = over rwFailCount (+ n)
 
+
 || rewriteAst is an astRewriteTraverser that is passed an explicit continuation to use to
 || traverse its subexpressions; this can be replaced with a custom traverser, or discarded to prevent further traversal.
 || during traversal, it collects information on Efail occurrences for Efatbar optimization
 rewriteAst :: astRewriteTraverser rwSt
-
 
 || rewrite chains of Eap applications to Ecalls
 || also take this opportunity to inline fully-saturated calls to stdApply, stdRapply, and stdCompose, since
@@ -182,6 +182,7 @@ rewriteAst k a st
         || the free vars discovered during the analyze pass prior to rewrite, breaking the false recursion.  A subsequent analyze pass
         || will recover any remaining dependencies on caseFail or matchFail.
         fixup = over defnAnFree (s_delete cmpname stdCaseFailName . s_delete cmpname stdMatchFailName)
+
 
 || rewrite of desugared code:
 ||   rewrite Eap applications to function calls with simple arguments

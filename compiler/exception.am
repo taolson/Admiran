@@ -21,7 +21,6 @@ showsExceptionType Note  = id
 showsExceptionType Warn  = shows "warning "
 showsExceptionType Error = shows "error "
 
-
 || indentifying information for each exception
 exceptionInfo ::=
     Arity                            |       || arity mismatch in arguments for function or type 

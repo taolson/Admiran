@@ -66,7 +66,6 @@ deriveShow d
 
          genDef _ = undef       || added to remove compiler warning
 
-
 || derive an ord instance spec and defn for a user-defined data type or synonym
 deriveOrd :: defn -> (defn, defn)
 deriveOrd d

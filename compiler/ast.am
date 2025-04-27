@@ -42,7 +42,6 @@ astAccumLex f a (ds, ls)
       where
         ds' = fst $ f (astAccumSubs (astAccumLex f)) a (ds, ls)
 
-
 || accumulate over all sub-asts of an ast using the given astAccumTraverser
 astAccumSubs :: astAccumTraverser *
 astAccumSubs t (Eap e1 e2)         = t e2 . t e1
@@ -113,7 +112,6 @@ astRewriteLex r a
     = st_get >>= doLex
       where
         doLex (ds, ls) = r (astRewriteSubs (astRewriteLex r)) a << st_modify (converse setSnd ls)
-
 
 || rewrite all sub-asts of an ast using the given astRewriteTraverser
 astRewriteSubs :: astRewriteTraverser *

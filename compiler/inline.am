@@ -1,5 +1,6 @@
 || inline.am -- inlining saturated calls to known non-recursive functions and simplification transformations
 
+
 %export inline streamSubst
 
 %import <base>
@@ -19,6 +20,7 @@
 %import "name"
 %import "predef"
 %import "rename"
+
 
 || functions which don't return (call error and terminate)
 noReturnNames = map makeStdlibName ["exit", "error", "blackHole", "undef", "caseFail", "matchFail", "cmpFn"]
@@ -374,8 +376,8 @@ inlineAst k (Evar n) st
     = (e', st2),    if inlinable
     = (Evar n, st), otherwise
       where
-        inlinable     = canInline n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
 || DEBUG        inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
+        inlinable     = canInline n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)      = lookupEnv n st
         d             = fromJust md
         uses          = view defnAnUses d

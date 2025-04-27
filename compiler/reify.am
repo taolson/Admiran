@@ -116,7 +116,6 @@ initTsSt genv = ((genv, []), emptyLocInfo)
 addTsErr :: exceptionInfo -> locInfo -> tsSt -> tsSt
 addTsErr ei loc = over tsErrs ((Error, ei, loc) :)
 
-
 || expand references to type synonyms in a texpr
 expand :: astRewriter tsSt
 expand (Tname n vars) st
@@ -141,7 +140,6 @@ expand (Tname n vars) st
         renameTvars k a        s     = k a s
 
 expand a s = (a, s)
-
 
 || expand a type synonym to a base type
 expandSyn :: tsSt -> name -> tsSt

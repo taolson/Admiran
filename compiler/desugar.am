@@ -137,7 +137,6 @@ matchLit var vars peqns st
         tst _          = undef           || added to remove compiler warning
 
 
-
 || match a group of constructors of the same type (irrefutable, if all ctor groups are irrefutable)
 matchCtor :: name -> [name] -> [(pat, equation)] -> state dsSt expr
 matchCtor var vars peqns st
@@ -388,7 +387,6 @@ desugarAst k a st
       where
         loc     = defnLocInfo a
         top     = null (view dsDefnPath st)
-
 
 || desugar a pattern definition
 || strategy:
