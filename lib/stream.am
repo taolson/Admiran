@@ -82,7 +82,7 @@ rangeByS step lo hi
                   = Yield n (n + step), otherwise
 
 rangeS :: int -> int -> stream int int
-rangeS n = rangeByS 1 n
+rangeS lo hi = rangeByS 1 lo hi
 
 rangeByFromS :: int -> int -> stream int int
 rangeByFromS step n
