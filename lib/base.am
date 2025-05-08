@@ -512,8 +512,11 @@ chunk n xs
                                 _  -> ys : go zs
 
 nub :: ordI * -> [*] -> [*]
-nub cmp [] = []
-nub cmp (x : xs) = x : nub cmp (filter (_ne cmp x) xs)
+nub cmp
+    = go
+      where
+        go []       = []
+        go (x : xs) = x : go (filter (_ne cmp x) xs)
 
 length :: [*] -> int
 length xs = #xs
