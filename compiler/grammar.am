@@ -160,7 +160,7 @@ showsName n = shows $ showName n
 
 showsAnno :: anno -> showS
 showsAnno (loc, rec, cpx, uses, free, strict)
-    = ([] ++)
+    = id
 || use the version below to see the full anno information
 ||    = shows "{" . showsRec . showsint cpx . shows " " . showsint uses .
 ||      shows " [" . interShows ", " (map showsName (s_toList free)) . shows "]" .
