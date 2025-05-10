@@ -1,6 +1,6 @@
-# Admiran, a pure, lazy, functional language and compiler
+# Admiran, a pure, lazy, functional language and self-hosting compiler
 
-Admiran is a pure, lazy, functional language and compiler, based upon the
+Admiran is a pure, lazy, functional language and self-hosting compiler, based upon the
 original Miranda language designed by David Turner, with additional features
 from Haskell and other functional languages.
 
@@ -12,10 +12,12 @@ is a C compiler for assembling the generated asm files and linking them with the
 
 ## Features
 
+* Compiler can compile itself (self hosting)
+  - ~6700 SLOC for compiler
+  - ~3300 SLOC for library
 * Compiles to x86-64 assembly language
 * Runs under MacOS or Linux
 * Whole program compilation with inter-module inlining and optimizations
-* Compiler can compile itself (self hosting)
 * Hindley-Milner type inference and checking
 * Library of useful functional data structures, including
   - map, set, and bag, based upon AVL balanced-binary trees
@@ -23,7 +25,7 @@ is a C compiler for assembling the generated asm files and linking them with the
   - functor / applicative / monad implementations for maybe, either, state, and io
   - lens for accessing nested structures
   - parser combinators
-* small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
+* Small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
 * 20x to 50x faster than the original Miranda compiler/combinator interpreter
 
 ### Miranda language features removed from Admiran
