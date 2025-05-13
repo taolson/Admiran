@@ -496,7 +496,7 @@ delNameMap loc k m
 || used for aliasing names during import
 replaceNameMapKey :: locInfo -> name -> name -> nameMap -> excpt nameMap
 replaceNameMapKey loc k k' m
-    = ex_pure m,                  if isNothing mprev & isUnqualified k || silently ignore replacement for unqualified names
+    = ex_pure m,                  if isNothing mprev & isUnqualified k || silently ignore replacement for missing unqualified names (Undefined err)
     = delNameMap loc k m >>=?
       insNameMap loc k' prev,     otherwise
       where
