@@ -24,7 +24,7 @@ isNothing Nothing = True
 isNothing _       = False
 
 isJust :: maybe * -> bool
-isJust (Just x) = True
+isJust (Just _) = True
 isJust _        = False
 
 catMaybes :: [maybe *] -> [*]

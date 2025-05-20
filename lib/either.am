@@ -7,7 +7,7 @@
 either * ** ::= Left * | Right **
 
 fromEither :: ** -> either * ** -> **
-fromEither default (Left a)  = default
+fromEither default (Left _)  = default
 fromEither default (Right b) = b
 
 eitherf :: (* -> ***) -> (** -> ***) -> either * ** -> ***
@@ -25,12 +25,12 @@ partitionEithers
 
 || testing
 isLeft :: (either * **) -> bool
-isLeft (Left x)  = True
-isLeft (Right x) = False
+isLeft (Left _)  = True
+isLeft (Right _) = False
 
 isRight :: (either * **) -> bool
-isRight (Right x) = True
-isRight (Left  x) = False
+isRight (Right _) = True
+isRight (Left  _) = False
 
 
 || monad interface
@@ -39,7 +39,7 @@ e_bind (Left e)  f = Left e
 e_bind (Right x) f = f x
 
 e_pure :: ** -> either * **
-e_pure = Right
+e_pure x = Right x
 
 e_kbind :: (* -> either ** ***) -> (*** -> either ** ****) -> * -> either ** ****
 e_kbind f g = go where go x = f x $e_bind g
