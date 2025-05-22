@@ -107,8 +107,8 @@ locsRightOf i = [i + 1 .. nLocs - 1]
 constrain :: constraint -> solution -> [solution]
 
 constrain (LocIndex bi (ci, v)) s
-    = [],                       if ~bs_member v (s !! bi !! ci)
-    = [v_mapWithIndex cnstr s], otherwise
+    = [],                        if ~bs_member v (s !! bi !! ci)
+    = [v_fmapWithIndex cnstr s], otherwise
       where
         cnstr i b
             = b // [(ci, bs_singleton v)],        if i == bi   || loc bi, category ci must be v

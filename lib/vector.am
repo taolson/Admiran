@@ -100,8 +100,8 @@ v // ies = v_replace v ies
 
 || common list-like operations on vectors
 
-v_map :: (* -> **) -> vector * -> vector **
-v_map f v
+v_fmap :: (* -> **) -> vector * -> vector **
+v_fmap f v
     = st_evalState (go mv >> v_unsafeFreeze mv) ()
       where
         n  = v_length v
@@ -111,8 +111,8 @@ v_map f v
               where
                 update i = v_unsafeWrite mv i . f . v_unsafeIndex v $ i
 
-v_mapWithIndex :: (int -> * -> **) -> vector * -> vector **
-v_mapWithIndex f v
+v_fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
+v_fmapWithIndex f v
     = st_evalState (go mv >> v_unsafeFreeze mv) ()
       where
         n  = v_length v
