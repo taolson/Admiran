@@ -354,10 +354,10 @@ product xs = foldl (*) 1 xs
 || conversions between int and string
 showintBase :: int -> string -> int -> string
 showintBase b p n
-    = case n $cmpint 0 of
-        EQ -> p ++ "0"
-        LT -> showintBase b ('-' : p) (- n)
-        GT -> p ++ go [] n
+    = p ++ "0",                if n == 0
+    = showMinInt,              if n == -n
+    = ('-' : p) ++ go [] (-n), if n < 0
+    = p         ++ go [] n,    otherwise
       where
           code0       = code '0'
           codeA       = code 'a' - 10
@@ -365,6 +365,18 @@ showintBase b p n
                       = go (hexdigit (n $mod b) : ds) (n $div b), otherwise
           hexdigit n  = decode (code0 + n),                       if n < 10
                       = decode (codeA + n),                       otherwise
+
+          || handle minInt by showing n $div b and n $rem b
+          borrow n 0  = n
+          borrow n _  = n + 1   || + 1, since we know n is negative
+
+          residual 0  = 0
+          residual n  = b - n
+
+          showMinInt = showintBase b p (borrow nd nm) ++ showintBase b "" (residual nm)
+                        where
+                          nd = n $div b
+                          nm = n $mod b
 
 showhex, showoct, showbin :: int -> string
 showhex n = showintBase 16 "0x" n
