@@ -299,14 +299,26 @@ showint n = showintBase 10 "" n
 (I# a#) >= (I# b#) = case a# $cmp# b# of 1# -> False; _ -> True
 
 || arithmetic operations on word#
-(+), (-), (*), div, mod :: int -> int -> int
-(I# a#) +    (I# b#) = case a# +# b# of w# -> I# w#
-(I# a#) -    (I# b#) = case a# -# b# of w# -> I# w#
-(I# a#) *    (I# b#) = case a# *# b# of w# -> I# w#
-(I# a#) $div 0       = error "attempt to divide by zero"
-(I# a#) $div (I# b#) = case a# $div# b# of w# -> I# w#
-(I# a#) $mod 0       = error "attempt to mod with zero"
-(I# a#) $mod (I# b#) = case a# $mod# b# of w# -> I# w#
+(+), (-), (*), quot, rem, div, mod :: int -> int -> int
+(I# a#) +    (I# b#)  = case a# +# b# of w# -> I# w#
+(I# a#) -    (I# b#)  = case a# -# b# of w# -> I# w#
+(I# a#) *    (I# b#)  = case a# *# b# of w# -> I# w#
+
+(I# a#) $quot 0       = error "attempt to divide by zero"
+(I# a#) $quot (I# b#) = case quotrem# a# b# of (q#, _) -> I# q#
+
+(I# a#) $rem 0        = error "attempt to rem with zero"
+(I# a#) $rem (I# b#)  = case quotrem# a# b# of (_, r#) -> I# r#
+
+(I# a#) $div 0        = error "attempt to divide by zero"
+(I# a#) $div (I# b#)  = case divmod# a# b# of (q#, _) ->  I# q#
+
+(I# a#) $mod 0        = error "attempt to mod with zero"
+(I# a#) $mod (I# b#)  = case divmod# a# b# of (_, r#) ->  I# r#
+
+quotrem, divmod :: int -> int -> (int, int)
+quotrem (I# a#) (I# b#) = case quotrem# a# b# of (q#, r#) -> (I# q#, I# r#)
+divmod  (I# a#) (I# b#) = case divmod#  a# b# of (q#, r#) -> (I# q#, I# r#)
 
 || converse infix minus, needed because we cannot form postsections with '-', as it is ambiguous with prefix negate
 subtract :: int -> int -> int
@@ -354,33 +366,26 @@ product xs = foldl (*) 1 xs
 || conversions between int and string
 showintBase :: int -> string -> int -> string
 showintBase b p n
-    = p ++ "0",                if n == 0
-    = showMinInt,              if n == -n
-    = ('-' : p) ++ go [] (-n), if n < 0
-    = p         ++ go [] n,    otherwise
+    =       p ++ "0",        if n == 0
+    =       p ++ go [] n,    if n > 0
+    = '-' : p ++ showMinInt, if n == -n
+    = '-' : p ++ go [] (-n), otherwise
       where
-          code0       = code '0'
-          codeA       = code 'a' - 10
-          go ds n     = ds,                                       if n == 0
-                      = go (hexdigit (n $mod b) : ds) (n $div b), otherwise
-          hexdigit n  = decode (code0 + n),                       if n < 10
-                      = decode (codeA + n),                       otherwise
+        || written using low-level word operations to prevent spurious range checks from decode
+        hexdigit (I# n#)
+            = case n# $cmp# 10# of
+                2# -> case n# -# 10# of n'# -> case n'# +# 'a'# of c# -> C# c#
+                _  -> case n# +# '0'# of c# -> C# c#
 
-          || handle minInt by showing n $div b and n $rem b
-          borrow n 0  = n
-          borrow n _  = n + 1   || + 1, since we know n is negative
+        go ds 0 = ds
+        go ds n = case quotrem n b of (q, r) -> go (hexdigit r : ds) q
 
-          residual 0  = 0
-          residual n  = b - n
-
-          showMinInt = showintBase b p (borrow nd nm) ++ showintBase b "" (residual nm)
-                        where
-                          nd = n $div b
-                          nm = n $mod b
+        || handle minInt by splitting in quot and rem
+        showMinInt = case quotrem n b of (q, r) -> go [hexdigit (-r)] (-q)
 
 showhex, showoct, showbin :: int -> string
 showhex n = showintBase 16 "0x" n
-showoct n = showintBase 8  "0" n
+showoct n = showintBase 8  "0"  n
 showbin n = showintBase 2  "0b" n
 
 intval :: string -> int

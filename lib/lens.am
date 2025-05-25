@@ -3,7 +3,6 @@
 
 %export +
 
-
 lens * **
     ::= Lens
         (* -> **)               || view function
@@ -25,7 +24,6 @@ composeLens (Lens view_a over_a) (Lens view_b over_b)
       where
         viewf s   = view_b (view_a s)
         overf f s = over_a (over_b f) s
-
 
 || lenses for tuples 2 - 8
 || defines explicit view and over functions, as well as the lenses, to allow optimization of code that performs

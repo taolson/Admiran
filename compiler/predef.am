@@ -208,8 +208,8 @@ builtinCmp              = makeBuiltinVar "cmp#"
 builtinAdd              = makeBuiltinVar "+#"
 builtinSub              = makeBuiltinVar "-#"
 builtinMul              = makeBuiltinVar "*#"
-builtinDiv              = makeBuiltinVar "div#"
-builtinMod              = makeBuiltinVar "mod#"
+builtinQuotRem          = makeBuiltinVar "quotrem#"
+builtinDivMod           = makeBuiltinVar "divmod#"
 builtinAnd              = makeBuiltinVar "band#"
 builtinOr               = makeBuiltinVar "bor#"
 builtinXor              = makeBuiltinVar "bxor#"
@@ -245,7 +245,7 @@ builtinEnv :: nameMap
 builtinEnv
     = foldl ins m_empty [ builtinTypeType, builtinTypeUnit, builtinTypeWord,
                           builtinUnit, builtinNil, builtinCons,
-                          builtinCmp, builtinAdd, builtinSub, builtinMul, builtinDiv, builtinMod,
+                          builtinCmp, builtinAdd, builtinSub, builtinMul, builtinQuotRem, builtinDivMod,
                           builtinAnd, builtinOr, builtinXor, builtinNot, builtinShl, builtinShr,
                           builtinAllocByteStream, builtinAllocFileStream, builtinReadByteStream, builtinWriteByteStream,
                           builtinAllocArray, builtinFillArray, builtinCopyArray, builtinReadArray, builtinWriteArray,
@@ -274,8 +274,8 @@ builtinSpecs
                 , "+#                :: word# -> word# -> word#"
                 , "-#                :: word# -> word# -> word#"
                 , "*#                :: word# -> word# -> word#"
-                , "div#              :: word# -> word# -> word#"
-                , "mod#              :: word# -> word# -> word#"
+                , "quotrem#          :: word# -> word# -> (word#, word#)"
+                , "divmod#           :: word# -> word# -> (word#, word#)"
 
                 || primitive bit-wise operations on word#
                 , "band#             :: word# -> word# -> word#"

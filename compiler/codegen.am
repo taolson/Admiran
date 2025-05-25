@@ -116,7 +116,7 @@ genPad s
     = pad (8 - extra), otherwise
       where
         len   = #s
-        extra = #s $mod 8
+        extra = #s $rem 8
         pad n = shows "\t.byte\t" . interShows ", " (map showsint (rep n 0)) . shows "\n"
 
 genQuad :: showS -> showS
@@ -427,14 +427,23 @@ genShl1 d = genOpcode "shlq" [cvtRef d]
 || the quotient is in %rax and the remainder in %rdx at the end.
 || Code that calls this is in charge of adding an Int tag and moving the correct result to the destination
 || Note: %rax and %rdx are destroyed, and must be saved and restored around this operation, if required
-genDivRem :: ref -> opr -> opr -> showS
-genDivRem d a b
+genQuotRem :: ref -> opr -> opr -> showS
+genQuotRem d a (Imm (Word b))
+    = genOpcode "movq" [X86Imm b, dr]              .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
+      genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
+      genOpcode "sarq" [x86rax]                    .    || remove value tag
+      genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
+      genOpcode "idivq" [dr]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
+      where
+        dr = cvtRef d  
+
+genQuotRem d a b
     = genMove d b                                  .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
       genSar1 d                                    .    || remove value tag
       genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
       genOpcode "sarq" [x86rax]                    .    || remove value tag
       genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
-      genOpcode "idivq" [cvtRef d]                      || perform 128b/64b divide; quotient in %rax
+      genOpcode "idivq" [cvtRef d]                      || perform 128b/64b divide; quotient in %rax, remainder in %rdx
 
 || generate code to perform a write-barrier check on the addr in register upd
 genWriteBarrier :: x86Opr -> showS
@@ -844,44 +853,33 @@ genInsn (Mul d a b)
       where
         (dreg, movd) = ensureX86DstReg x86Tmp1 d
 
-|| x86-64 idiv instruction performs integer division with round towards zero, while Admiran div
-|| is defined as round towards -Inf, so we need to fix up the quotient if the signs of the divisor
-|| and the remainder are unequal
-genInsn (Div d a b)
-    = genOpcode    "push" [x86rdx]               .      || save %rdx, as it is destroyed during DivRem
-      genDivRem d a b                            .      || perform a DivRem (quotient in rax, remainder in rdx))
+genInsn (QuotRem dq dr a b)
+    = genOpcode    "push" [x86rdx]               .      || save %rdx, as it is destroyed during QuotRem
+      genQuotRem dr a b                          .
+      genOpcode    "shlq" [x86rax]               .
+      genOpcode    "movq" [x86rax, cvtRef dq]    .
+      genOpcode    "shlq" [x86rdx]               .
+      genOpcode    "movq" [x86rdx, cvtRef dr]    .
+      genOpcode    "pop"  [x86rdx]
+
+genInsn (DivMod dq dr a b)
+    = genOpcode    "push" [x86rdx]               .      || save %rdx, as it is destroyed during QuotRem
+      genQuotRem dr a b                          .
+      genOpcode    "movq" [x86rax, cvtRef dq]    .
+      genOpcode    "movq" [x86rdx, cvtRef dr]    .
       genOpcode    "cmpq" [X86Imm 0, x86rdx]     .      || check if remainder is zero
       genJmpOpcode "jz"   (cvtJmpAddr "0f")      .      || if so, no fixup required
       genOpcode    "movq" [cvtOpr b, x86MovTmp]  .
       genOpcode    "sarq" [X86Imm 63, x86MovTmp] .      || sign of b extended as mask
       genOpcode    "sarq" [X86Imm 63, x86rdx]    .      || sign of rem extended as mask
       genOpcode    "xorq" [x86rdx, x86MovTmp]    .      || mask if sign b ~= sign rem (adjustment required)
-      genOpcode    "addq" [x86MovTmp, x86rax]    .      || add adjustment to quotient (0 or -1)
-      shows "0:\n"                               .
-      genOpcode    "shlq" [x86rax]               .      || add Int tag bit (0) to quotient
-      genOpcode    "movq" [x86rax, cvtRef d]     .      || and move it to the destination
-      genOpcode    "pop"  [x86rdx]                      || restore original %rdx
-
-|| x86-64 idiv instruction performs integer division with round towards zero, while Admiran mod
-|| is defined as round towards -Inf, so we need to fix up the remainder if the signs of the divisor
-|| and the remainder are unequal
-genInsn (Mod d a b)
-    = genOpcode    "push" [x86rdx]               .      || save %rdx, as it is destroyed during DivRem
-      genDivRem d a b                            .      || perform a DivRem (quotient in rax, remainder in rdx)
-      genOpcode    "cmpq" [X86Imm 0, x86rdx]     .      || check if remainder is zero
-      genJmpOpcode "jz"   (cvtJmpAddr "0f")      .      || if so, no fixup required
-      genOpcode    "movq" [cvtOpr b, x86MovTmp]  .
-      genOpcode    "sarq" [X86Imm 63, x86MovTmp] .      || sign of b extended as mask
-      genOpcode    "movq" [x86rdx, x86rax]       .
-      genOpcode    "sarq" [X86Imm 63, x86rax]    .      || sign of rem extended as mask
-      genOpcode    "cmpq" [x86rax, x86MovTmp]    .      || check if signs are equal or not
-      genJmpOpcode "je"   (cvtJmpAddr "0f")      .      || no fixup required, if equal
-      genOpcode    "movq" [cvtOpr b, x86MovTmp]  .
+      genOpcode    "addq" [x86MovTmp, cvtRef dq] .      || add adjustment to quotient (0 or -1)
+      genOpcode    "andq" [cvtOpr b, x86MovTmp]  .      || mask divisor (0 if no adjustment or d if adjustment)
       genOpcode    "sarq" [x86MovTmp]            .      || untag divisor
-      genOpcode    "addq" [x86MovTmp, x86rdx]    .      || add into remainder to create correct mod
+      genOpcode    "addq" [x86MovTmp, cvtRef dr] .      || add into remainder to correct for mod
       shows "0:\n"                               .
-      genOpcode    "shlq" [x86rdx]               .      || add Int tag bit (0) to remainder
-      genOpcode    "movq" [x86rdx, cvtRef d]     .      || and move it to the destination
+      genOpcode    "shlq" [cvtRef dq]            .      || add Int tag bit (0) to quotient
+      genOpcode    "shlq" [cvtRef dr]            .      || add Int tag bit (0) to remainder
       genOpcode    "pop"  [x86rdx]                      || restore original %rdx
 
 || the stgInsn Cmp semantics generate a 0# (eq), 1# (lt), or 2# (gt) result, but that would

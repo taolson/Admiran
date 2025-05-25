@@ -36,7 +36,7 @@ noInlineNames = map makeStdlibName               ["trace", "getTag", "cmpTags"] 
                 noReturnNames
 
 || builtin functions that can be inlined by computing at compile-time
-inlineBuiltinNames = ["cmp#", "+#", "-#", "*#", "div#", "mod#"]
+inlineBuiltinNames = ["cmp#", "+#", "-#", "*#"]
 
 
 || a localEnv consists of a stack of frames, which are either a function boundary marker
@@ -254,15 +254,13 @@ inlineAst k (Ecall (Evar (Builtin fn)) [(EprimInt a), (EprimInt b)]) st
         st' = addInfo ("inlined builtin " ++ fn) . set inSimplified True $ st
         r   = doBuiltin fn a b
 
-        doBuiltin "+#"   a b = a + b
-        doBuiltin "-#"   a b = a - b
-        doBuiltin "*#"   a b = a * b
-        doBuiltin "div#" a b = a $div b
-        doBuiltin "mod#" a b = a $mod b
-        doBuiltin "cmp#" a b = 0, if a == b
-                             = 1, if a < b
-                             = 2, otherwise
-        doBuiltin _      _ _ = undef    || added to remove compiler warning
+        doBuiltin "+#"    a b = a + b
+        doBuiltin "-#"    a b = a - b
+        doBuiltin "*#"    a b = a * b
+        doBuiltin "cmp#"  a b = 0, if a == b
+                              = 1, if a < b
+                              = 2, otherwise
+        doBuiltin _       _ _ = undef    || added to remove compiler warning
 
 || inline builtin cmp# on literal unboxed char values
 inlineAst k (Ecall (Evar (Builtin "cmp#")) [(EprimChar a), (EprimChar b)]) st

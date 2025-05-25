@@ -63,11 +63,12 @@ heapObjWords (info, env)
 || compute the number of 8-byte words each packed string requires
 stringWords :: string -> int
 stringWords s
-    = len $div 8 + extra
+    = q + extra
       where
-        len   = #s
-        extra = 1, if len $mod 8 > 0
-              = 0, otherwise
+        len    = #s
+        (q, r) = quotrem len 8
+        extra  = 1, if r > 0
+               = 0, otherwise
 
 || a stack object is a continuation codePtr and a list of values (free variable values for the continuation code)
 stackObj     == (codePtr, [value])
@@ -150,8 +151,8 @@ stgInsn ::=
     Add         ref opr opr             |    || ref := [opr1] +    [opr2]
     Sub         ref opr opr             |    || ref := [opr1] -    [opr2]
     Mul         ref opr opr             |    || ref := [opr1] *    [opr2]
-    Div         ref opr opr             |    || ref := [opr1] $div [opr2]
-    Mod         ref opr opr             |    || ref := [opr1] $mod [opr2]
+    QuotRem     ref ref opr opr         |    || (ref1, ref2) := [opr1] $quotrem [opr2] -- division truncate to zero
+    DivMod      ref ref opr opr         |    || (ref1, ref2) := [opr1] $divmod  [opr2] -- division truncate to -infinity
     Cmp         ref opr opr             |    || ref := [opr1] $cmp [opr2]   -- returns 0# -> EQ, 1# -> LT, 2# -> GT
     Sel         ref opr                 |    || ref := args[opr] -- the value in opr is a word which is used to index into the args vector
 
@@ -358,15 +359,14 @@ allocReg = pair Reg <$> allocResource bdRegGen 1
 allocFrmSlots :: int -> state bdSt ref
 allocFrmSlots n = pair Frm <$> allocResource bdFrmGen (n + 2)
 
-|| bind a Pvar name to a newly-allocated reg ref
+|| allocate a new reg ref and bind a Pvar name to it, if the pat is a Pvar
 makeRef :: pat -> state bdSt ref
-makeRef (Pvar n) st
-    = (r, st2)
+makeRef p
+    = allocReg >>= checkPat p
       where
-        (r, st1) = allocReg st
-        st2      = over bdLenv (m_insert cmpname n (Ref r)) st1
-
-makeRef _ _ = error "makeRef: non-Pvar"
+        checkPat Pwildcard r = st_pure r
+        checkPat (Pvar n)  r = st_pure r << bd_over bdLenv (m_insert cmpname n (Ref r))
+        checkPat _         _ = error "makeRef: non-PvarOrWild"
 
 || run a build function in a new lexical environment of Arg and Env refs,
 || restoring the environment afterwards. The first argument specifies the
@@ -554,8 +554,8 @@ buildCodeAltsNoCont sel topr alts
 || build the code to handle a call to a builtin function; these will all be single stgInsns
 || the destination ref to use is passed in, as it can be optimized to a new Reg ref in
 || certain cases (see buildCode for Ecase)
-buildCodeCallBuiltin :: name -> [expr] -> ref -> state bdSt stgInsn
-buildCodeCallBuiltin n args dst
+buildCodeCallBuiltin :: name -> [expr] -> [ref] -> state bdSt stgInsn
+buildCodeCallBuiltin n args dsts
     = go (getName n)
       where
         opr0      = makeOpr (args ! 0)
@@ -563,19 +563,23 @@ buildCodeCallBuiltin n args dst
         opr2      = makeOpr (args ! 2)
         zero      = makeImmOpr 0
 
-        opD0  op    = st_pure (op dst r0Opr)
-        opDS  op    = op dst       <$>   opr0
-        opDZS op    = op dst zero  <$>   opr0
-        opDSS op    = st_liftA2 (op dst) opr0 opr1
-        opSS  op    = st_liftA2 op       opr0 opr1
-        opSSS op    = st_liftA3 op       opr0 opr1 opr2
+        dst0      = dsts ! 0
+        dst1      = dsts ! 1
+
+        opD0  op    = st_pure (op dst0 r0Opr)
+        opDS  op    = op dst0       <$>   opr0
+        opDZS op    = op dst0 zero  <$>   opr0
+        opDSS op    = st_liftA2 (op dst0) opr0 opr1
+        opPSS op    = st_liftA2 (op dst0 dst1) opr0 opr1
+        opSS  op    = st_liftA2 op        opr0 opr1
+        opSSS op    = st_liftA3 op        opr0 opr1 opr2
 
         || primitive arithmetic operations on word#
         go "+#"               = opDSS Add
         go "-#"               = opDSS Sub
         go "*#"               = opDSS Mul
-        go "div#"             = opDSS Div
-        go "mod#"             = opDSS Mod
+        go "quotrem#"         = opPSS QuotRem
+        go "divmod#"          = opPSS DivMod
         go "cmp#"             = opDSS Cmp
         go "getTag#"          = opD0  Mov
 
@@ -619,7 +623,7 @@ buildCodeCallBuiltin n args dst
 buildCodeCall :: expr -> [expr] -> state bdSt [stgInsn]
 
 buildCodeCall (Evar f) args
-    = singleton <$> buildCodeCallBuiltin f args r0Ref, if isBuiltin f & ~isConstructor f
+    = singleton <$> buildCodeCallBuiltin f args [r0Ref], if isBuiltin f & ~isConstructor f
 
 buildCodeCall fe args
     = st_bind3 (makeOpr fe) (st_mapM makeOpr args) (lookupClosureInfo fe) mkCall
@@ -723,24 +727,22 @@ buildCode (Elet rec defs x e)
                     = st_pure ins,                    otherwise
 
 || match case evaluation of (non constructor) builtin primitives to an stgInsn, and bind the result
-|| to a newly-allocated ref. Evaluation of the scrutinee is a single instruction with word# operands
-|| that doesn't require a continuation to capture free vars.  Also, builtin primitives
-|| only return a single word# result (value or tag), so a single Pvar caseAlt is optimized
-|| here to a new Reg allocation, rather than creating a new thunk closure to hold the result
+|| to a newly-allocated ref or multiple refs. Evaluation of the scrutinee is a single instruction with word#
+|| operands that doesn't require a continuation to capture free vars. Also, builtin primitives
+|| only return word# results (value, tag, or tuple of words), so a Csingle caseAlts with all Pvar vars
+|| are optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
 buildCode (Ecase sel (Ecall (Evar fn) args) alts)
-    = mkDst >>= mkCode, if isBuiltin fn & ~isConstructor fn
+    = mkDsts sel alts >>= mkCode, if isBuiltin fn & ~isConstructor fn
       where
-        CaseAlt p e = hd alts
-        singleVar   = _eq cmpcaseSel sel Csingle & isPvar p
-        mkDst       = makeRef p, if  singleVar
-                    = st_pure r0Ref, otherwise
+        mkDsts Csingle [CaseAlt (Pvar p) e]     = (pair (Just e) . singleton) <$> makeRef (Pvar p)
+        mkDsts Csingle [CaseAlt (Pctor c ps) e] =  pair (Just e)              <$> st_mapM makeRef ps, if isBuiltinTuple c & all isPvarOrWild ps
+        mkDsts _       _                        =  pair Nothing               <$> st_pure [r0Ref]
 
-        mkCode dst
-            = st_liftA2 insMovs (buildCodeCallBuiltin fn args dst) buildAlts
+        mkCode (me, dsts)
+            = st_liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
               where
-                buildAlts
-                    = pair [] <$> buildCode e,                                                                    if singleVar
-                    = inLexEnv bdBuiltin [] [] (bd_set bdBuiltin True >> buildCodeAltsNoCont sel (Ref dst) alts), otherwise
+                buildAlts Nothing  = inLexEnv bdBuiltin [] [] (bd_set bdBuiltin True >> buildCodeAltsNoCont sel r0Opr alts)
+                buildAlts (Just e) = pair [] <$> buildCode e
 
         insMovs bi (movs, ais) = movs ++ (bi : ais)
 

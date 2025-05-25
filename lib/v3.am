@@ -59,12 +59,14 @@ v3_abs    a = v3_fmap abs a
 v3_neg    a = v3_fmap neg a
 v3_signum a = v3_fmap signum a
 
-v3_add, v3_sub, v3_mul, v3_div, v3_mod :: v3 int -> v3 int -> v3 int
-v3_add a b = v3_liftA2 (+) a b
-v3_sub a b = v3_liftA2 (-) a b
-v3_mul a b = v3_liftA2 (*) a b
-v3_div a b = v3_liftA2 div a b
-v3_mod a b = v3_liftA2 mod a b
+v3_add, v3_sub, v3_mul, v3_quot, v3_rem, v3_div, v3_mod :: v3 int -> v3 int -> v3 int
+v3_add  a b = v3_liftA2 (+)  a b
+v3_sub  a b = v3_liftA2 (-)  a b
+v3_mul  a b = v3_liftA2 (*)  a b
+v3_quot a b = v3_liftA2 quot a b
+v3_rem  a b = v3_liftA2 rem  a b
+v3_div  a b = v3_liftA2 div  a b
+v3_mod  a b = v3_liftA2 mod  a b
 
 v3_max, v3_min :: ordI * -> v3 * -> v3 * -> v3 *
 v3_max cmp a b = v3_liftA2 (max2 cmp) a b

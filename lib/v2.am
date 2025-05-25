@@ -57,12 +57,14 @@ v2_abs    a  = v2_fmap abs a
 v2_neg    a  = v2_fmap neg a
 v2_signum a  = v2_fmap signum a
 
-v2_add, v2_sub, v2_mul, v2_div :: v2 int -> v2 int -> v2 int
-v2_add a b = v2_liftA2 (+) a b
-v2_sub a b = v2_liftA2 (-) a b
-v2_mul a b = v2_liftA2 (*) a b
-v2_div a b = v2_liftA2 div a b
-v2_mod a b = v2_liftA2 mod a b
+v2_add, v2_sub, v2_mul, v2_quot, v2_rem, v2_div, v2_mod :: v2 int -> v2 int -> v2 int
+v2_add  a b = v2_liftA2 (+)  a b
+v2_sub  a b = v2_liftA2 (-)  a b
+v2_mul  a b = v2_liftA2 (*)  a b
+v2_quot a b = v2_liftA2 quot a b
+v2_rem  a b = v2_liftA2 rem  a b
+v2_div  a b = v2_liftA2 div  a b
+v2_mod  a b = v2_liftA2 mod  a b
 
 v2_max, v2_min :: ordI * -> v2 * -> v2 * -> v2 *
 v2_max cmp a b = v2_liftA2 (max2 cmp) a b

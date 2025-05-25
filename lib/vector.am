@@ -234,7 +234,7 @@ v_search cmp v
             = choose (cmp vl) (Just vl) Nothing (check vh),      if hi - lo < 2
             = choose (cmp vm) (Just vm) (go lo mid) (go mid hi), otherwise
               where
-                mid = (lo + hi) $div 2
+                mid = (lo + hi) $quot 2
                 vl  = v !! lo
                 vm  = v !! mid
                 vh  = v !! hi

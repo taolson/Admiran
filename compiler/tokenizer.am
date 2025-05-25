@@ -83,7 +83,7 @@ tokenizePos il ic cs
         c  : cs'  = cs
         c'        = hd cs'
         ic'       = ic + 1
-        ict       = (ic $div 8 + 1) * 8
+        ict       = (ic $quot 8 + 1) * 8
         il'       = il + 1
 
 isIdent, isSymbol :: char -> bool

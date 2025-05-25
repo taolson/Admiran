@@ -12,11 +12,12 @@ digits = 10_000
 step :: mvector int -> int -> int -> io int
 step mv 0 x = io_pure x
 step mv i x
-    = update >> v_unsafeRead mv i' >>= next
-      where
-        i'     = i - 1
-        update = case x $mod i of xm -> v_unsafeWrite mv i xm   || ensure the updated value is strict (not a lazy thunk)
-        next v = case 10 * v + x $div i of x' -> step mv i' x'  || ensure the next x value is strict
+    = case quotrem x i of
+        (q, r) -> update >> v_unsafeRead mv i' >>= next
+                  where
+                    i'     = i - 1
+                    update = case r of xm -> v_unsafeWrite mv i xm  || ensure the updated value is strict (not a lazy thunk)
+                    next v = case 10 * v + q of x' -> step mv i' x' || ensure the next x value is strict
 
 outer :: mvector int -> int -> int -> io ()
 outer mv n x

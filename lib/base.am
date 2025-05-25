@@ -101,9 +101,9 @@ odd  x = x .&. 1 == 1
 gcd, lcm :: int -> int -> int
 gcd x y
     = x,                if y == 0
-    = gcd y (x $mod y), otherwise
+    = gcd y (x $rem y), otherwise
 
-lcm x y = (x * y) $div (gcd x y)
+lcm x y = (x * y) $quot (gcd x y)
 
 
 || ordering functions

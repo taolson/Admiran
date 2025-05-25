@@ -42,7 +42,7 @@ serialPosInt n
     = go n 0 ""
       where
         go 0 sz dig = serialCtor sz . (dig ++)
-        go n sz dig = go ((div) n 10) (sz + 1) (decode ((mod) n 10 + code '0') : dig)
+        go n sz dig = go q (sz + 1) (decode (r + code '0') : dig) where (q, r) = quotrem n 10
 
 deserialPosInt :: deserializer int
 deserialPosInt
