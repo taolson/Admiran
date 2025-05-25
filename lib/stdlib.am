@@ -277,7 +277,7 @@ snd (a, b) = b
 || standard int functions
 
 || the the standard operators (+, -, *, /, div, mod) operate on
-|| boxed int values, while the builtin operators (+#, -#, *#, div#, and mod#)
+|| boxed int values, while the builtin operators (+#, -#, *#, quotrem#, and divmod#)
 || operate on unboxed word# values.  Boxing and unboxing are handled explicitly
 || here
 
@@ -303,6 +303,20 @@ showint n = showintBase 10 "" n
 (I# a#) +    (I# b#)  = case a# +# b# of w# -> I# w#
 (I# a#) -    (I# b#)  = case a# -# b# of w# -> I# w#
 (I# a#) *    (I# b#)  = case a# *# b# of w# -> I# w#
+
+|| Note on quotrem# and divmod# builtin functions returning multiple results:
+|| quotrem# and divmod# are defined to return two results: the quotient and the
+|| remainder.  To return the two values in an Admiran ast-compatible way,
+|| their types are defined to return a tuple of word# values.  However, this type
+|| definition is a fiction which persists in the compiler until the STG stage, where
+|| the AST is lowered to STG instructions.  There, any builtin function returning
+|| a tuple of values is replaced with a corresponding STG insn with multiple destination
+|| register specifiers.  Therefore, no heap allocation for the tuple occurs, and the
+|| individual quotient and remainder values are resolved to separate STG register values.
+|| It is important that the case alternative for a case evaluation of such a builtin
+|| function be an actual tuple constructor pattern, as opposed to a simple variable.
+|| While the later is legal and will type-check, it will result in an error when the
+|| STG lowering pass attempts to bind names to the multiple values returned.
 
 (I# a#) $quot 0       = error "attempt to divide by zero"
 (I# a#) $quot (I# b#) = case quotrem# a# b# of (q#, _) -> I# q#
