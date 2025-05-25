@@ -19,3 +19,5 @@ These were the resources I found most helpful when writing Admiran
 * ["Stream Fusion From Lists to Streams to Nothing at All"](https://www.cs.tufts.edu/~nr/cs257/archive/duncan-coutts/stream-fusion.pdf)
 
 * ["Simple Generational Garbage Collection"](https://www.cs.princeton.edu/~appel/papers/143.pdf)
+
+* ["Scrap your type classes"](https://www.haskellforall.com/2012/05/scrap-your-type-classes.html)
