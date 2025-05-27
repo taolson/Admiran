@@ -201,6 +201,10 @@ does nothing to the stgSt.
 
 
 --- stg ---
+It looks like the stack pointer handling in Sclosure and Fail isn't required; the stack always is in the same position during calls
+to Fail as it was during the Sclosure.  Might be able to be replaced with an easier mechanism; need to check against the join-point
+idea to see if it requires stack manipulation at all, and if it can be merged with the Fatbar/fail mechanism.
+
 code that has a lot of env vars passed down through a chain of thunks pushes and pops the entire list each thunk it goes through,
 even though, which causes a lot of push/pop insn generation in codegen.  Look at optimizing the stack for env save restores so we
 only push/pop the deltas and try to maintain the rest of the saved stack as much as possible (e.g. sorting the refs so the deepest

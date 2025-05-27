@@ -21,3 +21,5 @@ These were the resources I found most helpful when writing Admiran
 * ["Simple Generational Garbage Collection"](https://www.cs.princeton.edu/~appel/papers/143.pdf)
 
 * ["Scrap your type classes"](https://www.haskellforall.com/2012/05/scrap-your-type-classes.html)
+
+* ["Haskell 98 Revised Report"](https://www.haskell.org/onlinereport/)
