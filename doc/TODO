@@ -1,3 +1,8 @@
+--- demand ---
+demand analysis needs to be augmented with escape analysis in order to determine if a thunk
+can safely be marked as NoUpdate.  Escape analysis of a function should collect a set of
+"guaranteed local use" for the arguments, analogously to demand analysis.
+
 --- add command-line options for both compiler and runtime ---
 first, change config.m to export a Config data type, with lenses for the individual fields
 then add config to globalEnv, with a lens
