@@ -448,8 +448,8 @@ simplifyAst k (Elet b defs x e) st
                 fuel'      = sum (map (view defnAnCpx . snd) dead)
                 defs'      = m_fromList cmpname ds
                 notes      = ("increased fuel by " ++ showint fuel') : map (("eliminated " ++) .  showName . defnName . snd) dead
-                st'        = st,                                               if null dead
-                           = over inFuel (fuel' +) . foldr addInfo st $ notes, otherwise
+                st'        = st,                                                                       if null dead
+                           = over inFuel (fuel' +) . set inSimplified True . foldr addInfo st $ notes, otherwise
                 isUsed d   = view defnAnUses d - selfRefUse d > 0
 
                 || does a recursive defn still use itself, or has that been eliminated?
