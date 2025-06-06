@@ -31,6 +31,7 @@ exceptionInfo ::=
     IncorrDecl     defn  defn        |       || incorrect declaration (specified vs inferred type)
     NameClash      name              |       || previously-defined, qualified name (includes module info)
     NonExhaustive                    |       || non-exhaustive patterns in function
+    NotPairPat                       |       || case alternate pattern is not a pair
     NotType        name              |       || name is not defined as a type
     Occurs         int   texpr       |       || type var n occurs in its substitution (infinite type)
     QualBind       name              |       || qualified name in binding position
@@ -63,6 +64,7 @@ showsExceptionInfo (DepCycle s)         = shows "dependency cycle in " . shows s
 showsExceptionInfo (IncorrDecl d1 d2)   = shows "incorrect type declaration:\n    specified: " . showsAst d1 . shows "\n    inferred:  " . showsAst d2
 showsExceptionInfo (NameClash n)        = shows "name clash with " . showsName n
 showsExceptionInfo NonExhaustive        = shows "non-exhaustive patterns"
+showsExceptionInfo NotPairPat           = shows "case alternate pattern must be an explicit pair"
 showsExceptionInfo (NotType n)          = showsExName n . shows " is not a typename"
 showsExceptionInfo (Occurs n t2)        = shows "cannot construct the infinite type " . showsAst (Tvar n) . shows " ~ " . showsAst t2
 showsExceptionInfo (QualBind n)         = shows "qualified name in binding position: " . showsName n

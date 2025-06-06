@@ -306,6 +306,18 @@ mutRecErr ns
         info = Info $ "in mutually-recursive definition of " ++ s
 
 
+|| builtin type testing
+isTypeWord, isTypePairWord, isTypeFnPair :: texpr -> bool
+
+isTypeWord t = _eq cmptexpr t builtinTypeWord
+
+isTypePairWord (Ttuple [a, b]) = isTypeWord a & isTypeWord b
+isTypePairWord _               = False
+
+isTypeFnPair (Ttuple [_, _] $Tarr _) = True
+isTypeFnPair _                       = False
+
+
 || infer the type of an expr and return the inferred type and a substitution map, or report an error
 || note: infer performs an AST traversal, but we can't use the traversals provided in ast, because
 || typecheck uses a maybeState instead of just state.  Also, we aren't rewriting the ast, but we are
@@ -358,10 +370,15 @@ infer (Ecase x e alts)
     = tc_bind2 newTvar (inferList (e : alts)) f1
       where
         f1 tv ((t : ts), sm)
-            = tc_foldM unify' sm ts >>= f2 tv      || unify type of all alts to common type te -> *
+            = tc_foldM unifyPairWord sm ts >>= f2 tv, if isTypePairWord t       || special case restriction for builtins returning a pair of words
+            = tc_foldM unifyAlt      sm ts >>= f2 tv, otherwise                 || unify type of all alts to common type te -> *
               where
                 t2t'        = t $Tarr tv
-                unify' sm t = unify t t2t' sm
+                unifyAlt sm t = unify t t2t' sm
+
+                || caseAlts restricted to pair constructor patterns
+                unifyPairWord sm t = unify t t2t' sm,       if isTypeFnPair t
+                                   = tc_error $ NotPairPat, otherwise
 
         f1 _ _ = undef  || added to remove compiler warning
 
