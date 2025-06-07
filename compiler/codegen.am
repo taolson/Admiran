@@ -869,14 +869,14 @@ genInsn (DivMod dq dr a b)
       genOpcode    "movq" [x86rdx, cvtRef dr]    .
       genOpcode    "cmpq" [X86Imm 0, x86rdx]     .      || check if remainder is zero
       genJmpOpcode "jz"   (cvtJmpAddr "0f")      .      || if so, no fixup required
-      genOpcode    "movq" [cvtOpr b, x86MovTmp]  .
-      genOpcode    "sarq" [X86Imm 63, x86MovTmp] .      || sign of b extended as mask
+      genOpcode    "movq" [cvtOpr b, x86rax]     .
+      genOpcode    "sarq" [X86Imm 63, x86rax]    .      || sign of b extended as mask
       genOpcode    "sarq" [X86Imm 63, x86rdx]    .      || sign of rem extended as mask
-      genOpcode    "xorq" [x86rdx, x86MovTmp]    .      || mask if sign b ~= sign rem (adjustment required)
-      genOpcode    "addq" [x86MovTmp, cvtRef dq] .      || add adjustment to quotient (0 or -1)
-      genOpcode    "andq" [cvtOpr b, x86MovTmp]  .      || mask divisor (0 if no adjustment or d if adjustment)
-      genOpcode    "sarq" [x86MovTmp]            .      || untag divisor
-      genOpcode    "addq" [x86MovTmp, cvtRef dr] .      || add into remainder to correct for mod
+      genOpcode    "xorq" [x86rdx, x86rax]       .      || mask if sign b ~= sign rem (adjustment required)
+      genOpcode    "addq" [x86rax, cvtRef dq]    .      || add adjustment to quotient (0 or -1)
+      genOpcode    "andq" [cvtOpr b, x86rax]     .      || mask divisor (0 if no adjustment or d if adjustment)
+      genOpcode    "sarq" [x86rax]               .      || untag divisor
+      genOpcode    "addq" [x86rax, cvtRef dr]    .      || add into remainder to correct for mod
       shows "0:\n"                               .
       genOpcode    "shlq" [cvtRef dq]            .      || add Int tag bit (0) to quotient
       genOpcode    "shlq" [cvtRef dr]            .      || add Int tag bit (0) to remainder
