@@ -1,6 +1,15 @@
 || trieMap.am -- strict map from a key to a value, where the key is a list of elements
-|| this has higher performance than a regular map if the keys have common prefixes
+|| this has lower size / higher performance than a regular map if the keys have large common prefixes
 || implemented using Patricia tries, which are prefix tries with variable-sized prefixes
+||
+|| timing on insert / lookup for all of /usr/share/dict/words (~236K words):
+|| trieMap: insert = 1.260s, lookup = 0.993s
+|| map:     insert = 1.638s, lookup = 0.404s
+||
+|| trieMap is faster for insert, here, because no rebalancing required as in map
+|| map is faster for lookup, here, because the trieBranches have a lot of short, mostly single-character prefixes to compare
+||
+|| trieMap space is much smaller (about 1/3 the size) of map space, because duplicate prefix characters aren't copied
 
 
 %export +
@@ -16,9 +25,9 @@ trieBranch * ** == ([*], trie * **)
 || result of matching a key with a trieBranch 
 matchResult * ** ::=
     Mfail                               |
-    Mkey  (trie * **) [*] [*]           |  || match full prefix -- match, remaining key
-    Mpre  (trie * **) [*] [*]           |  || match full key    -- match, remaining prefix
-    Mpart (trie * **) [*] [*] [*]          || partial match     -- match,  remaining key, remaining prefix
+    Mkey  (trie * **) [*] [*]           |  || match full prefix -- t, remaining key, prefix
+    Mpre  (trie * **) [*] [*]           |  || match full key    -- t, key,           remaining prefix
+    Mpart (trie * **) [*] [*] [*]          || partial match     -- t, remaining key, remaining prefix, match
 
 || compare the key with the prefix key stored in the trieBranch
 tb_match :: ordI * -> [*] -> trieBranch * ** -> matchResult * **
@@ -26,11 +35,11 @@ tb_match cmp ks (ps, t)
     = go ks ps []
       where
         go (k : ks) (p : ps) m = go ks ps (k : m), if _eq cmp k p
-        go k p m
-            = Mfail,                    if null m
-            = Mkey  t k  ps,            if null p
-            = Mpre  t ks p,             if null m
-            = Mpart t k  p (reverse m), otherwise
+        go ks' ps' ms
+            = Mfail,                        if null ms
+            = Mkey  t ks' ps,               if null ps'
+            = Mpre  t ks  ps',              if null ks'
+            = Mpart t ks' ps' (reverse ms), otherwise
 
 || find a trieBranch prefix-matching the key
 tb_find :: ordI * -> [*] -> [trieBranch * **] -> matchResult * **
