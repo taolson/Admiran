@@ -558,8 +558,8 @@ Functions can be defined "piece-wise" using multiple consecutive function defini
 processed in-order, from top to bottom, until a pattern match for all pattern arguments is found, in
 which case the corresponding right-hand side expression is evaluated. If no pattern match is found,
 a runtime pattern match error occurs. Each definition in a multiple function definition must have the
-same number of pattern arguments, or a compiler Arity error occurs. A common example of a multiple
-definition function is matching on the two list constructors`[]` and `:`:
+same number of pattern arguments, or the compiler will report an Arity error. A common example of a
+multiple definition function is matching on the two list constructors`[]` and `:`:
 
     length []       = 0
     length (_ : xs) = 1 + length xs
