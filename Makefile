@@ -41,7 +41,7 @@ bin/amc: bin/amcStage2
 	mv compiler/amc bin/amc
 
 clean:
-	rm -rf compiler/*.x2 compiler/*.s lib/*.x2 lib/*.s
+	rm -rf compiler/*.x2 compiler/*.s lib/*.x2 lib/*.s tools/*.x2 tools/*.s examples/*.x2 examples/*.s
 
-distclean:
+distclean:	clean
 	rm -rf bin/* 
