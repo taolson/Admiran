@@ -64,7 +64,7 @@ names can be aliased in an `%import` directive to provide a shorthand for qualif
 
 Variable names and type names share the same namespace in Admiran. They are either
 
-* Alphanumeric strings which begin with a lower-case letter, `'`, or `_`, e.g.
+* Alphanumeric strings which begin with a lower-case letter or `_`, and can include `'` or `_` symbols, e.g.
   * `foo` `alphaBeta5'` `_eq`
 * Symbolic character strings which specify infix operator names, e.g.
   * `+` `>>=` `!!`
@@ -81,8 +81,8 @@ name clash, or to provide more documentation on the origin of the name, e.g. `st
 
 Constructor names are either
 
-* Alphanumeric strings which being with an upper-case letter, e.g.
-  * `Nothing` `Lit` `V2`
+* Alphanumeric strings which being with an upper-case letter, and can include `'` or `_` symbols, e.g.
+  * `Nothing` `Lit` `V2_`
 * Symbolic character strings beginning with `:` which specify infix constructors, e.g.
   * `:>` `:+:`
 
