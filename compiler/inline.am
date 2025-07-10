@@ -23,16 +23,18 @@
 
 
 || functions which don't return (call error and terminate)
-noReturnNames = map makeStdlibName ["exit", "error", "blackHole", "undef", "caseFail", "matchFail", "cmpFn"]
+noReturnNames = map makeStdlibName ["exit", "error#", "error", "blackHole", "undef", "caseFail", "matchFail", "cmpFn"]
 
 || functions we shouldn't inline
 isIOfn :: name -> bool
 isIOfn n = getModName n ==$ "io"
 
 || functions we shouldn't inline
+|| stdlib.getTag and stdlib.cmpTag need to force evaluation of arguments, but don't use the results
+|| (just the evaluated tag in R0), which gets thrown away via dead code elimination during inlining
 noInlineNames :: [name]
-noInlineNames = map makeStdlibName               ["trace", "getTag", "cmpTags"]                ++
-                map (Qualified streamModuleName) ["toStream", "fromStream", "readByteStreamS"] ++
+noInlineNames = map makeStdlibName               ["unsafeWriteStdErr", "trace", "getTag", "cmpTags"] ++
+                map (Qualified streamModuleName) ["toStream", "fromStream", "readByteStreamS"]       ++
                 noReturnNames
 
 || builtin functions that can be inlined by computing at compile-time
@@ -327,10 +329,13 @@ inlineAst k (Ecase b (Evar n) alts) st
     = k (Ecase b (Evar n) alts') st3, if isInternal n   || bind the name to the individual caseAlt patterns
     = k (Ecase b (Evar n) alts)  st,  otherwise         || don't do anything if the name is a top-level pat
       where
-        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & isSimple e & cpx <= inlineMaxFnComplexity
-        (md, _)      = lookupEnv n st
+        inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
+|| OLD        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & isSimple e & cpx <= inlineMaxFnComplexity
+        (md, cf)     = lookupEnv n st
         d            = fromJust md
+        uses         = view defnAnUses d
         cpx          = view defnAnCpx d
+        singleCpx    = uses == 1 & ~cf
         e            = fnExpr d
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
