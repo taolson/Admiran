@@ -212,14 +212,14 @@ tokenizeChar k il ic cs
 tokenizeEscapeChar :: (char -> tokenizer) -> tokenizer
 tokenizeEscapeChar k il ic [] = tokError "expected '" il ic
 tokenizeEscapeChar k il ic cs
+    = esc '\n',                         if c ==. 'n'    || ordered by most to least frequent to minimize testing
+    = esc '\t',                         if c ==. 't'
+    = esc '\r',                         if c ==. 'r'
+    = esc '\\',                         if c ==. '\\'
     = esc '\a',                         if c ==. 'a'
     = esc '\b',                         if c ==. 'b'
     = esc '\f',                         if c ==. 'f'
-    = esc '\n',                         if c ==. 'n'
-    = esc '\r',                         if c ==. 'r'
-    = esc '\t',                         if c ==. 't'
     = esc '\v',                         if c ==. 'v'
-    = esc '\\',                         if c ==. '\\'
     = tokenizeRadix 16 escn il ic1 cs1, if c ==. 'x'
     = tokenizeRadix 10 escn il ic  cs,  if digit c
     = esc c,                            otherwise

@@ -52,28 +52,28 @@
 
 || generate a C string with escaped characters
 || this is almost the same as Admiran's show for a string, except Admiran shows a single quote as escaped,
-|| which is not compatible with what other MacOS tools (asm) expect.  Also, it appears as if asm strings
-|| assume that numeric escape sequences eg '\27' are implicitly octal, so explicitly use an octal representaion,
-|| rather than decimal.
-
+|| which is not compatible with what other MacOS tools (asm) expect, and '\a' is not recognized.
+|| Also, it appears as if asm strings assume that numeric escape sequences eg '\27' are implicitly octal,
+|| so explicitly use an octal representaion, rather than decimal.
 genCString :: string -> showS
 genCString s
     = shows "\"" . foldr (.) id (map showsCchar s) . shows "\""
       where
         showsCchar c
-            = (s ++)
+            = ('\\' :) . (s' ++), if c <. ' ' \/ c ==. '\\' \/ c ==. '\"'
+            = ('\\' :) . (os ++), if c >. '~'
+            = (c :),              otherwise
               where
-                s = "\\a",                    if c ==. '\a'
-                  = "\\b",                    if c ==. '\b'
-                  = "\\f",                    if c ==. '\f'
-                  = "\\n",                    if c ==. '\n'
-                  = "\\r",                    if c ==. '\r'
-                  = "\\t",                    if c ==. '\t'
-                  = "\\v",                    if c ==. '\v'
-                  = "\\\\",                   if c ==. '\\'
-                  = "\\\"",                   if c ==. '\"'
-                  = [c],                      if ' ' <=. c <=. '~'
-                  = "\\" ++ showoct (code c), otherwise                 || .ascii string in asm appears to only support octal numeric escapes
+                os = showoct $ code c           || .ascii string in asm appears to only support octal numeric escapes
+                s' = "n",  if c ==. '\n'        || ordered by most to least frequent to minimize testing
+                   = "t",  if c ==. '\t'
+                   = "r",  if c ==. '\r'
+                   = "\\", if c ==. '\\'
+                   = "\"", if c ==. '\"'
+                   = "b",  if c ==. '\b'
+                   = "f",  if c ==. '\f'
+                   = "v",  if c ==. '\v'
+                   = os,   otherwise
 
 || Generate a name without annotations or uniquifying numbers
 || The names will appear in comments, but may themselves be symbols that look like comments.

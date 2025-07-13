@@ -436,20 +436,24 @@ showchar :: showI char
 showchar c = "'" ++ showCharUnquoted c ++ "'"
 
 || convert a character to a string without any quotes, used by showchar and showstring
-showCharUnquoted :: char -> string
+showCharUnquoted, showCharEscaped :: char -> string
 showCharUnquoted c
-    = "\\a",                    if c ==. '\a'
-    = "\\b",                    if c ==. '\b'
-    = "\\f",                    if c ==. '\f'
-    = "\\n",                    if c ==. '\n'
-    = "\\r",                    if c ==. '\r'
-    = "\\t",                    if c ==. '\t'
-    = "\\v",                    if c ==. '\v'
-    = "\\\\",                   if c ==. '\\'
-    = "\\\'",                   if c ==. '\''
-    = "\\\"",                   if c ==. '\"'
-    = [c],                      if ' ' <=. c <=. '~'
-    = "\\" ++ showint (code c), otherwise
+    = '\\' : showCharEscaped c, if c <. ' ' \/ c ==. '\\' \/ c ==. '\"' \/ c ==. '\''
+    = '\\' : showint (code c),  if c >. '~'
+    = [c],                      otherwise
+
+showCharEscaped c
+    = "n",            if c ==. '\n'     || ordered by most to least frequent to minimize testing
+    = "t",            if c ==. '\t'
+    = "r",            if c ==. '\r'
+    = "\\",           if c ==. '\\'
+    = "\"",           if c ==. '\"'
+    = "\'",           if c ==. '\''
+    = "a",            if c ==. '\a'
+    = "b",            if c ==. '\b'
+    = "f",            if c ==. '\f'
+    = "v",            if c ==. '\v'
+    = showint (code c), otherwise
 
 || define some comparison operators for char
 (C# a#) ==. (C# b#) = case a# $cmp# b# of 0# -> True;  _ -> False
