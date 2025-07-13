@@ -264,7 +264,7 @@ interleaveS (Stream nexta sa) (Stream nextb sb)
                 Skip sb'    -> Skip (True, sa, sb')
                 Yield b sb' -> Yield b (False, sa, sb')
 
-linesS, wordS :: stream char * -> stream [char] (smaybe [char])
+linesS, wordsS :: stream char * -> stream [char] (smaybe [char])
 linesS (Stream next st)
     = Stream next' (Sjust [])
       where
