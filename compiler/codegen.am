@@ -51,10 +51,10 @@
 || showS difference lists representing their corresponding x86-64 assembly-language
 
 || generate a C string with escaped characters
-|| this is almost the same as Admiran's show for a string, except Admiran shows a single quote as escaped,
-|| which is not compatible with what other MacOS tools (asm) expect, and '\a' is not recognized.
-|| Also, it appears as if asm strings assume that numeric escape sequences eg '\27' are implicitly octal,
-|| so explicitly use an octal representaion, rather than decimal.
+|| this is almost the same as Admiran's show for a string, except for handling the characters
+|| \a, \f, \v, which use their octal representation, and \', which is unquoted, as the MacOS / Linux
+|| assembler doesn't handle them. Also, asm strings assume that numeric escape sequences eg '\27' are
+|| implicitly octal, so explicitly use an octal representaion, rather than decimal.
 genCString :: string -> showS
 genCString s
     = shows "\"" . foldr (.) id (map showsCchar s) . shows "\""
@@ -71,8 +71,6 @@ genCString s
                    = "\\", if c ==. '\\'
                    = "\"", if c ==. '\"'
                    = "b",  if c ==. '\b'
-                   = "f",  if c ==. '\f'
-                   = "v",  if c ==. '\v'
                    = os,   otherwise
 
 || Generate a name without annotations or uniquifying numbers
