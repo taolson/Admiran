@@ -299,7 +299,7 @@ showint n = showintBase 10 "" n
 (I# a#) >= (I# b#) = case a# $cmp# b# of 1# -> False; _ -> True
 
 || arithmetic operations on word#
-(+), (-), (*), quot, rem, div, mod :: int -> int -> int
+(+), (-), (*) :: int -> int -> int
 (I# a#) +    (I# b#)  = case a# +# b# of w# -> I# w#
 (I# a#) -    (I# b#)  = case a# -# b# of w# -> I# w#
 (I# a#) *    (I# b#)  = case a# *# b# of w# -> I# w#
@@ -317,22 +317,17 @@ showint n = showintBase 10 "" n
 || function be an actual tuple constructor pattern, as opposed to a simple variable.
 || While the later is legal and will type-check, it will result in an error when the
 || STG lowering pass attempts to bind names to the multiple values returned.
-
-(I# a#) $quot 0       = error "attempt to divide by zero"
-(I# a#) $quot (I# b#) = case quotrem# a# b# of (q#, _) -> I# q#
-
-(I# a#) $rem 0        = error "attempt to rem with zero"
-(I# a#) $rem (I# b#)  = case quotrem# a# b# of (_, r#) -> I# r#
-
-(I# a#) $div 0        = error "attempt to divide by zero"
-(I# a#) $div (I# b#)  = case divmod# a# b# of (q#, _) ->  I# q#
-
-(I# a#) $mod 0        = error "attempt to mod with zero"
-(I# a#) $mod (I# b#)  = case divmod# a# b# of (_, r#) ->  I# r#
-
 quotrem, divmod :: int -> int -> (int, int)
+quotrem (I# a#) 0       = error "attempt to divide by zero"
 quotrem (I# a#) (I# b#) = case quotrem# a# b# of (q#, r#) -> (I# q#, I# r#)
+divmod  (I# a#) 0       = error "attempt to divide by zero"
 divmod  (I# a#) (I# b#) = case divmod#  a# b# of (q#, r#) -> (I# q#, I# r#)
+
+quot, rem, div, mod :: int -> int -> int
+a $quot b = case quotrem a b of (q, _) -> q
+a $rem  b = case quotrem a b of (_, r) -> r
+a $div  b = case divmod  a b of (q, _) -> q
+a $mod  b = case divmod  a b of (_, r) -> r
 
 || converse infix minus, needed because we cannot form postsections with '-', as it is ambiguous with prefix negate
 subtract :: int -> int -> int
