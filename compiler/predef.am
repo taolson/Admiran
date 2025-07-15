@@ -175,7 +175,6 @@ builtinSelName     = makeBuiltinName "sel"
 builtinNilName     = makeBuiltinName "Nil"      || use "Nil" instead of "[]" because it simplifies the test for a constructor name
 builtinConsName    = makeBuiltinName ":"        || begins with ":", so it matches the constructor name test
 builtinUnitName    = makeBuiltinName "Unit"     || use "Unit" instead of "()" because it simplifies the test for a constructor name
-builtinGetTagName  = makeBuiltinName "getTag#"
 builtinExitName    = makeBuiltinName "exit#"
 
 builtinTupleName :: int -> name
