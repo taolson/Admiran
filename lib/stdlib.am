@@ -375,22 +375,25 @@ product xs = foldl (*) 1 xs
 || conversions between int and string
 showintBase :: int -> string -> int -> string
 showintBase b p n
-    =       p ++ "0",        if n == 0
-    =       p ++ go [] n,    if n > 0
-    = '-' : p ++ showMinInt, if n == -n
-    = '-' : p ++ go [] (-n), otherwise
+    = case cmpint n 0 of
+        EQ ->       p ++ "0"
+        LT -> '-' : p ++ checkMinInt (-n)
+        GT ->       p ++ go [] n
       where
+        || handle minInt by splitting in quot and rem
+        showMinInt    = case quotrem n b of (q, r) -> go [hexDigit (-r)] (-q)
+
+        checkMinInt m = showMinInt, if n == m
+                      = go [] m,    otherwise
+
         || written using low-level word operations to prevent spurious range checks from decode
-        hexdigit (I# n#)
+        hexDigit (I# n#)
             = case n# $cmp# 10# of
-                2# -> case n# -# 10# of n'# -> case n'# +# 'a'# of c# -> C# c#
-                _  -> case n# +# '0'# of c# -> C# c#
+                1# -> case n# +# '0'# of c# -> C# c#
+                _  -> case n# -# 10# of n'# -> case n'# +# 'a'# of c# -> C# c#
 
         go ds 0 = ds
-        go ds n = case quotrem n b of (q, r) -> go (hexdigit r : ds) q
-
-        || handle minInt by splitting in quot and rem
-        showMinInt = case quotrem n b of (q, r) -> go [hexdigit (-r)] (-q)
+        go ds n = case quotrem n b of (q, r) -> go (hexDigit r : ds) q
 
 showhex, showoct, showbin :: int -> string
 showhex n = showintBase 16 "0x" n
