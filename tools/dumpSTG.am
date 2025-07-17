@@ -27,8 +27,8 @@ process fn
         fs = withSuffix "s" fn
 
         exists tsm
-            = error (fs ++ "required, but not found"), if tsm < 0
-            = readFile fs >>= dumpSTG,                 otherwise
+            = error (fs ++ " required, but not found"), if tsm < 0
+            = readFile fs >>= dumpSTG,                  otherwise
 
         dumpSTG = lines .> map classify .> catMaybes .> io_mapM_ (showstg .> putStrLn)
 
