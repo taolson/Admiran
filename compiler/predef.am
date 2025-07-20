@@ -235,6 +235,7 @@ builtinWriteFile        = makeBuiltinVar "writeFile#"
 builtinMtimeFile        = makeBuiltinVar "mtimeFile#"
 builtinGetArg           = makeBuiltinVar "getArg#"
 builtinSystemCmd        = makeBuiltinVar "systemCmd#"
+builtinClock            = makeBuiltinVar "clock#"
 builtinUnit             = makeBuiltinVar "Unit"
 builtinNil              = makeBuiltinVar "Nil"
 builtinCons             = makeBuiltinVar ":"
@@ -250,7 +251,7 @@ builtinEnv
                           builtinAllocArray, builtinFillArray, builtinCopyArray, builtinReadArray, builtinWriteArray,
                           builtinGetTag,
                           builtinExit, builtinOpenFileRead, builtinOpenFileWrite, builtinOpenFileAppend, builtinCloseFile,
-                          builtinReadFile, builtinWriteFile, builtinMtimeFile, builtinGetArg, builtinSystemCmd
+                          builtinReadFile, builtinWriteFile, builtinMtimeFile, builtinGetArg, builtinSystemCmd, builtinClock
                         ]
       where
         || insert both qualified and unqualified names
@@ -311,6 +312,7 @@ builtinSpecs
                 , "mtimeFile#        :: word# -> word#"                 || get the modification timestamp for a file (or 0, if non-existent)
                 , "getArg#           :: word# -> word#"                 || get arg count [0] or argument readStream [1 .. argc -1]
                 , "systemCmd#        :: word# -> word#"                 || execute the shell command specified by a bytStream and return its int result
+                , "clock#            :: word# -> word#"                 || return the current user time clock (usec); argument is unused to force function
                 ]
         insertSpec m d = m_insert cmpname (defnName d) d m
 

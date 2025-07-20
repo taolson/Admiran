@@ -176,16 +176,17 @@ stgInsn ::=
     ReadArray   ref opr opr             |    || ref := value from the array ref [opr1] at index [opr2]
     WriteArray  opr opr opr             |    || write value [opr3] to array ref [opr1] at index [opr2]
 
-    || primitive system operations           || 0: exit
-                                             || 1: openFileRead
-                                             || 2: openFileWrite
-                                             || 3: openFileAppend
-                                             || 4: closeFile
-                                             || 5: readFile
-                                             || 6: writeFile
-                                             || 7: mtimeFile
-                                             || 8: getArg
-                                             || 9: systemCmd
+    || primitive system operations           ||  0: exit
+                                             ||  1: openFileRead
+                                             ||  2: openFileWrite
+                                             ||  3: openFileAppend
+                                             ||  4: closeFile
+                                             ||  5: readFile
+                                             ||  6: writeFile
+                                             ||  7: mtimeFile
+                                             ||  8: getArg
+                                             ||  9: systemCmd
+                                             || 10: clock
     SystemOp    int ref opr
 
 
@@ -615,6 +616,7 @@ buildCodeCallBuiltin n args dsts
         go "mtimeFile#"       = opDS  (SystemOp 7)
         go "getArg#"          = opDS  (SystemOp 8)
         go "systemCmd#"       = opDS  (SystemOp 9)
+        go "clock#"           = opDS  (SystemOp 10)
 
         go s                  = error ("buildCodeCallBuiltin: missing definition for builtin " ++ s)
 
@@ -729,8 +731,8 @@ buildCode (Elet rec defs x e)
 || match case evaluation of (non constructor) builtin primitives to an stgInsn, and bind the result
 || to a newly-allocated ref or multiple refs. Evaluation of the scrutinee is a single instruction with word#
 || operands that doesn't require a continuation to capture free vars. Also, builtin primitives
-|| only return word# results (value, tag, or tuple of words), so a Csingle caseAlts with all Pvar vars
-|| are optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
+|| only return word# results (value, tag, or tuple of words), so a Csingle caseAlt with all Pvar vars
+|| is optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
 buildCode (Ecase sel (Ecall (Evar fn) args) alts)
     = mkDsts sel alts >>= mkCode, if isBuiltin fn & ~isConstructor fn
       where
@@ -849,22 +851,14 @@ buildCode d
                 fns        = filter isInternal . s_toList . view anFree $ an    || names of free var references
                 bhInst     = Update r2Opr (Imm (Caddr blackHolePtr))            || update thunk to blackHole trampoline during evaluation
                 contInst   = PushCont updatePtr [r2Opr]                         || push a continuation to update thunk with result
-                noUpdate   = isCtorCall e || DEBUG \/ isNormThunk p
+                noUpdate   = isCtorCall e \/ ~s_null (view anStrict an)         || ctor or marked as no-update from demand analysis
                 mkCode eis = eis,                     if noUpdate
                 mkCode eis = bhInst : contInst : eis, otherwise
 
-                || simple stand-in for no-update check on a DefPat -- should be expanded with demand/escape
-                || analysis, but for now, just don't perform updates on thunks that are simple constructor
-                || calls since constructors are WHNF already and don't evaluate their args
+                || don't perform updates on thunks that are simple constructor calls
+                || since constructors are WHNF already and don't evaluate their args
                 isCtorCall (Ecall (Evar n) args) = isConstructor n
                 isCtorCall e                     = False
-
-                || the idea here is that thunks created during normalization aren't explicitly
-                || shared, but that's not correct, since they are args to an Ecall that could
-                || escape and share the arg.  So this check is disabled, above, but left here
-                || to see if it can be further refined
-                || isNormThunk (Pvar n) = isInternal n & "`thunk" $isPrefixOf getName n
-                || isNormThunk p        = False
 
         buildCodeDef _ = st_pure []     || no other Defn types should exist, here, but added to remove compiler warning
 

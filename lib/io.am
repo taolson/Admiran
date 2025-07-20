@@ -129,6 +129,10 @@ systemCmd cmd world
                 _ -> case systemCmd# s# of
                        r# -> (I# r#, world)
 
+|| get the current user time (usec)
+clock :: io int
+clock world = case clock# 0# of r# -> (I# r#, world)
+
 
 || operations on stdin, stdout, stderr
 
