@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -143,15 +144,19 @@ int     sysArgc;
 char ** sysArgv;
 
 // stats
-int gcMinorCount;
-int gcMajorCount;
-int gcMinorInterval;
-int gcRootsOverflowCount;
-int applyCount;
-int overAppliedCount;
-int underAppliedNoArgsCount;
-int underAppliedPapCount;
-int applyPapCount;
+int     gcMinorCount;
+int     gcMajorCount;
+int     gcMinorInterval;
+int     gcRootsOverflowCount;
+int     applyCount;
+int     overAppliedCount;
+int     underAppliedNoArgsCount;
+int     underAppliedPapCount;
+int     applyPapCount;
+clock_t startTime;
+clock_t admiranTime;
+clock_t gcMinorTime;
+clock_t gcMajorTime;
 
 void statsInit ()
 {
@@ -164,14 +169,35 @@ void statsInit ()
   underAppliedNoArgsCount = 0;
   underAppliedPapCount    = 0;
   applyPapCount           = 0;
+  startTime               = 0;
+  admiranTime             = 0;
+  gcMinorTime             = 0;
+  gcMajorTime             = 0;
+}
+
+// add the current execution time duration to a time bin
+void tallyTime (clock_t *bin)
+{
+  clock_t curTime = clock ();
+
+  *bin += curTime - startTime;
+  startTime = curTime;
 }
 
 void finish (int status)
 {
+  clock_t totalTime;
+
+  tallyTime (&admiranTime);
+  totalTime   = admiranTime + gcMinorTime + gcMajorTime;
+
 #if SHOW_STATS
-  printf ("*** gcMinors: %d gcMajors: %d gcRootsOverflow: %d\n", gcMinorCount, gcMajorCount, gcRootsOverflowCount);
-  printf ("applyCount: %d \noverAppliedCount: %d \nunderAppliedCount: %d \napplyPapCount: %d\n",
-          applyCount, overAppliedCount, underAppliedPapCount, applyPapCount);
+  printf ("*** admiran time: %lu usec (%.1f%%)\n", admiranTime, 100.0 * admiranTime / totalTime);
+  printf ("*** gcMinors: %d gcMinor time: %lu usec (%.1f%%)\n", gcMinorCount, gcMinorTime, 100.0 * gcMinorTime / totalTime);
+  printf ("*** gcMajors: %d gcMajor time: %lu usec (%.1f%%)\n", gcMajorCount, gcMajorTime, 100.0 * gcMajorTime / totalTime);
+  printf ("*** gcRootsOverflow: %d\n", gcRootsOverflowCount);
+  printf ("gcRootsOverflowCount: %d\napplyCount: %d\noverAppliedCount: %d\nunderAppliedCount: %d\napplyPapCount: %d\n",
+          gcRootsOverflowCount, applyCount, overAppliedCount, underAppliedPapCount, applyPapCount);
 #endif
   exit (status);
 }
@@ -530,15 +556,16 @@ void gcMinor ()
 {
   value *copyBase = gcOldAlloc;         // base of oldspace memory we are copying into from newspace
 
+
 #if GC_DEBUG > 1
   printf ("\n*** gcMinor ***\n");
-  printf ("gcRequestSize: %lu\n", gcRequestSize);
+  printf ("gcRequestSize: %llu\n", gcRequestSize);
   printf ("stack size: %#lx\n", gcMaxStack - Stk);
   printf ("roots list size before gc: %#lx\n", gcOldBase + gcMaxMem - gcRootsAlloc);
   printf ("gcOldBase  = %p\ngcOldAlloc = %p\ngcNewBase  = %p\ngcNewAlloc = %p\ngcHeapTop  = %p\n",
           gcOldBase, gcOldAlloc, gcNewBase, gcNewAlloc, gcHeapTop);
 #endif
-
+  tallyTime (&admiranTime);
   ++gcMinorCount;
   ++gcMinorInterval;
   if (gcRootsAlloc <= gcHeapTop) {
@@ -557,6 +584,8 @@ void gcMinor ()
   printf ("new space free %#lx\n", gcHeapTop - gcNewAlloc);
   printf ("\n");
 #endif
+
+  tallyTime (&gcMinorTime);
 
   // If the tracing ends up straddling the halfspace, we need to perform a gcMajor.
   // Since the newspace we just copied has already been traced (we know its live), we use it as the base of
@@ -619,6 +648,7 @@ void gcMajor (value *copyBase)
     gcGrowHeap ();
   }
   gcMinorInterval = 0;  // reset the gcMinorInterval count now that we have performed a gcMajor and checked for heap growth
+  tallyTime (&gcMajorTime);
 }
 
 // attempt to grow the heap, or fail with out of memory
@@ -941,6 +971,15 @@ void sysCmd (value rd, value sval)
 }
 
 
+// get the current user time (usec)
+void sysClock (value rd, value sval)
+{
+  clock_t curTime = clock ();
+
+  Reg[untagWord (rd)] = tagWord (curTime);
+}
+
+
 // perform a system operation
 void systemOp (value op, value rd, value sval)
 {
@@ -982,6 +1021,10 @@ void systemOp (value op, value rd, value sval)
     sysCmd (rd, sval);
     break;
 
+  case 10:
+    sysClock (rd, sval);
+    break;
+
   default:
     fprintf (stderr, "*** systemOp %d not implemented\n", uop);
     exit (1);
@@ -1002,8 +1045,9 @@ int main (int argc, char **argv)
   setvbuf (stdout, NULL, _IONBF, BUFSIZ);
   heapInit ();
   statsInit ();
-  Stk    = gcMaxStack;
-  Arg[0] = GetStartClosure ();
+  Stk       = gcMaxStack;
+  Arg[0]    = GetStartClosure ();
+  startTime = clock ();
   EnterAdmiran ();
 
   // unreached
