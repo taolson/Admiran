@@ -736,7 +736,7 @@ buildCode (Elet rec defs x e)
 buildCode (Ecase sel (Ecall (Evar fn) args) alts)
     = mkDsts sel alts >>= mkCode, if isBuiltin fn & ~isConstructor fn
       where
-        mkDsts Csingle [CaseAlt (Pvar p) e]     = (pair (Just e) . singleton) <$> makeRef (Pvar p)
+        mkDsts Csingle [CaseAlt p e]            = (pair (Just e) . singleton) <$> makeRef p, if isPvarOrWild p
         mkDsts Csingle [CaseAlt (Pctor c ps) e] =  pair (Just e)              <$> st_mapM makeRef ps, if isBuiltinTuple c & all isPvarOrWild ps
         mkDsts _       _                        =  pair Nothing               <$> st_pure [r0Ref]
 
