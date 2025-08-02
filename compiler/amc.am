@@ -109,6 +109,7 @@ buildModule mm n
             , analyze                     || free var analysis for rewrite
             , rewrite                     || organize Elets for typecheck, cleanup and general optimizations   
             , analyzeWarn                 || re-do free var analysis after rewrite and check for unused variables and non-exhaustive patterns
+            , reifyWilds                  || rewrite Ecalls with wildcard args to partial applications of a new lambda fn
             , reifySyns                   || expand type synonyms to base types, checking for cycles
             , reifyTypes                  || expand specs and dataDefs with expanded type synonyms
             , typecheck                   || type check the module

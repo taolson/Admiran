@@ -1,7 +1,7 @@
 || reify.am -- module environment reification of includes, exports, and expansion of type synonyms
 
 
-%export reifyImports reifyDefns reifyDefAbs reifyExports reifySyns reifyTypes
+%export reifyImports reifyDefns reifyDefAbs reifyExports reifySyns reifyTypes reifyWilds
 
 %import <base>
 %import <either>
@@ -104,17 +104,43 @@ tsSt == ((globalEnv, [exception]), locInfo)
 tsGenv     = composeLens lensFst lensFst
 tsErrs     = composeLens lensFst lensSnd
 tsLoc      = lensSnd
+tsLocation = composeLens tsLoc locInfoLocation
 
-genvModDefns = genvMod $composeLens modDefns
-genvModSpecs = genvMod $composeLens modSpecs
-tsModDefns   = tsGenv  $composeLens genvModDefns
-tsModSpecs   = tsGenv  $composeLens genvModSpecs
+genvModDefns = composeLens genvMod modDefns
+genvModSpecs = composeLens genvMod modSpecs
+tsModDefns   = composeLens tsGenv  genvModDefns
+tsModSpecs   = composeLens tsGenv  genvModSpecs
+tsGen        = composeLens tsGenv  genvGen
 
 initTsSt :: globalEnv -> tsSt
 initTsSt genv = ((genv, []), emptyLocInfo)
 
 addTsErr :: exceptionInfo -> locInfo -> tsSt -> tsSt
 addTsErr ei loc = over tsErrs ((Error, ei, loc) :)
+
+|| expand Ecalls with wildcard args to partial applications of a new lambda fn
+expandWild :: astRewriter tsSt
+expandWild (Ecall f args) st
+    = (letLam, st'),      if any isWildEvar args
+    = (Ecall f args, st), otherwise
+      where
+        gen        = view tsGen st
+        an         = locAnno . fromMaybe emptyLocation . view tsLocation $ st
+        (gen1, nl) = genName "lam" gen
+        (gen2, nv) = genName "var" gen1
+        args'      = map substWild args
+        lam        = DefFn nl [Pvar nv] (Ecall f args') an
+        letLam     = Elet False (m_singleton nl lam) [] (Evar nl)
+        st'        = set tsGen gen2 st
+
+        isWildEvar (Evar n) = isWildcard n
+        isWildEvar _        = False
+
+        substWild a = Evar nv, if isWildEvar a
+                    = a,       otherwise
+
+expandWild a st = (a, st)
+
 
 || expand references to type synonyms in a texpr
 expand :: astRewriter tsSt
@@ -231,3 +257,19 @@ reifyDefAbs genv
                 d = DefData tf [] an
 
         update _ _ = undef      || added to remove compiler warning
+
+|| reify Ecalls with wildcard args to partial applications of a new lambda fn
+reifyWilds :: globalEnv -> excpt globalEnv
+reifyWilds genv
+    = ex_return (view tsGenv st) warns, if null errs
+    = ex_errs   errs,                   otherwise
+      where
+        defs          = m_elems . view genvModDefns $ genv
+        st            = foldl update (initTsSt genv) defs
+        (errs, warns) = partition isError (view tsErrs st)
+
+        update st d
+            = over tsModDefns (insDefnMapUnchecked d') st'
+              where
+                loc       = defnLocInfo d
+                (d', st') = astRewriteTD expandWild d (set tsLoc loc st)
