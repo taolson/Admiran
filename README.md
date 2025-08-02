@@ -42,8 +42,7 @@ in the original Miranda language:
 * Monadic IO scheme instead of sys_message streams
 * User-defined infix operators and infix constructors
 * Wildcards in pattern matching
-* Typed "holes" to have the type checker report the type of a specified hole in a type spec
-or expression
+* Generalized partial application of functions using wildcard placeholder variables
 * Case expressions
 * Names can be qualified with their module name
 * Module imports can be qualified only, or renamed
@@ -51,6 +50,8 @@ or expression
 * Underscores allowed in integer literals
 * Automatically-derived instances of ord (comparison) and show instances for user-defined
   data types and type aliases
+* Typed "holes" to have the type checker report the type of a specified hole in a type spec
+or expression
 
 ### Differences from Haskell
 
