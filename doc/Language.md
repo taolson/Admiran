@@ -291,8 +291,8 @@ on a binary `-`. To perform the later, the standard library function `subtract` 
 Partial applications of a function can be generalized by writing a function application with one or
 more arguments replaced with a wildcard `_`.  The function application is turned into the partial
 application of a new unary function, where the function's argument replaces the wildcards in the
-original function application.  For example, `map (_ + 1) xs` is equivalent to the presection
-`map (+ 1) xs`, and `f 1 _ 3` is equivalent to
+original function application.  For example, `map (_ + 1) xs` is equivalent to using the postsection
+form of `(+)` in `map (+ 1) xs`, and `f 1 _ 3` is equivalent to
 
     go
     where
