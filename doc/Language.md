@@ -274,7 +274,7 @@ function. For example, mapping the `max` of `a` to all the values in a list:
 
 ### Sections
 
-Infix operators can also be curried using the special notation of *presections* and *postsections*.
+Infix operators can also be partially-applied using the special notation of *presections* and *postsections*.
 A presection, written as ( *e* *op* ), uses the expression *e* as the left-hand side of the binary
 operation *op*, and returns a function which takes an argument for the right-hand side. A
 postsection, written as ( *op* *e* ), uses the expression *e* as the right-hand side of *op*, and
