@@ -21,9 +21,7 @@ parse :: parser * -> [char] -> (maybe *, psSt)
 parse p cs = p (1#, 1#, cs)
 
 p_error :: psSt -> [char]
-p_error (il, ic, cs)
-    = "no error",                                                                 if null cs
-    = "parse failed near line " ++ showint (I# il) ++ " col " ++ showint (I# ic), otherwise
+p_error (il, ic, cs) = "parse failed near line " ++ showint (I# il) ++ " col " ++ showint (I# ic)
 
 || alternative interface
 || note: a simple alias to maybeState mst_alt can't be used, here, because we need to return the
