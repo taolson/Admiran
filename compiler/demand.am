@@ -1,5 +1,5 @@
 || demand.am -- perform demand analysis on an AST, annotating DefFns with the strictness info of their vars,
-||              and marking thunks which are demanded to NoUpdate (anStrict == s_singleton (-1))
+||              and marking thunks which are demanded to NoUpdate (anStrict == s_singleton (0))
 
 
 %export demand
@@ -37,9 +37,6 @@ dmNotes = lensTup4_3
 
 initDmSt :: globalEnv -> dmSt
 initDmSt genv = (genv, m_empty, s_empty, [])
-
-|| lens for accessing the strict field of a defn anno
-defnAnnoStrict = lensAnno $composeLens anStrict
 
 || lift lens operations into dmSt
 dm_view :: lens dmSt * -> state dmSt *
@@ -83,7 +80,7 @@ lookupDemand n
             = fromMaybe s_empty mds,               otherwise
               where
                 arity = fromJust (lookupArity genv n)
-                mds   = m_lookup cmpname n dm <|>? view defnAnnoStrict <$>? lookupDefn genv n
+                mds   = m_lookup cmpname n dm <|>? view defnAnStrict <$>? lookupDefn genv n
 
 
 || traverse the AST, collecting the Evar names that are encountered on the strict evaluation path
@@ -105,15 +102,15 @@ demandAst k (Elet rec defs pats e)
         || find the demand for the expr (on the strict evaluation path)
         doExpr defs' = pair defs' <$> astRewriteTDCont demandAst e
 
-        || otherwise, return the Elet with the newly-annotated defs and expr, marking
-        || DefPats that are demanded single-use or are simple Ctor calls with a [-1] in their strictness anno field
+        || return the Elet with the newly-annotated defs and expr, marking DefPats that are demanded
+        ||single-use or are simple Ctor calls with a non-null strictness field [0]
         mkStrictPat (defs', e')
             = dm_view dmNames >>= checkPat
               where
                 (dn, d)  = m_first defs'         || the rewrite pass has made all non-recursive Elets singletons, so we only need to check the first
                 loc      = view defnAnLoc d
                 uses     = view defnAnUses d
-                d'       = set defnAnStrict (s_singleton (-1)) d
+                d'       = set defnAnStrict (s_singleton 0) d
 
                 isCtorCall (Ecall (Evar n) args) = isConstructor n
                 isCtorCall a                     = False
