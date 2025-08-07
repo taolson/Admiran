@@ -43,6 +43,7 @@ exceptionInfo ::=
     UnboxedPat                       |       || pattern type cannot be an unboxed value
     Undefined      name              |       || undefined name referenced
     Unify          texpr texpr       |       || cannot unify types
+    UnknownArity                     |       || cannot determine arity of function in generalized partial application
     Unreachable    pat               |       || pattern for function definition is redundant (unreachable)
     Unsupported    string            |       || unsupported feature
     Unused         name              |       || local definition unused
@@ -76,6 +77,7 @@ showsExceptionInfo (UnboundTvar n)      = shows "unbound type var " . showsAst (
 showsExceptionInfo UnboxedPat           = shows "pattern type cannot be an unboxed value"
 showsExceptionInfo (Undefined n)        = showsExName n . shows " is undefined"
 showsExceptionInfo (Unify t1 t2)        = shows "cannot unify\n\t" . showsAst t1 . shows "\n    with\n\t" . showsAst t2
+showsExceptionInfo UnknownArity         = shows "cannot determine arity of function in generalized partial application"
 showsExceptionInfo (Unreachable p)      = shows "unreachable pattern"
 showsExceptionInfo (Unsupported s)      = shows s . shows " is unsupported"
 showsExceptionInfo (Unused n)           = showsExName n . shows " is unused"

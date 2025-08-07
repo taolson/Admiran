@@ -41,9 +41,10 @@ in the original Miranda language:
 
 * Monadic IO scheme instead of sys_message streams
 * User-defined infix operators and infix constructors
+* Case expressions
+* Lambda expressions
 * Wildcards in pattern matching
 * Generalized partial application of functions using wildcard placeholder variables
-* Case expressions
 * Names can be qualified with their module name
 * Module imports can be qualified only, or renamed
 * Unboxed ints, chars, and strings

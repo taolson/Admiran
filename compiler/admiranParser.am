@@ -6,6 +6,8 @@
 ||     wildcard pattern matches with _, e.g. (_ : xs') = xs
 ||
 ||     case .. of .. expressions supported for constructors and unboxed integers, e.g. case xs of [] -> 0; x : xs' -> 1;
+||
+||     lambda expressions for anonymous functions: \<pats> -> <expr>
 
 
 %export parse parseExpr
@@ -182,6 +184,7 @@ p_simple
     = p_formalSimple    <|>
       p_parenExpr p_exp <|>
       p_caseExpr        <|>
+      p_lambdaExpr      <|>
       p_comprehension   <|>
       p_listExpr  p_exp <|>
       p_postSection     <|>
@@ -303,6 +306,24 @@ p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs)
 
 p_caseExpr :: parser expr
 p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_exp) (p_ident "of" *> p_inLayout (p_some p_caseAlt))
+
+|| to parse a pattern in a lambda expr, we need to split out simple Pvars from more complex patterns, and only
+|| allow complex patterns within parenthesis. Otherwise attempting to parse a list of patterns runs into the
+|| issue that the list looks like a fnform in p_pat.
+p_lambdaPat :: parser pat
+p_lambdaPat = (Pvar <$> p_var) <|> p_inParens p_pat
+
+|| parse an anonymous lambda expr by converting it to an Elet of a new function definition with a unique name
+p_lambdaExpr :: parser expr
+p_lambdaExpr
+    = p_liftA3 mkLambda p_getLoc (p_sym "\\" *> p_some p_lambdaPat) (p_sym "->" *> p_exp)
+      where
+        mkLambda loc vars e
+            = (Elet False (m_singleton ln dm) [] (Evar ln))
+              where
+                ln = Internal "!lam" 0
+                d  = DefFn ln vars e (locAnno loc)
+                dm = DefMult Mfun [d]                   || insert the defn into a DefMult so that the desugaring pass will desugar complex pats
 
 || parse a conditional expression for the given expr
 p_cond :: expr -> parser cond
