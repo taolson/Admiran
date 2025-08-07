@@ -165,20 +165,21 @@ A semicolon (`;`) can be used to specify the end of a construct instead of inden
 
 ## Expressions
 
-A Admiran expression is a sequence of term expressions and function applications
+An Admiran expression is a sequence of term expressions and function applications
 interleaved with infix operators. Term expressions can be:
 
 * a variable, constructor, or literal
+* a tuple
 * a parenthesized expression
 * a presection or postsection
 * a generalized partial application
 * a list expression
-* a tuple expression
 * a range expression
 * a list comprehension
 * a case expression
+* a lambda expression
 
-which are detailed in later sections.
+which are detailed below.
 
 ### Operator Precedence and Associativity
 
@@ -272,7 +273,7 @@ function. For example, mapping the `max` of `a` to all the values in a list:
 
     map (max a) [1 .. 10]
 
-### Sections
+### Presections and Postsections
 
 Infix operators can also be partially-applied using the special notation of *presections* and *postsections*.
 A presection, written as ( *e* *op* ), uses the expression *e* as the left-hand side of the binary
@@ -452,6 +453,19 @@ after the `of` setting the indentation for the rest of the case alternatives. Ca
 can also be placed on the same line, separated by a semicolon:
 
     case boolval of False -> "f"; True -> "t"
+
+### Lambda Expressions
+
+Admiran supports inline anonymous function definitions with a *lambda* expression of the form
+`\ <lambdaPats> -> <expr>`, e.g.
+
+    foo x = \y (z : zs) -> x + y + z : zs
+
+where `<lambdaPats>` is a non-zero length list of space separated patterns that bind argument names.
+A lambdaPat can be a complex pattern, such as a list constructor, tuple constructor, or other constructor
+pattern, enclosed within parenthesis, as shown in the example above with the pattern `(z : zs)`.  A lambdaPat
+can be a refutable pattern, in which case a run-time check is added which will fail with an error if the pattern
+is not matched (see more on pattern matching below).
 
 ### Pattern Matching
 
