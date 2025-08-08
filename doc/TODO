@@ -1,7 +1,26 @@
---- demand ---
-demand analysis needs to be augmented with escape analysis in order to determine if a thunk
-can safely be marked as NoUpdate.  Escape analysis of a function should collect a set of
-"guaranteed local use" for the arguments, analogously to demand analysis.
+--- Strictness / Escape analysis for thunks ---
+Extraneous updates for thunks that don't require one cause a lot of memory pressure in iterative loops, since the
+update isn't performed until the entire loop is finished.  Need to perform a strictness / escape analysis on thunks
+to mark them as NoUpdate if they aren't shared and don't escape the loop.
+
+Demand analysis to determine if "single-use" thunks are demanded fails when the single use
+is to pass the thunk to a recursive function, e.g.:
+
+|| arg x is demanded, since it is passed as an argument to "go", where it
+|| is in the demand set
+foo x
+    = go 0 x
+      where
+        || both args n and m are demanded, because they are tested for equality in the condition
+        go n m = n, if n == m
+               = go (n + 1) m, otherwise
+
+|| thunk n here is "single-use" to foo, and is in the demandSet for foo
+bar = foo n where n = sum [1 .. 1_000]
+
+instead, the demand set for a function's args should qualify that it is both demanded and
+single-use inside the function, where single-use can't be to a recursive function?
+
 
 --- add command-line options for both compiler and runtime ---
 first, change config.m to export a Config data type, with lenses for the individual fields
@@ -19,18 +38,6 @@ compiler options:
     -streamFusion <TF>
     -useSel <TF>
     -eagerCtors <TF>
-
-
---- add lambdas to language ---
-
-grammar:       add (Elam [pat] expr anno) to ast; add Elam to showAst (need anno for free var analysis)
-ast:           add Elam to astRewriteSubs and astAccumSubs
-admiranParser: add a p_lam to parse lambdas with "\" (p_many p_pat) p_exp; add p_lam to p_simple
-desugar:       add Elam, calling match on pats
-serialize:     add Elam as new ctor to serial / deserial
-rename:        add Elam (rename def pats)
-analyze:       add Elam for free var analysis and usage
-stg:           add Elam to generate a new code section
 
 
 --- advent 2024 bugs and performance regressions ---
@@ -51,16 +58,6 @@ sys     0m0.030s                    sys     0m0.042s
     part2   = count (makesLoop gi jm) upos' |> showint
 
 We want to test that we aren't migrating the expr into an Elet {rec}?
-
---- 
-advent 2024 day17 triggers a GC bug when run with the version of search that uses the virtual machine instead of the
-hand-coded version:
-
-*** heapRelocateValue: nonsensical tag 182 for obj 0x1110ea48e
-*** originated from TraceFrom 1
-
-Haven't see one of these in a long time, so something special is being set up when executing the vm.  Still likely due to
-a stale Reg or Env value
 
 
 --- possibly use an RWS monad instead of just State / MaybeState ---
@@ -199,12 +196,6 @@ work: adding new ctor and accessing functions; changing renameExpr to use the ne
 new ctor  to serialize
 
 
---- interp ---
-When status tracing is turned off, or the interval is too large, we run out of Admiran heap space on advent2019.  However, simply printing
-a null string every 100000 cycles clears up the issue.  Need to investigate why doing periodic I/O triggers this, even though the I/O
-does nothing to the stgSt.
-
-
 --- stg ---
 It looks like the stack pointer handling in Sclosure and Fail isn't required; the stack always is in the same position during calls
 to Fail as it was during the Sclosure.  Might be able to be replaced with an easier mechanism; need to check against the join-point
@@ -264,12 +255,6 @@ parser: add parsing of infix{r,l,c, prefix} decls to add to module fixity map
 
 
 rewrite: rewrite Eap tree from default left-associative to correct tree using fixity info (use lookupFixity)
-
-
---- Strictness / Escape analysis for thunks ---
-Extraneous updates for thunks that don't require one cause a lot of memory pressure in iterative loops, since the
-update isn't performed until the entire loop is finished.  Need to perform a strictness / escape analysis on thunks
-to mark them as NoUpdate if they aren't shared and don't escape the loop.
 
 
 --- More Inliner Optimizations (and debug) ---
