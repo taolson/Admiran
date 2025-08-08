@@ -984,8 +984,10 @@ column where the *fileSpec* begins.
 #### `stdlib`
 
 The library module `stdlib` provides a number of standard types, functions, and operators used by most
-programs, and used internally in the compiler. It is always implicitly imported in any module, and cannot
-be explicitly imported.
+programs, and used internally in the compiler. It is implicitly imported in any module that doesn't
+explicitly import it.  If it is explicitly imported, the import can be used to qualify the import or
+remove or rename names.
+
 
 ### Export Directives
 
