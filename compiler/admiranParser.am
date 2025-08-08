@@ -649,7 +649,7 @@ p_env
 p_libDir :: parser modInserter
 p_libDir
     = p_percent *>
-          ((modInsInc <$> ((p_ident "import" <|> p_ident "include") *> p_inLayout p_env)) <|>
+          ((modInsImp <$> ((p_ident "import" <|> p_ident "include") *> p_inLayout p_env)) <|>
            (modInsExp <$> (p_ident "export"  *> p_inLayout (p_some p_libPart)))           <|>
            (modInsFre <$> (p_ident "free"    *> p_inBraces p_sig))                        <|>
            p_expected "a library directive")

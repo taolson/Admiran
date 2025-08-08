@@ -85,17 +85,18 @@ incCpx :: azSt -> azSt
 incCpx = over azCpx (+ 1)
 
 
-|| setUseCount is an astRewriter that is used to update the defn annos with their
+|| setUseCount is an astRewriter that is used to update the Internal defn annos with their
 || use counts in the current azUses st.  It also reports a warning if the
 || defn is unused
-setUseCount :: bool -> astRewriter azSt
-setUseCount topLevel d st
+setUseCount :: astRewriter azSt
+setUseCount d st
     = (d', st')
       where
         n     = defnName d
         count = b_findWithDefault cmpname 0 n $ view azUses st
-        d'    = set defnAnUses count d
-        st'   = addAzWarn (Unused n) st, if count == 0 & ~topLevel
+        d'    = set defnAnUses count d,  if isInternal n
+              = d,                       otherwise
+        st'   = addAzWarn (Unused n) st, if count == 0 & isInternal n
               = st,                      otherwise
 
 || analyzeAst is an astRewriteTraverser that is passed an explicit continuation to use to
@@ -108,11 +109,10 @@ analyzeAst :: astRewriteTraverser azSt
 analyzeAst k (Elet x1 defs x2 e) st
     = (Elet x1 defs2 x2 e', st4)
       where
-        topLevel      = null $ view azDefnPath st                                       || are we processing the top-level defns?
-        (defs1, st1)  = astRewriteMap (astRewriteLex analyzeAst) defs st                || analyze the let defns
-        (e', st2)     = astRewriteLex analyzeAst e st1                                  || analyze the let expr
-        (defs2, st3)  = astRewriteMap (setUseCount topLevel) defs1 st2                  || update the let defns with their use counts from other defns
-                                                                                        || and the expr
+        (defs1, st1)  = astRewriteMap (astRewriteLex analyzeAst) defs st        || analyze the let defns
+        (e', st2)     = astRewriteLex analyzeAst e st1                          || analyze the let expr
+        (defs2, st3)  = astRewriteMap setUseCount defs1 st2                     || update the let defns with their use counts from other defns
+                                                                                || and the expr
         st4           = delUses (m_keys defs2) . incCpx $ st3
 
 || add name references to uses and remove references to defining patterns

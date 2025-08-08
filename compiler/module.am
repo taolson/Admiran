@@ -266,8 +266,8 @@ modInsExp pts m
     = ex_pure (over modExportParts (pts ++) m)
 
 || insert an %import declaration, qualifying any alias directives with the module name
-modInsInc :: libEnv -> modInserter
-modInsInc lenv
+modInsImp :: libEnv -> modInserter
+modInsImp lenv
     = ex_pure . over modImports (lenv' :)
       where
         mn    = fileSpecName (view libEnvFile lenv)
@@ -349,14 +349,16 @@ modInsAbs d m
 || make a module from an initial module and a sequence of modInserter functions
 makeModule :: module -> [modInserter] -> excpt module
 makeModule m insrs
-    = ex_foldM (|>) m insrs'
+    = ex_foldM (|>) m insrs >>=? checkStdlib
       where
         mn     = view modName m
         stdlib = FileSpec stdlibPath stdlibModuleName
-        stdInc = modInsInc (stdlib, initLocation mn, LibUnqualified, LibNoAs, [], [])
+        stdImp = modInsImp (stdlib, initLocation mn, LibUnqualified, LibNoAs, [], [])
 
-        insrs' = insrs,          if mn ==$ stdlibModuleName
-               = stdInc : insrs, otherwise
+        || add implicit stdlib import if module isn't stdlib and doesn't explicitly import it
+        checkStdlib m
+            = ex_pure m,   if mn ==$ stdlibModuleName \/ member cmpfileSpec (modImportFiles m) stdlib
+            = m |> stdImp, otherwise
 
 
 || global environment operations
