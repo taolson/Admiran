@@ -73,8 +73,8 @@ reifyExports genv
         doExports []   = doExports [LibAll (initLocation mn)]           || default is to export everything
         doExports exps = updateExportMap <$> ex_foldM doPart m_empty exps
 
-        doPart e (LibAll loc)    = doMerge loci e (definedInModule mn env)        where loci = locOnlyInfo loc
-        doPart e (LibFile f loc) = lookupExportMap loci genv f >>= doMerge loci e where loci = locOnlyInfo loc
+        doPart e (LibAll loc)    = doMerge loc e (definedInModule mn env)
+        doPart e (LibFile f loc) = doMerge loc e (definedInModule mn env) where mn = fileSpecName f
 
         doPart e (LibRemove n loc)
             = delNameMap loci (unresolveName n') e >>=
@@ -92,8 +92,10 @@ reifyExports genv
                 qn   = qualifyName mn n
                 md   = m_lookup cmpname n env $mb_bind lookupDefn genv
 
-        doMerge loci e1 e2 = mergeEnvironments loci LibUnqualified LibNoAs e1 e2
-
+        doMerge loc e1 e2
+            = mergeEnvironments loci LibUnqualified (LibAs mn) e1 e2
+              where
+                loci = locOnlyInfo loc
 
 || reification (expansion) of type synonyms
 
