@@ -4,6 +4,37 @@ Admiran is a pure, lazy, functional language and self-hosting compiler, based up
 original Miranda language designed by David Turner, with additional features
 from Haskell and other functional languages.
 
+## Examples
+
+Here's a small example of an Admiran program, to generate and print a list of the first 100 primes:
+
+    || primes.am -- generate primes the lazy recursive way
+    || From David Turner's original "sieve" example
+    
+    || io functions which communicate with the outside world (like putStrLn) are defined in the <io> module
+    %import <io>
+    
+    primes :: [int]             || an optional type spec for primes, which is a list of ints
+    primes = sieve [2 ..]       || defines primes as the result of calling the sieve function on an
+                                || infinite list of sequential integers, starting from 2
+             where
+               || the sieve function decomposes the list into its head (p) and tail (xs)
+               || and returns p (the next prime) followed by a recursive call to sieve
+               || on a new list made from a list comprehension, which filters the remaining list
+               || for only the values that aren't divisible by p
+               sieve (p : xs) = p : sieve [x | x <- xs; x $mod p ~= 0]
+    
+    || main takes the first 100 values from the infinite list of primes, converts that list to
+    || a string, and prints it
+    main :: io ()
+    main = primes |> take 100 |> showlist showint |> putStrLn
+
+Some other small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
+by typing `amc` *module name* e.g. `amc fib`
+
+Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
+all other required modules will be built as required.
+
 ## System Requirements
 
 Admiran currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
@@ -104,29 +135,6 @@ When complete, it should report
 and install as amc in the supplied bin directory.
 
 It is suggested that you add the bin directory to your PATH variable in your shell, to allow the amc compiler to be run from anywhere.
-
-## Examples
-
-Here's a small example of an Admiran program, to generate and print a list of the first 100 primes:
-
-    || primes.am -- generate primes the lazy recursive way
-    || From David Turner's original "sieve" example
-    
-    %import <io>
-    
-    primes :: [int]
-    primes = sieve [2 ..]
-             where
-               sieve (p : xs) = p : sieve [x | x <- xs; x $mod p ~= 0]
-    
-    main :: io ()
-    main = primes |> take 100 |> showlist showint |> putStrLn
-
-Some small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
-by typing `amc` *module name* e.g. `amc fib`
-
-Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
-all other required modules will be built as required.
 
 ## .x2 File Extensions
 
