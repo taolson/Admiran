@@ -108,19 +108,19 @@ p_listExpr pElt = p_inBrackets (makeList <$> p_listManyOf pElt)
 
 || parser for first form of generator, e.g. x <- [1 .. 10]
 p_generator :: parser qual
-p_generator = p_liftA2 Qgen (p_listSomeOf p_pat <* p_lArrow) p_exp
+p_generator = p_liftA2 Qgen (p_listSomeOf p_pat <* p_lArrow) p_expr
 
 || parser for second form of generator, e.g. x <- 1, 2 * x ...
 p_recurrence :: parser qual
-p_recurrence = p_liftA3 Qrecur (p_pat <* p_lArrow) (p_exp <* p_comma) p_rangePart
+p_recurrence = p_liftA3 Qrecur (p_pat <* p_lArrow) (p_expr <* p_comma) p_rangePart
 
 || generator or qualifying guard, e.g. x < 10
 p_qualifier :: parser qual
-p_qualifier = p_recurrence <|> p_generator <|> (Qguard <$> p_exp)
+p_qualifier = p_recurrence <|> p_generator <|> (Qguard <$> p_expr)
 
 p_comprehension :: parser expr
 p_comprehension
-    = p_inBrackets (p_liftA3 mkCompr p_getLoc (p_exp <* p_vBar) (p_someSepBy p_semi p_qualifier))
+    = p_inBrackets (p_liftA3 mkCompr p_getLoc (p_expr <* p_vBar) (p_someSepBy p_semi p_qualifier))
       where
         mkCompr loc e quals = ElistComp e quals (locAnno loc)
 
@@ -128,7 +128,7 @@ p_comprehension
 || parser for presections e.g. (1 +)
 p_preSection :: parser expr
 p_preSection
-    = p_inParens (p_liftA2 mkPreSection p_exp p_infix)
+    = p_inParens (p_liftA2 mkPreSection p_expr p_infix)
       where
         mkPreSection e op = Eap (Evar op) e
 
@@ -137,17 +137,17 @@ p_preSection
 || instead, use the stdlib function "subtract"
 p_postSection :: parser expr
 p_postSection
-    = p_inParens (p_liftA2 mkPostSection p_infix1 p_exp)
+    = p_inParens (p_liftA2 mkPostSection p_infix1 p_expr)
       where
         mkPostSection op e = ap2 stdConverse (Evar op) e
 
 p_rangePart :: parser expr
-p_rangePart = p_exp <* p_sym ".."
+p_rangePart = p_expr <* p_sym ".."
 
 || parse range expressions e.g. [0 .. 9] or [0 ..]
 p_range :: parser expr
 p_range
-    = p_liftA2 mkRange p_rangePart (p_optional p_exp)
+    = p_liftA2 mkRange p_rangePart (p_optional p_expr)
       where
         mkRange start Nothing     = Eap stdRangeFrom start
         mkRange start (Just stop) = ap2 stdRange start stop
@@ -155,7 +155,7 @@ p_range
 || parse rangeBy expressions e. g. [0, 2 .. 8], or [0, 2 ..]
 p_rangeBy :: parser expr
 p_rangeBy
-    = p_liftA3 mkRangeBy (p_exp <* p_comma) p_rangePart (p_optional p_exp)
+    = p_liftA3 mkRangeBy (p_expr <* p_comma) p_rangePart (p_optional p_expr)
       where
         mkRangeBy start next mstop
             = ap2 stdRangeByFrom step start,        if isNothing mstop
@@ -171,28 +171,22 @@ p_rangeExpr :: parser expr
 p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
 
 
-|| common parser for simple expressions and definition formals
-p_formalSimple :: parser expr
-p_formalSimple
-    = (Evar <$> p_var)         <|>
-      (Evar <$> p_constructor) <|>
-      p_literal
-
-|| simple (atomic) expressions
-p_simple :: parser expr
-p_simple
-    = p_formalSimple    <|>
-      p_parenExpr p_exp <|>
-      p_caseExpr        <|>
-      p_lambdaExpr      <|>
-      p_comprehension   <|>
-      p_listExpr  p_exp <|>
-      p_postSection     <|>
-      p_preSection      <|>
+|| expression term 
+p_term :: parser expr
+p_term
+    = (Evar <$> p_varOrConstructor) <|>
+      p_literal                     <|>
+      p_parenExpr p_expr            <|>
+      p_caseExpr                    <|>
+      p_lambdaExpr                  <|>
+      p_comprehension               <|>
+      p_listExpr  p_expr            <|>
+      p_postSection                 <|>
+      p_preSection                  <|>
       p_rangeExpr
 
 
-|| p_exp : handle infix expressions with operator precedence and associativity specified by operator tables
+|| p_expr : handle infix expressions with operator precedence and associativity specified by operator tables
 ||        uses an expression stack and an operator stack, parsing simples and oprs, and reducing the stacks
 ||        when an operator is parsed with lower precedence than the top-of-stack operator
 
@@ -212,12 +206,12 @@ exprOrNegLit e                        = e
 || would also have to change signatures to refer to (ast *) instead of expr
 || at that point, it would be best to gather all the parameterized functions into an p_expInfo structure
 || and pass that instead of the individual functions
-p_expExpr :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
-p_expExpr pPre pInf pTerm es ops
+p_exp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
+p_exp pPre pInf pTerm es ops
     = (pPre >>= fpre) <|> (pTerm >>= fterm)
       where
-        fpre op = p_expExpr pPre pInf pTerm es (op : ops)
-        fterm e = p_expOp   pPre pInf pTerm (e : es) ops
+        fpre op = p_exp   pPre pInf pTerm es (op : ops)
+        fterm e = p_expOp pPre pInf pTerm (e : es) ops
 
 || parse a possible pOpr and push it on the opr stack
 p_expOp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
@@ -266,9 +260,9 @@ p_expReduce pPre pInf pTerm es ops
                         || occurrences nest, for e.g. (a < f x < g x < b)
                         re = ap2 (Evar opl) el er
 
-                go2 es1 = p_expExpr pPre pInf pTerm (er : es1) (opr : opl : ops2)
+                go2 es1 = p_exp pPre pInf pTerm (er : es1) (opr : opl : ops2)
 
-        go es ops = p_expExpr pPre pInf pTerm es ops
+        go es ops = p_exp pPre pInf pTerm es ops
 
 || do final reduce of expr and opr stacks.  Precedence is guaranteed to be decreasing due to
 || previous p_expReduce operations, so reduction is just combining the top 2 exprs with the
@@ -282,8 +276,8 @@ p_expFinal (e : es)       (op : ops) = p_expFinal (pe : es) ops, if _eq cmpassoc
 p_expFinal (er : el : es) (op : ops) = p_expFinal (ap2 (Evar op) el er : es) ops
 p_expFinal _              _          = p_error 2 "error in expression"
 
-p_exp :: parser expr
-p_exp = p_expExpr p_prefix p_infix p_simple [] []
+p_expr :: parser expr
+p_expr = p_exp p_prefix p_infix p_term [] []
 
 || caseExpr and caseAlt extend the standard Miranda syntax to allow explicit case <expr> of {<ctor args> -> expr} or
 || case <expr> of {word# -> expr} as supported in the STG machine operational semantics.  Note that only simple ctor
@@ -305,18 +299,12 @@ p_caseAlt :: parser caseAlt
 p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs)
 
 p_caseExpr :: parser expr
-p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_exp) (p_ident "of" *> p_inLayout (p_some p_caseAlt))
-
-|| to parse a pattern in a lambda expr, we need to split out simple Pvars from more complex patterns, and only
-|| allow complex patterns within parenthesis. Otherwise attempting to parse a list of patterns runs into the
-|| issue that the list looks like a fnform in p_pat.
-p_lambdaPat :: parser pat
-p_lambdaPat = (Pvar <$> p_var) <|> p_inParens p_pat
+p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_expr) (p_ident "of" *> p_inLayout (p_some p_caseAlt))
 
 || parse an anonymous lambda expr by converting it to an Elet of a new function definition with a unique name
 p_lambdaExpr :: parser expr
 p_lambdaExpr
-    = p_liftA3 mkLambda p_getLoc (p_sym "\\" *> p_some p_lambdaPat) (p_sym "->" *> p_exp)
+    = p_liftA3 mkLambda p_getLoc (p_sym "\\" *> p_some p_patFormal) (p_sym "->" *> p_expr)
       where
         mkLambda loc vars e
             = (Elet False (m_singleton ln dm) [] (Evar ln))
@@ -330,13 +318,13 @@ p_cond :: expr -> parser cond
 p_cond e
     = (p_comma *> (p_if <|> p_ow)) <|> p_expected "\", if\" or \", otherwise\""
       where
-        p_if = p_ident "if"        *> (($Cif e) <$> p_exp <|> p_expected "an expression")
+        p_if = p_ident "if"        *> (($Cif e) <$> p_expr <|> p_expected "an expression")
         p_ow = p_ident "otherwise" *> p_pure (Cdefault e)
 
 || parse conditional expressions for the given expr
 p_conds :: expr -> parser expr
 p_conds e
-    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_equal *> p_indent *> p_exp >>= p_cond))
+    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_equal *> p_indent *> p_expr >>= p_cond))
       where
         mkCond c cs = Econd (c : cs)
 
@@ -350,7 +338,7 @@ p_whdefs = map fst <$> (p_ident "where" *> p_some p_def)
 ||  see if we should continue with a condExpr or not.
 p_rhs :: parser expr
 p_rhs
-    = p_inLayout (p_bind2 (p_exp >>= tryCond) (p_optional p_whdefs) mkRhs)
+    = p_inLayout (p_bind2 (p_expr >>= tryCond) (p_optional p_whdefs) mkRhs)
       where
         || try to parse a condExpr with the given expr, or return expr
         tryCond e = p_conds e <|> p_pure e
@@ -366,7 +354,49 @@ p_rhs
 
 || Admiran pattern and fnform parsing
 
-fnform == (name, [pat])                     || left-hand-side of a function definition
+|| a fnform is the left hand side of a function definition
+fnform == (name, [pat])
+
+|| The p_exp parser is used to parse both exprs and pats. When parsing pats, we need to convert Eap applications to
+|| the equivalent Pctor expr. makePatFn does that, as well as characterizing the final result as either an pat or a
+|| fnform.
+makePatFn :: [pat] -> expr -> parser (either pat fnform)
+
+|| collect the args in a nested list of Eap exprs
+makePatFn args (Eap e arg)
+    = makePat arg >>= next
+      where
+        next arg' = makePatFn (arg' : args) e
+
+makePatFn args e
+    = p_pure . Left . Plit $ e, if isLit e & null args
+    = classifyVar (unVar e),    if isPvar e \/ isEvar e
+    = p_patErr,                 otherwise
+      where
+        unVar (Pvar v) = v
+        unVar (Evar v) = v
+        unVar _        = undef  || added to remove compiler warning
+
+        || determine if we have parsed a Pctor, a Pvar, a Pwildcard, or a fnform
+        classifyVar v
+            = p_pure . Left . Pctor v $ args, if isConstructor v
+            = p_pure . Left  $ vpat,          if null args
+            = p_pure . Right $ (v, args),     if ~isWildcard v
+            = p_patErr,                       otherwise
+              where
+                vpat = Pwildcard, if isWildcard v
+                     = Pvar v,    otherwise
+
+|| make a pattern from an expr
+makePat :: expr -> parser pat
+makePat e
+    = makePatFn [] e >>= checkPat
+      where
+        checkPat (Left p)  = p_pure p
+        checkPat (Right x) = p_patErr
+
+p_patErr :: parser *
+p_patErr = p_expected "a pattern"
 
 || restrict prefixes to negate, for use in patterns which use negated Eints
 p_patPrefix :: parser name
@@ -374,52 +404,24 @@ p_patPrefix = p_prefix $p_satisfy (_eq cmpname stdNegName)
 
 p_formal :: parser expr
 p_formal
-    = p_formalSimple    <|>
-      p_parenExpr p_exp <|>
-      p_listExpr  p_exp
+    = (Pvar <$> p_varOrConstructor) <|>
+      p_literal                     <|>
+      p_parenExpr p_patExpr         <|>
+      p_listExpr  p_patExpr
 
-|| parse a pattern or fnform
-|| the idea here is to first parse it as an expr, then walk the expr tree in a monad, collecting
-|| each argument as a pat.  When we get to the root of the spine, we should either have
-|| an Evar which is either a var or a constructor, which will differentiate whether it
-|| is a fnform or pat, or a literal, which is a pat.
-p_patOrFnForm :: parser (either pat fnform)
-p_patOrFnForm
-    = p_expExpr p_patPrefix p_infix p_formal [] [] >>= mkPatFn []
-      where
-        p_err = p_error 2 "error in pattern"
+|| parse an expr restricted to pat forms
+p_patExpr :: parser expr
+p_patExpr = p_exp p_patPrefix p_infix p_formal [] []
 
-        mkPatFn args (Eap e arg)
-            = mkPat [] arg >>= next
-              where
-                next arg' = mkPatFn (arg' : args) e
-
-        mkPatFn args (Evar v)
-            = p_pure . Left . Pctor v $ args, if isConstructor v
-            = p_pure . Left  $ vpat,          if null args
-            = p_pure . Right $ (v, args),     if ~isWildcard v
-            = p_err,                          otherwise
-              where
-                vpat = Pwildcard, if isWildcard v
-                     = Pvar v,    otherwise
-
-        mkPatFn args e
-            = p_pure . Left . Plit $ e,       if isLit e & null args
-            = p_err,                          otherwise
-
-        mkPat args e
-            = mkPatFn args e >>= checkPat
-              where
-                checkPat (Left p)  = p_pure p
-                checkPat (Right x) = p_err
-
-|| parse a pattern only
 p_pat :: parser pat
-p_pat
-    = (p_patOrFnForm >>= checkPat) <|> p_expected "a pattern"
-      where
-        checkPat (Left p)  = p_pure p
-        checkPat (Right x) = p_fail
+p_pat = p_patExpr >>= makePat
+
+|| parse a formal, ensuring it is a pat
+p_patFormal :: parser pat
+p_patFormal = p_formal >>= makePat
+
+p_patOrFnForm :: parser (either pat fnform)
+p_patOrFnForm = p_patExpr >>= makePatFn []
 
 
 || Admiran type expression parsing
@@ -512,7 +514,7 @@ p_tFinal (er : el : es') (op : ops') = p_tFinal (Tarr el er : es') ops',        
                                      = p_tFinal ((Tname op [el, er]) : es') ops', otherwise
 p_tFinal _               _           = p_error 2 "error in expression"
 
-|| parse a type -- could possibly modify p_expExpr to handle this and get rid of the specialized parsers, above
+|| parse a type -- could possibly modify p_exp to handle this and get rid of the specialized parsers, above
 p_type :: parser texpr
 p_type = p_tExpr [] []
 
@@ -633,7 +635,7 @@ p_alias
         p_alias' p = p_liftA2 Alias (p <* p_sym "/") p
 
 p_binding :: parser libBinding
-p_binding = p_liftA2 BindVar  (p_var <* p_equal) (p_inLayout p_exp) <|>
+p_binding = p_liftA2 BindVar  (p_var <* p_equal) (p_inLayout p_expr) <|>
             p_liftA2 BindType (p_var <* p_eqeq)  (p_inLayout p_type)
 
 p_binder :: parser [libBinding]
@@ -683,4 +685,4 @@ parse m input
 
 || parse an expr
 parseExpr :: string -> (maybe expr, psSt)
-parseExpr input = p_exp ("interactive", emptyError, [], tokenize input)
+parseExpr input = p_expr ("interactive", emptyError, [], tokenize input)
