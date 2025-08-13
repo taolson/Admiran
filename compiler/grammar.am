@@ -314,15 +314,16 @@ showAstRaw :: ast -> string
 showAstRaw a = showast a
 
 
+reservedNames :: s_set string
 reservedNames = s_fromList cmpstring ["if", "otherwise", "type", "where", "abstype", "with", "case", "of", "=", "::", "::=", "..", "|", "<-", "->"]
 
 || common name operations
-isConstructor, isWildcard, isPrefix, isVar, isSymbol :: name -> bool
-isTvarSymbol n  = all (==. '*') (getName n)
-isConstructor n = isUpper c \/ c ==. ':' where c = hd (getName n)
+isConstructor, isWildcard, isPrefix, isVar, isTvarSymbol, isSymbol :: name -> bool
+isConstructor n = isUpper c \/ c ==. ':' where c = hd $ getName n
+isVar n         = ~isConstructor n
 isWildcard n    = getName n ==$ "_"
 isPrefix n      = ((_eq cmpassoc AssocPrefix) . snd . opPrecAssoc) n
-isVar n         = ~(isConstructor n \/ s_member cmpstring s reservedNames) where s = getName n
+isTvarSymbol n  = all (==. '*') (getName n)
 
 isSymbol n
     = ~letter c &  c ~=. '_'

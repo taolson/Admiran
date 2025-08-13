@@ -58,9 +58,10 @@ deriveShow d
               where
                 ns               = Estring $ getName n
                 (_, vars)        = genNames "a" 0 tas
-                showExpr         = ns,                                                                  if null tas
-                                 = ap2 stdAppend (Estring "(") . ap2 stdAppend buildExpr $ Estring ")", otherwise
-                buildExpr        = foldr1 appendShow . (ns :) . map mkShow $ zip2 tas [0 ..]
+                showExpr         = ns,                                                                                 if null tas & ~isSymbol n
+                                 = ap2 stdAppend (Estring "(") . ap2 stdAppend buildExpr $ Estring ")",                otherwise
+                buildExpr        = foldl appendShow ns . map mkShow $ zip2 tas [0 ..],                                 if ~isSymbol n \/ null tas
+                                 = foldl appendShow (mkShow (hd tas, 0)) . (ns :) . map mkShow $ zip2 (tl tas) [1 ..], otherwise
                 appendShow s1 s2 = ap2 stdAppend s1 $ ap2 stdAppend (Estring " ") s2
                 mkShow (t, i)    = Eap (showForType t) . Evar $ Internal "a" i
 

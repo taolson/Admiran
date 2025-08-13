@@ -62,14 +62,15 @@ p_prefix
                = p_fail,            otherwise
                  where s = getName n
 
-p_var :: parser name
-p_var = (p_identifier <|> p_inParens p_symbol) $p_satisfy isVar
+p_varOrConstructor, p_var, p_constructor :: parser name
+p_varOrConstructor
+    = (p_identifier <|> p_inParens p_symbol) $p_satisfy notReserved
+      where
+        notReserved n = ~s_member cmpstring (getName n) reservedNames
 
-p_constructor :: parser name
-p_constructor = (p_identifier <|> p_inParens p_infix) $p_satisfy isConstructor
+p_var = p_varOrConstructor $p_satisfy isVar
 
-p_varOrConstructor :: parser name
-p_varOrConstructor = p_var <|> p_constructor
+p_constructor = p_varOrConstructor $p_satisfy isConstructor
 
 p_literal :: parser expr
 p_literal
@@ -444,7 +445,7 @@ p_tinfix
     = p_symbol $p_satisfy isTinfix
       where
         isTinfix n
-            = isVar n & ~isTvarSymbol n  & ns ~=$ "!" \/ ns ==$ "->"
+            = isVar n & ~isPrefix n & ~isTvarSymbol n & ~s_member cmpstring (getName n) reservedNames & ns ~=$ "!" \/ ns ==$ "->"
               where ns = getName n
 
 || parse a type form (LHS of type declaration)
