@@ -170,8 +170,7 @@ p_rangeBy
 p_rangeExpr :: parser expr
 p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
 
-
-|| expression term 
+|| parse an expression term 
 p_term :: parser expr
 p_term
     = (Evar <$> p_varOrConstructor) <|>
@@ -186,7 +185,7 @@ p_term
       p_rangeExpr
 
 
-|| p_expr : handle infix expressions with operator precedence and associativity specified by operator tables
+|| p_exp: handle infix expressions with operator precedence and associativity specified by operator tables
 ||        uses an expression stack and an operator stack, parsing simples and oprs, and reducing the stacks
 ||        when an operator is parsed with lower precedence than the top-of-stack operator
 
@@ -196,7 +195,7 @@ exprOrNegLit :: expr -> expr
 exprOrNegLit (Eap (Evar op) (Eint n)) = Eint (neg n), if _eq cmpname op stdNegName
 exprOrNegLit e                        = e
 
-|| the following mutually-recursive parsers are used for parsing both exp expressions and pat patterns
+|| the following mutually-recursive parsers are used for parsing both expr expressions and pat patterns
 || by passing specialized sub-parsers as parameters
 ||
 || parse a simple (with an optional prefix op) and push it on the expr stack
@@ -278,6 +277,7 @@ p_expFinal _              _          = p_error 2 "error in expression"
 
 p_expr :: parser expr
 p_expr = p_exp p_prefix p_infix p_term [] []
+
 
 || caseExpr and caseAlt extend the standard Miranda syntax to allow explicit case <expr> of {<ctor args> -> expr} or
 || case <expr> of {word# -> expr} as supported in the STG machine operational semantics.  Note that only simple ctor
@@ -589,7 +589,6 @@ p_def
       where
         mkDef loc (Left p)  rhs         = (d, modInsPat d) where d = DefPat  p    rhs (locAnno loc)
         mkDef loc (Right (n, vars)) rhs = (d, modInsDef d) where d = DefFn n vars rhs (locAnno loc)
-
 
 
 || Admiran library directive parsing
