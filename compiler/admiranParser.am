@@ -370,9 +370,9 @@ makePatFn args (Eap e arg)
         next arg' = makePatFn (arg' : args) e
 
 makePatFn args e
-    = p_pure . Left . Plit $ e, if isLit e & null args
-    = classifyVar (unVar e),    if isPvar e \/ isEvar e
-    = p_patErr,                 otherwise
+    = p_pure $ Left e,       if isPlit e & null args
+    = classifyVar (unVar e), if isPvar e \/ isEvar e
+    = p_patErr,              otherwise
       where
         unVar (Pvar v) = v
         unVar (Evar v) = v
@@ -397,7 +397,7 @@ makePat e
         checkPat (Right x) = p_patErr
 
 p_patErr :: parser *
-p_patErr = p_expected "a pattern"
+p_patErr = p_error 2 "error in pattern"
 
 || restrict prefixes to negate, for use in patterns which use negated Eints
 p_patPrefix :: parser name
@@ -406,7 +406,7 @@ p_patPrefix = p_prefix $p_satisfy (_eq cmpname stdNegName)
 p_formal :: parser expr
 p_formal
     = (Pvar <$> p_varOrConstructor) <|>
-      p_literal                     <|>
+      (Plit <$> p_literal)          <|>
       p_parenExpr p_patExpr         <|>
       p_listExpr  p_patExpr
 
