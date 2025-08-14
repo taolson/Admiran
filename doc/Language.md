@@ -746,6 +746,12 @@ type specification, type inference would infer the most general type as
 
 and allow it to be applied to any list.
 
+#### Type Holes
+
+Wildcards (`_`) can be used as a *type hole* in a type specification, representing an unknown type.
+When a type hole is encountered during type checking, the type checker will report the type value
+that it has inferred for that hole.
+
 #### Polymorphic Recursion
 
 There is one situation where explicit type specifications are required: when writing recursive
