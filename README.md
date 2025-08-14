@@ -18,14 +18,15 @@ Here's a small example of an Admiran program, to generate and print a list of th
     primes = sieve [2 ..]       || defines primes as the result of calling the sieve function on an
                                 || infinite list of sequential integers, starting from 2
              where
-               || the sieve function decomposes the list into its head (p) and tail (xs)
+               || the sieve function deconstructs the list into its head (p) and tail (xs)
                || and returns p (the next prime) followed by a recursive call to sieve
                || on a new list made from a list comprehension, which filters the remaining list
                || for only the values that aren't divisible by p
                sieve (p : xs) = p : sieve [x | x <- xs; x $mod p ~= 0]
     
     || main takes the first 100 values from the infinite list of primes, converts that list to
-    || a string, and prints it
+    || a string, and prints it, chaining together the functions using the `|>` reverse-apply
+    || function defined in the <stdlib> module (implicitly imported).
     main :: io ()
     main = primes |> take 100 |> showlist showint |> putStrLn
 
