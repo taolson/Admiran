@@ -83,8 +83,7 @@ in the original Miranda language:
 * Underscores allowed in integer literals
 * Automatically-derived instances of ord (comparison) and show instances for user-defined
   data types and type aliases
-* Typed "holes" to have the type checker report the type of a specified hole in a type spec
-or expression
+* Type "holes" to have the type checker report the type of a specified hole in a type spec
 
 ### Differences from Haskell
 

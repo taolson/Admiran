@@ -159,12 +159,13 @@ tcSpecs = tcGenv $composeLens genvMod $composeLens modSpecs
 initTcSt :: globalEnv -> tcSt
 initTcSt genv = ((genv, m_empty, s_empty, []), (emptyLocInfo, []))
 
-addTcWarn, addTcErr, addTcNote :: exceptionInfo -> locInfo -> tcSt -> tcSt
+addTcNote, addTcWarn, addTcErr, attachTcNote :: exceptionInfo -> locInfo -> tcSt -> tcSt
+addTcNote ei loc = over tcErrs ((Note,  ei, loc) :)
 addTcWarn ei loc = over tcErrs ((Warn,  ei, loc) :)
 addTcErr  ei loc = over tcErrs ((Error, ei, loc) :)
 
 || attach additional info to the most recent exception, or create a new Note
-addTcNote info loc
+attachTcNote info loc
     = over tcErrs attach
       where
         attach []                          = [(Note, info, loc)]
@@ -187,9 +188,13 @@ ma <|> mb
                  alt ra            = ra
 
 || add an error to the state and fail with Nothing
-tc_error, tc_errorNote :: exceptionInfo -> tcState *
-tc_error     ei st = (Nothing, addTcErr  ei (view tcLoc st) st)
-tc_errorNote ei st = (Nothing, addTcNote ei (view tcLoc st) st)
+tc_error, tc_errorNote  :: exceptionInfo -> tcState *
+tc_error     ei st = (Nothing, addTcErr     ei (view tcLoc st) st)
+tc_errorNote ei st = (Nothing, attachTcNote ei (view tcLoc st) st)
+
+|| add a note to the state
+tc_note :: exceptionInfo -> tcState ()
+tc_note ei st = (Just (), addTcNote ei (view tcLoc st) st)
 
 || lift lens operations into tcState
 tc_view :: lens tcSt * -> tcState *
@@ -576,8 +581,8 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = tc_error $ TypeHole nt2,  if isTWild t1
-                                       = tc_error $ TypeHole nt1,  if isTWild t2
+        go t1            t2            = tc_pure sm <* tc_note (TypeHole nt2), if isTWild t1
+                                       = tc_pure sm <* tc_note (TypeHole nt1), if isTWild t2
                                        = tc_error $ Unify nt1 nt2, otherwise
                                          where
                                            nt1 = normalize t1
