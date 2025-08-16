@@ -58,6 +58,10 @@ is a C compiler for assembling the generated asm files and linking them with the
   - functor / applicative / monad implementations for maybe, either, state, and io
   - lens for accessing nested structures
   - parser combinators
+  - streams (streaming interface that supports stream fusion)
+  - double-ended queue based upon finger trees
+  - zipper to provide a cursor position within a list
+
 * Small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
 * 20x to 50x faster than the original Miranda compiler/combinator interpreter
 
