@@ -51,7 +51,8 @@ is a C compiler for assembling the generated asm files and linking them with the
 * Runs under MacOS or Linux
 * Whole program compilation with inter-module inlining and optimizations
 * Hindley-Milner type inference and checking
-* Library of useful functional data structures, including
+* Library of useful functional polymorphic data structures, including
+  - lists and tuples (built-in)
   - map, set, and bag, based upon AVL balanced-binary trees
   - mutable and immutable vectors
   - functor / applicative / monad implementations for maybe, either, state, and io
