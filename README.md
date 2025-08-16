@@ -60,6 +60,7 @@ is a C compiler for assembling the generated asm files and linking them with the
   - parser combinators
   - streams (streaming interface that supports stream fusion)
   - double-ended queue based upon finger trees
+  - heap (priority queue)
   - zipper to provide a cursor position within a list
 
 * Small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
