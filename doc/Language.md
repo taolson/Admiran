@@ -716,17 +716,17 @@ Declarations at the top-level of a module consist of
 While type specifications aren't required in Admiran, they can be provided for top-level function and pattern
 definitions to help document the definition, as well as to help type inference report more concise errors.
 
-A type specification is of the form *var* `::` *texpr* where *var* is a function
-name or variable and *texpr* is a type expression, e.g.:
+A type specification is of the form *var-list* `::` *texpr* where *var-list* is a list of function
+names or variables separated by commas,  and *texpr* is a type expression, e.g.:
 
-    (+) :: int -> int -> int
+    (+), (-), (*), div, mod :: int -> int -> int
 
-is a type specification for the function `+`, which takes two `int`s and returns an `int`
+is a type specification for the standard integer operators, which take two `int`s and return an `int`,
 
     map :: (* -> **) -> [*] -> [**]
 
 is a type specification for the function `map`, which is a higher-order function which takes a function
-from type `*` to type `**`, and a list of type `*`, and returns a list of type `**`.
+from type `*` to type `**`, and a list of type `*`, and returns a list of type `**`, and
 
     args :: [(int, char)]
 
