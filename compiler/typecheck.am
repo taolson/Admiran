@@ -75,6 +75,13 @@ normalize t
                 n'  = fromJust mn'
         norm t s = (t, s)
 
+|| type hole checking
+isTWild, hasTypeHole :: texpr -> bool
+isTWild (Tname n _) = isWildcard n
+isTWild _           = False
+
+hasTypeHole t = astAccumTD hole t False where hole t s = isTWild t \/ s
+
 
 || a type scheme has a set of schematic variables which may be freely instantiated to
 || conform with the type constraints on the various occurrences of that variable.
@@ -335,9 +342,7 @@ infer (Estring s)     = tc_pure (Tlist stdChar, id_subst)
 infer (EprimInt n)    = tc_pure (builtinTypeWord, id_subst)
 infer (EprimChar c)   = tc_pure (builtinTypeWord, id_subst)
 infer (EprimString s) = tc_pure (builtinTypeWord, id_subst)
-infer (Evar n)
-    = tc_pure ((Tname n []), id_subst), if isWildcard n || wildcards used as type holes
-    = lookupScheme n >>= instantiate,   otherwise
+infer (Evar n)        = lookupScheme n >>= instantiate
 
 || handle polymorphic pseudo-functions pack and sel
 || the constructor name to use for the function is passed as the first argument
@@ -581,15 +586,12 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = tc_pure sm <* tc_note (TypeHole nt2), if isTWild t1
-                                       = tc_pure sm <* tc_note (TypeHole nt1), if isTWild t2
-                                       = tc_error $ Unify nt1 nt2, otherwise
+        go t1            t2            = go t2 t2 <* tc_note (TypeHole nt2), if isTWild t1
+                                       = go t1 t1 <* tc_note (TypeHole nt1), if isTWild t2
+                                       = tc_error $ Unify nt1 nt2,           otherwise
                                          where
                                            nt1 = normalize t1
                                            nt2 = normalize t2
-
-                                           isTWild (Tname n _) = isWildcard n
-                                           isTWild _           = False
 
 || unify a pair of texpr lists
 unifyLists :: unifyMode -> [texpr] -> [texpr] -> substMap -> tcState substMap
@@ -636,7 +638,7 @@ typecheckGroup ns
             = tc_view tcGenv >>= f
               where
                 f genv
-                  = installSpec,                                           if isNothing mspec
+                  = installSpec,                                           if isNothing mspec   || install the inferred spec if not specified
                   = inLexEnv m_empty locSubsumes id_subst $st_bind verify, otherwise            || verify inferred against specified type
                     where
                       mspec          = lookupSpec genv n
@@ -647,7 +649,8 @@ typecheckGroup ns
                       loc            = defnLocInfo spec
 
                       verify Nothing = incorrDeclErr
-                      verify _       = tc_pure () 
+                      verify _       = installSpec, if hasTypeHole spec || install the inferred spec, if the spec matches but has a type hole
+                                     = tc_pure () , otherwise
 
                       installSpec    = tc_over tcSpecs (m_insert cmpname n spec')
                       incorrDeclErr  = tc_over tcErrs ((Error, IncorrDecl spec spec', loc) :)
