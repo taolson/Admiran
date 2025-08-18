@@ -750,7 +750,7 @@ and allow it to be applied to any list.
 
 Wildcards (`_`) can be used as a *type hole* in a type specification, representing an unknown type.
 When a type hole is encountered during type checking, the type checker will report the type value
-that it has inferred for that hole.
+that it has inferred for that hole, and replace it with the inferred type.
 
 #### Polymorphic Recursion
 
