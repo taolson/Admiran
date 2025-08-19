@@ -664,19 +664,6 @@ zip3 :: [*] -> [**] -> [***] -> [(*, **, ***)]
 zip3 (x : xs) (y : ys) (z : zs) = (x, y, z) : zip3 xs ys zs
 zip3 xs       ys       zs       = []
 
-transpose :: [[*]] -> [[*]]
-transpose []         = []
-transpose ([] : xss) = transpose xss
-transpose ((x : xs) : xss)
-    = combine x xs $ go xss
-      where
-        combine y ys (h, t) = (y : h) : transpose (ys : t)
-        merge h t (hs, ts)  = (h : hs, t : ts)
-
-        go []             = ([], [])
-        go ([] : xs)      = go xs
-        go ((h : t) : xs) = merge h t $ go xs
-
 
 || standard string functions
 

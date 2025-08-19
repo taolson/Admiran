@@ -647,6 +647,11 @@ unzip3 xs
       where
         go (a, b, c) (as, bs, cs) = (a : as, b : bs, c : cs)
 
+transpose :: [[*]] -> [[*]]
+transpose []       = []
+transpose [xs]     = [[x] | x <- xs]
+transpose (x : xs) = zipWith (:) x $ transpose xs
+
 
 || string functions
 
