@@ -1,4 +1,4 @@
-# Admiran, a pure, lazy, functional language and self-hosting compiler
+# Admiran: a pure, lazy, functional language and self-hosting compiler
 
 Admiran is a pure, lazy, functional language and self-hosting compiler, based upon the
 original Miranda language designed by David Turner, with additional features
@@ -75,6 +75,7 @@ in the original Miranda language:
 * polymorphic show and comparison operators that work on any type replaced with manual show and
   ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
 * no `%free` directive for parameterized modules
+* "p + k" patterns or patterns with multiple uses of the same variable are not allowed
 
 ### Admiran new language features not in Miranda
 
