@@ -60,6 +60,15 @@ bs_insert, bs_delete :: int -> bitSet -> bitSet
 bs_insert n bs = bs .|. (1 .<<. n)
 bs_delete n bs = bs .&. complement (1 .<<. n)
 
+bs_union :: bitSet -> bitSet -> bitSet
+bs_union s1 s2 = s1 .|. s2
+
+bs_difference :: bitSet -> bitSet -> bitSet
+bs_difference s1 s2 = s1 .&. complement s2
+
+bs_intersect :: bitSet -> bitSet -> bitSet
+bs_intersect s1 s2 = s1 .&. s2
+
 bs_fromList :: [int] -> bitSet
 bs_fromList = foldr bs_insert 0
 
