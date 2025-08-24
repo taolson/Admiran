@@ -4,7 +4,7 @@
 || First, we create a lazy infinite list generator for each "repr", where the list
 || consists of a repeating cycle of the substitution string followed by n-1 empty
 || strings. Then we transpose the list of these to create an infinite list of all
-|| substitution strings for each FizzBuzz number. We map these with "concat" to
+|| substitution strings, one for each FizzBuzz number. We map these with "concat" to
 || merge all the substitution strings together, enumerate this list to attach the
 || FizzBuzz number to it, then map this with the "default" function, which substitutes
 || in the default text representation of the number if the substitution is empty.
