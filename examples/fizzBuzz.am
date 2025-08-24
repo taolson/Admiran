@@ -1,0 +1,31 @@
+|| fizzBuzz -- FizzBuzz problem using higher-order lazy list operations
+||
+|| The idea here is to demonstrate a number of the lazy list operations available.
+|| First, we create a lazy infinite list generator for each "repr", where the list
+|| consists of a repeating cycle of the substitution string followed by n-1 empty
+|| strings. Then we transpose the list of these to create an infinite list of all
+|| substitution strings for each FizzBuzz number. We map these with "concat" to
+|| merge all the substitution strings together, enumerate this list to attach the
+|| FizzBuzz number to it, then map this with the "default" function, which substitutes
+|| in the default text representation of the number if the substitution is empty.
+||
+|| During execution, the elements of all the lists are generated on demand, one at a
+|| time.
+
+%import <base>
+%import <io>
+
+|| a repr is the string representation to be used when a FizzBuzz number is evenly
+|| divisible by the int
+repr == (int, string)
+
+|| fizzBuzz takes a list of reprs to use, then generates an infinite stream of
+|| result strings
+fizzBuzz :: [repr] -> [string]
+fizzBuzz = map generate .> transpose .> map concat .> enumerate .> map default
+           where
+             generate (n, s) = cycle $ s : rep (n - 1) []
+             default (i, s') = if' (null s') (showint i) s'
+
+main :: io ()
+main = fizzBuzz [(3, "Fizz"), (5, "Buzz"), (7, "Baz")] |> take 106 |> io_mapM_ putStrLn
