@@ -25,7 +25,7 @@ fizzBuzz :: [repr] -> [string]
 fizzBuzz = map generate .> transpose .> map concat .> enumerate .> map default
            where
              generate (n, s) = cycle $ s : rep (n - 1) []
-             default (i, s') = if' (null s') (showint i) s'
+             default  (i, s) = if' (null s) (showint i) s
 
 main :: io ()
 main = fizzBuzz [(3, "Fizz"), (5, "Buzz"), (7, "Baz")] |> take 106 |> io_mapM_ putStrLn
