@@ -444,12 +444,11 @@ desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
         singleCtor            = (== 1) . length . fromMaybe [] . lookupCtorNames (view dsGenv st)
         simpleCtor            = singleCtor c & all isPvar pats
 
-|| wrap a complex Pvar DefPat in an Efatbar with stdMatchFail to handle possible failures in rhs
-|| otherwise, if it isn't a Pvar, then it is a bad pattern
+|| report a BadPattern error if it isn't a Pvar, and wrap complex Pvar DefPats in
+|| an Efatbar with stdMatchFail to handle possible failures in rhs
 desugarDef topLevel k (DefPat p rhs an) st
-    = k (DefPat p rhs an) st,                        if isPvar p & isSimpleExpr rhs
-    = k (DefPat p rhs' an) st,                       if isPvar p
-    = (DefPat p rhs an, addDsErr (BadPattern p) st), otherwise
+    = (DefPat p rhs an, addDsErr (BadPattern p) st), if ~isPvar p
+    = k (DefPat p rhs' an) st,                       if ~isSimpleExpr rhs
       where
         rhs' = builtinFatbar rhs . Eap stdMatchFail . genLoc $ view anLoc an
 
