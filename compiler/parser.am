@@ -17,11 +17,11 @@
 
 psError == (string, int, int, int)              || err string, severity, line#, col#
 
-|| custom comparison of psError that only looks at line, col, and severity
+|| custom comparison of psError that only looks at severity, line, col, and severity
 || used to choose the parse state with the deepest error in a p_alt
 cmppsError :: ordI psError
 cmppsError (_, s1, l1, c1) (_, s2, l2, c2)
-    = cmpint l1 l2 $thenCmp cmpint c1 c2 $thenCmp cmpint s1 s2
+    = cmpint s1 s2 $thenCmp cmpint l1 l2 $thenCmp cmpint c1 c2
 
 emptyError :: psError
 emptyError  =  ("", 0, 0, 0)
@@ -69,6 +69,7 @@ p_showCurrentToken
                 offside     = ~null ls & (isTend t \/ ic < hd ls)
 
 || report an error that we expected something that wasn't there
+|| uses higher severity than p_unexpected so that it has priority with multiple errors
 p_expected :: string -> parser *
 p_expected s  = p_showCurrentToken $p_bind (p_error 2 . ("expected " ++ s ++ ", but got " ++))
 
