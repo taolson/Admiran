@@ -69,8 +69,13 @@ nameNeedsResolution n
 renameAst :: astRewriteTraverser rnSt
 
 || rename an Elet by renaming its defnMap's keys, and adding them to the environment, then renaming the rest of the
-|| Elet through the default continuation.  Also perform the optimization of removing any simple DefPat bindings
-|| added during desugaring by changing them to a rename entries in the rnNameEnv
+|| Elet through the default continuation.
+|| Also take this opportunity to optimize away simple rename DefPats that define a name as another name.  These are added
+|| during desugaring, but also occur naturally in code.  Care must be taken here, though, that the rename pats are
+|| optimized away in dependency order, as a user-defined pat may depend upon another or one of the inserted rename pats.
+|| General inlining optimizations can perform these optimizations, as well, but sometimes inlining has to "give up" before
+|| being able to perform all of these, so it is better to take care of it here, which also reduces the work that the inlining
+|| pass has to do.
 renameAst k (Elet rec defs x e) st
     = renameAst k e st2,          if m_null defs'                       || all defs were converted to rename entries
     = k (Elet rec defs' x e) st2, otherwise
