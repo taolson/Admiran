@@ -193,8 +193,16 @@ p_term
 || the tokenizer and parser represent a negative literal as the application of a prefix neg operator to
 || a positive literal, as it makes the tokenizer easier.  check for this and replace with the negative literal
 exprOrNegLit :: expr -> expr
-exprOrNegLit (Eap (Evar op) (Eint n)) = Eint (neg n), if _eq cmpname op stdNegName
-exprOrNegLit e                        = e
+exprOrNegLit (Eap (Evar op) e)
+    = fromJust negLit, if _eq cmpname op stdNegName & isJust negLit
+      where
+        negLit = maybeNeg e
+
+        maybeNeg (Eint n)        = Just . Eint $ -n
+        maybeNeg (Plit (Eint n)) = Just . Plit . Eint $ -n
+        maybeNeg _               = Nothing
+
+exprOrNegLit e = e
 
 || the following mutually-recursive parsers are used for parsing both expr expressions and pat patterns
 || by passing specialized sub-parsers as parameters
@@ -394,7 +402,7 @@ makePat e
     = makePatFn [] e >>= checkPat
       where
         checkPat (Left p)  = p_pure p
-        checkPat (Right x) = p_patErr
+        checkPat (Right _) = p_patErr
 
 p_patErr :: parser *
 p_patErr = p_error 2 "error in pattern"
