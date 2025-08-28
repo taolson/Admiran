@@ -429,7 +429,10 @@ p_patOrFnForm = p_patExpr >>= makePatFn []
 
 || parse a type name
 p_tname :: parser name
-p_tname = p_identifier $p_satisfy isVar || don't allow symbol names which p_var would allow
+p_tname
+    = p_identifier $p_satisfy isTname
+      where
+        isTname n = isVar n & ~s_member cmpstring (getName n) reservedNames
 
 || parse a type variable
 p_tvar :: parser texpr
