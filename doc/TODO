@@ -1,3 +1,51 @@
+--- Importing and Exporting Names ---
+Haskell allows Unqualified names in the environment to map to multiple Qualified names, and only reports an error
+if the unqualified name is used.  Possibly implement this with a special environment nameMap that maps from an
+unqualified name to a list of qualified names, and only allow singletons to be accessed without a qualifier, or report
+a new "ambiguous name" error.
+
+steps:
+
+* add new ExceptionInfo "Ambiguous [name]" with shows impl.
+
+* add new envMap type (m_map name [name]) to module.am, and change module env field to be that
+
+* change nameMap operations to envMap operations, replacing maybe name with either exceptionInfo name
+   - when performing lookup on name, perform case on result:
+       Nothing  -> Left (Undefined name)
+       Just [n] -> Right n
+       Just xs  -> Left (Ambiguous xs)
+
+   - when performing insertion, do insertWith (++) name [val] env
+     don't check for or report NameClash, here
+
+   - change mergeEnv to merge from new export map, which only holds Unqualified name -> Qualified name mappings,
+     changing the Unqualified to Qualified (as M), and also including the Unqualified if not Qualified only
+
+* change builtinEnv in predef.am to create an "export map" like map that only holds Unqualifed n -> Builtin n mappings
+
+* change stg.am to perform mergeEnv on m_empty with builtinEnv to create initial envMap for module
+
+* change rename.am to use new envMap lookup and report Ambiguous error if multiply-defined
+
+* change typecheck.am similarly for lookup
+
+* change reify.am for import and export
+
+   - When importing a module, the unqualified names are expanded into both unqualified and qualified forms (using a possible alias)
+
+   - When exporting an entire module, only the unqualified key names in the module are exported.  When exporting an identifier,
+     the identifier (qualified or unqualified) is looked up in the environment, then put in the export map with an unqualified
+     key.
+
+
+--- Generalized Partial Application ---
+Generalized partial application needs to be performed after the rewrite stage, where Eaps are turned into Ecalls, so that we
+can get arity information for the function.  However, rewrite also performs inlining of some key stdlib functions ($, |>, ., .>),
+which cause any generalized partial application that uses them as the operator e.g. (_ $ 5) to fail, because the expression has
+been replaced with (_ 5).  
+
+
 --- Strictness / Escape analysis for thunks ---
 Extraneous updates for thunks that don't require one cause a lot of memory pressure in iterative loops, since the
 update isn't performed until the entire loop is finished.  Need to perform a strictness / escape analysis on thunks
