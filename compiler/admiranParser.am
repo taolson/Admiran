@@ -282,7 +282,7 @@ p_expFinal (e : es)       (op : ops) = p_expFinal (pe : es) ops, if _eq cmpassoc
                                          assoc = snd $ opPrecAssoc op
                                          pe    = exprOrNegLit $ Eap (Evar op) e
 p_expFinal (er : el : es) (op : ops) = p_expFinal (ap2 (Evar op) el er : es) ops
-p_expFinal _              _          = p_error 2 "error in expression"
+p_expFinal _              _          = p_error 1 "error in expression"
 
 p_expr :: parser expr
 p_expr = p_exp p_prefix p_infix p_term [] []
@@ -325,21 +325,21 @@ p_lambdaExpr
 || parse a conditional expression for the given expr
 p_cond :: expr -> parser cond
 p_cond e
-    = (p_comma *> (p_if <|> p_ow)) <|> p_expected "\", if\" or \", otherwise\""
+    = p_comma *> (p_if <|> p_ow <|> p_expected "a conditional expression")
       where
-        p_if = p_ident "if"        *> (($Cif e) <$> p_expr <|> p_expected "an expression")
+        p_if = p_ident "if"        *> (($Cif e) <$> p_expr)
         p_ow = p_ident "otherwise" *> p_pure (Cdefault e)
 
 || parse conditional expressions for the given expr
 p_conds :: expr -> parser expr
 p_conds e
-    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_equal *> p_indent *> p_expr >>= p_cond))
+    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_equal *> p_indent *> ((p_expr >>= p_cond) <|> p_expected "a conditional expression")))
       where
         mkCond c cs = Econd (c : cs)
 
 || parse "where ..." definitions
 p_whdefs :: parser [defn]
-p_whdefs = map fst <$> (p_ident "where" *> p_some p_def)
+p_whdefs = map fst <$> (p_ident "where" *> (p_some p_def <|> p_expected "'where' definitions"))
 
 || parse right hand side of an expression in a layout block
 || note: this used to try parsing a condExpr, and if that failed parse an expr.  However, because a condExpr begins with an expr,
@@ -405,7 +405,7 @@ makePat e
         checkPat (Right _) = p_patErr
 
 p_patErr :: parser *
-p_patErr = p_error 2 "error in pattern"
+p_patErr = p_error 1 "error in pattern"
 
 || restrict prefixes to negate, for use in patterns which use negated Eints
 p_patPrefix :: parser name
@@ -524,7 +524,7 @@ p_tFinal :: [texpr] -> [name] -> parser texpr
 p_tFinal [e] []                      = p_pure e
 p_tFinal (er : el : es') (op : ops') = p_tFinal (Tarr el er : es') ops',          if getName op ==$ "->"
                                      = p_tFinal ((Tname op [el, er]) : es') ops', otherwise
-p_tFinal _               _           = p_error 2 "error in expression"
+p_tFinal _               _           = p_error 1 "error in expression"
 
 || parse a type -- could possibly modify p_exp to handle this and get rid of the specialized parsers, above
 p_type :: parser texpr

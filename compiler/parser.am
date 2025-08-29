@@ -44,14 +44,27 @@ parser * == maybeState psSt *
 
 || parser error handling
 
-|| report an error with a specified severity level and error string,
-|| keeping the deepest error of that and the existing psErr
+|| report an error with a specified severity level and error string
+|| the idea here is that in the case of multiple errors down different parse paths,
+|| the most likely intended parse is either the one where we made unambiguous progress
+|| (severity 2 from a p_expected parse), or the one where we've made the most progress
+|| (higher line/char index)
 p_error :: int -> string -> parser *
 p_error sv es ps
     = (Nothing, ps')
       where
         (_, il, ic) = hd $ view psToks ps
         ps'         = over psErr (max2 cmppsError (es, sv, il, ic)) ps
+
+|| add more info to the existing error, with severity 2 to indicate that
+|| this error should have higher precedence than a regular error
+p_errorInfo :: string -> parser *
+p_errorInfo es ps
+    = (Nothing, ps')
+      where
+        sv  = view psErrSev ps
+        ps' = over psErrStr (es ++) . set psErrSev 2 $ ps, if sv < 2
+            = ps,                                          otherwise
 
 || show the current token, or a string indicating an exception condition
 || (end of input, offside)
@@ -71,7 +84,7 @@ p_showCurrentToken
 || report an error that we expected something that wasn't there
 || uses higher severity than p_unexpected so that it has priority with multiple errors
 p_expected :: string -> parser *
-p_expected s  = p_showCurrentToken $p_bind (p_error 2 . ("expected " ++ s ++ ", but got " ++))
+p_expected s  = p_errorInfo ("expected " ++ s ++ ", but got ")
 
 || report an error that we got an unexpected token
 p_unexpected :: parser *
