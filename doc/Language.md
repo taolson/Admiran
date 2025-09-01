@@ -158,10 +158,12 @@ a new one. For example:
     where
       b = x < y
 
-A semicolon (`;`) can be used to specify the end of a construct instead of indentation:
+A semicolon (`;`) can be used to end a construct on the same line, instead of indentation:
 
     x = (3 + y) * 17; y = 52
-    case b of False -> "F"; True -> "T"; where b = x < y
+    "b is " ++ (case b of False -> "F"; True -> "T";;)
+
+Note that in the second example above, two semicolons are required, since both the `of` and the second `->` are layout sensitive.
 
 ## Expressions
 
