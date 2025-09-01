@@ -704,6 +704,7 @@ precAssocTable
       , ("--",   (1,  AssocRight))      || list difference
       , ("\\/",  (2,  AssocRight))      || boolean OR
       , ("&",    (3,  AssocRight))      || boolean AND
+      , ("<|>",  (3,  AssocLeft))       || generic alternative
       , ("~",    (4,  AssocPrefix))     || boolean NOT
       , ("<$>",  (4,  AssocLeft))       || generic functor fmap
       , ("<*>",  (4,  AssocLeft))       || generic applicative apply
