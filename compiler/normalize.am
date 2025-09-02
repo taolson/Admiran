@@ -5,7 +5,7 @@
 || thunk for under-applied calls, which is required by STG.
 
 
-%export normalize generalizePAPs
+%export normalize
 
 %import <base>
 %import <lens>
@@ -173,65 +173,3 @@ normalize genv
         m          = view genvMod genv
         (defs, st) = astRewriteMap (astRewriteLex normalizeAst) (view modDefns m) (initNmSt genv)
         genv'      = over genvMod (set modDefns defs) (view nmGenv st)
-
-
-|| Generalized Partial Application creation
-||
-|| This needs to know the arity of the function being called to determine whether
-|| to return a new lambda function unapplied, or apply it to subsequent arguments,
-|| so it uses the same nmSt as normalize.
-
-|| rewrite Ecalls to a function with wildcard args into a new lambda function which
-|| takes a single argument representing the wildcard value. If the arity cannot be
-|| determined (e.g. it is an unknown function being passed in), then report an error.
-generalizePAP :: astRewriteTraverser nmSt
-generalizePAP k (Ecall f args) st
-    = k (Ecall f args) st, if ~any isWildEvar args
-    = k (Ecall f args) stErr, if noArity \/ #args < fArity
-    = k letLam         st',   otherwise
-      where
-        mfArity        = getArity f st
-        fArity         = fromJust mfArity
-        noArity        = isNothing mfArity \/ fArity == 0
-        (args1, args2) = splitAt fArity args
-        gen            = view nmGen st
-        an             = locAnno . fromMaybe emptyLocation . view nmLocation $ st
-        (gen1, nl)     = genName "lam" gen
-        (gen2, nv)     = genName "var" gen1
-        args'          = map substWild args1
-        lam            = DefFn nl [Pvar nv] (Ecall f args') an
-        lamExpr        = Evar nl,               if null args2
-                       = Ecall (Evar nl) args2, otherwise
-        letLam         = Elet False (m_singleton nl lam) [] lamExpr
-        st'            = set nmGen gen2 st
-        stErr          = addNmErr UnknownArity st
-
-        isWildEvar (Evar n) = isWildcard n
-        isWildEvar _        = False
-
-        substWild a = Evar nv, if isWildEvar a
-                    = a,       otherwise
-
-|| add new state info from Defns and Elets
-generalizePAP k a st
-    = k a st1, if isDefn a
-    = k a st2, if isLet a
-    = k a st,  otherwise
-      where
-        loc = defnLocInfo a
-        st1 = over nmLoc (mergeLocInfo loc) st  || add defn loc info for reporting errors
-        st2 = over nmLenv (getDefns a :) st     || add a new localEnv frame for Elets to get arity info
-
-        getDefns (Elet b defs pats e) = defs
-        getDefns _                    = m_empty
-
-|| rewrite Ecalls with wildcard args to partial applications of a new lambda fn
-generalizePAPs :: globalEnv -> excpt globalEnv
-generalizePAPs genv
-    = ex_return genv' warns, if null errs
-    = ex_errs   errs,        otherwise
-      where
-        m             = view genvMod genv
-        (defs, st)    = astRewriteMap (astRewriteLex generalizePAP) (view modDefns m) (initNmSt genv)
-        genv'         = over genvMod (set modDefns defs) (view nmGenv st)
-        (errs, warns) = partition isError (view nmErrs st)

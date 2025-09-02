@@ -108,7 +108,6 @@ buildModule mm n
             , rename                      || qualify or uniquely rename as Internal all Unqualified names
             , analyze                     || free var analysis for rewrite
             , rewrite                     || organize Elets for typecheck, cleanup and general optimizations   
-            , generalizePAPs              || rewrite Ecalls with wildcard args to partial applications of a new lambda fn
             , analyzeWarn                 || re-do free var analysis after rewrite and check for unused variables and non-exhaustive patterns
             , reifySyns                   || expand type synonyms to base types, checking for cycles
             , reifyTypes                  || expand specs and dataDefs with expanded type synonyms
