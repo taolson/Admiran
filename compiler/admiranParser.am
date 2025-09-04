@@ -293,10 +293,12 @@ p_expr = p_exp p_prefix p_infix p_term [] []
 || patterns, word# literals, variables and wildcards are supported, and the case scrutinee is evaluated strictly
 p_casePat :: parser pat
 p_casePat
-    = (p_pat >>= check) <|> p_expected "a restricted simple case pattern"
+    = p_pat >>= check
       where
         check x = p_pure x, if isCasePat x
-                = p_fail,   otherwise
+                = err,      otherwise
+
+        err     = p_expected "a restricted simple case pattern"
 
         isCasePat (Pvar x)       = True
         isCasePat (Plit x)       = isUnboxed x
