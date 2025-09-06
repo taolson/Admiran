@@ -1,0 +1,2 @@
+# Reclassify `.am` files as Admiran
+*.am     linguist-language=Admiran
