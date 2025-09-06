@@ -165,7 +165,7 @@ showsAnno (loc, rec, cpx, uses, free, strict)
 || use the version below to see the full anno information
 ||    = shows "{" . showsRec . showsint cpx . shows " " . showsint uses .
 ||      shows " [" . interShows ", " (map showsName (s_toList free)) . shows "]" .
-||      shows " [" . interShows ", " (map showsint (s_toList strict)) . shows "]}"
+||      shows " [" . interShows ", " (map showsint (bs_toList strict)) . shows "]}"
 ||      where
 ||        showsRec = shows "Rec ", if rec
 ||                 = shows "",     otherwise
