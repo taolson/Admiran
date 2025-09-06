@@ -5,6 +5,7 @@
 %export demand
 
 %import <base>
+%import <bitSet>
 %import <either>
 %import <lens>
 %import <map>
@@ -26,7 +27,7 @@
 || dmNames:  in-scope demand variable names
 || notes:    information notes collected during traversal
 
-demandSet == s_set num
+demandSet == bitSet
 dmSt      == (globalEnv, m_map name demandSet, s_set name, [exception])
 
 || lenses for dmSt
@@ -75,9 +76,9 @@ lookupDemand n
     = st_liftA2 go (dm_view dmGenv) (dm_view dmMap)
       where
         go genv dm
-            = s_empty,                             if isConstructor n        || constructors are WHNF and don't demand their arguments
-            = s_fromList cmpint  [0 .. arity - 1], if isBuiltin n            || builtins demand all of their arguments
-            = fromMaybe s_empty mds,               otherwise
+            = bs_empty,                     if isConstructor n  || constructors are WHNF and don't demand their arguments
+            = bs_fromList [0 .. arity - 1], if isBuiltin n      || builtins demand all of their arguments
+            = fromMaybe bs_empty mds,       otherwise
               where
                 arity = fromJust (lookupArity genv n)
                 mds   = m_lookup cmpname n dm <|>? view defnAnStrict <$>? lookupDefn genv n
@@ -110,7 +111,7 @@ demandAst k (Elet rec defs pats e)
                 (dn, d)  = m_first defs'         || the rewrite pass has made all non-recursive Elets singletons, so we only need to check the first
                 loc      = view defnAnLoc d
                 uses     = view defnAnUses d
-                d'       = set defnAnStrict (s_singleton 0) d
+                d'       = set defnAnStrict (bs_singleton 0) d
 
                 isCtorCall (Ecall (Evar n) args) = isConstructor n
                 isCtorCall a                     = False
@@ -158,7 +159,7 @@ demandAst k (Ecall e args)
         checkFn (e, args)       = st_pure (Ecall e args)
         checkArgs ds            = st_mapM_ (checkArg ds) (enumerate args)
 
-        checkArg ds (i, Evar n) = dm_over dmNames (s_insert cmpname n), if s_member cmpint i ds
+        checkArg ds (i, Evar n) = dm_over dmNames (s_insert cmpname n), if bs_member i ds
         checkArg ds x           = st_pure ()
 
 || Efatbar needs to go down the left path only for demand
@@ -183,12 +184,12 @@ demandAst k a
               st_pure (DefFn n vars e an')
               where
                 vns    = map unPvar vars
-                strict = foldl findVarIdx s_empty (enumerate vns)
+                strict = foldl findVarIdx bs_empty (enumerate vns)
                 an'    = set anStrict strict an
 
                findVarIdx s (i, n)
-                   = s_insert cmpint i s, if s_member cmpname n dns 
-                   = s,                   otherwise
+                   = bs_insert i s, if s_member cmpname n dns 
+                   = s,             otherwise
 
        doDef _ _ = undef  || added to remove compiler warning
 

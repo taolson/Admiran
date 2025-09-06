@@ -4,6 +4,7 @@
 %export +
 
 %import <base>
+%import <bitSet>
 %import <bag>
 %import <either>
 %import <map>
@@ -186,10 +187,10 @@ deserialLoc :: deserializer location
 deserialLoc = deserialTup3 deserialString deserialPosInt deserialPosInt
 
 serialAnno :: serializer anno
-serialAnno = serialTup6 serialLoc serialBool serialPosInt serialPosInt (serialSet serialName) (serialSet serialCtor)
+serialAnno = serialTup6 serialLoc serialBool serialPosInt serialPosInt (serialSet serialName) serialPosInt
 
 deserialAnno :: deserializer anno
-deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialPosInt (deserialSet cmpname deserialName) (deserialSet cmpint deserialCtor)
+deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialPosInt (deserialSet cmpname deserialName) deserialPosInt
 
 serialName :: serializer name
 serialName (Unqualified n)  = serialCtor 0 . serialString n
@@ -222,6 +223,12 @@ serialNameMap = serialList (serialTup2 serialName serialName) . m_toList
 
 deserialNameMap :: deserializer nameMap
 deserialNameMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName deserialName)
+
+serialEnvMap :: serializer envMap
+serialEnvMap = serialList (serialTup2 serialName (serialList serialName)) . m_toList
+
+deserialEnvMap :: deserializer envMap
+deserialEnvMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName (deserialList deserialName))
 
 serialAst :: serializer ast
 serialAst (Evar n)            = serialCtor  0 . serialName n

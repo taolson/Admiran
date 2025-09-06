@@ -4,6 +4,7 @@
 %export + -precAssocTable
 
 %import <base>
+%import <bitSet>
 %import <lens>
 %import <map>
 %import <maybe>
@@ -98,7 +99,7 @@ multSel ::=
     Mpat                || mult for DefPat (and its accessor functions)
 
 || annotation for definitions
-anno == (location, bool, int, int, s_set name, s_set int)         || loc, recursive, complexity, use count, free vars, strictness info
+anno == (location, bool, int, int, s_set name, bitSet)         || loc, recursive, complexity, use count, free vars, strictness info
 
 || lenses for annotation fields
 anLoc    = lensTup6_0
@@ -109,7 +110,7 @@ anFree   = lensTup6_4
 anStrict = lensTup6_5
 
 emptyAnno :: anno
-emptyAnno = (emptyLocation, False, 0, 0, s_empty, s_empty)
+emptyAnno = (emptyLocation, False, 0, 0, s_empty, bs_empty)
 
 locAnno :: location -> anno
 locAnno loc = set anLoc loc emptyAnno
@@ -676,7 +677,8 @@ qualifyDefn modName d                      = d
 
 
 || common environment definitions
-nameMap == m_map name name          || map from an Unqualified or Unresolved name to a Qualified name
+nameMap == m_map name name          || map for renaming a name
+envMap  == m_map name [name]        || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
 defnMap == m_map name defn          || map from Qualified name to top-level definition in module
 
 || operator precedence and associativity

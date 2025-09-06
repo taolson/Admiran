@@ -7,6 +7,7 @@
         buildStg heapObjWords stringWords
 
 %import <base>
+%import <bitSet>
 %import <lens>
 %import <map>
 %import <maybe>
@@ -851,7 +852,7 @@ buildCode d
                 fns        = filter isInternal . s_toList . view anFree $ an    || names of free var references
                 bhInst     = Update r2Opr (Imm (Caddr blackHolePtr))            || update thunk to blackHole trampoline during evaluation
                 contInst   = PushCont updatePtr [r2Opr]                         || push a continuation to update thunk with result
-                noUpdate   = isCtorCall e \/ ~s_null (view anStrict an)         || ctor or marked as no-update from demand analysis
+                noUpdate   = isCtorCall e \/ ~bs_null (view anStrict an)        || ctor or marked as no-update from demand analysis
                 mkCode eis = eis,                     if noUpdate
                 mkCode eis = bhInst : contInst : eis, otherwise
 
