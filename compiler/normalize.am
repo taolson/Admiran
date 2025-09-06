@@ -8,6 +8,7 @@
 %export normalize
 
 %import <base>
+%import <bitSet>
 %import <lens>
 %import <map>
 %import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
@@ -159,7 +160,7 @@ normalizeAst k a st
                 isEager e                     = False
 
                 wrapLet a (DefPat p e an)
-                    = Ecase Csingle e [CaseAlt p a],                if ~s_null (view anStrict an) \/ useEagerCtors & isEager e
+                    = Ecase Csingle e [CaseAlt p a],                if ~bs_null (view anStrict an) \/ useEagerCtors & isEager e
 
                 wrapLet a d
                     = Elet False (m_singleton (defnName d) d) [] a, otherwise
