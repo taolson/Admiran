@@ -174,7 +174,6 @@ interleaved with infix operators. Term expressions can be:
 * a tuple
 * a parenthesized expression
 * a presection or postsection
-* a generalized partial application
 * a list expression
 * a range expression
 * a list comprehension
@@ -289,7 +288,7 @@ every value in a list:
 Note that (- 1) is parsed as the prefix negation operator `-` on 1, rather than a postsection
 on a binary `-`. To perform the later, the standard library function `subtract` can be used.
 
-### Generalized Partial Applications
+### Generalized Partial Applications (deprecated)
 
 Partial applications of a function can be generalized by writing a function application with one or
 more arguments replaced with a wildcard `_`.  The function application is turned into the partial
