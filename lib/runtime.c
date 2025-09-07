@@ -215,7 +215,7 @@ void heapInit ()
   gcOldBase    = mmap (0, gcMaxMem * sizeof (word), PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
   gcOldAlloc   = gcOldBase;
   gcHeapTop    = gcOldBase + gcInitMem;
-  gcNewBase    = gcOldBase + (gcHeapTop - gcOldBase) / 2;
+  gcNewBase    = gcOldBase + gcInitMem / 2;
   gcNewAlloc   = gcNewBase;
   gcRootsTop   = gcOldBase + gcMaxMem;
   gcRootsAlloc = gcRootsTop;
