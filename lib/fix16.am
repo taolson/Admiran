@@ -1,6 +1,6 @@
-|| fixed-point representation with 16-bit fractional part, to substitute for floats
+|| fixed-point representation with 16-bit fractional part, as a substitute for floats
 
-export +
+%export +
 
 abstype fix16 with
     (+.)      :: fix16 -> fix16 -> fix16
@@ -24,10 +24,21 @@ a -. b = a - b
 a *. b = a * b .>>. 16
 a /. b = (a .<<. 16) / b
 
-toFix16   x = x .<<. 16
-fix16Int  x = x .>>. 16
-fix16Frac x = x .&. 0xffff
+toFix16 x = x .<<. 16
 
+|| return integer portion of fix16, adjusting for negative fractional values
+fix16Int x
+    = x .>>. 16,     if x > 0 \/ x .&. 0xffff == 0
+    = x .>>. 16 + 1, otherwise
+
+|| return fractional portion of fix16, adjusting for negative fractional values
+fix16Frac x
+    = fx,           if x > 0 \/ fx == 0
+    = fx - 0x10000, otherwise
+      where
+        fx = x .&. 0xffff
+
+|| convert a float string representation to a fix16
 fix16val ('-' : xs) = -fix16val xs
 fix16val xs
     = goInt 0 xs
