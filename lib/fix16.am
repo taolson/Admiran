@@ -1,0 +1,73 @@
+|| fixed-point representation with 16-bit fractional part, to substitute for floats
+
+export +
+
+abstype fix16 with
+    (+.)      :: fix16 -> fix16 -> fix16
+    (-.)      :: fix16 -> fix16 -> fix16
+    (*.)      :: fix16 -> fix16 -> fix16
+    (/.)      :: fix16 -> fix16 -> fix16
+    toFix16   :: int -> fix16
+    fix16Int  :: fix16 -> int
+    fix16Frac :: fix16 -> int
+    fix16val  :: string -> fix16
+    showfix16 :: fix16 -> string
+    cmpfix16  :: fix16 -> fix16 -> ordering
+
+
+|| implementation uses int, scaling multiplication and division appropriately
+
+fix16 == int
+
+a +. b = a + b
+a -. b = a - b
+a *. b = a * b .>>. 16
+a /. b = (a .<<. 16) / b
+
+toFix16   x = x .<<. 16
+fix16Int  x = x .>>. 16
+fix16Frac x = x .&. 0xffff
+
+fix16val ('-' : xs) = -fix16val xs
+fix16val xs
+    = goInt 0 xs
+      where
+        code0 = code '0'
+
+        || parse and convert integer part
+        goInt n (x : xs)
+            = goInt (n * 10 + code x - code0) xs, if '0' <=. x <=. '9'
+            = n .<<. 16 + goFrac 0 10 xs,         if x ==. '.'
+            = n .<<. 16,                          otherwise
+
+        goInt n _ = n .<<. 16
+
+        || parse and convert fractional part
+        goFrac n d (x : xs)
+            = goFrac n' (d * 10) xs, if '0' <=. x <=. '9'
+              where
+                n' = n + (code x - code0 .<<. 32) $quot d
+
+        goFrac n _ _ = n .>>. 16
+
+showfix16 n
+    = '-' : showfix16 (-n), if n < 0
+    = si ++ "." ++ sf,      otherwise
+      where
+        (c, sf) = showfrac 4 (fix16Frac n)
+        ni      = fix16Int n + c
+        si      = showint ni
+
+        showdigit d = decode (d + code '0')
+
+        showfrac 0 n = (n .>>. 15, [])  || round the next digit up, if remaining frac is > 0.5
+        showfrac i n
+            = (c', showdigit d' : s)
+              where
+                n'       = n * 10
+                d        = fix16Int n'
+                r        = fix16Frac n'
+                (c, s)   = showfrac (i - 1) r
+                (c', d') = (d + c) $quotrem 10
+
+cmpfix16 = cmpint
