@@ -70,27 +70,32 @@ readByteStreamS p#
                             1# -> Done
                             _  -> Yield (C# c#) p#
 
-rangeByS :: int -> int -> int -> stream int int
-rangeByS step lo hi
-    = Stream nextInc lo, if step > 0
-    = Stream nextDec lo, otherwise
+rangeByS :: int -> int -> int -> stream int word#
+rangeByS (I# step) (I# lo) (I# hi)
+    = case step $cmp# 0# of
+        1# -> Stream nextDec lo
+        _  -> Stream nextInc lo
       where
-        nextInc n = Done, if n > hi
-                  = Yield n (n + step), otherwise
+        nextInc n
+            = case n $cmp# hi of
+                2# -> Done
+                _  -> case n +# step of n' -> Yield (I# n) n'
 
-        nextDec n = Done, if n < hi
-                  = Yield n (n + step), otherwise
+        nextDec n
+            = case n $cmp# hi of
+                1# -> Done
+                _  -> case n +# step of n' -> Yield (I# n) n'
 
-rangeS :: int -> int -> stream int int
+rangeS :: int -> int -> stream int word#
 rangeS lo hi = rangeByS 1 lo hi
 
-rangeByFromS :: int -> int -> stream int int
-rangeByFromS step n
+rangeByFromS :: int -> int -> stream int word#
+rangeByFromS (I# step) (I# n)
     = Stream next n
       where
-        next n = Yield n (n + step)
+        next n = case n +# 1# of n' -> Yield (I# n) n'
 
-rangeFromS :: int -> stream int int
+rangeFromS :: int -> stream int word#
 rangeFromS n = rangeByFromS 1 n
 
 iterateS :: (* -> *) -> * -> stream * *
