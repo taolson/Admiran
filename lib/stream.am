@@ -18,7 +18,9 @@
 ||       just the right place.  Currently this means that the compatibility functions (e.g. map_, foldr_) cannot be
 ||        written using the (.) compose operator, but instead have to be written explicitly with nested function calls.
 
-%export + -uncurry      || uncurry defined in <base>, but defined and used internally, here, to avoid dependency
+%export + -seither -Sleft -Sright       || remove the internal versions of either / maybe / uncurry from the export
+          -smaybe -Snothing -Sjust
+          -suncurry
 
 
 || note: in the original definition, the second type var is existential, restricting the operations that
@@ -33,6 +35,9 @@ step * ** ::= Done | Skip ** | Yield * **
 || on the actual ones
 seither * ** ::= Sleft * | Sright **
 smaybe *     ::= Snothing | Sjust *
+
+suncurry :: (* -> ** -> ***) -> (*, **) -> ***
+suncurry f = go where go (a, b) = f a b
 
 
 || internal stream versions of <stdlib> and <base> list functions
@@ -203,7 +208,7 @@ zip2S (Stream nexta sa) (Stream nextb sb)
                 Yield b sb' -> Yield (a, b) (sa, sb', Snothing)
 
 zipWithS :: (* -> ** -> ***) -> stream * **** -> stream ** ***** -> stream *** (****, *****, smaybe *)
-zipWithS f sa sb = mapS (uncurry f) (zip2S sa sb)
+zipWithS f sa sb = mapS (suncurry f) (zip2S sa sb)
 
 concatMapS :: (* -> stream ** ***) -> stream * **** -> stream ** ((****, smaybe (stream ** ***)))
 concatMapS f (Stream nexta sa)
@@ -321,9 +326,6 @@ allS p = foldrS ((&) . p) True
 
 || backwards-compatible re-implementations of <stdlib> and <base> list functions,
 || wrapping the internal stream functions with fromStream/toStream
-
-uncurry :: (* -> ** -> ***) -> (*, **) -> ***
-uncurry f = go where go (a, b) = f a b
 
 || convert list to stream
 toStream :: [*] -> stream * [*]
