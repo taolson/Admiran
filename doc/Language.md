@@ -288,22 +288,6 @@ every value in a list:
 Note that (- 1) is parsed as the prefix negation operator `-` on 1, rather than a postsection
 on a binary `-`. To perform the later, the standard library function `subtract` can be used.
 
-### Generalized Partial Applications (deprecated)
-
-Partial applications of a function can be generalized by writing a function application with one or
-more arguments replaced with a wildcard `_`.  The function application is turned into the partial
-application of a new unary function, where the function's argument replaces the wildcards in the
-original function application.  For example, `map (_ + 1) xs` is equivalent to using the postsection
-form of `(+)` in `map (+ 1) xs`, and `f 1 _ 3` is equivalent to
-
-    go
-    where
-      go x = f 1 x 3
-
-Multiple wildcards can exist in a function application; this allows things like `map (_ * _) xs`
-which maps a squaring function over a list, without having to explicitly write a definition for
-the squaring function.
-
 ### Lists
 
 Lists are a built-in recursive data type in Admiran, with two constructors: `[]` and `:`. `[]`
