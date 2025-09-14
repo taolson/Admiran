@@ -367,6 +367,9 @@ iterate_ f x = fromStream (iterateS f x)
 tl_ :: [*] -> [*]
 tl_ xs = fromStream (tlS (toStream xs))
 
+last_ :: [*] -> *
+last_ xs = lastS (toStream xs)
+
 map_ :: (* -> **) -> [*] -> [**]
 map_ f xs = fromStream (mapS f (toStream xs))
 
