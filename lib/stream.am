@@ -110,7 +110,7 @@ tlS (Stream next s)
       where
         next' (False, s)
             = case next s of
-                Done       -> error "tlS []"
+                Done       -> error "tlS of empty stream"
                 Skip s'    -> Skip (False, s')
                 Yield _ s' -> Skip (True, s')
         next' (True, s)
@@ -118,6 +118,18 @@ tlS (Stream next s)
                 Done       -> Done
                 Skip s'    -> Skip (True, s')
                 Yield x s' -> Yield x (True, s')
+
+lastS :: stream * ** -> *
+lastS (Stream next st)
+    = go Snothing st
+      where
+        go mx st
+            = case next st of
+                Done        -> case mx of
+                                 Snothing -> error "lastS of empty stream"
+                                 Sjust x  -> x
+                Skip st'    -> go mx st'
+                Yield x st' -> go (Sjust x) st'
 
 mapS :: (* -> ***) -> stream * ** -> stream *** **
 mapS f (Stream next s)
