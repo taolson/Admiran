@@ -648,12 +648,12 @@ typecheckGroup ns
                       spec'          = DefSpec (Tname n []) normt (genvAnno genv)
                       loc            = defnLocInfo spec
 
-                      verify Nothing = incorrDeclErr
+                      verify Nothing = typeSpecError
                       verify _       = installSpec, if hasTypeHole spec || install the inferred spec, if the spec matches but has a type hole
                                      = tc_pure () , otherwise
 
                       installSpec    = tc_over tcSpecs (m_insert cmpname n spec')
-                      incorrDeclErr  = tc_over tcErrs ((Error, IncorrDecl spec spec', loc) :)
+                      typeSpecError  = tc_over tcErrs ((Error, TypeSpec spec spec', loc) :)
                       locSubsumes sm = tc_over tcLoc (mergeLocInfo loc) $st_right subsumes t t' sm
 
 

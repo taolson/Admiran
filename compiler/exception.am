@@ -29,7 +29,6 @@ exceptionInfo ::=
     BadPattern     pat               |       || pattern is not a constructor or variable
     CtorArity      name              |       || constructor used with wrong arity in formal
     DepCycle       string            |       || dependency cycle in type definitions or module includes
-    IncorrDecl     defn  defn        |       || incorrect declaration (specified vs inferred type)
     NameClash      name              |       || previously-defined, qualified name (includes module info)
     NonExhaustive                    |       || non-exhaustive patterns in function
     NotPairPat                       |       || case alternate pattern is not a pair
@@ -40,6 +39,7 @@ exceptionInfo ::=
     SpecNoDef      name              |       || specified, but not defined
     TypeHole       texpr             |       || type hole found when unifying with texpr
     TypeIdent      name              |       || typename used as an identifier
+    TypeSpec       defn  defn        |       || cannot match specified type with inferred type
     UnboundTvar    int               |       ||
     UnboxedPat                       |       || pattern type cannot be an unboxed value
     Undefined      name              |       || undefined name referenced
@@ -63,7 +63,6 @@ showsExceptionInfo (BadCtor dn cn)      = showsExName cn . shows " is not a cons
 showsExceptionInfo (BadPattern p)       = shows "bad pattern " . showsAst p
 showsExceptionInfo (CtorArity cn)       = shows "constructor " . showsExName cn . shows " used with wrong arity in formal"
 showsExceptionInfo (DepCycle s)         = shows "dependency cycle in " . shows s
-showsExceptionInfo (IncorrDecl d1 d2)   = shows "incorrect type declaration:\n    specified: " . showsAst d1 . shows "\n    inferred:  " . showsAst d2
 showsExceptionInfo (NameClash n)        = shows "name clash with " . showsName n
 showsExceptionInfo NonExhaustive        = shows "non-exhaustive patterns"
 showsExceptionInfo NotPairPat           = shows "case alternate pattern must be an explicit pair"
@@ -74,6 +73,8 @@ showsExceptionInfo (RepeatedTvar n)     = shows "repeated type var " . showsAst 
 showsExceptionInfo (SpecNoDef n)        = showsExName n . shows " specified but not defined"
 showsExceptionInfo (TypeHole t)         = shows "type hole found with type " . showsAst t
 showsExceptionInfo (TypeIdent n)        = shows "typename " . showsExName n . shows " used as an expression identifier"
+showsExceptionInfo (TypeSpec d1 d2)     = shows "cannot match specified type with inferred type:\n    specified: " .
+                                                 showsAst d1 . shows "\n    inferred:  " . showsAst d2
 showsExceptionInfo (UnboundTvar n)      = shows "unbound type var " . showsAst (Tvar n)
 showsExceptionInfo UnboxedPat           = shows "pattern type cannot be an unboxed value"
 showsExceptionInfo (Undefined n)        = showsExName n . shows " is undefined"
