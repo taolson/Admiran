@@ -164,7 +164,7 @@ trace s e = case unsafeWriteStdErr (s ++ "\n") of _ -> e
 
 || primitive byteStream operations
 
-|| read a byteStream as a string (list of char)
+|| lazy read of a byteStream as a string (list of char)
 || readByteStream# returns (-1)# at end of stream
 readByteStream :: word# -> string
 readByteStream s#
@@ -173,7 +173,7 @@ readByteStream s#
                 1# -> []        || less than 0, end of stream
                 _  -> C# c# : readByteStream s#
 
-|| write a string to a byteStream, returning any unwritten portion of the string if the byteStream becomes full
+|| strict write of a string to a byteStream, returning any unwritten portion of the string if the byteStream becomes full
 writeByteStream :: word# -> string -> string
 writeByteStream s# [] = []
 writeByteStream s# (C# c# : cs)
