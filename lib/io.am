@@ -1,11 +1,11 @@
 || io.am -- the IO monad for sequencing access to the outside world
 
 
-%export + io_bind io_pure io_kbind io_mapM io_mapM_ io_foldM io_fmap io_apply io_liftA2 io_left io_right io_bind2 io_bind3
+%export + io_bind io_pure io_kbind io_mapM io_mapM_ io_foldM io_fmap io_apply io_liftA2 io_liftA3 io_left io_right io_bind2 io_bind3
 
 %import <state> io_bind/st_bind io_pure/st_pure io_kbind/st_kbind io_mapM/st_mapM io_mapM_/st_mapM_ io_foldM/st_foldM
-                io_fmap/st_fmap io_apply/st_apply io_liftA2/st_liftA2 io_left/st_left io_right/st_right io_bind2/st_bind2
-                io_bind3/st_bind3
+                io_fmap/st_fmap io_apply/st_apply io_liftA2/st_liftA2 io_liftA3/st_liftA3 io_left/st_left io_right/st_right
+                io_bind2/st_bind2 io_bind3/st_bind3
 
 || a wrapper on a byteStream# (which is just a word# that represents the raw heapAddr of an allocated byteStream#)
 || which allows for top-level handle thunks like stdin
