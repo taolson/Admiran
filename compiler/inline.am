@@ -263,9 +263,11 @@ inlineAst k (Ecall (Evar (Builtin fn)) [(EprimInt a), (EprimInt b)]) st
         doBuiltin "bor#"  a b = a .|. b
         doBuiltin "bshl#" a b = a .<<. b
         doBuiltin "bshr#" a b = a .>>. b
-        doBuiltin "cmp#"  a b = 0, if a == b
-                              = 1, if a < b
-                              = 2, otherwise
+        doBuiltin "cmp#"  a b
+            = case cmpint a b of
+                EQ -> 0
+                LT -> 1
+                GT -> 2
         doBuiltin _       _ _ = undef    || added to remove compiler warning
 
 || inline builtin cmp# on literal unboxed char values
@@ -273,9 +275,10 @@ inlineAst k (Ecall (Evar (Builtin "cmp#")) [(EprimChar a), (EprimChar b)]) st
     = (EprimInt r, st')
       where
         st' = addInfo "inlined builtin cmp" . set inSimplified True $ st
-        r   = 0, if a ==. b
-            = 1, if a <. b
-            = 2, otherwise
+        r   = case cmpchar a b of
+                EQ -> 0
+                LT -> 1
+                GT -> 2
 
 || collapse toStream/fromStream pairs
 || note: the fromStream may be the final expr in a chain of Elets, so we need to walk
