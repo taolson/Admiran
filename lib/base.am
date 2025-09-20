@@ -217,11 +217,17 @@ swapPair (a, b) = (b, a)
 dup :: * -> (*, *)
 dup x = (x, x)
 
+|| apply each function to the argument and return the pair
 (&&&) :: (* -> **) -> (* -> ***) -> * -> (**, ***)
 f &&& g = go where go x = (f x, g x)
 
+|| split a pair and apply the functions to the individual parts, then combine
 (***) :: (* -> **) -> (*** -> ****) -> (*, ***) -> (**, ****)
 f *** g = go where go (a, b) = (f a, g b)
+
+|| cartesian product of two lists
+(|*|) :: [*] -> [**] -> [(*, **)]
+xs |*| ys = [(x, y) | x <- xs; y <- ys]
 
 
 || list functions
