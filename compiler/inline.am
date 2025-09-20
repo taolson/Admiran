@@ -38,7 +38,7 @@ noInlineNames = map makeStdlibName               ["unsafeWriteStdErr", "trace", 
                 noReturnNames
 
 || builtin functions that can be inlined by computing at compile-time
-inlineBuiltinNames = ["cmp#", "+#", "-#", "*#"]
+inlineBuiltinNames = ["cmp#", "+#", "-#", "*#", "band#", "bor#", "bshl#", "bshr#"]
 
 
 || a localEnv consists of a stack of frames, which are either a function boundary marker
@@ -259,6 +259,10 @@ inlineAst k (Ecall (Evar (Builtin fn)) [(EprimInt a), (EprimInt b)]) st
         doBuiltin "+#"    a b = a + b
         doBuiltin "-#"    a b = a - b
         doBuiltin "*#"    a b = a * b
+        doBuiltin "band#" a b = a .&. b
+        doBuiltin "bor#"  a b = a .|. b
+        doBuiltin "bshl#" a b = a .<<. b
+        doBuiltin "bshr#" a b = a .>>. b
         doBuiltin "cmp#"  a b = 0, if a == b
                               = 1, if a < b
                               = 2, otherwise
@@ -479,6 +483,8 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
     = checkIdentAdd ea eb, if fn ==$ "+#"
     = checkIdentSub ea eb, if fn ==$ "-#"
     = checkIdentMul ea eb, if fn ==$ "*#"
+    = checkIdentOr  ea eb, if fn ==$ "bor#"
+    = checkIdentAnd ea eb, if fn ==$ "band#"
       where
         st'     = addInfo ("inlined identity on builtin " ++ fn) . set inSimplified True $ st
         base    = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e]) st
@@ -496,6 +502,12 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
         checkIdentMul ea (EprimInt 0) = repl (EprimInt 0)
         checkIdentMul ea (EprimInt 1) = repl ea
         checkIdentMul _  _            = base
+
+        checkIdentOr  ea (EprimInt 0) = repl ea
+        checkIdentOr  _  _            = base
+
+        checkIdentAnd ea (EprimInt 0) = repl (EprimInt 0)
+        checkIdentAnd _  _            = base
 
 || swap order of an Ecase where the scrutinee is also an Ecase
 || note: this duplicates alts1 #alts2 times. Since we are duplicating alts1, and there
