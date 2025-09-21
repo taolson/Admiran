@@ -114,7 +114,7 @@ genPad s
     = pad (8 - extra), otherwise
       where
         len   = #s
-        extra = #s $rem 8
+        extra = len $rem 8
         pad n = shows "\t.byte\t" . interShows ", " (map showsint (rep n 0)) . shows "\n"
 
 genQuad :: showS -> showS
