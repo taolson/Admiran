@@ -97,7 +97,10 @@ in the original Miranda language:
 Haskell's design was strongly influenced by Miranda, so Admiran has a lot of similarities
 with it. The main differences are:
 * No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
-  of a "typeclass" dictionary are passed explicitly to functions that require them
+  of a "typeclass" dictionary are passed explicitly to functions that require them.
+* No higher-kinded types, so generic functions that can operate on any functor, applicative,
+  or monad aren't possible. Instead, code which uses these kinds must be specialized on the
+  particular instance.
 * Admiran typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
 * Data and type definitions use a different syntax (::= and ==, respectively)
 * Admiran allows only restricted simple patterns for case alternatives
