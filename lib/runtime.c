@@ -309,7 +309,7 @@ value heapRelocateValue (value v)
   size = heapObjWords (obj);
 
 #if GC_DEBUG > 2
-    printf ("relocate %p tag %d size %lu to ", obj, obj -> tag, size);
+    printf ("relocate %p tag %d size %llu to ", obj, obj -> tag, size);
 #endif
 
   if (obj -> tag > Hreloc) {
@@ -429,7 +429,7 @@ void gcRelocateFrm ()
   }
 
 #if GC_DEBUG > 2
-  printf ("gcRelocateFrm: size = %lu\n", size);
+  printf ("gcRelocateFrm: size = %llu\n", size);
 #endif
 
   fp = Frm + heapObjWords (untagHeapObj (Frm));
@@ -438,7 +438,7 @@ void gcRelocateFrm ()
     gcRootIndex = (word) fp;
 
 #if GC_DEBUG > 2
-    printf ("frm next obj %p size %lu\n", fp, heapObjWords (untagHeapObj (fp)));
+    printf ("frm next obj %p size %llu\n", fp, heapObjWords (untagHeapObj (fp)));
 #endif
 
     heapRelocateValue (fp);
@@ -543,7 +543,7 @@ void gcTraceFrom (value *base)
     ++ i;
 
 #if GC_DEBUG > 2
-    printf ("gcTraceFrom base=%p tag=%d size=%lu\n", obj, obj -> tag, size);
+    printf ("gcTraceFrom base=%p tag=%d size=%llu\n", obj, obj -> tag, size);
 #endif
 
     gcTraceObj (obj);
