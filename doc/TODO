@@ -1,16 +1,51 @@
+--- Mixing code built with useSel = True vs useSel = False ---
+For some reason, code built with useSel = False and linked with library code that was built with useSel = True
+does not work correctly; a SIGSEGV occurs in the common SelApply routine due to a null value in RAX.  Need to
+investigate, as that is unexpected.
+
+--- Out of memory exception in Advent 2024, day22 when built with amc-noopt ---
+Code starts getting gcMajors and growHeap in tallySequences.tally.  Need to check root cause, and whether it is due
+to useSel = False or useInline = False
+
 --- Importing and Exporting Names ---
 Haskell allows Unqualified names in the environment to map to multiple Qualified names, and only reports an error
 if the unqualified name is used.  Possibly implement this with a special environment nameMap that maps from an
 unqualified name to a list of qualified names, and only allow singletons to be accessed without a qualifier, or report
 a new "ambiguous name" error.
 
+modEnv is an envMap with both Unqualified and Unresolved (with possible alias name) keys to a list of Qualified values
+
+modExportMap is a nameMap with only Unqualified keys to a Qualified value
+
+when importing a modExportMap:
+    1) create Unresolved versions of all the keys by merging the Unqualified name with either the import's module name or the "as" name
+    2) if not LibQualified, create Unqualified versions of all of the above keys
+    2) merge the modified map entries into the env
+
+when creating a modExportMap:
+    1) for export module "M":
+       only entries with Unqualified identifier keys imported from module "M" are exported.  To determine these:
+       filter all entries in envMap with Unresolved "M" key (which should have a singleton value), then look up a possible
+       Unqualified key with that name, and if its value list contains the same value as the Unresolved key, install the Unqualified name
+       with the singleton value. (i.e. only install the Unqualified version of entries from M that have both Unresolved and Unqualified keys)
+       e.g. any module imported as qualified will have no exports
+
+    2) for export "+", do the same as above with the current module name (same as export "name")
+
+    3) for export id, look up the id; if it is a singleton, export it (as an Unqualified key), if not, report approprate error
+
+
 steps:
 
-* add new ExceptionInfo "Ambiguous [name]" with shows impl.
+* DONE: add new ExceptionInfo "Ambiguous [name]" with shows impl.
 
-* add new envMap type (m_map name [name]) to module.am, and change module env field to be that
+* DONE: add envMap type to grammar
 
-* change nameMap operations to envMap operations, replacing maybe name with either exceptionInfo name
+* DONE: add envMap to serialize
+
+* DONE: change module env field to be envMap
+
+* change nameMap operations to envMap operations, replacing the maybe results with 
    - when performing lookup on name, perform case on result:
        Nothing  -> Left (Undefined name)
        Just [n] -> Right n
@@ -37,13 +72,6 @@ steps:
    - When exporting an entire module, only the unqualified key names in the module are exported.  When exporting an identifier,
      the identifier (qualified or unqualified) is looked up in the environment, then put in the export map with an unqualified
      key.
-
-
---- Generalized Partial Application ---
-Generalized partial application needs to be performed after the rewrite stage, where Eaps are turned into Ecalls, so that we
-can get arity information for the function.  However, rewrite also performs inlining of some key stdlib functions ($, |>, ., .>),
-which cause any generalized partial application that uses them as the operator e.g. (_ $ 5) to fail, because the expression has
-been replaced with (_ 5).  
 
 
 --- Strictness / Escape analysis for thunks ---
