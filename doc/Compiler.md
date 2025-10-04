@@ -194,13 +194,16 @@ The error portion of the parser state `psErr` is a tuple of
 * line number
 * column number
 
+A custom `ordI` instance for `psError` (`cmppsError`) compares the severities, then line numbers, then column numbers
+of two errors, the idea being that when there are multiple errors down multiple parse paths, the most-likely intended
+parse is either the one where we made unambiguous progress (severity 2 from a p_expected parse), or the one where we've
+made the most progress (greater line/char index).
+
 #### `p_error`
 
 When the parser `p_error` is called with a severity value and error string, it compares the error against the `psErr`
-held in the parser state, and replaces the `psErr` value with whichever compares `max` (the deepest via line/col
-number, or, if equal, the severity). This is a heuristic to pick which error to report when all parsing alternatives
-have failed, the theory being that the best error to report is likely to be the one that proceeded the furthest
-before encountering an error.
+held in the parser state, and replaces the `psErr` value with whichever compares `max` according to the `cmppsError`
+function.
 
 #### `p_alt`
 
@@ -212,7 +215,8 @@ state with that of the first parser.
 
 The parsers `p_expected` and `p_unexpected` are used to report an error as the alternative parser of a `p_alt`.
 `p_expected` takes a string to report as the expected result, and is used in various parsers in `admiranParser`
-to give additional information to a parse error. `p_unexpected` is used as a default alternative parser (mainly
+to give additional information to a parse error. It also sets the severity to 2, indicating that this error should
+have priority over any severity 1 error. `p_unexpected` is used as a default alternative parser (mainly
 used by `p_guard` and `p_satisfy`) to report an error on failure.
 
 #### `p_guard` and `p_satisfy`
