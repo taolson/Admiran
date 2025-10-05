@@ -98,6 +98,7 @@ even, odd :: int -> bool
 even x = x .&. 1 == 0
 odd  x = x .&. 1 == 1
 
+|| greatest common denominator and least common multiple of two integers
 gcd, lcm :: int -> int -> int
 gcd x y
     = x,                if y == 0
@@ -109,8 +110,14 @@ lcm x y = (x * y) $quot (gcd x y)
 || ordering functions
 
 comparing, descending :: ordI ** -> (* -> **) -> ordI *
+
+|| comparing is used to create an ordering instance based upon the results of applying function f
+|| to the two values, typically used in things like sorting, e.g.
+||    sortBy (comparing cmpint length) ["four", "three", "two"] would return ["two", "four", "three"]
 comparing  cmp f a b = cmp (f a) (f b)
 
+|| descending is like comparing, except it uses the opposite order:
+||    sortBy (descending cmpint length) ["four", "three", "two"] would return ["three", "four", "two"]
 descending cmp f a b
     = case comparing cmp f a b of
         EQ -> EQ
@@ -236,13 +243,16 @@ null :: [*] -> bool
 null [] = True
 null _  = False
 
+|| return whether any / all of the elements match a predicate
 any, all :: (* -> bool) -> [*] -> bool
 any p = foldr ((\/) . p) False
 all p = foldr ((&) . p) True
 
+|| test whether a value is an element of a list
 elem :: ordI * -> * -> [*] -> bool
 elem cmp = any . _eq cmp
 
+|| find an element of the list matching a predicate, or return Nothing
 find :: (* -> bool) -> [*] -> maybe *
 find p
     = foldr match Nothing
@@ -251,12 +261,14 @@ find p
             = Just x, if p x
             = k,      otherwise
 
+|| count the number of elements of a list that match a predicate
 count :: (* -> bool) -> [*] -> int
 count p
     = foldl go 0
       where
         go n x = if' (p x) (n + 1) n
 
+|| return the index of the first element matching a value, or return Nothing
 elemIndex :: ordI * -> * -> [*] -> maybe int
 elemIndex cmp a
     = mb_fmap fst . find (_eq cmp a . snd) . enumerate
@@ -289,6 +301,7 @@ unfoldr f
               where
                 cont (a, b') = a : go b'
 
+|| repeatedly cycle through a list
 cycle :: [*] -> [*]
 cycle xs = xs' where xs' = xs ++ xs'
 
@@ -351,9 +364,11 @@ groupBy p (x : xs)
 group :: ordI * -> [*] -> [[*]]
 group cmp = groupBy (_eq cmp)
 
+|| map a list with a function, concatenating the results into a new list
 concatMap :: (* -> [**]) -> [*] -> [**]
 concatMap f xs = [y | x <- xs; y <- f x]
 
+|| like foldl, except return each step of the fold in a list
 scanl :: (* -> ** -> *) -> * -> [**] -> [*]
 scanl f z
     = go z
@@ -363,6 +378,7 @@ scanl f z
                     []     -> []
                     x : xs -> go (f z x) xs
 
+|| like foldr, except return each step of the fold in a list
 scanr :: (** -> * -> *) -> * -> [**] -> [*]
 scanr f z
     = go
@@ -374,11 +390,17 @@ scanr f z
                 qs = go xs
 
 inits, tails :: [*] -> [[*]]
+|| return all of the initial lists of a list, e.g.
+|| inits "hello" = ["", "h", "he", "hel", "hell", "hello"]
 inits xs = (map reverse . scanl (converse (:)) []) xs
 
-tails [] = []
+|| return all of the tail lists of a list, e.g.
+|| tails "hello" = ["hello", "ello", "llo", "lo", "o", ""]
+tails [] = [[]]
 tails xs = xs : tails (tl xs)
 
+|| map a function with an accumulator across a list left-to-right,
+|| returning the final accmulator value and the mapped list
 mapAccumL :: (* -> ** -> (*, ***)) -> * -> [**] -> (*, [***])
 mapAccumL f s
     = go s
@@ -390,6 +412,8 @@ mapAccumL f s
                 (s1, x')  = f s x
                 (s2, xs') = go s1 xs
 
+|| map a function with an accumulator across a list right-to-left,
+|| returning the final accmulator value and the mapped list
 mapAccumR :: (* -> ** -> (*, ***)) -> * -> [**] -> (*, [***])
 mapAccumR f s
     = go s
@@ -417,6 +441,7 @@ dropWhile f
         go xs = go (tl xs), if f (hd xs)
               = xs,         otherwise
 
+|| partition a list into two sublists depending upon if the element matches a predicate or not
 partition :: (* -> bool) -> [*] -> ([*], [*])
 partition test
     = foldr part ([], [])
@@ -429,6 +454,8 @@ partition test
 
 || heavily used in parsing, so optimized with strict case evaluation
 span, break :: (* -> bool) -> [*] -> ([*], [*])
+
+|| find a span of elements matching a predicate, then return that span and the remaining list
 span p
     = go
       where
@@ -441,12 +468,15 @@ span p
               where
                 finish = ([], xs)
 
+|| find a span of elements that don't match a predicate, breaking the span upon the first match
 break p = span (not . p)
 
+|| safe examination of the left end of a list (head, tail)
 viewL :: [*] -> maybe (*, [*])
 viewL []       = Nothing
 viewL (x : xs) = Just (x, xs)
 
+|| safe examination of the right end of a list (init, last)
 viewR :: [*] -> maybe ([*], *)
 viewR
     = foldr go Nothing
@@ -494,19 +524,23 @@ splitWhen p
                 rest []       = []
                 rest (_ : ys) = go ys
 
+|| split when an element matches any one of a list of test elements
 splitOneOf :: ordI * -> [*] -> [*] -> [[*]]
 splitOneOf cmp xs = splitWhen (member cmp xs)
 
+|| interleave two lists together into a single list
 interleave :: [*] -> [*] -> [*]
 interleave (a : as) (b : bs) = a : b : interleave as bs
 interleave _        _        = []
 
+|| uninterleave a list into two lists
 uninterleave :: [*] -> ([*], [*])
 uninterleave xs
     = foldr ui ([], []) xs
       where
         ui x (xs, ys) = (x : ys, xs)
 
+|| chunk a list into n-sized chunks
 chunk :: int -> [*] -> [[*]]
 chunk n xs
     = error ("chunk: bad chunk size: " ++ showint n), if n < 1
@@ -517,6 +551,7 @@ chunk n xs
                                 [] -> [ys]
                                 _  -> ys : go zs
 
+|| remove duplicate elements from a list
 nub :: ordI * -> [*] -> [*]
 nub cmp
     = go
@@ -527,6 +562,8 @@ nub cmp
 length :: [*] -> int
 length xs = #xs
 
+|| place a common element in between the elements of a list, e.g.
+|| intersperse ',' "test" = "t,e,s,t"
 intersperse :: * -> [*] -> [*]
 intersperse x [] = []
 intersperse x (y : ys)
@@ -535,6 +572,8 @@ intersperse x (y : ys)
         intersperse' [] = []
         intersperse' (y : ys) = x : y : intersperse' ys
 
+|| place a common list in between lists, e.g.
+|| intercalate ", " ["this", "is", "a", "test"] = "this, is, a, test"
 intercalate :: [*] -> [[*]] -> [*]
 intercalate xs = concat . intersperse xs
 
@@ -634,6 +673,7 @@ sortOn cmp f
       where
         addOrder x = case f x of y -> (y, x)
 
+|| zip two lists with the supplied function
 zipWith :: (* -> ** -> ***) -> [*] -> [**] -> [***]
 zipWith fn 
     = go
@@ -641,12 +681,14 @@ zipWith fn
         go (x : xs) (y : ys) = fn x y : go xs ys
         go _        _        = []
 
+|| unzip a list of tuples into two lists
 unzip2 :: [(*, **)] -> ([*], [**])
 unzip2 xs
     = foldr go ([], []) xs
       where
         go (a, b) (as, bs) = (a : as, b : bs)
 
+|| unzip a list of 3-element tuples into 3 lists
 unzip3 :: [(*, **, ***)] -> ([*], [**], [***])
 unzip3 xs
     = foldr go ([], [], []) xs
@@ -671,8 +713,14 @@ split c
         go x []       = [x] : []
         go x (xs : t) = (x : xs) : t
 
+|| split a string into words (groups of non-space characters)
 words :: string -> [string]
 words s = splitWhen isSpace s
+
+|| left-pad or right-pad a string with spaces in a field width of n
+padl, padr :: int -> string -> string
+padl n s = s ++ rep (n - #s) ' '
+padr n s = rep (n - #s) ' ' ++ s
 
 || add a suffix to a string if it isn't already present
 withSuffix :: string -> string -> string
