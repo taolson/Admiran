@@ -713,13 +713,6 @@ precAssocTable
       , ("<*",   (4,  AssocLeft))       || generic applicative left
       , ("*>",   (4,  AssocLeft))       || generic applicative right
 
-      , (">#",   (5,  AssocCompare))    || comparisons for unboxed word# type
-      , (">=#",  (5,  AssocCompare))    || Note: these are unused, since builtin comparisons are done with a strict
-      , ("==#",  (5,  AssocCompare))    || cmp# in a case..of.  Remove?
-      , ("~=#",  (5,  AssocCompare))
-      , ("<=#",  (5,  AssocCompare))
-      , ("<#",   (5,  AssocCompare))
-
       , (">",    (5,  AssocCompare))    || comparisons for boxed int type
       , (">=",   (5,  AssocCompare))
       , ("==",   (5,  AssocCompare))
