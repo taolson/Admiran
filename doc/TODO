@@ -1,11 +1,22 @@
 --- Mixing code built with useSel = True vs useSel = False ---
-For some reason, code built with useSel = False and linked with library code that was built with useSel = True
+For some reason, code built with useSel = False and used with library code that was built with useSel = True
 does not work correctly; a SIGSEGV occurs in the common SelApply routine due to a null value in RAX.  Need to
 investigate, as that is unexpected.
+
+The problem is that when we get to stg and codegen, code has already been generated to either use builtinSel or not
+based upon the useSel config value, but support for useSel is conditionally included in codegen based upon the current
+compiler config status.  If they are different, we end up falling through to generating a call to the bogus SelApply
+code pointer co5, which was only there for early emulation and doesn't work for real code passed in x86 registers.  So
+we can't really support a mix of the two.  This should probably be noted somewhere.
+
 
 --- Out of memory exception in Advent 2024, day22 when built with amc-noopt ---
 Code starts getting gcMajors and growHeap in tallySequences.tally.  Need to check root cause, and whether it is due
 to useSel = False or useInline = False
+
+Debugging with trace, it appears that the code is running correctly, but still growing. Tracked down to space leak
+somewhere in lib/state.am when compiled with noinlining.
+
 
 --- Importing and Exporting Names ---
 Haskell allows Unqualified names in the environment to map to multiple Qualified names, and only reports an error
