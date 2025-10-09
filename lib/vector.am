@@ -13,19 +13,6 @@
 %import <stream>
 
 
-|| ST monad for performing actions on mutable vectors
-|| Note: the ST monad in Haskell uses an existential type for the state, which is bound
-|| to the particular reference to the array being modified.  However, Admiran does not
-|| have existential types, so here the ST monad is just the state monad with Unit state
-st * == state () *
-
-|| run an STaction on a mutable copy of a vector, then freeze it and return the new vector
-runSTVector :: (mvector * -> st **) -> vector * -> vector *
-runSTVector f v
-    = st_evalState (f mv >> v_unsafeFreeze mv) ()
-      where
-        mv = v_thaw v
-
 || immutable and mutable vectors holding elements of type *
 vector  * ::= Vector  int word# || vector with size and unboxed pointer to base of vector in memory
 mvector * ::= MVector int word# || mutable vector with size and unboxed pointer to base of vector in memory
@@ -104,23 +91,17 @@ v_fmap :: (* -> **) -> vector * -> vector **
 v_fmap f v
     = st_evalState (go mv >> v_unsafeFreeze mv) ()
       where
-        n  = v_length v
-        mv = v_unsafeThaw $ v_rep n undef
-        go mv
-            = st_mapM_ update [0 .. n - 1]
-              where
-                update i = v_unsafeWrite mv i . f . v_unsafeIndex v $ i
+        n     = v_length v
+        mv    = v_unsafeThaw $ v_rep n undef
+        go mv = st_forM [0 .. n - 1] (\i -> v_unsafeWrite mv i . f . v_unsafeIndex v $ i)
 
 v_fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
 v_fmapWithIndex f v
     = st_evalState (go mv >> v_unsafeFreeze mv) ()
       where
-        n  = v_length v
-        mv = v_unsafeThaw $ v_rep n undef
-        go mv
-            = st_mapM_ update [0 .. n - 1]
-              where
-                update i = v_unsafeWrite mv i . f i . v_unsafeIndex v $ i
+        n     = v_length v
+        mv    = v_unsafeThaw $ v_rep n undef
+        go mv = st_forM [0 .. n - 1] (\i -> v_unsafeWrite mv i . f i . v_unsafeIndex v $ i)
 
 || filter can change size of a vector, so it's easiest just to convert to/from stream
 v_filter :: (* -> bool) -> vector * -> vector *
@@ -163,10 +144,7 @@ v_zipWith f v1 v2
         n  = min2 cmpint (v_length v1) (v_length v2)
         mv = v_unsafeThaw $ v_rep n undef
 
-        doZip mv
-            = st_mapM_ go [0 .. n - 1]
-              where
-                go i = v_unsafeWrite mv i (f (v_unsafeIndex v1 i) (v_unsafeIndex v2 i))
+        doZip mv = st_forM [0 .. n - 1] (\i -> v_unsafeWrite mv i (f (v_unsafeIndex v1 i) (v_unsafeIndex v2 i)))
 
 v_min, v_max :: ordI * -> vector * -> *
 v_min cmp v = v_foldl (min2 cmp) (v_first v) v
@@ -376,8 +354,24 @@ v_unsafeReplace (MVector n p#) ies
                 _ -> doRep ies'
 
 
-|| STRef implemented using a singleton mvector
+|| ST monad for performing actions on mutable vectors and STRefs
+|| Note: the ST monad in Haskell uses an existential type for the state, which is bound
+|| to the particular reference to the array being modified.  However, Admiran does not
+|| have existential types, so here the ST monad is just the state monad with Unit state
+st * == state () *
 
+|| run an STaction and return its value
+runST :: st * -> *
+runST a = st_evalState a ()
+
+|| run an STaction on a mutable copy of a vector, then freeze it and return the new vector
+runSTVector :: (mvector * -> st **) -> vector * -> vector *
+runSTVector f v
+    = st_evalState (f mv >> v_unsafeFreeze mv) ()
+      where
+        mv = v_thaw v
+
+|| STRef implemented using a singleton mvector
 stRef * == mvector *
 
 newSTRef :: * -> st (stRef *)

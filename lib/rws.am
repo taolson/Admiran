@@ -83,6 +83,9 @@ rws_mapM f = foldr (rws_liftA2 (:) . f) (rws_pure [])
 rws_mapM_ :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ()
 rws_mapM_ f = foldr (rws_right . f) (rws_pure ())
 
+rws_forM :: [****] -> (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ()
+rws_forM xs f = rws_mapM_ f xs
+
 rws_filterM :: (**** -> rws * ** *** bool) -> [****] -> rws * ** *** [****]
 rws_filterM p
     = foldr check (rws_pure [])

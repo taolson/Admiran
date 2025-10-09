@@ -52,14 +52,17 @@ st_kbind :: (** -> state * ***) -> (*** -> state * ****) -> ** -> state * ****
 st_kbind f g = go where go x = f x $st_bind g
 
 st_mapM :: (** -> state * ***) -> [**] -> state * [***]
-st_mapM f = foldr (st_liftA2 (:) . f) (st_pure [])
+st_mapM f xs = foldr (st_liftA2 (:) . f) (st_pure []) xs
 
 st_mapM_ :: (** -> state * ***) -> [**] -> state * ()
-st_mapM_ f = foldr (st_right . f) (st_pure ())
+st_mapM_ f xs = foldr (st_right . f) (st_pure ()) xs
+
+st_forM :: [**] -> (** -> state * ***) -> state * ()
+st_forM xs f = st_mapM_ f xs
 
 st_filterM :: (** -> state * bool) -> [**] -> state * [**]
-st_filterM p
-    = foldr check (st_pure [])
+st_filterM p xs
+    = foldr check (st_pure []) xs
       where
         check x       = st_liftA2 (cond x) (p x)
         cond  x False = id
