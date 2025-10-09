@@ -99,6 +99,11 @@ buildModule mm n
         genv          = (m, mm, 20)       || the gen value must be larger than the largest number of free variables in the type signature for any function,
                                           || otherwise the requirement that new free vars cannot conflict with any existing ones during type checking
                                           || can be violated
+        || for bootstrap build, comment out:
+        ||     analyzeWarn, typecheck, streamSubst, inline, demand
+        || note that this must be done by commenting out the functions, here, rather than relying upon a
+        || config parameter for bootstrapBuild, because runtime-qualification of a call will not be dead-code
+        || eliminated in the final bootstrapBuild, because inlining is disabled.
         passes =
             [ reifyImports
             , reifyDefns isDefData        || reify data type and constructor names early for desugaring constructor patterns

@@ -641,8 +641,8 @@ p_libAs
 
 p_alias :: parser libAlias
 p_alias
-    = p_alias' p_var         <|>
-      p_alias' p_constructor <|>
+    = p_alias' p_var         <|>                || note: separate p_var and p_constructor here to ensure
+      p_alias' p_constructor <|>                || the alias is the same (var or ctor) as the sym
       (AliasRemove <$> (p_minus *> p_var))
       where
         p_alias' p = p_liftA2 Alias (p <* p_sym "/") p
