@@ -3,16 +3,17 @@
 %export +
 
 abstype fix16 with
-    (+.)      :: fix16 -> fix16 -> fix16
-    (-.)      :: fix16 -> fix16 -> fix16
-    (*.)      :: fix16 -> fix16 -> fix16
-    (/.)      :: fix16 -> fix16 -> fix16
-    toFix16   :: int -> fix16
-    fix16Int  :: fix16 -> int
-    fix16Frac :: fix16 -> int
-    fix16val  :: string -> fix16
-    showfix16 :: fix16 -> string
-    cmpfix16  :: fix16 -> fix16 -> ordering
+    (+.)        :: fix16 -> fix16 -> fix16
+    (-.)        :: fix16 -> fix16 -> fix16
+    (*.)        :: fix16 -> fix16 -> fix16
+    (/.)        :: fix16 -> fix16 -> fix16
+    toFix16Int  :: int -> fix16
+    toFix16Frac :: int -> fix16
+    fix16Int    :: fix16 -> int
+    fix16Frac   :: fix16 -> int
+    fix16val    :: string -> fix16
+    showfix16   :: fix16 -> string
+    cmpfix16    :: fix16 -> fix16 -> ordering
 
 
 || implementation uses int, scaling multiplication and division appropriately
@@ -24,12 +25,15 @@ a -. b = a - b
 a *. b = a * b .>>. 16
 a /. b = (a .<<. 16) / b
 
-toFix16 x = x .<<. 16
+toFix16Int x  = x .<<. 16
+toFix16Frac x = x
 
 || return integer portion of fix16, adjusting for negative fractional values
 fix16Int x
-    = x .>>. 16,     if x > 0 \/ x .&. 0xffff == 0
-    = x .>>. 16 + 1, otherwise
+    = ix,     if x > 0 \/ x .&. 0xffff == 0
+    = ix + 1, otherwise
+      where
+        ix = x .>>. 16
 
 || return fractional portion of fix16, adjusting for negative fractional values
 fix16Frac x
@@ -65,7 +69,7 @@ showfix16 n
     = '-' : showfix16 (-n), if n < 0
     = si ++ "." ++ sf,      otherwise
       where
-        (c, sf) = showfrac 4 (fix16Frac n)
+        (c, sf) = showfrac 5 (fix16Frac n)
         ni      = fix16Int n + c
         si      = showint ni
 
