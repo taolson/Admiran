@@ -42,17 +42,17 @@ mst_kbind :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> may
 mst_kbind f g = go where go x = f x $mst_bind g
 
 mst_mapM :: (** -> maybeState * ***) -> [**] -> maybeState * [***]
-mst_mapM f = foldr (mst_liftA2 (:) . f) (mst_pure [])
+mst_mapM f xs = foldr (mst_liftA2 (:) . f) (mst_pure []) xs
 
 mst_mapM_ :: (** -> maybeState * ***) -> [**] -> maybeState * ()
-mst_mapM_ f = foldr (mst_right . f) (mst_pure ())
+mst_mapM_ f xs = foldr (mst_right . f) (mst_pure ()) xs
 
 mst_forM :: [**] -> (** -> maybeState * ***) -> maybeState * ()
 mst_forM xs f = mst_mapM_ f xs
 
 mst_filterM :: (** -> maybeState * bool) -> [**] -> maybeState * [**]
-mst_filterM p
-    = foldr check (mst_pure [])
+mst_filterM p xs
+    = foldr check (mst_pure []) xs
       where
         check x       = mst_liftA2 (cond x) (p x)
         cond  x False = id

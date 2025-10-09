@@ -46,11 +46,11 @@ mb_kbind :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
 mb_kbind f g = go where go x = f x $mb_bind g
 
 mb_mapM :: (* -> maybe **) -> [*] -> maybe [**]
-mb_mapM f = foldr (mb_liftA2 (:) . f) (mb_pure [])
+mb_mapM f xs = foldr (mb_liftA2 (:) . f) (mb_pure []) xs
 
 mb_filterM :: (* -> maybe bool) -> [*] -> maybe [*]
-mb_filterM p
-    = foldr check (mb_pure [])
+mb_filterM p xs
+    = foldr check (mb_pure []) xs
       where
         check x       = mb_liftA2 (cond x) (p x)
         cond  x False = id

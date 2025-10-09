@@ -78,17 +78,17 @@ rws_kbind :: (**** -> rws * ** *** *****) -> (***** -> rws * ** *** ******) -> *
 rws_kbind f g = go where go x = f x $rws_bind g
 
 rws_mapM :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** [*****]
-rws_mapM f = foldr (rws_liftA2 (:) . f) (rws_pure [])
+rws_mapM f xs = foldr (rws_liftA2 (:) . f) (rws_pure []) xs
 
 rws_mapM_ :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ()
-rws_mapM_ f = foldr (rws_right . f) (rws_pure ())
+rws_mapM_ f xs = foldr (rws_right . f) (rws_pure ()) xs
 
-rws_forM :: [****] -> (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ()
+rws_forM :: [****] -> (**** -> rws * ** *** *****) -> rws * ** *** ()
 rws_forM xs f = rws_mapM_ f xs
 
 rws_filterM :: (**** -> rws * ** *** bool) -> [****] -> rws * ** *** [****]
-rws_filterM p
-    = foldr check (rws_pure [])
+rws_filterM p xs
+    = foldr check (rws_pure []) xs
       where
         check x       = rws_liftA2 (cond x) (p x)
         cond  x False = id
