@@ -66,6 +66,13 @@ v2_rem  a b = v2_liftA2 rem  a b
 v2_div  a b = v2_liftA2 div  a b
 v2_mod  a b = v2_liftA2 mod  a b
 
+v2_cmul :: v2 int -> v2 int -> v2 int
+v2_cmul (V2 ar ai) (V2 br bi)
+    = V2 cr ci
+      where
+        cr = ar * br - ai * bi
+        ci = ar * bi + ai * br
+
 v2_max, v2_min :: ordI * -> v2 * -> v2 * -> v2 *
 v2_max cmp a b = v2_liftA2 (max2 cmp) a b
 v2_min cmp a b = v2_liftA2 (min2 cmp) a b
