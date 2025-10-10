@@ -135,8 +135,13 @@ clock world = case clock# 0# of r# -> (I# r#, world)
 
 || time a function with a single argument, and report its result and execution time in usec
 time :: (* -> **) -> * -> io (**, int)
-time f x = clock $io_bind \start -> case f x of r -> clock $io_bind \stop -> io_pure (r, stop - start)
-
+|| change to use lambdas as below when lambdas are supported in bootstrap compilers
+|| time f x = clock $io_bind \start -> case f x of r -> clock $io_bind \stop -> io_pure (r, stop - start)
+time f x
+    = clock $io_bind doStart
+      where
+        doStart start        = case f x of r -> clock $io_bind doStop r start
+        doStop  r start stop = io_pure (r, stop - start)
 
 || operations on stdin, stdout, stderr
 
