@@ -8,21 +8,23 @@ fib1 :: int -> int
 fib1 n = 1,                           if n < 2
        = fib1 (n - 1) + fib1 (n - 2), otherwise
 
-|| iterative version shows use of a recurrence list comprehension to generate an
-|| infinite lazy list of Fibonacci values, and indexing the list
-fib2 :: int -> int
-fib2 n = fibs ! n where fibs = [a | (a, b) <- (1, 1), (b, a + b) ..]
-
 || memoized version of fib1, showing O(n) performance
-fib3 :: int -> int
-fib3 = memofix memoint fib
+fib2 :: int -> int
+fib2 = memofix memoint fib
        where
          fib f n = 1,                     if n < 2
                  = f (n - 1) + f (n - 2), otherwise     || recursion open-coded using f to allow memoization hook
 
+|| iterative version shows use of a recurrence list comprehension to generate an
+|| infinite lazy list of Fibonacci values, and indexing the list
+fib3 :: int -> int
+fib3 n = fibs ! n where fibs = [a | (a, b) <- (1, 1), (b, a + b) ..]
+
 || find the 37th Fibonacci number 3 ways
 main :: io ()
-main = io_mapM_ run tests
+main = io_mapM_ timeRun tests
        where
-         tests      = [("recursive", fib1), ("iterative", fib2), ("memoized", fib3)]
-         run (s, f) = putStr (s ++ ": ") >> (f 37 |> showint |> io_pure) >>= putStrLn
+         tests = [("recursive", fib1), ("memoized ", fib2), ("iterative", fib3)]
+
+         timeRun (s, f) = putStr (s ++ ": ") >> time f 37 >>= display
+         display (r, t) = putStrLn $ "result: " ++ showint r ++ " usec: " ++ showint t
