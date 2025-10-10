@@ -148,6 +148,11 @@ deserialEither dl dr
         dse 1 = Right <$> dr
         dse _ = undef       || added to remove compiler warning
 
+serialBitSet :: serializer bitSet
+serialBitSet s =  bs_toInt s |> serialInt
+
+deserialBitSet :: deserializer bitSet
+deserialBitSet = deserialInt >>= (st_pure . bs_fromInt)
 
 || AST serialization
 
@@ -187,10 +192,10 @@ deserialLoc :: deserializer location
 deserialLoc = deserialTup3 deserialString deserialPosInt deserialPosInt
 
 serialAnno :: serializer anno
-serialAnno = serialTup6 serialLoc serialBool serialPosInt serialPosInt (serialSet serialName) serialPosInt
+serialAnno = serialTup6 serialLoc serialBool serialPosInt serialPosInt (serialSet serialName) serialBitSet
 
 deserialAnno :: deserializer anno
-deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialPosInt (deserialSet cmpname deserialName) deserialPosInt
+deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialPosInt (deserialSet cmpname deserialName) deserialBitSet
 
 serialName :: serializer name
 serialName (Unqualified n)  = serialCtor 0 . serialString n
