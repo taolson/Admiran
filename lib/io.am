@@ -133,6 +133,10 @@ systemCmd cmd world
 clock :: io int
 clock world = case clock# 0# of r# -> (I# r#, world)
 
+|| time a function with a single argument, and report its result and execution time in usec
+time :: (* -> **) -> * -> io (**, int)
+time f x = clock $io_bind \start -> case f x of r -> clock $io_bind \stop -> io_pure (r, stop - start)
+
 
 || operations on stdin, stdout, stderr
 
