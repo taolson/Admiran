@@ -156,8 +156,11 @@ showschar c
 showsstring :: string -> showS
 showsstring s = shows $ showstring s
 
+showsRawName :: name -> showS
+showsRawName n = shows $ showName n
+
 showsName :: name -> showS
-showsName n = shows $ showName n
+showsName n = showsInParensIf (isSymbol n) $ showsRawName n
 
 showsAnno :: anno -> showS
 showsAnno (loc, rec, cpx, uses, free, strict)
@@ -250,10 +253,11 @@ showsAstPrec d (Pctor n vars)
         s = showsName n . shows " " . showsAstList vars
 
 showsAstPrec d (Tname n vars)
-    = shows (showName n),             if null vars
-    = showsInParensIf (d > apPrec) s, otherwise
+    = showsOpPrec d n (vars ! 0) (vars ! 1), if isSymbol n & #vars == 2
+    = showsName n,                           if null vars
+    = showsInParensIf (d > apPrec) s,        otherwise
       where
-        s = showsName n . shows " " . showsAstList vars
+        s  = showsName n . shows " " . showsAstList vars
 
 showsAstPrec d (Plit e)    = showsAstPrec d e
 showsAstPrec d (Tstrict t) = showsAstPrec d t . shows " !"
