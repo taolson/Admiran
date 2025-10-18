@@ -156,11 +156,8 @@ showschar c
 showsstring :: string -> showS
 showsstring s = shows $ showstring s
 
-showsRawName :: name -> showS
-showsRawName n = shows $ showName n
-
 showsName :: name -> showS
-showsName n = showsInParensIf (isSymbol n) $ showsRawName n
+showsName n = showsInParensIf (isSymbol n) . shows . showName $ n
 
 showsAnno :: anno -> showS
 showsAnno (loc, rec, cpx, uses, free, strict)
