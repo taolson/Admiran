@@ -156,6 +156,9 @@ showschar c
 showsstring :: string -> showS
 showsstring s = shows $ showstring s
 
+|| show a name as it would appear as a function name or value,
+|| with symbolic names in parentheses.  Names used as inline
+|| operators will be printed without parentheses in showsOpPrec
 showsName :: name -> showS
 showsName n = showsInParensIf (isSymbol n) . shows . showName $ n
 
@@ -196,6 +199,10 @@ interShows s (sh : shs) = foldl (.) sh . map (shows s .) $ shs
 showsAstList :: [ast] -> showS
 showsAstList as = interShows " " . map (showsAstPrec (apPrec + 1)) $ as
 
+|| show an optional list of arguments, separated by a space
+showsOptArgs []   = id
+showsOptArgs args = shows " " . showsAstList args
+
 || show an ast in the context of outer precedence d
 showsAstPrec :: int -> ast -> showS
 
@@ -222,15 +229,11 @@ showsAstPrec d (Eap e1 e2)
     = showsInParensIf (d > apPrec) $ showsAstPrec apPrec e1 . shows " " . showsAstPrec (apPrec + 1) e2
 
 showsAstPrec d (Ecall (Evar f) args)
-    = showsOpPrec d f (args ! 0) (args ! 1), if isSymbol f & #args == 2
-    = showsInParensIf (d > apPrec) s0, if null args
-    = showsInParensIf (d > apPrec) s1, otherwise
-      where
-        s0 = showsName f
-        s1 = showsName f . shows " " . showsAstList args
+    = showsOpPrec d f (args ! 0) (args ! 1),                          if isSymbol f & #args == 2
+    = showsInParensIf (d > apPrec) $ showsName f . showsOptArgs args, otherwise
 
 showsAstPrec d (Ecall ef args)
-    = showsInParensIf (d > apPrec) $ showsAstPrec apPrec ef . shows " " . showsAstList args
+    = showsInParensIf (d > apPrec) $ showsAstPrec apPrec ef . showsOptArgs args
 
 showsAstPrec d (Efail e)
     = showsInParensIf (d > apPrec) $ shows "FAIL " . showsAstPrec (apPrec + 1) e
