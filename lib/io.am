@@ -23,32 +23,33 @@ io * == state () *
 
 || read a character from a handle, re-filling the buffer from the file when it is empty
 hGetChar :: handle -> io char
-hGetChar (Handle fs#)
-    = io_pure $ restart fs#
+hGetChar (Handle fs#) world
+    = restart fs#
       where
         restart fs#
             = case readByteStream# fs# of
                 c# -> case c# $cmp# 0# of
                         1# -> case readFile# fs# of             || buffer empty; reload from file
                                 r# -> case r# $cmp# 0# of       || check for end of file (0 bytes read)
-                                        0# -> C# c#             || end of file; return (-1)
+                                        0# -> (C# c#, world)    || end of file; return (-1)
                                         _  -> restart fs#       || filled buffer; restart getLine
-                        _  -> C# c#
+                        _  -> (C# c#, world)
 
 hGetLine :: handle -> io string
-hGetLine (Handle fs#)
-    = io_pure $ restart fs#
+hGetLine (Handle fs#) world
+    = restart fs#
       where
         restart fs#
             =  case readByteStream# fs# of
                 c# -> case c# $cmp# 0# of
                         1# -> case readFile# fs# of             || buffer empty; reload from file
                                 r# -> case r# $cmp# 0# of       || check for end of file (0 bytes read)
-                                        0# -> []                || end of file; return []
+                                        0# -> ([], world)       || end of file; return []
                                         _  -> restart fs#       || filled buffer; restart getLine
                         _  -> case c# $cmp# '\n'# of            || check for newline character
-                                0# -> []                        || got newline; return []
-                                _  -> C# c# : restart fs#       || non-newline; return it with the lazy remaining line
+                                0# -> ([], world)               || got newline; return []
+                                _  -> case restart fs# of
+                                        (s, world') -> (C# c# : s, world')
 
 hGetContents :: handle -> io string
 hGetContents h = readFileStream h
@@ -62,24 +63,26 @@ hPutStr h s = writeFileStream h s
 
 || lazy read from an handle, re-filling the buffer from the file when it is empty
 readFileStream :: handle -> io string
-readFileStream (Handle fs#)
-    = io_pure $ restart fs#
+readFileStream (Handle fs#) world
+    = restart fs#
       where
-        restart fs#                                             || Note: fs# is a dummy argument to prevent restart from being a memoized thunk
+        restart fs#
             = case readByteStream fs# of                        || fs# never changes, but the contents of fs# change
                 [] -> case readFile# fs# of                     || buffer empty; reload from file
                         r# -> case r# $cmp# 0# of               || check for end of file (0 bytes read)
                                 0# -> case closeFile# fs# of    || close file (runtime ignores close requests for stdin/out/err)
-                                        _ -> []                 || and return end of stream
+                                        _ -> ([], world)        || and return end of stream
                                 _  -> restart fs#               || filled buffer; restart readFileStream
-                s  -> s ++ restart fs#                          || read from the buffer, then restart fill loop
+                s  -> (s ++ s', world)                          || return buffer with a lazy read of the remaining file
+              where
+                (s', _) = restart fs#
 
 || strict write to an handle, writing the buffer out to the file when it becomes full
 writeFileStream :: handle -> string -> io ()
-writeFileStream (Handle fs#) s
+writeFileStream (Handle fs#) s world
     = restart s
       where
-        restart s world
+        restart s
             = case writeByteStream fs# s of
                 || write complete; write any remaining bytes in byteStream out to the file and close it
                 [] -> case writeFile# fs# of
@@ -87,7 +90,7 @@ writeFileStream (Handle fs#) s
                                _ -> ((), world)         || runtime ignores close requests for stdin/out/err
 
                 || buffer full; write the buffer out to the file, then continue with the unwritten portion of the string
-                s' -> case writeFile# fs# of _ -> restart s' world
+                s' -> case writeFile# fs# of _ -> restart s'
 
 || read the contents of a file named by fn as a string
 readFile :: string -> io string
