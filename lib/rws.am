@@ -4,23 +4,22 @@
 %export +
 
 %import <base>
-%import <dequeue>
 
 
 || *    is reader (environment) type
-|| **   is writer (logging) type, which will be appended to a dequeue
+|| **   is writer (logging) type
 || ***  is state type
 || **** is result value type
-rws * ** *** **** == * -> *** -> dequeue ** -> (****, ***, dequeue **)
+rws * ** *** **** == * -> *** -> [**] -> (****, ***, [**])
 
 || running
-rws_runRWS :: rws * ** *** **** -> * -> *** -> dequeue ** -> (****, ***, dequeue **)
+rws_runRWS :: rws * ** *** **** -> * -> *** -> [**] -> (****, ***, [**])
 rws_runRWS m r s w = m r s w
 
-rws_evalRWS :: rws * ** *** **** -> * -> *** -> dequeue ** -> (****, dequeue **)
+rws_evalRWS :: rws * ** *** **** -> * -> *** -> [**] -> (****, [**])
 rws_evalRWS m r s w = case rws_runRWS m r s w of (a, s', w') -> (a, w')
 
-rws_execRWS :: rws * ** *** **** -> * -> *** -> dequeue ** -> (***, dequeue **)
+rws_execRWS :: rws * ** *** **** -> * -> *** -> [**] -> (***, [**])
 rws_execRWS m r s w = case rws_runRWS m r s w of (a, s', w') -> (s', w')
 
 
@@ -37,9 +36,9 @@ rws_local f m = go where go r s w = rws_runRWS m (f r) s w
 
 || writer operations
 rws_tell :: ** -> rws * ** *** ()
-rws_tell w = go where go _ s q = case dq_addR w q of q' -> ((), s, q')
+rws_tell w = go where go _ s q = ((), s, w : q)
 
-rws_tells :: (dequeue ** -> dequeue **) -> rws * ** *** ()
+rws_tells :: ([**] -> [**]) -> rws * ** *** ()
 rws_tells f = go where go _ s q = case f q of q' -> ((), s, q')
 
 
