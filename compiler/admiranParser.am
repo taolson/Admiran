@@ -315,12 +315,12 @@ p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_expr) (p_ident "of" *> 
 || parse an anonymous lambda expr by converting it to an Elet of a new function definition with a unique name
 p_lambdaExpr :: parser expr
 p_lambdaExpr
-    = p_liftA3 mkLambda p_getLoc (p_sym "\\" *> p_some p_patFormal) (p_sym "->" *> p_expr)
+    = p_liftA3 mkLambda p_getLoc (p_sym "\\" *> p_some p_patFormal) (p_rArrow *> p_expr)
       where
         mkLambda loc vars e
             = (Elet False (m_singleton ln dm) [] (Evar ln))
               where
-                ln = Internal "!lam" 0
+                ln = Internal "lam" 0
                 d  = DefFn ln vars e (locAnno loc)
                 dm = DefMult Mfun [d]                   || insert the defn into a DefMult so that the desugaring pass will desugar complex pats
 
