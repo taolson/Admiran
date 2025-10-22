@@ -7,7 +7,7 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>                 (>>=)/mb_bind 
+%import <maybe>                 (>>=)/mb_bind  (<$>)/mb_fmap
 %import <set>
 %import "config"
 %import "exception"             (>>=?)/ex_bind
@@ -445,14 +445,8 @@ lookupCtorNames genv n
 || so the arity for them is determined from their specs
 lookupArity :: globalEnv -> name -> maybe int
 lookupArity genv n
-    = lookupSpec genv n >>= sa,  if isConstructor n \/ isBuiltin n
-    = lookupDefn genv n >>= fca, otherwise
-      where
-        fca (DefFn n vars rhs an) = mb_pure $ #vars
-        fca (DefPat p e an)       = mb_pure 0
-        fca d                     = Nothing
-        sa (DefSpec t te an)      = mb_pure $ typeArity te
-        sa d                      = Nothing
+    = fnArity <$> lookupSpec genv n, if isConstructor n \/ isBuiltin n
+    = fnArity <$> lookupDefn genv n, otherwise
 
 || create an anno for top-level defns from genv
 genvAnno :: globalEnv -> anno

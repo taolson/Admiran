@@ -491,10 +491,6 @@ baseType t = snd . typeList $ t
 nthType :: int -> texpr -> texpr
 nthType i t = fst (typeList t) ! i
 
-|| return the arity of a texpr (count of the number of Tarrs at the top level)
-typeArity :: texpr -> int
-typeArity t = length . fst . typeList $ t
-
 
 || common defn operations
 
@@ -652,10 +648,10 @@ fnArity (DefFn n vars e an)
         ctorArity e                                = 0
 
 fnArity (DefSpec tf te an)
-    = countArrs 0 te
+    = countArrs te 0
       where
-        countArrs n (Tarr t1 t2) = countArrs (n + 1) t2
-        countArrs n t            = n
+        countArrs (Tarr t1 t2) n = countArrs t2 $! n + 1
+        countArrs t            n = n
 
 fnArity (DefMult m (d : ds)) = fnArity d
 fnArity d                    = 0

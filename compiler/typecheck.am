@@ -401,13 +401,10 @@ infer (CaseAlt (Pctor n vars) e)
             = tc_error (CtorArity n),              if #vars ~= #ts || ctor patterns must be saturated
             = lexMono tdefs infer e >>= f2 bt sm, otherwise        || infer e in new monomorphic environment of arg types
               where
-                (ts, bt) = unArr spec
+                (ts, bt) = typeList spec
                 tdefs    = mkTypeMap vars ts
 
         f2 bt sm (t, sm') = tc_pure (bt $Tarr t, subComp sm' sm)   || type of CaseAlt is base type of constructor -> te
-
-        unArr (Tarr t1 t2) = (t1 : ts, tf) where (ts, tf) = unArr t2
-        unArr t1           = ([], t1)
 
 infer (CaseAlt (Pvar n) e)
     = newTvar >>= f1
