@@ -121,7 +121,7 @@ analyzeAst k (Evar n)          st = k (Evar n)          << st_modify (addUse n .
 analyzeAst k (CaseAlt p e)     st = k (CaseAlt p e)     << st_modify (delUses (patNames p) . incCpx)              $ st
 analyzeAst k (Qgen pats e)     st = k (Qgen pats e)     << st_modify (delUses (concatMap patNames pats) . incCpx) $ st
 analyzeAst k (Qrecur p e1 e2)  st = k (Qrecur p e1 e2)  << st_modify (delUses (patNames p) . incCpx)              $ st
-analyzeAst k (Pctor n vars)    st = k (Pctor n vars)    << st_modify (addUse n . incCpx)                          $ st
+analyzeAst k (Pctor n pats)    st = k (Pctor n pats)    << st_modify (delUses (concatMap patNames pats) . incCpx) $ st
 analyzeAst k (Tname n args)    st = k (Tname n args)    << st_modify (addTUse n)                                  $ st
 
 || handle extra info and updates around rewriting defns

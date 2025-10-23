@@ -928,29 +928,38 @@ reachableFrom ns genv
 
                 topLevel n = isConstructor n \/ ~isInternal n & ~isBuiltin n
 
-|| make a top-level start function which evaluates the entry function of type IO ()
+|| make a top-level start function which evaluates the entry function of type io ()
 || and then exits
 makeStart :: name -> globalEnv -> (name, globalEnv)
 makeStart n genv
     = errNoSpec,      if isNothing mspec
-    = errNotIO,       if ~iOUnitSpec spec
+    = errNotIO,       if ~iOWorldSpec spec
     = (start, genv'), otherwise
       where
         mspec      = lookupSpec genv n
         spec       = (view defnType . fromJust) mspec
-        errNoSpec  = error ("cannot find spec for " ++ showName n)
+        errNoSpec  = error ("entry function " ++ showName n ++ " not found")
         errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
         start      = Qualified (getModName n) "!start"
-        fvs        = s_fromList cmpname [n, builtinUnitName, builtinExitName]
+        fvs        = s_fromList cmpname [n, worldName, builtinExitName]
         anno       = set anFree fvs (genvAnno genv)
-        startFn    = Ecase Csingle (Ecall (Evar n) [builtinUnit]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0])]
+        startFn    = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0])]
         def        = DefPat (Pvar start) startFn anno
         genv'      = over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
 
-        || must be "io ()" or its equivalent type expansion "() -> ((), ())"        
-        iOUnitSpec t
-            = _eq cmptexpr t (Tarr builtinTypeUnit (Ttuple [builtinTypeUnit, builtinTypeUnit])) \/
-              _eq cmptexpr t (Tname (Qualified "io" "io") [builtinTypeUnit])
+        || world type and World token used by io to sequence io actions
+|| *** NOTE *** use this version to make new bootstrap compilers with existing io lib, then
+|| make the corresponding change to io lib
+||        tWorld     = Tname (Qualified "io" "world") []
+||        worldName  = Qualified "io" "World"
+        tWorld     = builtinTypeUnit
+        worldName  = builtinUnitName
+        world      = Evar worldName 
+
+        || must be "io ()" or its equivalent type expansion "World -> ((), World)"        
+        iOWorldSpec t
+            = _eq cmptexpr t (Tname (Qualified "io" "io") [builtinTypeUnit]) \/
+              _eq cmptexpr t (Tarr tWorld (Ttuple [builtinTypeUnit, tWorld]))
 
 || build the STG code & heap reachable from the start name, and return the top-level
 || localEnv map, along with the stg code and heap

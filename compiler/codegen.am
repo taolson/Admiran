@@ -115,7 +115,7 @@ genPad s
       where
         len   = #s
         extra = len $rem 8
-        pad n = shows "\t.byte\t" . interShows ", " (map showsint (rep n 0)) . shows "\n"
+        pad n = shows "\t.byte\t" . showsCommaList showsint (rep n 0) . shows "\n"
 
 genQuad :: showS -> showS
 genQuad f = shows "\t.quad\t" . f . shows "\n"
@@ -133,7 +133,7 @@ genHeapLabel hp = shows "ho" . showsint hp
 
 genLocComment :: locInfo -> showS
 genLocComment (path, mloc)
-    = shows "# " . interShows "`" (map genAsmName (reverse path)) . shows "\n"
+    = shows "# " . showsListMapped "`"  genAsmName (reverse path) . shows "\n"
 
 || generate a value to store in a heapObj env (tag appropriately)
 genValue :: value -> showS
@@ -189,7 +189,7 @@ genX86Opr (X86Idx b i s n)
       where
         showsOffset 0 = id
         showsOffset n = showsint n
-        showsIdx      = showsInParens (interShows ", " [genX86Opr b, genX86Opr i, showsint s])
+        showsIdx      = showsInParens $ showsCommaList id [genX86Opr b, genX86Opr i, showsint s]
 
 || x86Jmp instructions have a slightly different format for memory addresses than other x86 insns
 genX86JmpOpr :: x86Opr -> showS
@@ -320,7 +320,7 @@ genOpcode op [imm, dst]
     = genOpcode "movq" [imm, x86MovTmp] . genOpcode op [x86MovTmp, dst], if isX86Imm64 imm & (op ~=$ "movq" \/ ~isX86Reg dst)
 
 genOpcode op args
-    = shows "\t" . shows op . shows "\t" . interShows ", " (map genX86Opr args) . shows "\n"
+    = shows "\t" . shows op . shows "\t" . showsCommaList genX86Opr args . shows "\n"
 
 || generate an x86-64 jump opcode (uses slightly different syntax)
 genJmpOpcode :: string -> x86Opr -> showS

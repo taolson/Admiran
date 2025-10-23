@@ -135,26 +135,13 @@ shows :: string -> showS
 shows s = (s ++)
 
 showsint :: int -> showS
-showsint n = (showint n ++)
+showsint n = shows . showint $ n
 
 showschar :: char -> showS
-showschar c
-    = (("\'" ++ showEscChar c ++ "\'") ++)
-      where
-        showEscChar '\a' = "\\a"
-        showEscChar '\b' = "\\b"
-        showEscChar '\f' = "\\f"
-        showEscChar '\n' = "\\n"
-        showEscChar '\r' = "\\r"
-        showEscChar '\t' = "\\t"
-        showEscChar '\v' = "\\v"
-        showEscChar '\\' = "\\"
-        showEscChar c    = "\\" ++ showsint n "" , if n < 32
-                         = [c],                    otherwise
-                           where n = code c
+showschar c = shows . showchar $ c
 
 showsstring :: string -> showS
-showsstring s = shows $ showstring s
+showsstring s = shows . showstring $ s
 
 || show a name as it would appear as a function name or value,
 || with symbolic names in parentheses.  Names used as inline
@@ -164,11 +151,11 @@ showsName n = showsInParensIf (isSymbol n) . shows . showName $ n
 
 showsAnno :: anno -> showS
 showsAnno (loc, rec, cpx, uses, free, strict)
-    = id
+   = id
 || use the version below to see the full anno information
 ||    = shows "{" . showsRec . showsint cpx . shows " " . showsint uses .
-||      shows " [" . interShows ", " (map showsName (s_toList free)) . shows "]" .
-||      shows " [" . interShows ", " (map showsint (bs_toList strict)) . shows "]}"
+||      showsInBrackets (showsListMapped ", " showsName (s_toList free)) .
+||      showsInBrackets (showsListMapped ", " showsint  (bs_toList strict))
 ||      where
 ||        showsRec = shows "Rec ", if rec
 ||                 = shows "",     otherwise
@@ -187,17 +174,27 @@ showsInBraces   s = shows "{" . s . shows "}"
 
 || wrap a showS in parens if the boolean guard is true
 showsInParensIf :: bool -> showS -> showS
-showsInParensIf True  s = shows "(" . s . shows ")"
-showsInParensIf False s = s
+showsInParensIf guard s = if' guard (showsInParens s) s
 
 || like intercalate, but for shows
 interShows :: string -> [showS] -> showS
 interShows s []         = id
 interShows s (sh : shs) = foldl (.) sh . map (shows s .) $ shs
 
+|| show a list of elements mapped by a show function, separated by a string value
+showsListMapped :: string -> (* -> showS) -> [*] -> showS
+showsListMapped s f xs = interShows s . map f $ xs
+
+|| show a list of elements mapped by a show function, separate by a comma
+showsCommaList :: (* -> showS) -> [*] -> showS
+showsCommaList f xs = showsListMapped ", " f xs
+
 || show a list of ast variables in a sequence
 showsAstList :: [ast] -> showS
-showsAstList as = interShows " " . map (showsAstPrec (apPrec + 1)) $ as
+showsAstList as = showsListMapped " " (showsAstPrec (apPrec + 1)) as
+
+|| show a list of alternate exprs
+showsExprList as = showsListMapped "; " (showsAstPrec 0) as
 
 || show an optional list of arguments, separated by a space
 showsOptArgs []   = id
@@ -266,33 +263,33 @@ showsAstPrec d (Tstrict t) = showsAstPrec d t . shows " !"
 showsAstPrec d a
     = showsInParensIf (d > apPrec) $ go a
       where
-        go (Econd conds)         = showsInBraces $ interShows "; = " $ map (showsAstPrec apPrec) conds
-        go (ElistComp e qs an)   = showsInBrackets $ showsAstPrec 0 e . shows " | " . (interShows "; " $ map (showsAstPrec 0) qs)
+        go (Econd conds)         = showsInBraces $ showsListMapped "; = " (showsAstPrec apPrec) conds
+        go (ElistComp e qs an)   = showsInBrackets $ showsAstPrec 0 e . shows " | " . showsExprList qs
         go (Cif tst e)           = showsAstPrec 0 e . shows ", if " . showsAstPrec 0 tst
         go (Cdefault e)          = showsAstPrec 0 e . shows ", otherwise"
         go (CaseAlt p e)         = showsAstPrec 0 p . shows " -> " . showsAstPrec 0 e
-        go (Qgen pats e)         = (interShows ", " $ map (showsAstPrec 0) pats) . shows " <- " . showsAstPrec 0 e
+        go (Qgen pats e)         = showsCommaList (showsAstPrec 0) pats . shows " <- " . showsAstPrec 0 e
         go (Qrecur p e1 e2)      = showsAstPrec 0 p . shows " <- " . showsAstPrec 0 e1 . shows ", " . showsAstPrec 0 e2 . shows " .."
         go (Qguard e)            = showsAstPrec 0 e
-        go (Ttuple elts)         = showsInParens $ (interShows ", " $ map (showsAstPrec 0) elts)
+        go (Ttuple elts)         = showsInParens $ showsCommaList (showsAstPrec 0) elts
         go (Tlist t)             = showsInBrackets $ showsAstPrec 0 t
-        go (DefMult m ds)        = interShows "; " $ map (showsAstPrec 0) ds
+        go (DefMult m ds)        = showsExprList ds
         go (DefFn n vars rhs an) = showsName n . showsAnno an . shows " " . showsAstList vars . shows " = " . showsAstPrec 0 rhs
         go (DefPat p rhs an)     = showsAstPrec 0 p . showsAnno an . shows " = "  . showsAstPrec 0 rhs
         go (DefSpec tf te an)    = showsAstPrec 0 tf . shows " :: " . showsAstPrec 0 te
         go (DefSyn tf te an)     = showsAstPrec 0 tf . shows " == " . showsAstPrec 0 te
         go (DefData tf [] an)    = showsAstPrec 0 tf . shows " :: type"
-        go (DefData tf ctors an) = showsAstPrec 0 tf . shows " ::= " . interShows " | " (map (showsAstPrec 0) ctors)
+        go (DefData tf ctors an) = showsAstPrec 0 tf . shows " ::= " . showsListMapped " | " (showsAstPrec 0) ctors
         go (DefAbs tf ds te an)  = shows "abstype " . showsAstPrec 0 tf . shows " == " . showsAstPrec 0 te
 
         go (Ecase sel tst alts)
-            = shows ("case" ++ sSel) . showsAstPrec apPrec tst . shows " of " . (showsInBraces $ interShows "; " $ map (showsAstPrec 0) alts)
+            = shows ("case" ++ sSel) . showsAstPrec apPrec tst . shows " of " . (showsInBraces $ showsExprList alts)
               where
                 sSel = "Vec ",    if _eq cmpcaseSel sel Cvectored
                      = " ",       otherwise
 
         go (Elet b fns pats e)
-            = shows ("let" ++ sRec) . (showsInBraces $ interShows "; " $ map (showsAstPrec 0) defs) . shows " in " . showsAstPrec 0 e
+            = shows ("let" ++ sRec) . (showsInBraces $ showsExprList defs) . shows " in " . showsAstPrec 0 e
               where
                 defs = m_elems fns ++ pats
                 sRec = "Rec ", if b

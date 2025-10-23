@@ -174,9 +174,9 @@ expandSyns st
         Right order = morder
 
         showCycles cs
-            = shows "type definitions: " . interShows ", " (map showsCycle cs) $ ""
+            = shows "type definitions: " . showsCommaList showsCycle cs $ ""
               where
-              showsCycle ns = showsInParens (interShows ", " (map showsName ns))
+              showsCycle ns = showsInParens $ showsCommaList showsName ns
 
 || expand type synonyms used in defSpecs
 expandSpecs :: [defn] -> tsSt -> tsSt

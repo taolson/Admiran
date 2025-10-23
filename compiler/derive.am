@@ -59,7 +59,7 @@ deriveShow d
                 ns               = Estring $ getName n
                 (_, vars)        = genNames "a" 0 tas
                 showExpr         = ns,                                                                if null tas & ~isSymbol n
-                                 = showInParens buildExpr,                                            otherwise
+                                 = buildExpr,                                                         otherwise
                 buildExpr        = foldl appendShow ns . map mkShow $ zip2 tas [0 ..],                if ~isSymbol n \/ null tas
                                  = foldl appendShow (mkShow (tas ! 0, 0)) [ns, mkShow (tas ! 1, 1)],  if #tas == 2
                                  = foldl appendShow (showInParens ns) . map mkShow $ zip2 tas [0 ..], otherwise

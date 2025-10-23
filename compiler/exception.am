@@ -57,7 +57,7 @@ showsExName (Internal n d)  = shows n        || show name without uniquifying nu
 showsExName n               = shows (showName n)
 
 showsExceptionInfo :: exceptionInfo -> showS
-showsExceptionInfo (AmbiguousName  ns)  = showsExName (unqualifyName (hd ns)). shows " is ambiguous; it could be " . interShows ", " (map showsExName ns)
+showsExceptionInfo (AmbiguousName  ns)  = showsExName (unqualifyName (hd ns)). shows " is ambiguous; it could be " . showsCommaList showsExName ns
 showsExceptionInfo Arity                = shows "arity mismatch in argument count to a function or type definition"
 showsExceptionInfo (BadCtor dn cn)      = showsExName cn . shows " is not a constructor for " . showsExName dn
 showsExceptionInfo (BadPattern p)       = shows "bad pattern " . showsAst p
@@ -84,7 +84,7 @@ showsExceptionInfo (Unsupported s)      = shows s . shows " is unsupported"
 showsExceptionInfo (Unused n)           = showsExName n . shows " is unused"
 showsExceptionInfo (WrongType n)        = shows "type inferred for " . showsExName n . shows " is wrong"
 showsExceptionInfo (Info s)             = shows s
-showsExceptionInfo (ExMult es)          = interShows "\n    " (map showsExceptionInfo es)
+showsExceptionInfo (ExMult es)          = showsListMapped "\n    " showsExceptionInfo es
 
 || limit the length of an Info
 limitInfo :: int -> string -> string
@@ -132,7 +132,7 @@ showsLocInfo (ns, ml)
     = showsMaybeLoc ml . showsPathName ns
       where
         showsPathName [] = id
-        showsPathName ns = shows "\n    in definition of " . interShows ", subdef of " (map (shows . getName) ns)
+        showsPathName ns = shows "\n    in definition of " . showsListMapped ", subdef of " (shows . getName) ns
 
         showsMaybeLoc Nothing    = id
         showsMaybeLoc (Just loc) = showsLocation loc

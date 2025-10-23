@@ -14,10 +14,10 @@ showstg (Comment s) = "\n# " ++ s
 
 || classify a line into an STG insn, a code Label, or Nothing
 classify :: string -> maybe stg
-classify ('#' : ' ' : '(' : s) = init s |> Insn |> Just
-classify ('#' : ' ' : s)       = Comment s      |> Just
-classify ('c' : 'o' : s)       = Label s        |> Just
-classify _                     = Nothing
+classify ('#' : ' ' : s) = Just $ Insn s, if ~null s & isUpper (hd s)
+                         = Just $ Comment s, otherwise
+classify ('c' : 'o' : s) = Just $ Label s
+classify _               = Nothing
 
 || extract the STG insns from the file and print
 process :: string -> io ()

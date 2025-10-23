@@ -138,9 +138,9 @@ build stdMods mm
         order'      = stdMods ++ order       || force stdMods to be built first, as there are implicit dependencies on them
 
         showCycles cs
-            = shows "module includes: " . interShows ", " (map showsCycle cs) $ ""
+            = shows "module includes: " . showsCommaList showsCycle cs $ ""
               where
-                showsCycle ns = showsInParens (interShows ", " (map shows ns))
+                showsCycle ns = showsInParens $ showsCommaList shows ns
 
         bm mm mn
             = putStrLn ("building " ++ mn) >> buildModule mm mn, if _eq cmpbuildStatus bs Unbuilt
