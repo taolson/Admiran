@@ -948,12 +948,8 @@ makeStart n genv
         genv'      = over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
 
         || world type and World token used by io to sequence io actions
-|| *** NOTE *** use this version to make new bootstrap compilers with existing io lib, then
-|| make the corresponding change to io lib
-||        tWorld     = Tname (Qualified "io" "world") []
-||        worldName  = Qualified "io" "World"
-        tWorld     = builtinTypeUnit
-        worldName  = builtinUnitName
+        tWorld     = Tname (Qualified "io" "world") []
+        worldName  = Qualified "io" "World"
         world      = Evar worldName 
 
         || must be "io ()" or its equivalent type expansion "World -> ((), World)"        

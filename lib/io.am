@@ -10,15 +10,10 @@
 || "world" is an abstract type with an unexported constructor "World" which is used as
 || a token to sequence actions in the io monad. Since "World" is not exported, the io
 || functions defined here cannot be run without being a part of the io monad chain.
-
 world ::= World
 
 || io is implemented as a state monad with the special state world.
-
-|| *** NOTE *** change to this version after rebuilding with corresponding change in stg.am
-|| io * == state world *
-io * == state () *
-
+io * == state world *
 
 || a wrapper on a byteStream# (which is just a word# that represents the raw heapAddr of an allocated byteStream#)
 || which allows for top-level handle thunks like stdin
