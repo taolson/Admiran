@@ -20,10 +20,11 @@ s_insert cmp v
                 LT -> case go l of l' -> a_balance $ AVLNode v' l' r h
                 GT -> case go r of r' -> a_balance $ AVLNode v' l r' h
 
-|| insert a value into the set only if it is not already present;
+|| insert a value into the set only if it is not already a member of the set,
 || otherwise return Nothing
-s_insertUnique :: ordI * -> * -> s_set * -> maybe (s_set *)
-s_insertUnique cmp v
+|| allows a single traversal to both check for set membership and insert a value
+s_insertIfAbsent :: ordI * -> * -> s_set * -> maybe (s_set *)
+s_insertIfAbsent cmp v
     = go
       where
         go  AVLLeaf = Just $ s_singleton v
