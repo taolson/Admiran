@@ -67,6 +67,9 @@ mst_foldM f z0 xs
 mst_sequence :: [maybeState * **] -> maybeState * [**]
 mst_sequence xs = foldr (mst_liftA2 (:)) (mst_pure []) xs
 
+mst_sequence_ :: [maybeState * **] -> maybeState * ()
+mst_sequence_ xs = foldr mst_right (mst_pure ()) xs
+
 
 || functor interface
 mst_fmap :: (** -> ***) -> maybeState * ** -> maybeState * ***
