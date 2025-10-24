@@ -11,14 +11,12 @@
 %import <stream>
 
 streamFile :: string -> io (stream char word#)
-streamFile fn
-    = io_pure go
+streamFile fn world
+    = case allocByteStream# 256# of
+        s# -> case writeByteStream s# fn of
+                _ -> case openFileRead# s# of
+                       fs# -> (Stream next fs#, world)
       where
-        go = case allocByteStream# 256# of
-               s# -> case writeByteStream s# fn of
-                       _ -> case openFileRead# s# of
-                              fs# -> Stream next fs#
-
         next fs#
             = case readByteStream# fs# of
                 c# -> case c# $cmp# 0# of
@@ -26,4 +24,3 @@ streamFile fn
                                 0# -> case closeFile# fs# of _ -> Done
                                 _  -> next fs#
                         _  -> Yield (C# c#) fs#
-
