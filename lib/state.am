@@ -77,6 +77,8 @@ st_foldM f z0 xs
 st_sequence :: [state * **] -> state * [**]
 st_sequence xs = foldr (st_liftA2 (:)) (st_pure []) xs
 
+st_sequence_ :: [state * **] -> state * ()
+st_sequence_ xs = foldr st_right (st_pure ()) xs
 
 || functor interface
 st_fmap :: (** -> ***) -> state * ** -> state * ***
