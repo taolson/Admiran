@@ -1,5 +1,8 @@
 || state.am -- strict state functor / applicative / monad
-
+||
+|| Note: the strictness of this implementation somewhat relies upon the inlining optimizations
+|| in the compiler (e.g. inlining st_runState, st_bind, etc.) If this is compiled with inlining
+|| disabled, then extra thunks are created which may cause space leaks 
 
 %export +
 
