@@ -969,5 +969,5 @@ buildStg n genv
         (_, st)         = st_mapM_ (buildGroup genv') sccs (initBdSt genv')
         Imm (Haddr bhp) = fromJust . m_lookup cmpname stdBlackHoleName . view bdLenv $ st
         bhTramp         = fromJust . m_lookup cmpcodePtr blackHolePtr . view bdCodeMap $ st     || get existing blackHole trampoline code obj
-        bhTramp'        = setSnd bhTramp [Enter bhp []]                                         || update trampoline to enter actual blackHole closure
+        bhTramp'        = setSnd [Enter bhp []] bhTramp                                         || update trampoline to enter actual blackHole closure
         st'             = over bdCodeMap (m_insert cmpcodePtr blackHolePtr bhTramp') st         || replace with new trampoline code

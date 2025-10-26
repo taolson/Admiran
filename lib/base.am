@@ -203,11 +203,11 @@ triple a b c = (a, b, c)
 cmptriple a b = cmptuple3 a b
 showtriple a  = showtuple3 a
 
-setFst :: (*, **) -> *** -> (***, **)
-setFst (a, b) a' = (a', b)
+setFst :: *** -> (*, **) -> (***, **)
+setFst a (_, b) = (a, b)
 
-setSnd :: (*, **) -> *** -> (*, ***)
-setSnd (a, b) b' = (a, b')
+setSnd :: *** -> (*, **) -> (*, ***)
+setSnd b (a, _) = (a, b)
 
 mapFst :: (* -> ***) -> (*, **) -> (***, **)
 mapFst f (a, b) = (f a, b)
