@@ -1,0 +1,217 @@
+|| genericCtors.am -- experimental post-processing of an amc-generated asm file to use a single generic constructor
+|| for each (tag, arity) combination, and to inline tail-calls to generic constructors
+|| will be used to determine whether it is worth it to put this optimization into the compiler
+
+
+%import <base>
+%import <map>
+%import <maybe>         (>>=?)/mb_bind (<$>?)/mb_fmap (>>?)/mb_right
+%import <maybeState>    (>>=)/mst_bind (<$>)/mst_fmap (<<)/mst_left (>>)/mst_right
+%import <parser>        (<|>)/p_alt
+%import <io>            (>>=.)/io_bind (>>.)/io_right
+
+
+insn ::= Insn string string | Pseudo string string | LocalLbl string | Comment string
+
+showinsn :: insn -> string
+showinsn (Insn op args)   = "\t"  ++ op ++ "\t" ++ args ++ "\n"
+showinsn (Pseudo op args) = "\t." ++ op ++ "\t" ++ args ++ "\n"
+showinsn (LocalLbl s)     = s ++ ":\n"
+showinsn (Comment s)      = "# " ++ s ++ "\n"
+
+viewArgs :: insn -> maybe string
+viewArgs (Insn op args)   = Just args
+viewArgs (Pseudo op args) = Just args
+viewArgs _                = Nothing
+
+setArgs :: string -> insn -> insn
+setArgs args (Insn op _)   = Insn op args
+setArgs args (Pseudo op _) = Pseudo op args
+setArgs _    insn          = insn
+
+
+|| a code or data basic block of insns, or an assembler directive
+block ::= Block [insn] string [insn] |  || comment/globl header associated with block, label, instructions
+          Directive string              || stand-alone directive
+
+showblock :: block -> string
+showblock (Block hdr lbl insns) = concatMap showinsn hdr ++ lbl ++ ":\n" ++ concatMap showinsn insns
+showblock (Directive s)         = "\t." ++ s ++ "\n"
+
+
+|| parsing asm file
+
+isGlobl, notGlobl :: string -> bool
+isGlobl s = s ==$ "globl"
+
+notGlobl s = ~isGlobl s
+
+p_nl :: parser char
+p_nl = p_char '\n'
+
+p_discardLine :: parser ()
+p_discardLine = p_skipUntil p_any p_nl >> p_pure ()
+
+p_restOfLine :: parser string
+p_restOfLine = p_manyUntil p_any p_nl
+
+p_space' :: parser char
+p_space'
+    = p_any >>= check
+      where
+        check c = p_pure c, if c ==. ' ' \/ c ==. '\t'
+                = p_fail,   otherwise
+
+p_spaces' :: parser string
+p_spaces' = p_some p_space'
+
+p_identChar :: parser char
+p_identChar
+    = p_any >>= check
+      where
+        check c = p_pure c, if letter c \/ digit c \/ c ==. '_'
+                = p_fail,   otherwise
+
+p_ident :: parser string
+p_ident = p_some p_identChar
+
+p_pseudo :: (string -> bool) -> parser string
+p_pseudo tst
+    = p_char '.' >> p_ident >>= check
+      where
+        check s = p_pure s, if tst s
+                = p_fail,   otherwise
+
+p_directive :: parser string
+p_directive
+    = p_char '.' >> p_ident >>= check
+      where
+        check s = p_discardLine >> p_pure s, if member cmpstring ["text", "data"] s
+                = p_fail,                  otherwise
+
+p_lbl :: parser string
+p_lbl = p_ident << p_char ':' << p_discardLine
+
+p_localLbl :: parser string
+p_localLbl = (p_some p_digit) << p_char ':' << p_discardLine
+
+p_comment :: parser string
+p_comment = p_char '#' >> (p_spaces' >> p_restOfLine)
+
+p_insn :: parser insn
+p_insn
+    = p_liftA2 Insn   (p_spaces' >> p_ident)           (p_spaces' >> p_restOfLine) <|>
+      p_liftA2 Pseudo (p_spaces' >> p_pseudo notGlobl) (p_spaces' >> p_restOfLine) <|>
+      LocalLbl <$> p_localLbl                                                      <|>
+      Comment  <$> p_comment
+
+p_headerInsn :: parser insn
+p_headerInsn
+    = (Comment <$> p_comment) <|>
+      (p_liftA2 Pseudo (p_spaces' >> p_pseudo isGlobl) (p_spaces' >> p_restOfLine))
+           
+p_header :: parser [insn]
+p_header = p_many (p_many p_nl >> p_headerInsn)
+
+p_block :: parser block
+p_block
+    = p_many p_nl >>
+      ( p_liftA3 Block p_header p_lbl (p_many p_insn) <|>
+        Directive <$> (p_spaces' >> p_directive)
+      )
+
+
+|| block processing
+
+|| (tag, arity) pair
+tagAty == (int, int)
+
+|| map from tag and arity to the generic ctor label
+ctorMap == m_map tagAty string
+
+|| map from a code label to a generic ctor label and its insns
+jmpMap == m_map string (string, [insn])
+
+gSt == (ctorMap, jmpMap)
+
+|| check if ctor block should be installed as a new generic ctor block or
+|| be replaced by one (returns Nothing to indicate replacement)
+installOrReplace :: block -> tagAty -> maybeState gSt block
+installOrReplace (Block hdr lbl insns) ta
+    = mst_get >>= go
+      where
+        go (cm, jm)
+            = fromMaybef install replace (m_lookup cmptagAty ta cm)
+              where
+                cm'          = m_insert cmptagAty ta lbl cm
+                jm' lbl'     = m_insert cmpstring lbl (lbl', insns) jm
+                hdr'         = Comment ("Generic Ctor for " ++ showtagAty ta) : tl hdr
+                install      = mst_put (cm', jm)      >> mst_pure (Block hdr' lbl insns)
+                replace lbl' = mst_put (cm, jm' lbl') >> mst_fail
+
+installOrReplace _ _ = undef    || added to remove compiler warning
+
+|| update the labels in the insns if they are found in the jmp map
+|| also perform inlining of a generic ctor in a tail-call position
+updateLabels :: [insn] -> maybeState gSt [insn]
+updateLabels insns
+    = mst_get >>= doUpdate .> mst_pure
+      where
+        doUpdate (cm, jm)
+            = go insns
+              where
+                go []       = []
+                go [i]      = fromMaybe [i] (tryInline i)               || replace tail-call jmp with ctor block
+                go (i : is) = fromMaybe i   (tryUpdate i) : go is       || update label with generic ctor label
+
+               tryInline (Insn "jmp" lbl) = snd       <$>? m_lookup cmpstring lbl jm
+               tryInline i                = singleton <$>? tryUpdate i
+
+               tryUpdate i = viewArgs i                              >>=?
+                             \lbl       -> m_lookup cmpstring lbl jm >>=?
+                             \(lbl', _) -> Just $ setArgs lbl' i
+
+|| classify a block type and perform the appropriate operation
+|| returns Nothing if the block was a replaced ctor block (to remove it from the code)
+classify :: block -> maybeState gSt block
+classify b
+    = case b of
+        Directive _         -> mst_pure b
+        Block hdr lbl insns ->
+            case (checkHdr hdr >>? checkCtor insns) of
+              Nothing -> Block hdr lbl <$> updateLabels insns   || not a ctor block; update any code labels in insns
+              Just ta -> installOrReplace b ta                  || ctor block; install or replace
+      where
+        checkHdr (Comment s : _) = Nothing, if member cmpchar s '`'     || strict ctors (marked with `Sc in hdr comment) cannot be generic
+        checkHdr _               = Just ()
+
+        checkCtor (Comment s : _) = checkComment (words s)
+        checkCtor _               = Nothing
+
+        checkComment ["Ret", "Imm", "Word", st, "Imm", "Word", sa] = Just (intval st, intval sa)
+        checkComment _                                             = Nothing
+
+|| process the file a block at a time, parsing a block from the file stream and
+|| writing out the updated block
+process :: gSt -> psSt -> io psSt
+process gs ps
+    = mst_runState p_block ps |> checkParse                     || parse the next block with the parser state ps
+      where
+        checkParse (Nothing, ps') = io_pure ps'                 || no more blocks to process
+        checkParse (Just b,  ps')
+            = mst_runState (classify b) gs |> checkBlock        || process the block with the genericCtor state gs
+              where
+                checkBlock (Nothing, gs') = process gs' ps'
+                checkBlock (Just b', gs') = putStrLn (showblock b') >>. process gs' ps'
+
+
+main :: io ()
+main = getArgs >>=. check
+       where
+         check [fn] = (readFile fn >>=. doProcess) >>=. (p_end .> checkResult)
+         check _    = error "usage: genericCtors <asm file name>"
+
+         doProcess s = process (m_empty, m_empty) (1#, 1#, s)
+
+         checkResult (Nothing, ps) = error (p_error ps)
+         checkResult _             = io_pure ()
