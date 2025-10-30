@@ -146,7 +146,7 @@ installOrReplace (Block hdr lbl insns) ta
                 cm'          = m_insert cmptagAty ta lbl cm
                 jm' lbl'     = m_insert cmpstring lbl (lbl', insns) jm
                 hdr'         = Comment ("Generic Ctor for " ++ showtagAty ta) : tl hdr
-                install      = mst_put (cm', jm)      >> mst_pure (Block hdr' lbl insns)
+                install      = mst_put (cm', jm' lbl) >> mst_pure (Block hdr' lbl insns)
                 replace lbl' = mst_put (cm, jm' lbl') >> mst_fail
 
 installOrReplace _ _ = undef    || added to remove compiler warning
@@ -164,12 +164,15 @@ updateLabels insns
                 go [i]      = fromMaybe [i] (tryInline i)               || replace tail-call jmp with ctor block
                 go (i : is) = fromMaybe i   (tryUpdate i) : go is       || update label with generic ctor label
 
-               tryInline (Insn "jmp" lbl) = snd       <$>? m_lookup cmpstring lbl jm
-               tryInline i                = singleton <$>? tryUpdate i
+                tryInline (Insn "jmp" lbl) = snd       <$>? m_lookup cmpstring lbl jm
+                tryInline i                = singleton <$>? tryUpdate i
 
-               tryUpdate i = viewArgs i                              >>=?
-                             \lbl       -> m_lookup cmpstring lbl jm >>=?
-                             \(lbl', _) -> Just $ setArgs lbl' i
+                tryUpdate i = viewArgs i                              >>=?
+                              \lbl       -> m_lookup cmpstring lbl jm >>=?
+                              \(lbl', _) -> Just $ setArgs lbl' i
+
+showres Nothing = "Nothing"
+showres (Just (lbl, _)) = "Just " ++ lbl
 
 || classify a block type and perform the appropriate operation
 || returns Nothing if the block was a replaced ctor block (to remove it from the code)
