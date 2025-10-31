@@ -78,6 +78,12 @@ mb_apply mf ma = mf $mb_bind converse mb_fmap ma
 mb_liftA2 :: (* -> ** -> ***) -> maybe * -> maybe ** -> maybe ***
 mb_liftA2 f ma mb = mb_fmap f ma $mb_apply mb
 
+mb_left :: maybe * -> maybe ** -> maybe *
+mb_left ma mb = mb_liftA2 const ma mb
+
+mb_right :: maybe * -> maybe ** -> maybe **
+mb_right ma mb = mb_liftA2 (converse const) ma mb
+
 
 || alternative interface
 mb_alt :: maybe * -> maybe * -> maybe *
