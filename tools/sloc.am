@@ -17,7 +17,7 @@ rightAlign n s = rep (n - #s) ' ' ++ s ++ " "
 || process a file, reporting its sloc and returning a running tally of the total sloc
 process :: int -> string -> io int
 process tot fn
-    = readFile fn >>= lines .> filter isCodeLine .> length .> report
+    = readFile fn >>= lines .> count isCodeLine .> report
       where
         report n
               || the following ensures that we have finished with the file (including the implicit close of it), by
