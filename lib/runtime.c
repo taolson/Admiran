@@ -27,7 +27,7 @@
 #define maxRegs 16
 #define maxEnv  20
 
-uint64_t gcInitMem = 0x02000000;  // initial memory size, in words (0x200000 = 16MB)
+uint64_t gcInitMem = 0x000c0000;  // initial memory size, in words (0xc0000 = 6MB, sized to fit L3 cache)
 uint64_t gcMaxMem  = 0x20000000;  // maximum size, in words, to grow allocated memory (0x20000000 = 4GB)
 uint64_t gcMinFree = 0x1000;      // minimum size, in words, that must be available to proceed after a gcMajor (otherwise terminate with out of memory)
 
