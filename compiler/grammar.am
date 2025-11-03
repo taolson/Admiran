@@ -675,7 +675,7 @@ qualifyDefn modName d                      = d
 
 || common environment definitions
 nameMap == m_map name name          || map for renaming a name
-envMap  == m_map name [name]        || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
+envMap  == m_map name (s_set name)  || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
 defnMap == m_map name defn          || map from Qualified name to top-level definition in module
 
 || operator precedence and associativity

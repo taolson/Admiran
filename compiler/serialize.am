@@ -230,10 +230,10 @@ deserialNameMap :: deserializer nameMap
 deserialNameMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName deserialName)
 
 serialEnvMap :: serializer envMap
-serialEnvMap = serialList (serialTup2 serialName (serialList serialName)) . m_toList
+serialEnvMap = serialList (serialTup2 serialName (serialSet serialName)) . m_toList
 
 deserialEnvMap :: deserializer envMap
-deserialEnvMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName (deserialList deserialName))
+deserialEnvMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName (deserialSet cmpname deserialName))
 
 serialAst :: serializer ast
 serialAst (Evar n)            = serialCtor  0 . serialName n
