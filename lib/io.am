@@ -68,7 +68,7 @@ hPutStr :: handle -> string -> io ()
 hPutStr h s = writeFileStream h s
 
 
-|| lazy read from an handle, re-filling the buffer from the file when it is empty
+|| lazy read from a handle, re-filling the buffer from the file when it is empty
 readFileStream :: handle -> io string
 readFileStream (Handle fs#) world
     = restart fs#
@@ -84,7 +84,7 @@ readFileStream (Handle fs#) world
               where
                 (s', _) = restart fs#
 
-|| strict write to an handle, writing the buffer out to the file when it becomes full
+|| strict write to a handle, writing the buffer out to the file when it becomes full
 writeFileStream :: handle -> string -> io ()
 writeFileStream (Handle fs#) s world
     = restart s
