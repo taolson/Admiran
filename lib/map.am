@@ -13,8 +13,8 @@ m_singleton :: * -> ** -> m_map * **
 m_singleton k v = v $seq a_singleton (k, v)     || strict value
 
 m_member :: ordI * -> * -> m_map * ** -> bool
-m_member cmp k m
-    = go m
+m_member cmp k
+    = go
       where
         go AVLLeaf = False
         go (AVLNode (k', v) l r h)
@@ -35,58 +35,47 @@ m_insert cmp k v
                         LT -> case go l of l' -> a_balance $ AVLNode p l' r h
                         GT -> case go r of r' -> a_balance $ AVLNode p l r' h
 
-m_insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> m_map * ** -> m_map * **
-m_insertWith cmp f k v
-    = go
+|| combination of insertWith / adjust / delete, depending upon result of f:
+|| f Nothing  = Nothing -> no modification (i.e. delete absent key)
+|| f Nothing  = Just v  -> insert k v
+|| f (Just v) = Nothing -> delete k
+|| f (Just v) = Just v' -> adjust k v
+m_alter :: ordI * -> (maybe ** -> maybe **) -> * -> m_map * ** -> m_map * **
+m_alter cmp f k
+    = \m -> fromMaybe m $ go m
       where
-        go AVLLeaf = m_singleton k v
+        go AVLLeaf = m_singleton k <$>? f Nothing
         go (AVLNode p l r h)
             = case p of
                 (k', v') -> case cmp k k' of
-                              EQ -> case f v v' of fv' -> AVLNode (k, fv') l r h      || strict value
-                              LT -> case go l of l' -> a_balance $ AVLNode p l' r h
-                              GT -> case go r of r' -> a_balance $ AVLNode p l r' h
-
-|| delete the key k and its value from the map, if present,
-|| or return the original map
-m_delete :: ordI * -> * -> m_map * ** -> m_map * **
-m_delete cmp k m
-    = fromMaybe m $ go m
-      where
-        go AVLLeaf = Nothing
-        go (AVLNode p l r h)
-            = case fst p of
-                k' -> case cmp k k' of
-                        EQ -> Just $ a_moveR l r
-                        LT -> insL <$>? go l
-                        GT -> insR <$>? go r
-              where
-                insL l' = a_balance $ AVLNode p l' r h
-                insR r' = a_balance $ AVLNode p l r' h
-
-|| return Nothing if the key wasn't found, otherwise return the adjusted map
-m_madjust :: ordI * -> (** -> **) -> * -> m_map * ** -> maybe (m_map * **)
-m_madjust cmp f k
-    = go
-      where
-        go AVLLeaf = Nothing
-        go (AVLNode p l r h)
-            = case p of
-                (k', v') -> case cmp k k' of
-                              EQ -> case f v' of fv' -> Just $ AVLNode (k, fv') l r h   || strict value
+                              EQ -> case f (Just v') of
+                                      Nothing -> Just $ a_moveR l r     || delete the node
+                                      Just v  -> Just $ AVLNode (k, v) l r h
                               LT -> insL <$>? go l
                               GT -> insR <$>? go r
-              where
-                insL l'  = AVLNode p l' r h
-                insR r'  = AVLNode p l r' h
+                            where
+                              insL l' = a_balance $ AVLNode p l' r h
+                              insR r' = a_balance $ AVLNode p l r' h
+    
+|| insert v if k not found in the map, otherwise insert the result of applying
+|| f to the existing value and v
+m_insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> m_map * ** -> m_map * **
+m_insertWith cmp f k v
+    = m_alter cmp f' k
+      where
+        f' Nothing   = Just v
+        f' (Just v') = Just $ f v v'
+
+m_delete :: ordI * -> * -> m_map * ** -> m_map * **
+m_delete cmp k = m_alter cmp (const Nothing) k
 
 || return the original map if the key wasn't found, otherwise return the adjusted map
 m_adjust :: ordI * -> (** -> **) -> * -> m_map * ** -> m_map * **
-m_adjust cmp f k m = fromMaybe m $ m_madjust cmp f k m
+m_adjust cmp f k = m_alter cmp (f <$>?) k
 
 m_lookup :: ordI * -> * -> m_map * ** -> maybe **
-m_lookup cmp k m
-    = go m
+m_lookup cmp k
+    = go
       where
         go AVLLeaf = Nothing
         go (AVLNode (k', v') l r h)
@@ -96,8 +85,7 @@ m_lookup cmp k m
               GT -> go r
 
 m_findWithDefault :: ordI * -> ** -> * -> m_map * ** -> **
-m_findWithDefault cmp d k m
-    = fromMaybe d $ m_lookup cmp k m
+m_findWithDefault cmp d k = fromMaybe d . m_lookup cmp k
 
 m_fromList :: ordI * -> [(*, **)] -> m_map * **
 m_fromList cmp
@@ -133,8 +121,8 @@ m_union cmp m1 m2
         addEntry m (k, v) = m_insert cmp k v m
 
 m_filter :: ordI * -> (** -> bool) -> m_map * ** -> m_map * **
-m_filter cmp p m
-    = m_filterWithKey cmp (ignoreKey p) m
+m_filter cmp p
+    = m_filterWithKey cmp (ignoreKey p)
       where
         ignoreKey p (k, x) = p x
 
@@ -142,13 +130,14 @@ m_filterWithKey :: ordI * -> ((*, **) -> bool) -> m_map * ** -> m_map * **
 m_filterWithKey cmp p = m_fromList cmp . filter p . m_toList
 
 m_mapAccumL :: (**** -> ** -> (****, ***)) -> **** -> m_map * ** -> (****, m_map * ***)
-m_mapAccumL f s AVLLeaf = (s, AVLLeaf)
-m_mapAccumL f s (AVLNode (k, v) l r h)
-    = case m_mapAccumL f s l of
-        (s1, l') -> case f s1 v of
-                      (s2, v') -> case m_mapAccumL f s2 r of
-                                    (s3, r') -> (s3, AVLNode (k, v') l' r' h)
-
+m_mapAccumL f s
+    = go
+      where
+        go AVLLeaf = (s, AVLLeaf)
+        go (AVLNode (k, v) l r h)
+             = case go l   of (s1, l') ->
+               case f s1 v of (s2, v') ->
+               case go r   of (s3, r') -> (s3, AVLNode (k, v') l' r' h)
 
 || functor interface
 || note: lazy operation here, because some computations

@@ -1,12 +1,13 @@
 || bag.am -- implementation of a strict multiset using AVL trees
 
 
-%export + b_empty b_null b_size b_member b_first b_last b_lookup b_findWithDefault b_elems b_keys b_keysSet b_toList b_deleteKey b_madjust b_adjust
+%export + b_empty b_null b_size b_member b_first b_last b_lookup b_findWithDefault b_elems b_keys b_keysSet b_toList b_deleteKey
+          b_adjust b_alter
 
 %import <avl>
 %import <map>   b_empty/m_empty b_null/m_null b_size/m_size b_member/m_member b_first/m_first b_last/m_last b_lookup/m_lookup
                 b_findWithDefault/m_findWithDefault b_elems/m_elems b_keys/m_keys b_keysSet/m_keysSet b_toList/m_toList
-                b_deleteKey/m_delete b_madjust/m_madjust b_adjust/m_adjust
+                b_deleteKey/m_delete b_adjust/m_adjust b_alter/m_alter
 
 %import <maybe> (<$>?)/mb_fmap
 
