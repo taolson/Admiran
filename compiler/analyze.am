@@ -62,6 +62,7 @@ addUse :: name -> azSt -> azSt
 addUse n st = over azUses (b_insert cmpname n) st
 
 || add a use of a Tname to the use count
+|| required for detecting dependency cycles in type synonyms
 addTUse :: name -> azSt -> azSt
 addTUse n st
     = over azUses (b_insert cmpname n) st, if ~isConstructor n
