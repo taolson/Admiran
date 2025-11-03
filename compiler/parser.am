@@ -17,7 +17,7 @@
 
 psError == (string, int, int, int)              || err string, severity, line#, col#
 
-|| custom comparison of psError that only looks at severity, line, col, and severity
+|| custom comparison of psError that only looks at severity, line, and col
 || used to choose the parse state with the deepest error in a p_alt
 cmppsError :: ordI psError
 cmppsError (_, s1, l1, c1) (_, s2, l2, c2)
