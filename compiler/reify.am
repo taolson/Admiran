@@ -1,4 +1,4 @@
-|| reify.am -- module environment reification of includes, exports, and expansion of type synonyms
+|| reify.am -- module environment reification of imports, exports, and expansion of type synonyms
 
 
 %export reifyImports reifyDefns reifyDefAbs reifyExports reifySyns reifyTypes

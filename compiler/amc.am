@@ -76,15 +76,15 @@ parseFiles files
       where
         go modules [] = io_pure modules
         go modules (f : fs)
-            = go modules fs,                      if m_member cmpstring mn modules    || already parsed
-            = parseOrDeserial f >>= addIncs,      otherwise
+            = go modules fs,                    if m_member cmpstring mn modules    || already parsed
+            = parseOrDeserial f >>= addImports, otherwise
               where
                 mn = fileSpecName f
-                addIncs mdl
-                    = go modules' (fs ++ includes)
+                addImports mdl
+                    = go modules' (fs ++ imports)
                       where
-                        modules'  = m_insert cmpstring mn mdl modules
-                        includes  = modImportFiles mdl
+                        modules' = m_insert cmpstring mn mdl modules
+                        imports  = modImportFiles mdl
 
 || build a module and insert into the module map, by making a globalEnvironment
 || and passing that through a sequence of compilation passes
@@ -105,7 +105,7 @@ buildModule mm n
         || config parameter for bootstrapBuild, because runtime-qualification of a call will not be dead-code
         || eliminated in the final bootstrapBuild, because inlining is disabled.
         passes =
-            [ reifyImports
+            [ reifyImports                || reify all the exports from imported modules
             , reifyDefns isDefData        || reify data type and constructor names early for desugaring constructor patterns
             , deriveInstances             || derive any missing instances for show, ord from the DefData and DefSyn defns
             , desugar                     || desugar complex pats, list comprehensions, conditionals, etc.
@@ -138,7 +138,7 @@ build stdMods mm
         order'      = stdMods ++ order       || force stdMods to be built first, as there are implicit dependencies on them
 
         showCycles cs
-            = shows "module includes: " . showsCommaList showsCycle cs $ ""
+            = shows "module imports: " . showsCommaList showsCycle cs $ ""
               where
                 showsCycle ns = showsInParens $ showsCommaList shows ns
 

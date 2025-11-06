@@ -28,7 +28,7 @@ exceptionInfo ::=
     BadCtor        name  name        |       || constructor is not a member of the data defn
     BadPattern     pat               |       || pattern is not a constructor or variable
     CtorArity      name              |       || constructor used with wrong arity in formal
-    DepCycle       string            |       || dependency cycle in type definitions or module includes
+    DepCycle       string            |       || dependency cycle in type definitions or module imports
     NameClash      name              |       || previously-defined, qualified name (includes module info)
     NonExhaustive                    |       || non-exhaustive patterns in function
     NotPairPat                       |       || case alternate pattern is not a pair
