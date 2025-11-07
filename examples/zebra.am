@@ -15,7 +15,7 @@ categories =
     , ("nationalities", ["englishman", "japanese", "norwegian", "spaniard", "ukrainian"])
     , ("drinks",        ["coffee", "milk", "orange juice", "tea", "water"])
     , ("pets",          ["dog", "fox", "horse", "snails", "zebra"])
-    , ("smokes",        ["chesterfield", "kool", "lucky strike", "old gold", "parliment"])
+    , ("smokes",        ["chesterfield", "kool", "lucky strike", "old gold", "parliament"])
     ]
 
 givens =
@@ -29,9 +29,9 @@ givens =
     , cSingle           (LocIndex 2)    "milk"                                  || The person who drinks milk lives in the middle house.
     , cSingle           (LocIndex 0)    "norwegian"                             || The Norwegian lives in the first house (leftmost).
     , cPair             NextTo          "chesterfield"  "fox"                   || the person who smokes Chesterfield lives next to the person who owns a fox.
-    , cPair             NextTo          "kool"          "horse"                 || The person who smokes Kool lives next to th eperson who owns a horse.
+    , cPair             NextTo          "kool"          "horse"                 || The person who smokes Kool lives next to the person who owns a horse.
     , cPair             SameLoc         "lucky strike"  "orange juice"          || The person who smokes Lucky Strike drinks orange juice.
-    , cPair             SameLoc         "japanese"      "parliment"             || the Japanese smokes Parliment.
+    , cPair             SameLoc         "japanese"      "parliament"            || the Japanese smokes Parliament.
     , cPair             NextTo          "norwegian"     "blue"                  || The Norwegian lives next to the blue house.
     ]
 
