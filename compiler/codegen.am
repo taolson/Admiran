@@ -852,33 +852,33 @@ genInsn (Mul d a b)
         (dreg, movd) = ensureX86DstReg x86Tmp1 d
 
 genInsn (QuotRem dq dr a b)
-    = genOpcode    "push" [x86rdx]               .      || save %rdx, as it is destroyed during QuotRem
-      genQuotRem dr a b                          .
-      genOpcode    "shlq" [x86rax]               .
-      genOpcode    "movq" [x86rax, cvtRef dq]    .
-      genOpcode    "shlq" [x86rdx]               .
-      genOpcode    "movq" [x86rdx, cvtRef dr]    .
-      genOpcode    "pop"  [x86rdx]
+    = genOpcode    "pushq" [x86rdx]               .     || save %rdx, as it is destroyed during QuotRem
+      genQuotRem dr a b                           .
+      genOpcode    "shlq"  [x86rax]               .
+      genOpcode    "movq"  [x86rax, cvtRef dq]    .
+      genOpcode    "shlq"  [x86rdx]               .
+      genOpcode    "movq"  [x86rdx, cvtRef dr]    .
+      genOpcode    "popq"  [x86rdx]
 
 genInsn (DivMod dq dr a b)
-    = genOpcode    "push" [x86rdx]               .      || save %rdx, as it is destroyed during QuotRem
-      genQuotRem dr a b                          .
-      genOpcode    "movq" [x86rax, cvtRef dq]    .
-      genOpcode    "movq" [x86rdx, cvtRef dr]    .
-      genOpcode    "cmpq" [X86Imm 0, x86rdx]     .      || check if remainder is zero
-      genJmpOpcode "jz"   (cvtJmpAddr "0f")      .      || if so, no fixup required
-      genOpcode    "movq" [cvtOpr b, x86rax]     .
-      genOpcode    "sarq" [X86Imm 63, x86rax]    .      || sign of b extended as mask
-      genOpcode    "sarq" [X86Imm 63, x86rdx]    .      || sign of rem extended as mask
-      genOpcode    "xorq" [x86rdx, x86rax]       .      || mask if sign b ~= sign rem (adjustment required)
-      genOpcode    "addq" [x86rax, cvtRef dq]    .      || add adjustment to quotient (0 or -1)
-      genOpcode    "andq" [cvtOpr b, x86rax]     .      || mask divisor (0 if no adjustment or d if adjustment)
-      genOpcode    "sarq" [x86rax]               .      || untag divisor
-      genOpcode    "addq" [x86rax, cvtRef dr]    .      || add into remainder to correct for mod
-      shows "0:\n"                               .
-      genOpcode    "shlq" [cvtRef dq]            .      || add Int tag bit (0) to quotient
-      genOpcode    "shlq" [cvtRef dr]            .      || add Int tag bit (0) to remainder
-      genOpcode    "pop"  [x86rdx]                      || restore original %rdx
+    = genOpcode    "pushq" [x86rdx]               .     || save %rdx, as it is destroyed during QuotRem
+      genQuotRem dr a b                           .
+      genOpcode    "movq"  [x86rax, cvtRef dq]    .
+      genOpcode    "movq"  [x86rdx, cvtRef dr]    .
+      genOpcode    "cmpq"  [X86Imm 0, x86rdx]     .     || check if remainder is zero
+      genJmpOpcode "jz"    (cvtJmpAddr "0f")      .     || if so, no fixup required
+      genOpcode    "movq"  [cvtOpr b, x86rax]     .
+      genOpcode    "sarq"  [X86Imm 63, x86rax]    .     || sign of b extended as mask
+      genOpcode    "sarq"  [X86Imm 63, x86rdx]    .     || sign of rem extended as mask
+      genOpcode    "xorq"  [x86rdx, x86rax]       .     || mask if sign b ~= sign rem (adjustment required)
+      genOpcode    "addq"  [x86rax, cvtRef dq]    .     || add adjustment to quotient (0 or -1)
+      genOpcode    "andq"  [cvtOpr b, x86rax]     .     || mask divisor (0 if no adjustment or d if adjustment)
+      genOpcode    "sarq"  [x86rax]               .     || untag divisor
+      genOpcode    "addq"  [x86rax, cvtRef dr]    .     || add into remainder to correct for mod
+      shows "0:\n"                                .
+      genOpcode    "shlq"  [cvtRef dq]            .     || add Int tag bit (0) to quotient
+      genOpcode    "shlq"  [cvtRef dr]            .     || add Int tag bit (0) to remainder
+      genOpcode    "popq"  [x86rdx]                     || restore original %rdx
 
 || the stgInsn Cmp semantics generate a 0# (eq), 1# (lt), or 2# (gt) result, but that would
 || be somewhat expensive to generate x86 code for.  Instead we perform an x86 cmpq insn, which
