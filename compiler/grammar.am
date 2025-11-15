@@ -81,6 +81,30 @@ ast ::=
         DefSpec     tform   texpr        anno  |       || type specification
         DefAbs      tform   [defn] texpr anno          || abstract type definition, along with its implementation type
 
+|| don't auto-derive showI and ordI instances for ast, since they are very large. Instead, we use
+|| a custom instance for showast that pretty-prints the AST, and only write ordI instances for subsets
+|| of ASTs we are interested in.
+cmpast = undef
+
+|| custom ordI instance for literals
+cmplit :: ordI expr
+cmplit (Eint a)        (Eint b)        = cmpint    a b
+cmplit (EprimInt a)    (EprimInt b)    = cmpint    a b
+cmplit (Echar a)       (Echar b)       = cmpchar   a b
+cmplit (EprimChar a)   (EprimChar b)   = cmpchar   a b
+cmplit (Estring a)     (Estring b)     = cmpstring a b
+cmplit (EprimString a) (EprimString b) = cmpstring a b
+cmplit a               b               = cmpTags   a b
+
+cmptexpr :: ordI texpr
+cmptexpr (Tname n tes) (Tname n' tes') = cmpname n n' $thenCmp (cmplist cmptexpr) tes tes'
+cmptexpr (Tvar n)      (Tvar n')       = cmpint n n'
+cmptexpr (Ttuple tes)  (Ttuple tes')   = cmplist cmptexpr tes tes'
+cmptexpr (Tlist te)    (Tlist te')     = cmptexpr te te'
+cmptexpr (Tarr ta tb)  (Tarr tc td)    = cmptexpr ta tc $thenCmp cmptexpr tb td
+cmptexpr (Tstrict te)  (Tstrict te')   = cmptexpr te te'
+cmptexpr a             b               = cmpTags  a  b
+
 
 || case selection type
 || generated during desugaring to qualify an Ecase and its CaseAlts
@@ -309,11 +333,8 @@ showsOpPrec d op e1 e2
 showsAst :: ast -> showS
 showsAst = showsAstPrec 0
 
-showAst :: ast -> string
-showAst a = showsAstPrec 0 a ""
-
-showAstRaw :: ast -> string
-showAstRaw a = showast a
+showast :: ast -> string
+showast a = showsAstPrec 0 a ""
 
 
 reservedNames :: s_set string
@@ -396,11 +417,11 @@ isPvarOrWild p          = isPvar p \/ isPwildcard p
 
 unPvar :: texpr -> name
 unPvar (Pvar n)         = n
-unPvar a                = error $ "unPvar on non-pvar: " ++ showAst a
+unPvar a                = error $ "unPvar on non-pvar: " ++ showast a
 
 unTvar :: texpr -> int
 unTvar (Tvar n)         = n
-unTvar a                = error $ "unTvar on non-tvar: " ++ showAst a
+unTvar a                = error $ "unTvar on non-tvar: " ++ showast a
 
 ctorName :: ast -> name
 ctorName (Pctor n vars) = n
@@ -413,7 +434,7 @@ ctorVars p              = []
 samePatType :: ast -> ast -> bool
 samePatType (Pvar v1)     (Pvar v2)     = True
 samePatType (Pctor n1 a1) (Pctor n2 a2) = True
-samePatType (Plit l1)     (Plit l2)     = _eq cmpexpr l1 l2
+samePatType (Plit l1)     (Plit l2)     = _eq cmplit l1 l2
 samePatType Pwildcard     Pwildcard     = True
 samePatType p1            p2            = False
 
@@ -444,15 +465,15 @@ isTarr a                 = False
 
 tformName :: ast -> name
 tformName (Tname n vars) = n
-tformName a              = error $ "tformName on non-tform: " ++ showAst a
+tformName a              = error $ "tformName on non-tform: " ++ showast a
 
 tformVars :: ast -> [ast]
 tformVars (Tname n vars) = vars
-tformVars a              = error $ "tformVars on non-tform: " ++ showAst a
+tformVars a              = error $ "tformVars on non-tform: " ++ showast a
 
 qualifyTform :: string -> ast -> ast
 qualifyTform modName (Tname n vars) = Tname (qualifyName modName n) vars
-qualifyTform modName a              = error $ "qualifyTform on non-tform: " ++ showAst a
+qualifyTform modName a              = error $ "qualifyTform on non-tform: " ++ showast a
 
 typeName :: texpr -> name
 typeName (Tname n vars) = n
@@ -461,7 +482,7 @@ typeName (Tlist  te)    = Builtin $ "[" ++ getName (typeName te) ++ "]"
 typeName (Tarr t1 t2)   = Builtin $ "(" ++ getName (typeName t1) ++ " -> " ++ getName (typeName t2) ++ ")"
 typeName (Tstrict t)    = typeName t
 typeName (Tvar n)       = Builtin "type"
-typeName a              = error $ "typeName on non-tform: " ++ showAst a
+typeName a              = error $ "typeName on non-tform: " ++ showast a
 
 isStrict :: ast -> bool
 isStrict (Tstrict t) = True
@@ -549,7 +570,7 @@ defnName (DefSyn tf te an)      = tformName tf
 defnName (DefData tf ctors an)  = tformName tf
 defnName (DefSpec tf te an)     = tformName tf
 defnName (DefAbs tf ds t an)    = tformName tf
-defnName d                      = error $ "defnName on non-defn: " ++ showAst d
+defnName d                      = error $ "defnName on non-defn: " ++ showast d
 
 defnAnno :: ast -> anno
 defnAnno (DefFn n vars e an)    = an
@@ -559,7 +580,7 @@ defnAnno (DefSyn tf te an)      = an
 defnAnno (DefData tf ctors an)  = an
 defnAnno (DefSpec tf te an)     = an
 defnAnno (DefAbs tf ds t an)    = an
-defnAnno d                      = error $ "defnAnno on non-defn: " ++ showAst d
+defnAnno d                      = error $ "defnAnno on non-defn: " ++ showast d
 
 
 || lenses for anno field, to allow view / set / over operations on annotation fields of a definition
@@ -592,7 +613,7 @@ defnTform
         getf (DefData tf ctors an)     = tf
         getf (DefSpec tf te an)        = tf
         getf (DefAbs tf ds te an)      = tf
-        getf a                         = error $ "defnTform on non-tform: " ++ showAst a
+        getf a                         = error $ "defnTform on non-tform: " ++ showast a
 
         overf fn (DefSyn tf te an)     = DefSyn (fn tf) te an
         overf fn (DefData tf ctors an) = DefData (fn tf) ctors an
@@ -607,7 +628,7 @@ defnType
         getf (DefSyn tf te an)        = te
         getf (DefSpec tf te an)       = te
         getf (DefAbs tf ds te an)     = te
-        getf d                        = error $ "defnType on non-tform: " ++ showAst d
+        getf d                        = error $ "defnType on non-tform: " ++ showast d
 
         overf fn (DefSyn tf te an)    = DefSyn tf (fn te) an
         overf fn (DefSpec tf te an)   = DefSpec tf (fn te) an
@@ -619,7 +640,7 @@ dataCtors
     = Lens getf overf
       where
         getf (DefData tf ctors an)     = ctors
-        getf a                         = error $ "defnCtors on non-DefData: " ++ showAst a
+        getf a                         = error $ "defnCtors on non-DefData: " ++ showast a
 
         overf fn (DefData tf ctors an) = DefData tf (fn ctors) an
         overf fn d                     = d
@@ -633,7 +654,7 @@ fnExpr :: ast -> ast
 fnExpr (DefFn n vars e an)  = e
 fnExpr (DefPat p e an)      = e
 fnExpr (DefMult m (d : ds)) = fnExpr d
-fnExpr d                    = error $ "fnExpr on non-defn: " ++ showAst d
+fnExpr d                    = error $ "fnExpr on non-defn: " ++ showast d
 
 || get the arity of a fn or spec defn -- special handling for constructors, where the arity is encoded in the builtinPack
 fnArity :: ast -> int

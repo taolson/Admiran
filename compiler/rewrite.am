@@ -75,12 +75,12 @@ rewriteAst k (Eap e1 e2) st
         mkCall (Eap f e) st = (checkInline f e, st)
         mkCall _         _  = undef     || added to remove compiler warning
 
-        checkInline (Ecall c [f])    e = checkInline f e,           if _eq cmpexpr c stdApply
-        checkInline (Ecall c [e])    f = checkInline f e,           if _eq cmpexpr c stdRapply
-        checkInline (Ecall c [f, g]) e = Ecall f [checkInline g e], if _eq cmpexpr c stdCompose
-        checkInline (Ecall c [g, f]) e = Ecall f [checkInline g e], if _eq cmpexpr c stdRcompose
-        checkInline (Ecall f args)   e = Ecall f $ args ++ [e]
-        checkInline f                e = Ecall f [e]
+        checkInline (Ecall (Evar cn) [f])    e = checkInline f e,           if _eq cmpname cn stdApplyName
+        checkInline (Ecall (Evar cn) [e])    f = checkInline f e,           if _eq cmpname cn stdRapplyName
+        checkInline (Ecall (Evar cn) [f, g]) e = Ecall f [checkInline g e], if _eq cmpname cn stdComposeName
+        checkInline (Ecall (Evar cn) [g, f]) e = Ecall f [checkInline g e], if _eq cmpname cn stdRcomposeName
+        checkInline (Ecall f args)           e = Ecall f $ args ++ [e]
+        checkInline f                        e = Ecall f [e]
 
 || rewrite simple accessor Ecase patterns to a builtinSel: {case e of [(a, b, c) -> b]} => builtinSel (Tuple3, 1) e
 || Note: performance comparison shows that this rewrite actually degrades performance a slight amount (when inlining), due to
@@ -131,9 +131,9 @@ rewriteAst k (Efatbar p e1 e2) st
         repFail k e er                = k e er
 
         || is the expr a call to stdCaseFail or stdMatchFail?
-        isSDF (Ecall f args) = _eq cmpexpr f stdCaseFail \/ _eq cmpexpr f stdMatchFail
-        isSDF (Eap f arg)    = _eq cmpexpr f stdCaseFail \/ _eq cmpexpr f stdMatchFail    || rewrite from Eap -> Ecall may not have happened, yet
-        isSDF e              = False
+        isSDF (Ecall (Evar n) args) = _eq cmpname n stdCaseFailName \/ _eq cmpname n stdMatchFailName
+        isSDF (Eap   (Evar n) arg)  = _eq cmpname n stdCaseFailName \/ _eq cmpname n stdMatchFailName
+        isSDF e                     = False
 
         || is the expr a Fail or SDF?
         isFailOrSDF (Efail e) = True

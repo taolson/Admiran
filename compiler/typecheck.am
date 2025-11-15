@@ -374,7 +374,7 @@ infer (Ecall e args)
         f1 _  _              = undef    || added to remove compiler warning
 
         f2 tv sm             = (t_subst sm tv, sm)
-        err                  = tc_errorNote $ Info ("in application of " ++ showAst e)
+        err                  = tc_errorNote $ Info ("in application of " ++ showast e)
 
 infer (Ecase x e alts)
     = tc_bind2 newTvar (inferList (e : alts)) f1

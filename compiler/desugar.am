@@ -481,10 +481,10 @@ desugarLit k e st
       where
         mn         = view dsModName st
         gen        = view dsGen st
-        mv         = m_lookup cmpexpr e $ view dsLits st
+        mv         = m_lookup cmplit e $ view dsLits st
         v          = fromJust mv
         (gen', v') = genPrivateName mn "lit" gen
-        st'        = over dsLits (m_insert cmpexpr e v') $ set dsGen gen' st
+        st'        = over dsLits (m_insert cmplit e v') $ set dsGen gen' st
 
 || make a common definition for a literal expression
 mkLit :: string -> (expr, name) -> defn
@@ -497,6 +497,7 @@ mkLit mn (l, v)
         go (Echar c)   = (stdCharCtor, EprimChar c)
         go (Estring s) = (stdReadByteStream, EprimString s)
         go _           = error "mkLit: non literal pattern"
+
 
 || desugar the complex patterns, list comprehensions, and conditionals in a module to simpler AST forms,
 || merging the desugared patterns into the defnMap

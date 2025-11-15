@@ -137,7 +137,7 @@ expand (Tname n vars) st
         loc            = view tsLoc st
         mdef           = lookupDefn (view tsGenv st) n
         def            = fromJust mdef
-        Tname _ vars'  = view defnTform def
+        vars'          = tformVars $ view defnTform def
         te'            = view defnType def
         rnMap          = m_fromList cmptexpr (zip2 vars' vars)
         (renamedTe, _) = astRewriteTDCont renameTvars te' rnMap   || note: TDCont used to prevent infinite loop in renaming Tvars

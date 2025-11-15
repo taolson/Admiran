@@ -419,9 +419,12 @@ buildCodeAlt :: caseAlt -> state bdSt [stgInsn]
 || Note: this code uses the bdBuiltin state var to determine if we are currently working inside a builtin; this
 || must be set lexically whenever we enter a new Ecase
 buildCodeAlt (CaseAlt (Pvar n) e)
-    = st_pure [Ret r0Opr r1Opr],        if _eq cmpexpr e (Evar n)  || just return existing r0/r1/args
+    = st_pure [Ret r0Opr r1Opr],        if matchVar n e || just return existing r0/r1/args
     = bd_view bdBuiltin >>= doAlt, otherwise
       where
+        matchVar n (Evar n') = _eq cmpname n n'
+        matchVar _ _         = False
+
         doAlt inBuiltin
             = inAltEnv [] (buildCode e),   if inBuiltin || the Pvar n has already been bound to an allocated register for builtins
             = allocReg >>= createAlt, otherwise
