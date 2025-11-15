@@ -20,11 +20,11 @@ The following reference is based upon the structure and information of the Haske
 
 ### Program Structure
 
-A Admiran program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
+An Admiran program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
 software in large programs. The top level of a module consists of a collection of *declarations*. Declarations
 define functions, values, and types used in the module as well as module imports and exports. At the next lower
 level are *expressions*. An expression denotes a *value* and has a static *type*. At the bottom level is Admiran's
-*lexical structure*, which defines the individual tokens that make up a Admiran program.
+*lexical structure*, which defines the individual tokens that make up an Admiran program.
 
 Declarations in a module are unordered: there is no requirement that a declaration used by others must occur before
 its uses.
@@ -97,7 +97,7 @@ They are written as a string of `*` characters, disambiguated by the length of t
 
 ## Lexical Structure
 
-The lexical structure of a Admiran program consists of a sequence of *tokens*, separated by whitespace.
+The lexical structure of an Admiran program consists of a sequence of *tokens*, separated by whitespace.
 Whitespace (spaces, tabs, newlines, and comments) is ignored, except for contributing to the layout rules.
 
 ### Comments

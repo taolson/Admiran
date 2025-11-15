@@ -1,3 +1,23 @@
+--- Need to look at RetArg implementation and how word# values should be returned from functions ---
+The RetArg mechanism currently returns the particular Arg register value in R0, but subsequent code usually
+assumes that:
+  1) the value is in Arg 0
+  2) the value is a thunk, which might need to be evaluated
+
+Need to rethink how to handle returning unboxed values
+
+Howver, using continuations (with lambdas), returning an unboxed value can be changed into passing the unboxed value
+as an argument for the continuation, which works correctly, e.g.
+
+fact (I# n)
+    = go n (\r -> I# r)
+      where
+        go n k = case n $cmp 1 of
+                   2# -> case n -# 1# of n1 ->
+                         go n1 (\r -> case r *# n of r' -> k r'
+                   _  -> k 1#
+
+
 --- Mixing code built with useSel = True vs useSel = False ---
 For some reason, code built with useSel = False and used with library code that was built with useSel = True
 does not work correctly; a SIGSEGV occurs in the common SelApply routine due to a null value in RAX.  Need to
@@ -17,6 +37,9 @@ to useSel = False or useInline = False
 Debugging with trace, it appears that the code is running correctly, but still growing. Tracked down to space leak
 somewhere in lib/state.am when compiled with noinlining.
 
+Looks like this is simply due to a lot of thunks created in the non-inlined version of state.am, which relies heavily upon
+inlining to drastically simplify (and make mostly strict) code like st_right and st_liftA2.  In the day22 test case, we
+are calling very long chains of st_bind (>>=) and st_right (>>)
 
 --- Importing and Exporting Names ---
 Haskell allows Unqualified names in the environment to map to multiple Qualified names, and only reports an error
@@ -61,6 +84,11 @@ steps:
        Nothing  -> Left (Undefined name)
        Just [n] -> Right n
        Just xs  -> Left (Ambiguous xs)
+
+       -- idea: instead of changing lookup interface from maybe to excpt, keep it as
+          maybe, returning Nothing or Just n, and add a separate interface "lookupForErr"
+          which returns the error (Undefined or Ambiguous).
+
 
    - when performing insertion, do insertWith (++) name [val] env
      don't check for or report NameClash, here
