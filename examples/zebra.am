@@ -48,7 +48,7 @@ findCatValue s
         err = error ("could not find the category and value indices for '" ++ s ++ "'")
 
         checkCat (i, (_, ns)) k
-             = (pair i <$>? elemIndex cmpstring s ns) <|>? k
+             = (pair i <$>? elemIndex (==$ s) ns) <|>? k
 
 loc      == vector bitSet
 solution == vector loc
@@ -75,6 +75,10 @@ constraint ::=
     NextTo      catVal catVal |         || location with catVal1 is right next to the location with catVal2 (either side) 
     OnEnd       catVal        |         || location with catVal is on one of the ends
     SomeBetween catVal catVal catVal    || location with catVal2 is somewhere between the location with catVal1 and the location with catVal3
+
+|| don't auto-derive showI and cmpI for constraint, since they are unused
+showconstraint = undef
+cmpconstraint  = undef
 
 || constraint creation from strings
 
