@@ -84,6 +84,11 @@ ast ::=
 || don't auto-derive showI and ordI instances for ast, since they are very large. Instead, we use
 || a custom instance for showast that pretty-prints the AST, and only write ordI instances for subsets
 || of ASTs we are interested in.
+
+showast :: showI ast
+showast a = showsAstPrec 0 a ""
+
+cmpast :: ordI expr
 cmpast = undef
 
 || custom ordI instance for literals
@@ -332,9 +337,6 @@ showsOpPrec d op e1 e2
 
 showsAst :: ast -> showS
 showsAst = showsAstPrec 0
-
-showast :: ast -> string
-showast a = showsAstPrec 0 a ""
 
 
 reservedNames :: s_set string
