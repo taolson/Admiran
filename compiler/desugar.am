@@ -367,7 +367,7 @@ desugarAst k (Ecase Cnone e alts) st
         getCtorName (CaseAlt (Pctor n vars) e) = n
         getCtorName _                          = undef || added to remove compiler warning
 
-        getCtorTag (CaseAlt (Pctor n vars) e) = fromMaybe 0 $ elemIndex cmpstring (getName n) allCtors
+        getCtorTag (CaseAlt (Pctor n vars) e) = fromMaybe 0 $ elemIndex (==$ getName n) allCtors
         getCtorTag _                          = undef || added to remove compiler warning
 
         checkPats ps

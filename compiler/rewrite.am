@@ -39,8 +39,6 @@ rwGenv      = composeLens rwDyn  lensTup3_0
 rwErrs      = composeLens rwDyn  lensTup3_1
 rwFailCount = composeLens rwDyn  lensTup3_2
 rwLoc       = rwLex
-rwEnv       = composeLens rwLex  lensSnd
-rwGen       = composeLens rwGenv lensTup3_2
 
 initRwSt :: globalEnv -> rwSt
 initRwSt genv = ((genv, [], 0), emptyLocInfo)
@@ -93,8 +91,11 @@ rewriteAst k (Ecase s e alts) st
         mkSel (Ecase s e [CaseAlt (Pctor c vars) (Evar n)]) st
             = (Ecall (builtinSel c idx) [e], st), if isJust midx
               where
-                midx = elemIndex cmppat (Pvar n) vars
+                midx = elemIndex matchVar vars
                 idx  = fromJust midx
+
+                matchVar (Pvar n') = _eq cmpname n n'
+                matchVar _         = False
 
         mkSel e st = (e, st)
 

@@ -268,10 +268,10 @@ count p
       where
         go n x = if' (p x) (n + 1) n
 
-|| return the index of the first element matching a value, or return Nothing
-elemIndex :: ordI * -> * -> [*] -> maybe int
-elemIndex cmp a
-    = mb_fmap fst . find (_eq cmp a . snd) . enumerate
+|| return the index of the first element matching predicate, or return Nothing
+elemIndex :: (* -> bool) -> [*] -> maybe int
+elemIndex p
+    = mb_fmap fst . find (p . snd) . enumerate
 
 enumerate :: [*] -> [(int, *)]
 enumerate = zip2 [0 ..]

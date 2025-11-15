@@ -287,8 +287,7 @@ allocCode = allocResource bdCodePtr 1
 
 || set stgCode[codePtr] to codeObj
 updateCode :: codePtr -> codeObj -> state bdSt codePtr
-updateCode cp obj
-    = bd_over bdCodeMap (m_insert cmpcodePtr cp obj) >> st_pure cp
+updateCode cp obj = bd_over bdCodeMap (m_insert cmpcodePtr cp obj) >> st_pure cp
 
 || make a codeObj from a list of stgInsns
 makeCode :: [stgInsn] -> state bdSt codePtr
@@ -303,7 +302,7 @@ allocHeap = allocResource bdHeapPtr
 
 || set stgHeap[heapPtr] to heapObj
 updateHeap :: heapPtr -> heapObj -> state bdSt heapPtr
-updateHeap hp obj st = (hp, over bdHeapMap (m_insert cmpheapPtr hp obj) st)
+updateHeap hp obj = bd_over bdHeapMap (m_insert cmpheapPtr hp obj) >> st_pure hp
 
 lookupHeap :: heapPtr -> state bdSt heapObj
 lookupHeap hp st = (fromJust . m_lookup cmpheapPtr hp . view bdHeapMap $ st, st)
@@ -350,7 +349,7 @@ makeOpr (EprimString s)
       where
         mkByteStream hp = updateHeap hp (Hstream s, []) >> (st_pure . Imm . Haddr) hp
 
-makeOpr e = error ("makeOpr: unhandled expr: " ++ showAstRaw e)
+makeOpr e = error ("makeOpr: unhandled expr: " ++ showast e)
 
 || allocate a reg
 allocReg :: state bdSt ref
@@ -490,7 +489,7 @@ buildCodeAlts Cpriority topr alts
 
                 mkTagOpr (Plit (EprimInt n))  = makeImmOpr n
                 mkTagOpr (Plit (EprimChar c)) = makeImmOpr (code c)
-                mkTagOpr (Pctor cn vars)      = makeImmOpr . fromMaybe 0 . elemIndex cmpname cn . fromMaybe [] . lookupCtorNames genv $ cn
+                mkTagOpr (Pctor cn vars)      = makeImmOpr . fromMaybe 0 . elemIndex (==$ getName cn) . map getName . fromMaybe [] . lookupCtorNames genv $ cn
                 mkTagOpr p                    = topr
 
 || build the alts and the code to select from them in the context of a new
@@ -831,7 +830,7 @@ buildCode (Efail e)
 
 buildCode d
     = buildCodeDef d,                                       if isDefn d
-    = error ("unhandled expr in buildCode: " ++ showAst d), otherwise
+    = error ("unhandled expr in buildCode: " ++ showast d), otherwise
       where
         loc = defnLocInfo d
 
@@ -939,7 +938,7 @@ makeStart n genv
         mspec      = lookupSpec genv n
         spec       = (view defnType . fromJust) mspec
         errNoSpec  = error ("entry function " ++ showName n ++ " not found")
-        errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
+        errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showast spec ++ "'")
         start      = Qualified (getModName n) "!start"
         fvs        = s_fromList cmpname [n, worldName, builtinExitName]
         anno       = set anFree fvs (genvAnno genv)
