@@ -274,7 +274,7 @@ enumerateS :: stream * ** -> stream (int, *) (int, **)
 enumerateS (Stream next s)
     = Stream next' (0, s)
       where
-        next' (i, st)
+        next' (i, s)
             = case next s of
                 Done       -> Done
                 Skip s'    -> Skip (i, s')
