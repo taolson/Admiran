@@ -685,12 +685,18 @@ genInsn RetEnv = id
 || Note: this generates inline data which results in absolute addresses being used for the indirect jmp.  When assembled
 || it generates a warning that PIE is disabled, unless the warning is supressed with appropriate compiler flags
 genInsn (CaseVec c cps)
-    = genOpcode    "leaq" [cvtMemAddr "1f", x86MovTmp]  .  || addr of base of table of codePtrs
-      genJmpOpcode "jmp"  (X86Idx x86MovTmp tag 4 0)    .  || index into it by scaling the tag value by 4 (because tag bit is already present)
-      shows "1:\n"                                      .  || generate inline table of codePtrs
-      foldr (.) id (map (genValue . Caddr) cps)
+    = genSeq, if #cps < 3       || optimization for common 2-way vectored jmp
+    = genVec, otherwise
       where
-        tag = cvtReg 0
+        tag    = cvtReg 0
+        genSeq = genOpcode    "cmpq" [X86Imm 0, tag]               .
+                 genJmpOpcode "je"   (cvtJmpCodePtr (cps ! 0))     .
+                 genJmpOpcode "jmp"  (cvtJmpCodePtr (cps ! 1))
+
+        genVec = genOpcode    "leaq" [cvtMemAddr "1f", x86MovTmp]  .  || addr of base of table of codePtrs
+                 genJmpOpcode "jmp"  (X86Idx x86MovTmp tag 4 0)    .  || index into it by scaling the tag value by 4 (because tag bit is already present)
+                 shows "1:\n"                                      .  || generate inline table of codePtrs
+                 foldr (.) id (map (genValue . Caddr) cps)
 
 genInsn (Jmp cp) = genJmpOpcode "jmp" (cvtJmpCodePtr cp)
 

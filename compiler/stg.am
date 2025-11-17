@@ -935,7 +935,7 @@ reachableFrom ns genv
 makeStart :: name -> globalEnv -> (name, globalEnv)
 makeStart n genv
     = errNoSpec,      if isNothing mspec
-    = errNotIO,       if ~iOWorldSpec spec
+    = errNotIO,       if ~ioWorldSpec spec
     = (start, genv'), otherwise
       where
         mspec      = lookupSpec genv n
@@ -955,7 +955,7 @@ makeStart n genv
         world      = Evar worldName 
 
         || must be "io ()" or its equivalent type expansion "World -> ((), World)"        
-        iOWorldSpec t
+        ioWorldSpec t
             = _eq cmptexpr t (Tname (Qualified "io" "io") [builtinTypeUnit]) \/
               _eq cmptexpr t (Tarr tWorld (Ttuple [builtinTypeUnit, tWorld]))
 
