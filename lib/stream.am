@@ -125,16 +125,16 @@ tlS (Stream next s)
                 Yield x s' -> Yield x (True, s')
 
 lastS :: stream * ** -> *
-lastS (Stream next st)
-    = go Snothing st
+lastS (Stream next s)
+    = go Snothing s
       where
-        go mx st
-            = case next st of
-                Done        -> case mx of
+        go mx s
+            = case next s of
+                Done       -> case mx of
                                  Snothing -> error "lastS of empty stream"
                                  Sjust x  -> x
-                Skip st'    -> go mx st'
-                Yield x st' -> go (Sjust x) st'
+                Skip s'    -> go mx s'
+                Yield x s' -> go (Sjust x) s'
 
 mapS :: (* -> ***) -> stream * ** -> stream *** **
 mapS f (Stream next s)
@@ -270,6 +270,16 @@ dropWhileS p (Stream next s)
                                          False -> Yield x (False, s')
                                          True  -> Skip (True, s')
 
+enumerateS :: stream * ** -> stream (int, *) (int, **)
+enumerateS (Stream next s)
+    = Stream next' (0, s)
+      where
+        next' (i, st)
+            = case next s of
+                Done       -> Done
+                Skip s'    -> Skip (i, s')
+                Yield x s' -> Yield (i, x) (i + 1, s')
+
 interleaveS :: stream * ** -> stream * *** -> stream * (bool, **, ***)
 interleaveS (Stream nexta sa) (Stream nextb sb)
     = Stream next (False, sa, sb)
@@ -286,38 +296,38 @@ interleaveS (Stream nexta sa) (Stream nextb sb)
                 Skip sb'    -> Skip (True, sa, sb')
                 Yield b sb' -> Yield b (False, sa, sb')
 
-linesS, wordsS :: stream char * -> stream [char] (smaybe [char])
-linesS (Stream next st)
-    = Stream next' (Sjust [])
+linesS, wordsS :: stream char * -> stream [char] (smaybe [char], *)
+linesS (Stream next s)
+    = Stream next' (Sjust [], s)
       where
-        next' Snothing = Done
-        next' (Sjust xs)
-            = case next st of
-                Done      -> Yield (reverse xs) Snothing
-                Skip _    -> Skip (Sjust xs)
-                Yield c _ -> case c ==. '\n' of
-                               False -> Skip $ Sjust (c : xs)
-                               True  -> Yield (reverse xs) (Sjust [])
+        next' (Snothing, s) = Done
+        next' (Sjust xs, s)
+            = case next s of
+                Done       -> Yield (reverse xs) (Snothing, s)
+                Skip s'    -> Skip (Sjust xs, s')
+                Yield c s' -> case c ==. '\n' of
+                               False -> Skip (Sjust (c : xs), s')
+                               True  -> Yield (reverse xs) (Sjust [], s')
 
-wordsS (Stream next st)
-    = Stream next' Snothing
+wordsS (Stream next s)
+    = Stream next' (Snothing, s)
       where
         isSpace c = c ==. ' ' \/ c ==. '\t' \/ c ==. '\n'
 
-        next' Snothing
-            = case next st of
-                Done      -> Done
-                Skip _    -> Skip Snothing
-                Yield c _ -> case isSpace c of
-                             False -> Skip $ Sjust [c]
-                             True  -> Skip Snothing
-        next' (Sjust xs)
-            = case next st of
-                Done      -> Yield (reverse xs) Snothing
-                Skip _    -> Skip (Sjust xs)
-                Yield c _ -> case isSpace c of
-                               False -> Skip $ Sjust (c : xs)
-                               True  -> Yield (reverse xs) Snothing
+        next' (Snothing, s)
+            = case next s of
+                Done       -> Done
+                Skip s'    -> Skip (Snothing, s')
+                Yield c s' -> case isSpace c of
+                                False -> Skip (Sjust [c], s')
+                                True  -> Skip (Snothing, s')
+        next' (Sjust xs, s)
+            = case next s of
+                Done       -> Yield (reverse xs) (Snothing, s)
+                Skip s'    -> Skip (Sjust xs, s')
+                Yield c s' -> case isSpace c of
+                                False -> Skip (Sjust (c : xs), s')
+                                True  -> Yield (reverse xs) (Snothing, s')
 
 anyS, allS :: (* -> bool) -> stream * ** -> bool
 anyS p = foldrS ((\/) . p) False
