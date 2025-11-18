@@ -187,7 +187,7 @@ p_term
 
 
 || p_exp: handle infix expressions with operator precedence and associativity specified by operator tables
-||        uses an expression stack and an operator stack, parsing simples and oprs, and reducing the stacks
+||        uses an expression stack and an operator stack, parsing terms and oprs, and reducing the stacks
 ||        when an operator is parsed with lower precedence than the top-of-stack operator
 
 || the tokenizer and parser represent a negative literal as the application of a prefix neg operator to
@@ -207,7 +207,7 @@ exprOrNegLit e = e
 || the following mutually-recursive parsers are used for parsing both expr expressions and pat patterns
 || by passing specialized sub-parsers as parameters
 ||
-|| parse a simple (with an optional prefix op) and push it on the expr stack
+|| parse a term (with an optional prefix op) and push it on the expr stack
 ||
 || NOTE: this might also be used for parsing type expressions, if the Eap and Evar and ap2 used in 
 || p_expAp and reductions are parameterized so that they could be substituted by Tap / Tarr  and Tname
@@ -484,24 +484,26 @@ p_parenTexpr
 p_listTexpr :: parser texpr
 p_listTexpr = Tlist <$> p_inBrackets p_type
 
-|| parse a type argument
-p_tArg :: parser texpr
-p_tArg = ((converse Tname []) <$> p_tname) <|>
-         p_tvar                            <|>
-         p_parenTexpr                      <|>
-         p_listTexpr
+|| parse a type term
+p_tTerm :: parser texpr
+p_tTerm
+    = ((converse Tname []) <$> p_tname) <|>
+      p_tvar                            <|>
+      p_parenTexpr                      <|>
+      p_listTexpr
 
-|| parse a type argument with optional strictness ("!")
-p_tSArg :: parser texpr
-p_tSArg = p_liftA2 mkSarg p_tArg (p_optional (p_sym "!"))
-          where
-            mkSarg targ Nothing  = targ
-            mkSarg targ (Just x) = Tstrict targ
+|| parse a type term with optional strictness ("!")
+p_tSTerm :: parser texpr
+p_tSTerm
+    = p_liftA2 mkSTerm p_tTerm (p_optional (p_sym "!"))
+      where
+        mkSTerm t Nothing  = t
+        mkSTerm t (Just x) = Tstrict t
 
-|| parse a simple type and push it on the expr stack
+|| parse a type and push it on the expr stack
 p_tExpr :: [texpr] -> [name] -> parser texpr
 p_tExpr es ops
-    = p_tArg >>= fexpr
+    = p_tTerm >>= fexpr
       where
         fexpr e = p_tOp (e : es) ops
 
@@ -515,11 +517,11 @@ p_tOp es ops
 || parse a possible type application (polymorphic type) and push it on the expr stack
 p_tAp :: [texpr] -> [name] -> parser texpr
 p_tAp es ops
-    = (p_tArg >>= fap e) <|> p_tFinal es ops
+    = (p_tTerm >>= fap e) <|> p_tFinal es ops
       where
         e : es'              = es
         fap (Tname n vars) t = p_tOp (Tname n (vars ++ [t]) : es') ops
-        fap e              t = p_error 2 ((shows "cannot apply " . showsAst e . shows " to " . showsAst t) "")
+        fap e              t = p_error 2 ("cannot apply " ++ showast e ++ " to " ++ showast t)
 
 || do a final reduce of the expr and opr stacks (all type infix ops are right-associative)
 p_tFinal :: [texpr] -> [name] -> parser texpr
@@ -541,9 +543,9 @@ p_cinfix = p_infix $p_satisfy isConstructor
 
 p_construct :: parser tform
 p_construct
-    = p_liftA2 mkConstr p_constructor (p_many p_tSArg)       <|>
+    = p_liftA2 mkConstr p_constructor (p_many p_tSTerm)      <|>
       p_liftA3 mkInfConstr p_type p_cinfix p_type            <|>
-      p_liftA2 apConstr (p_inParens p_construct) (p_many p_tSArg)
+      p_liftA2 apConstr (p_inParens p_construct) (p_many p_tSTerm)
       where
         mkConstr n vars                = Tname n vars
         mkInfConstr t1 n t2            = Tname n [t1, t2]
