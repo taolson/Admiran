@@ -91,11 +91,11 @@ showModule :: module -> string
 showModule m
     = lay . map showDefn . m_keys $ defns
       where
-        defns           = view modDefns m
-        specs           = view modSpecs m
-        showDefn n      = mshows (m_lookup cmpname n specs) . shows "\n" . mshows (m_lookup cmpname n defns) $ "\n"
-        mshows Nothing  = shows ""
-        mshows (Just a) = showsAst a
+        defns          = view modDefns m
+        specs          = view modSpecs m
+        showDefn n     = mshow (m_lookup cmpname n specs) ++ mshow (m_lookup cmpname n defns)
+        mshow Nothing  = ""
+        mshow (Just a) = showast a ++ "\n"
 
 || create an empty module with a name and initial environment
 emptyModule :: fileSpec -> nameMap -> module

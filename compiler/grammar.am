@@ -233,16 +233,16 @@ showsOptArgs args = shows " " . showsAstList args
 showsAstPrec :: int -> ast -> showS
 
 || atomic asts can ignore precedence
-showsAstPrec x (Evar n)        = showsName n
-showsAstPrec x (Eint n)        = showsint n
-showsAstPrec x (Echar c)       = showschar c
-showsAstPrec x (Estring s)     = showsstring s
-showsAstPrec x (EprimInt n)    = showsint n . shows "#"
-showsAstPrec x (EprimChar c)   = showschar c . shows "#"
-showsAstPrec x (EprimString s) = showsstring s . shows "#"
-showsAstPrec x (Pvar n)        = showsName n
-showsAstPrec x Pwildcard       = shows "_"
-showsAstPrec x (Tvar n)        = shows s
+showsAstPrec _ (Evar n)        = showsName n
+showsAstPrec _ (Eint n)        = showsint n
+showsAstPrec _ (Echar c)       = showschar c
+showsAstPrec _ (Estring s)     = showsstring s
+showsAstPrec _ (EprimInt n)    = showsint n . shows "#"
+showsAstPrec _ (EprimChar c)   = showschar c . shows "#"
+showsAstPrec _ (EprimString s) = showsstring s . shows "#"
+showsAstPrec _ (Pvar n)        = showsName n
+showsAstPrec _ Pwildcard       = shows "_"
+showsAstPrec _ (Tvar n)        = shows s
                                  where
                                    s = rep n '*',       if n < 6
                                      = '*' : showint n, otherwise
@@ -336,7 +336,7 @@ showsOpPrec d op e1 e2
                        = (prec + 1, prec), otherwise
 
 showsAst :: ast -> showS
-showsAst = showsAstPrec 0
+showsAst a = showsAstPrec 0 a
 
 
 reservedNames :: s_set string
@@ -403,10 +403,10 @@ ap2 f e1 e2 = Eap (Eap f e1) e2
 || common pat operations
 
 isPvar, isPlit, isPctor, isPwildcard, isPvarOrWild :: ast -> bool
-isPvar (Pvar x)         = True
+isPvar (Pvar _)         = True
 isPvar p                = False
 
-isPlit (Plit x)         = True
+isPlit (Plit _)         = True
 isPlit pat              = False
 
 isPctor (Pctor n vars)  = True

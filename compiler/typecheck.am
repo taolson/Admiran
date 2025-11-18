@@ -469,8 +469,8 @@ infer (Elet True defs x e)
                 f4 sm1 (t, sm2)  = tc_pure (t, subComp sm2 sm1)
 
 infer d
-    = inLexEnv m_empty locInfer d,                              if isDefn d
-    = error ((shows "unhandled infer case: " . showsAst d) ""), otherwise
+    = inLexEnv m_empty locInfer d,                   if isDefn d
+    = error ("unhandled infer case: " ++ showast d), otherwise
       where
         loc        = defnLocInfo d
         locInfer d = tc_over tcLoc (mergeLocInfo loc) *> inferDef d
