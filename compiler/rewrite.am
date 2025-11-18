@@ -143,7 +143,7 @@ rewriteAst k (Efail e) st = (Efail e, addFails 1 st)
 
 || Hindly-Milner type checking requires that Lets be broken down into a nested dependent sequence of strongly-connected components
 || rewrite Elets to a sequence of Elets and EletRecs based upon free variable and strongly-connected-component analysis of the defs
-rewriteAst k (Elet x1 defs x2 e) st
+rewriteAst k (Elet _ defs _ e) st
     = (lets, st2)
       where
         (defs', st1)  = astRewriteMap (astRewriteLex rewriteAst) defs st                || rewrite the let defns

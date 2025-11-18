@@ -108,8 +108,8 @@ setUseCount d st
 analyzeAst :: astRewriteTraverser azSt
 
 || Tally the free vars, use count, and complexity in the defn anno structure
-analyzeAst k (Elet x1 defs x2 e) st
-    = (Elet x1 defs2 x2 e', st4)
+analyzeAst k (Elet rec defs ps e) st
+    = (Elet rec defs2 ps e', st4)
       where
         (defs1, st1)  = astRewriteMap (astRewriteLex analyzeAst) defs st        || analyze the let defns
         (e', st2)     = astRewriteLex analyzeAst e st1                          || analyze the let expr

@@ -97,7 +97,7 @@ p_parenExpr pElt
     = mkParen <$> p_inParens (p_listManyOf pElt)
       where
         mkParen []  = builtinUnit      || ()
-        mkParen [x] = x                || (expr)
+        mkParen [e] = e                || (expr)
         mkParen xs  = makeTupleExpr xs || (a, b ..)
 
 || parse an explicit list of expressions
@@ -295,14 +295,14 @@ p_casePat :: parser pat
 p_casePat
     = p_pat >>= check
       where
-        check x = p_pure x, if isCasePat x
+        check p = p_pure p, if isCasePat p
                 = err,      otherwise
 
         err     = p_expected "a restricted simple case pattern"
 
-        isCasePat (Pvar x)       = True
-        isCasePat (Plit x)       = isUnboxed x
-        isCasePat (Pctor x vars) = all isPvarOrWild vars
+        isCasePat (Pvar _)       = True
+        isCasePat (Plit e)       = isUnboxed e
+        isCasePat (Pctor _ vars) = all isPvarOrWild vars
         isCasePat Pwildcard      = True
         isCasePat p              = False
 
@@ -477,8 +477,8 @@ p_parenTexpr
     = mkParen <$> p_inParens (p_listManyOf p_type)
       where
         mkParen []  = builtinTypeUnit || ()
-        mkParen [x] = x               || (expr)
-        mkParen xs  = Ttuple xs       || (a, b ..)
+        mkParen [t] = t               || (expr)
+        mkParen ts  = Ttuple ts       || (a, b ..)
 
 || parse a list type
 p_listTexpr :: parser texpr
@@ -498,7 +498,7 @@ p_tSTerm
     = p_liftA2 mkSTerm p_tTerm (p_optional (p_sym "!"))
       where
         mkSTerm t Nothing  = t
-        mkSTerm t (Just x) = Tstrict t
+        mkSTerm t (Just _) = Tstrict t
 
 || parse a type and push it on the expr stack
 p_tExpr :: [texpr] -> [name] -> parser texpr
@@ -632,7 +632,7 @@ p_libQual
     = mkQual <$> p_optional (p_ident "qualified")
       where
         mkQual Nothing  = LibUnqualified
-        mkQual (Just x) = LibQualified
+        mkQual (Just _) = LibQualified
 
 p_libAs :: parser libAs
 p_libAs

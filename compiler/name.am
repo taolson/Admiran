@@ -86,7 +86,7 @@ genName s gen = (gen + 1, Internal s gen)
 
 || generate a list of unique internal names to replace an existing list
 genNames :: string -> int -> [*] -> (int, [name])
-genNames s = mapAccumL gn where gn g x = genName s g
+genNames s = mapAccumL gn where gn g _ = genName s g
 
 || generate a unique private name
 genPrivateName :: string -> string -> int -> (int, name)

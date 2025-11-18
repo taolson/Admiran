@@ -681,7 +681,7 @@ buildCode (Evar n) = buildCodeCall (Evar n) []
 
 || convert an Elet into code/heap bindings for its defns, insns to make Hfun / Hthunk closures at runtime
 || for those bindings, and the insns for the Elet's expr
-buildCode (Elet rec defs x e)
+buildCode (Elet _ defs _ e)
     = bd_view bdFrmGen >>= fFrm || get the current frm count to determine if we need to add an AllocFrame insn or not
       where
         defl = m_toList defs

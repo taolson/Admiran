@@ -71,7 +71,7 @@ astAccumSubs t (DefSyn tf t1 a)    = t t1 . t tf
 astAccumSubs t (DefData tf cs a)   = astAccumList t cs . t tf
 astAccumSubs t (DefSpec tf t1 a)   = t t1 . t tf
 astAccumSubs t (DefAbs tf ds t1 a) = t t1 . astAccumList t ds . t tf
-astAccumSubs t x                   = id
+astAccumSubs _ _                   = id
 
 astAccumList :: astAccum * -> [ast] -> * -> *
 astAccumList t = converse (foldr t)
@@ -142,7 +142,7 @@ astRewriteSubs t (DefSyn tf t1 a)    = st_liftA3 DefSyn    (t tf)               
 astRewriteSubs t (DefData tf cs a)   = st_liftA3 DefData   (t tf)                (st_mapM t cs)  (st_pure a)
 astRewriteSubs t (DefSpec tf t1 a)   = st_liftA3 DefSpec   (t tf)                (t t1)          (st_pure a)
 astRewriteSubs t (DefAbs tf ds t1 a) = st_liftA4 DefAbs    (t tf)                (st_mapM t ds)  (t t1)      (st_pure a)
-astRewriteSubs t x                   = st_pure x
+astRewriteSubs _ a                   = st_pure a
 
 || rewrite a list of asts
 astRewriteList :: astRewriter * -> [ast] -> state * [ast]

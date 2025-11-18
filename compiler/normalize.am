@@ -127,8 +127,8 @@ normalizeAst k a st
         st1      = over nmLoc (mergeLocInfo loc) . clrThunks $ st
         st2      = over nmLenv (getDefns a :) st1
 
-        getDefns (Elet b defs pats e) = defs
-        getDefns a                    = m_empty
+        getDefns (Elet _ defs _ _) = defs
+        getDefns a                 = m_empty
 
         update (DefFn n vars e an) st
             = (DefFn n vars e' an, st')
@@ -140,8 +140,8 @@ normalizeAst k a st
               where
                 (e', st') = wrapLets e st
 
-        update (Elet rec defs x e) st
-            = (Elet rec defs x e', st')
+        update (Elet rec defs ps e) st
+            = (Elet rec defs ps e', st')
               where (e', st') = wrapLets e st
 
         update (CaseAlt p e) st

@@ -213,8 +213,8 @@ inlineAst :: astRewriteTraverser inSt
 inlineAst k e st = (e, st), if view inFuel st <= 0
 
 || do inlining on the defs of an Elet, then add that as a new lexical environment for inlining the expr of the Elet
-inlineAst k (Elet rec defs x e) st
-    = (Elet rec defs' x e', st2)
+inlineAst k (Elet rec defs ps e) st
+    = (Elet rec defs' ps e', st2)
       where
         (defs', st1) = astRewriteMap (astRewriteLex inlineAst) defs st                  || do inlining on all the defns, separately
         (e', st2)    = astRewriteLex inlineAst e (over inLenv (Env defs' :) st1)        || then do inlining on the let expr, with the new defns
@@ -293,7 +293,7 @@ inlineAst k (Ecall (Evar ts) [e]) st
         note           = "collapsed toStream/fromStream"
         st'            = addInfo note . set inSimplified True $ st
 
-        walkLets (Elet rec defs x e)   = Elet rec defs x $mb_fmap walkLets e
+        walkLets (Elet rec defs ps e)  = Elet rec defs ps $mb_fmap walkLets e
         walkLets (Ecall (Evar fs) [e]) = Just e, if _eq cmpname fs fromStreamName
         walkLets e                     = Nothing
 
@@ -429,7 +429,7 @@ simplifyAst k a st
 || float a let into caseAlts, if unused in the case scrutinee
 || this will cause the lets to be specialized in each alt, allowing unused lets to be removed
 || (fewer runtime bindings created)
-simplifyAst k (Elet rec defs x (Ecase b e alts)) st
+simplifyAst k (Elet rec defs ps (Ecase b e alts)) st
     = k (Ecase b e alts') st', if ~used
       where
         cpx   = sum . map (view defnAnCpx) . m_elems $ defs
@@ -448,7 +448,7 @@ simplifyAst k (Elet rec defs x (Ecase b e alts)) st
                 d  = fromJust md
                 DefPat _ e' _ = d
 
-        insLet (CaseAlt p e) = CaseAlt p (Elet rec defs x e)
+        insLet (CaseAlt p e) = CaseAlt p (Elet rec defs ps e)
         insLet _             = undef    || added to remove compiler warning
 
         tallyUses (Evar n) used = used \/ m_member cmpname n defs
@@ -457,8 +457,8 @@ simplifyAst k (Elet rec defs x (Ecase b e alts)) st
 || dead code elimination for unused definitions (that have been inlined), and rewrite of the Elet to its
 || expr if all defns are removed.  Note: this pattern comes after the previous simplification to an Elet, because
 || this Elet pattern is more general, and would make the previous unreachable
-simplifyAst k (Elet b defs x e) st
-    = (k (Elet b defs x e) >>= f) (over inLenv (Env defs :) st)
+simplifyAst k (Elet b defs ps e) st
+    = (k (Elet b defs ps e) >>= f) (over inLenv (Env defs :) st)
       where
         f (Elet rec defs pats e) st
             = (e, st'),                     if null ds
@@ -591,8 +591,8 @@ simplifyAst k (Ecase b e alts) st
 || float a let outside of a case scrutinee
 || since the case evaluation is strict, the Elet bindings will always be evaluated, and this
 || exposes opportunities to match case evaluation of a constant or simple expr
-simplifyAst k (Ecase b1 (Elet b2 defs x e) alts) st
-    = k (Elet b2 defs x (Ecase b1 e alts)) st'
+simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts) st
+    = k (Elet b2 defs ps (Ecase b1 e alts)) st'
       where
         note = "float let out of case scrutinee"
         st'  = addInfo note . set inSimplified True $ st
@@ -628,8 +628,8 @@ simplifyAst k (Ecall (Ecase b e alts) args) st
 
 || float let outside of an Ecall fn
 || exposes opportunities to inline the called fn
-simplifyAst k (Ecall (Elet b defs x f) args) st
-    = k (Elet b defs x (Ecall f args)) st'
+simplifyAst k (Ecall (Elet b defs ps f) args) st
+    = k (Elet b defs ps (Ecall f args)) st'
       where
         note = "float let out of call fn"
         st'  = addInfo note . set inSimplified True $ st

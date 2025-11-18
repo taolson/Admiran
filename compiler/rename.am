@@ -76,9 +76,9 @@ renameAst :: astRewriteTraverser rnSt
 || General inlining optimizations can perform these optimizations, as well, but sometimes inlining has to "give up" before
 || being able to perform all of these, so it is better to take care of it here, which also reduces the work that the inlining
 || pass has to do.
-renameAst k (Elet rec defs x e) st
-    = renameAst k e st2,          if m_null defs'                       || all defs were converted to rename entries
-    = k (Elet rec defs' x e) st2, otherwise
+renameAst k (Elet rec defs ps e) st
+    = renameAst k e st2,           if m_null defs'                      || all defs were converted to rename entries
+    = k (Elet rec defs' ps e) st2, otherwise
       where
         (rdefs, ddefs) = partition isRenamePat $ m_toList defs
         g              = makeDependencyGraph cmpname $ map mkDep rdefs
@@ -89,7 +89,7 @@ renameAst k (Elet rec defs x e) st
         st2            = foldl renamePat st1 (fromEither [] morder)     || add renamePat defns as entries in the rename map
 
         isRenamePat (n, (DefPat (Pvar n1) (Evar n2) an)) = True
-        isRenamePat x                                    = False
+        isRenamePat _                                    = False
 
         mkDep (n, (DefPat (Pvar n1) (Evar n2) an)) = (n1, [n2])
         mkDep _ = undef || added to remove compiler warning                                    
@@ -100,7 +100,7 @@ renameAst k (Elet rec defs x e) st
             = go (edges cmpname fwd n1 g), otherwise
               where
                 go [n2] = addRnEnv n1 (fromMaybe n2 (lookupRnEnv n2 st)) st     || check if n2 is renamed already
-                go x    = st    || n1 was not a renamePat; don't install a rename for it
+                go _    = st    || n1 was not a renamePat; don't install a rename for it
 
         || rename other defns by running renameDef to get a new name, then install that in the defnMap
         || the rest of the defn will be renamed through the continuation
@@ -143,11 +143,11 @@ renameAst k a st
 
         renamePat (Pvar n)         = st_fmap Pvar $ renameDef n
         renamePat (Pctor n vars)   = st_liftA2 Pctor (renameRef n) (renamePats vars)
-        renamePat x                = st_pure x
+        renamePat p                = st_pure p
         renamePats                 = st_mapM renamePat
 
         renamePatRef (Pvar n)      = st_fmap Pvar $ renameRef n
-        renamePatRef x             = st_pure x
+        renamePatRef p             = st_pure p
 
         tvarDefs (Tname n tvs)     = st_fmap (Tname n) (st_mapM tvarDef tvs)
         tvarDefs _                 = undef      || added to remove compiler warning

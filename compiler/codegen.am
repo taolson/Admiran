@@ -151,17 +151,17 @@ x86Opr ::=
 
 isX86Imm, isX86Imm64, isX86Reg, isX86Mem :: x86Opr -> bool
 isX86Imm (X86Imm n)       = True
-isX86Imm x                = False
+isX86Imm _                = False
 
 isX86Imm64 (X86Imm n)     = abs n > 0x7fffffff
-isX86Imm64 x              = False
+isX86Imm64 _              = False
 
 isX86Reg (X86Reg s)       = True
-isX86Reg x                = False
+isX86Reg _                = False
 
 isX86Mem (X86Mem b o n)   = True
 isX86Mem (X86Idx b i s n) = True
-isX86Mem x                = False
+isX86Mem _                = False
 
 || add a numeric offset to an existing x86Opr
 addX86Offset :: int -> x86Opr -> x86Opr
@@ -650,7 +650,7 @@ genInsn (Apply fopr args)
               genInsn (Ret r0Opr (Imm (Word 0)))        || set arity to 0
 
         || check for over-application of a thunk, or jump to GeneralApply
-        genUnequalArities x arity
+        genUnequalArities _ arity
             = genOpcode    "cmpb" [X86Imm 0, arity]    .        || check for over-applied thunk (most common case)
               genJmpOpcode "je"   (cvtJmpAddr overApp) .        || jump to special handler, if so
               genJmpOpcode "jmp" applyAddr                      || otherwise, jump to GeneralApply
@@ -1137,7 +1137,7 @@ genInsn (SystemOp n (Reg, d) s)
       genJmpOpcode "call" (cvtCJmpAddr "systemOp")      .
       genRestoreState
 
-genInsn x = error ("## missing genInsn " ++ showstgInsn x ++ "\n")
+genInsn s = error ("## missing genInsn " ++ showstgInsn s ++ "\n")
 
 || an stg Cmp insn generates a word# value of 0 (eq), 1 (lt), or 2 (gt), depending upon the compare result
 || the CaseVec then uses the numeric value to index into eq, lt, gt codePtrs.  This is expensive to do in x86,
@@ -1171,11 +1171,11 @@ genCodeObj (cp, (locInfo, insns))
       go insns
       where
         isCmp     (Cmp a b c)   = True
-        isCmp     x             = False
+        isCmp     _             = False
         isCaseVec (CaseVec a b) = True
-        isCaseVec x             = False
+        isCaseVec _             = False
         isJeq     (Jeq a b c)   = True
-        isJeq     x             = False
+        isJeq     _             = False
 
         genInfoInsn a = shows ("# " ++  showstgInsn a ++ "\n") . genInsn a
 

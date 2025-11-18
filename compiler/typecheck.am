@@ -376,7 +376,7 @@ infer (Ecall e args)
         f2 tv sm             = (t_subst sm tv, sm)
         err                  = tc_errorNote $ Info ("in application of " ++ showast e)
 
-infer (Ecase x e alts)
+infer (Ecase _ e alts)
     = tc_bind2 newTvar (inferList (e : alts)) f1
       where
         f1 tv ((t : ts), sm)
@@ -444,14 +444,14 @@ infer (Efatbar p e1 e2)
         f2 tv sm = tc_pure (t_subst sm tv, sm)
 
 || non-recursive Let
-infer (Elet False defs x e)
+infer (Elet False defs _ e)
     = inferMap defs >>= f1         || infer defs in defnMap
       where
         f1 (ts, sm)     = lexPoly ts infer e >>= f2 sm     || infer e in new polymorphic environment of def types
         f2 sm  (t, sm') = tc_pure (t, subComp sm' sm)
 
 || recursive Let
-infer (Elet True defs x e)
+infer (Elet True defs _ e)
     = genTypeMap defs >>= f1                       || generate a fresh Tvar for each of the defs
       where
         f1 ts1
