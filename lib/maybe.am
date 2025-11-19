@@ -43,7 +43,7 @@ mb_pure :: * -> maybe *
 mb_pure x = Just x
 
 mb_kbind :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
-mb_kbind f g = go where go x = f x $mb_bind g
+mb_kbind f g = \x -> f x $mb_bind g
 
 mb_mapM :: (* -> maybe **) -> [*] -> maybe [**]
 mb_mapM f xs = foldr (mb_liftA2 (:) . f) (mb_pure []) xs

@@ -42,7 +42,7 @@ e_pure :: ** -> either * **
 e_pure x = Right x
 
 e_kbind :: (* -> either ** ***) -> (*** -> either ** ****) -> * -> either ** ****
-e_kbind f g = go where go x = f x $e_bind g
+e_kbind f g = \x -> f x $e_bind g
 
 e_mapM :: (* -> either ** ***) -> [*] -> either ** [***]
 e_mapM f xs = foldr (e_liftA2 (:) . f) (e_pure []) xs

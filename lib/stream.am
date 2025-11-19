@@ -37,7 +37,7 @@ seither * ** ::= Sleft * | Sright **
 smaybe *     ::= Snothing | Sjust *
 
 suncurry :: (* -> ** -> ***) -> (*, **) -> ***
-suncurry f = go where go (a, b) = f a b
+suncurry f = \(a, b) -> f a b
 
 
 || internal stream versions of <stdlib> and <base> list functions
@@ -403,7 +403,7 @@ length_ xs = lengthS (toStream xs)
 
 || a copy of stdlib.(.) that allows inlining of (.) during the streamSubst pass
 (.@) :: (** -> ***) -> (* -> **) -> * -> ***
-(.@) f g = go where go x = f (g x)
+(.@) f g = \x -> f (g x)
 
 zip2_ :: [*] -> [**] -> [(*, **)]
 zip2_ xs ys = fromStream (zip2S (toStream xs) (toStream ys))

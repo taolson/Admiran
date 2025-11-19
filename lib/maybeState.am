@@ -43,7 +43,7 @@ mst_join :: maybeState * (maybeState * **) -> maybeState * **
 mst_join m = m $st_bind fromMaybef mst_fail mst_runState
 
 mst_kbind :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> maybeState * ****
-mst_kbind f g = go where go x = f x $mst_bind g
+mst_kbind f g = \x -> f x $mst_bind g
 
 mst_mapM :: (** -> maybeState * ***) -> [**] -> maybeState * [***]
 mst_mapM f xs = foldr (mst_liftA2 (:) . f) (mst_pure []) xs

@@ -107,12 +107,12 @@ compare cmp a b = cmp a b
 || note: these are partially-applied with only the first value to compare, to allow better
 || inlining for presection/postsection use as in filter
 _eq, _ne, _lt, _le, _gt, _ge :: ordI * -> * -> * -> bool
-_eq cmp a = go where go b = case cmp a b of EQ -> True;  _ -> False
-_ne cmp a = go where go b = case cmp a b of EQ -> False; _ -> True 
-_lt cmp a = go where go b = case cmp a b of LT -> True;  _ -> False
-_le cmp a = go where go b = case cmp a b of GT -> False; _ -> True
-_gt cmp a = go where go b = case cmp a b of GT -> True;  _ -> False
-_ge cmp a = go where go b = case cmp a b of LT -> False; _ -> True
+_eq cmp a = \b -> case cmp a b of EQ -> True;  _ -> False
+_ne cmp a = \b -> case cmp a b of EQ -> False; _ -> True 
+_lt cmp a = \b -> case cmp a b of LT -> True;  _ -> False
+_le cmp a = \b -> case cmp a b of GT -> False; _ -> True
+_gt cmp a = \b -> case cmp a b of GT -> True;  _ -> False
+_ge cmp a = \b -> case cmp a b of LT -> False; _ -> True
 
 
 || error handling and debugging
@@ -203,19 +203,19 @@ x $rapply f = f x
 x |>      f = f x
 
 (.) :: (** -> ***) -> (* -> **) -> * -> ***
-f . g = go where go a = f (g a)
+f . g = \x -> f (g x)
 
 || flipped version of (.) for uniform left-to-right computation flow
 (.>) :: (* -> **) -> (** -> ***) -> * -> ***
-g .> f = go where go a = f (g a)
+g .> f = \x -> f (g x)
 
 || note: converse is partially-applied here with f and the first argument expected, since that is the 
 || most common use, due to the compiler using converse for postsection operations e.g. filter (> 1)
 converse :: (* -> ** -> ***) -> ** -> * -> ***
-converse f a = go where go b = f b a
+converse f a = \b -> f b a
 
 iterate :: (* -> *) -> * -> [*]
-iterate f = go where go a = [x | x <- a, f x ..]
+iterate f = \x -> [y | y <- x, f y ..]
 
 || evaluate a to WHNF, then return b
 seq :: * -> ** -> **
@@ -255,17 +255,11 @@ or xs = foldr (\/) False xs
 
 || show instance for tuple2
 showtuple2 :: showI * -> showI ** -> showI (*, **)
-showtuple2 sa sb
-   = go
-     where
-       go (a, b) = "(" ++ sa a ++ ", " ++ sb b ++ ")"
+showtuple2 sa sb = \(a, b) -> "(" ++ sa a ++ ", " ++ sb b ++ ")"
 
 || ord instance for tuple2
 cmptuple2 :: ordI * -> ordI ** -> ordI (*, **)
-cmptuple2 cmpa cmpb
-    = cmp
-      where
-        cmp (a1, b1) (a2, b2) = cmpa a1 a2 $thenCmp cmpb b1 b2
+cmptuple2 cmpa cmpb = \(a1, b1) (a2, b2) ->cmpa a1 a2 $thenCmp cmpb b1 b2
 
 fst :: (*, **) -> *
 fst (a, b) = a
@@ -331,7 +325,7 @@ a $mod  b = case divmod  a b of (_, r) -> r
 
 || converse infix minus, needed because we cannot form postsections with '-', as it is ambiguous with prefix negate
 subtract :: int -> int -> int
-subtract b = go where go a = a - b
+subtract b = \a -> a - b
 
 || bit-wise operations on word#
 (.&.), (.|.), (.^.),(.<<.), (.>>.) :: int -> int -> int
@@ -641,13 +635,13 @@ concat xs = [y | ys <- xs; y <- ys]     || foldr (++) [] xs
 
 || mapping
 map :: (* -> **) -> [*] -> [**]
-map f = go where go xs = [f x | x <- xs]
+map f = \xs -> [f x | x <- xs]
 
 map2 :: (* -> ** -> ***) -> [*] -> [**] -> [***]
-map2 f = go where go xs ys = [f x y | (x, y) <- zip2 xs ys]
+map2 f = \xs ys -> [f x y | (x, y) <- zip2 xs ys]
 
 filter :: (* -> bool) -> [*] -> [*]
-filter f = go where go xs = [x | x <- xs; f x]
+filter f = \xs -> [x | x <- xs; f x]
 
 index :: [*] -> [int]
 index xs

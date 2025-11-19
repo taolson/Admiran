@@ -56,7 +56,7 @@ m_alter cmp f k
                             where
                               insL l' = a_balance $ AVLNode p l' r h
                               insR r' = a_balance $ AVLNode p l r' h
-    
+
 || insert v if k not found in the map, otherwise insert the result of applying
 || f to the existing value and v
 m_insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> m_map * ** -> m_map * **

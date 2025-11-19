@@ -22,37 +22,27 @@ st_execState m s = snd $ st_runState m s
 
 || state access
 st_get :: state * *
-st_get = go where go s = (s, s)
+st_get = \s -> (s, s)
 
 st_put :: * -> state * ()
 st_put s' = const ((), s')
 
 st_modify :: (* -> *) -> state * ()
-st_modify f = go where go s = case f s of s' -> ((), s')
+st_modify f = \s -> case f s of s' -> ((), s')
 
 
 || monad interface
 st_bind :: state * ** -> (** -> state * ***) -> state * ***
-st_bind m f
-    = go
-      where
-        go s
-            = case st_runState m s of
-                (a, s') -> st_runState (f a) s'
+st_bind m f = \s -> case st_runState m s of (a, s') -> st_runState (f a) s'
 
 st_join :: state * (state * **) -> state * **
-st_join ma
-    = go
-      where
-        go s
-            = case st_runState ma s of
-                (mb, s') -> st_runState mb s'
+st_join ma = \s -> case st_runState ma s of (mb, s') -> st_runState mb s'
 
 st_pure :: ** -> state * **
-st_pure a = go where go s = (a, s)
+st_pure a = \s -> (a, s)
 
 st_kbind :: (** -> state * ***) -> (*** -> state * ****) -> ** -> state * ****
-st_kbind f g = go where go x = f x $st_bind g
+st_kbind f g = \x -> f x $st_bind g
 
 st_mapM :: (** -> state * ***) -> [**] -> state * [***]
 st_mapM f xs = foldr (st_liftA2 (:) . f) (st_pure []) xs

@@ -30,16 +30,16 @@ on op f
 || currying
 
 curry :: ((*, **) -> ***) -> * -> ** -> ***
-curry f = go where go a b = f (a, b)
+curry f = \a b -> f (a, b)
 
 uncurry :: (* -> ** -> ***) -> (*, **) -> ***
-uncurry f = go where go (a, b) = f a b
+uncurry f = \(a, b) -> f a b
 
 curry3 :: ((*, **, ***) -> ****) -> * -> ** -> *** -> ****
-curry3 f = go where go a b c = f (a, b, c)
+curry3 f = \a b c -> f (a, b, c)
 
 uncurry3 :: (* -> ** -> *** -> ****) -> (*, **, ***) -> ****
-uncurry3 f = go where go (a, b, c) = f a b c
+uncurry3 f = \(a, b, c) -> f a b c
 
 
 || bool functions
@@ -226,11 +226,11 @@ dup x = (x, x)
 
 || apply each function to the argument and return the pair
 (&&&) :: (* -> **) -> (* -> ***) -> * -> (**, ***)
-f &&& g = go where go x = (f x, g x)
+f &&& g = \x -> (f x, g x)
 
 || split a pair and apply the functions to the individual parts, then combine
 (***) :: (* -> **) -> (*** -> ****) -> (*, ***) -> (**, ****)
-f *** g = go where go (a, b) = (f a, g b)
+f *** g = \(a, b) -> (f a, g b)
 
 || cartesian product of two lists
 (|*|) :: [*] -> [**] -> [(*, **)]

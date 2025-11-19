@@ -29,32 +29,32 @@ rws_execRWS m r s w = case rws_runRWS m r s w of (a, s', w') -> (s', w')
 
 || reader operations
 rws_ask :: rws * ** *** *
-rws_ask = go where go r s w = (r, s, w)
+rws_ask = \r s w -> (r, s, w)
 
 rws_asks :: (* -> ****) -> rws * ** *** ****
-rws_asks f = go where go r s w = (f r, s, w)
+rws_asks f = \r s w -> (f r, s, w)
 
 rws_local :: (* -> *) -> rws * ** *** **** -> rws * ** *** ****
-rws_local f m = go where go r s w = rws_runRWS m (f r) s w
+rws_local f m = \r s w -> rws_runRWS m (f r) s w
 
 
 || writer operations
 rws_tell :: ** -> rws * ** *** ()
-rws_tell w = go where go _ s q = ((), s, w : q)
+rws_tell w = \_ s q -> ((), s, w : q)
 
 rws_tells :: ([**] -> [**]) -> rws * ** *** ()
-rws_tells f = go where go _ s q = case f q of q' -> ((), s, q')
+rws_tells f = \_ s q -> case f q of q' -> ((), s, q')
 
 
 || state operations
 rws_get :: rws * ** *** ***
-rws_get = go where go _ s w = (s, s, w)
+rws_get = \_ s w -> (s, s, w)
 
 rws_put :: *** -> rws * ** *** ()
-rws_put s = go where go _ _ w = ((), s, w)
+rws_put s = \_ _ w -> ((), s, w)
 
 rws_modify :: (*** -> ***) -> rws * ** *** ()
-rws_modify f = go where go _ s w = case f s of s' -> ((), s', w)
+rws_modify f = \_ s w -> case f s of s' -> ((), s', w)
 
 
 || monad interface
@@ -75,10 +75,10 @@ rws_join ma
                 (mb, s', w') -> rws_runRWS mb r s' w'
 
 rws_pure :: **** -> rws * ** *** ****
-rws_pure a = go where go _ s w = (a, s, w)
+rws_pure a = \_ s w -> (a, s, w)
 
 rws_kbind :: (**** -> rws * ** *** *****) -> (***** -> rws * ** *** ******) -> **** -> rws * ** *** ******
-rws_kbind f g = go where go x = f x $rws_bind g
+rws_kbind f g = \x -> f x $rws_bind g
 
 rws_mapM :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** [*****]
 rws_mapM f xs = foldr (rws_liftA2 (:) . f) (rws_pure []) xs
