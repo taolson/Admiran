@@ -34,8 +34,8 @@
 
 || turn an excpt * into an io *
 io_excpt :: excpt * -> io *
-io_excpt (Left errs)        = io_mapM_ (errStrLn . showException) errs  >> exit 1       || print the errors and exit
-io_excpt (Right (r, warns)) = io_mapM_ (errStrLn . showException) warns >> io_pure r    || print the warnings and continue with the result
+io_excpt (Left errs)        = io_mapM_ (errStrLn . showexception) errs  >> exit 1       || print the errors and exit
+io_excpt (Right (r, warns)) = io_mapM_ (errStrLn . showexception) warns >> io_pure r    || print the warnings and continue with the result
 
 || serialize a module to an ".x2" file
 serialize :: globalEnv -> io globalEnv

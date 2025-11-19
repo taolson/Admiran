@@ -190,6 +190,9 @@ stgInsn ::=
                                              || 10: clock
     SystemOp    int ref opr
 
+|| don't derive ordI for stgInsn, since we don't use it and it would be large
+cmpstgInsn = undef
+
 
 || state passed through buildStg:
 || dynamic state:

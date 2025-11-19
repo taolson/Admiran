@@ -75,7 +75,7 @@ p_showCurrentToken
         go ps
             = p_pure "end of input", if isTend t
             = p_pure "OFFSIDE",      if _eq cmptoken t Toffside \/ offside
-            = p_pure $ showToken t,  otherwise
+            = p_pure $ showtoken t,  otherwise
               where
                 ls          = view psIndLev ps
                 (t, _, ic)  = hd $ view psToks ps

@@ -145,8 +145,11 @@ showsException :: exception -> showS
 showsException (et, ei, li)
     = shows "\n" . showsExceptionType et . showsLocInfo li . shows "\n    " . showsExceptionInfo ei
 
-showException :: exception -> string
-showException e = showsException e ""
+showexception :: showI exception
+showexception e = showsException e ""
+
+|| don't derive ordI comparison for exception, since we don't need it
+cmpexception = undef
 
 || lenses for exception
 excptType   = lensTup3_0

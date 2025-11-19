@@ -16,7 +16,7 @@
 ||    $ is tokenized as an operator if it is not immediately followed by a letter ($ident is the infix form of ident)
 
 
-%export token cmptoken showToken tokloc cmptokloc showtokloc tokenize isTerror isTend
+%export token cmptoken showtoken tokloc cmptokloc showtokloc tokenize isTerror isTend
 
 %import <base>
 %import "name"
@@ -42,18 +42,18 @@ isTerror t            = False
 isTend Tend = True
 isTend t    = False
 
-showToken :: token -> string
-showToken (Tident n)     = showName n
-showToken (Tsymbol n)    = showName n
-showToken (TlitInt n)    = showint n
-showToken (TlitChar c)   = showchar c
-showToken (TlitString s) = showstring s
-showToken (TprimInt n)   = showint n ++ "#"
-showToken (TprimChar c)  = showchar c ++ "#"
-showToken (Tchar c)      = showchar c
-showToken Toffside       = "OFFSIDE"
-showToken Tend           = "END"
-showToken (Terror s)     = "ERROR " ++ s
+showtoken :: showI token
+showtoken (Tident n)     = showName n
+showtoken (Tsymbol n)    = showName n
+showtoken (TlitInt n)    = showint n
+showtoken (TlitChar c)   = showchar c
+showtoken (TlitString s) = showstring s
+showtoken (TprimInt n)   = showint n ++ "#"
+showtoken (TprimChar c)  = showchar c ++ "#"
+showtoken (Tchar c)      = showchar c
+showtoken Toffside       = "OFFSIDE"
+showtoken Tend           = "END"
+showtoken (Terror s)     = "ERROR " ++ s
 
 tokloc == (token, int, int)                   || token, line#, col#
 

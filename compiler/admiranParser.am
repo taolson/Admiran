@@ -360,7 +360,7 @@ p_rhs
               where
                 (fns, pats)        = partition isDefFn defs
                 go (Right (m, es)) = p_pure (Elet True m pats e)                || no exception; return the Elet
-                go (Left es)       = p_error 2 . showException . hd $ es        || report exception as parser error
+                go (Left es)       = p_error 2 . showexception . hd $ es        || report exception as parser error
 
 
 || Admiran pattern and fnform parsing
