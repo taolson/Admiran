@@ -160,7 +160,7 @@ demandAst k (Ecall e args)
         checkArgs ds            = st_mapM_ (checkArg ds) (enumerate args)
 
         checkArg ds (i, Evar n) = dm_over dmNames (s_insert cmpname n), if bs_member i ds
-        checkArg ds x           = st_pure ()
+        checkArg _  _           = st_pure ()
 
 || Efatbar needs to go down the left path only for demand
 demandAst k (Efatbar p e1 e2)

@@ -202,7 +202,7 @@ ex_errs :: [exception] -> excpt *
 ex_errs = Left
 
 ex_kbind :: (* -> excpt **) -> (** -> excpt ***) -> * -> excpt ***
-ex_kbind f g = go where go x = f x $ex_bind g
+ex_kbind f g = \x -> f x $ex_bind g
 
 ex_foldM :: (* -> ** -> excpt *) -> * -> [**] -> excpt *
 ex_foldM f z0 xs
