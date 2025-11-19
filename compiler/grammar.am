@@ -757,8 +757,8 @@ precAssocTable
       , (".&.",  (5,  AssocLeft))       || bitwise boolean AND
       , (".|.",  (5,  AssocLeft))       || bitwise boolean OR
       , (".^.",  (5,  AssocLeft))       || bitwise boolean XOR
-      , (".<<.", (6, AssocLeft))        || bit shift left
-      , (".>>.", (6, AssocLeft))        || arithmetic bit shift right
+      , (".<<.", (6,  AssocLeft))       || bit shift left
+      , (".>>.", (6,  AssocLeft))       || arithmetic bit shift right
 
       , ("+#",   (6,  AssocLeft))       || arithmetic on unboxed word# type
       , ("-#",   (6,  AssocLeft))       || Note: these are unused for assoc/prec, since builtin arithmetic is
@@ -768,8 +768,8 @@ precAssocTable
       , ("-",    (6,  AssocLeft))
       , ("neg",  (7,  AssocPrefix))
       , ("*",    (8,  AssocLeft))
-      , ("quot", (8, AssocLeft))
-      , ("rem",  (8, AssocLeft))
+      , ("quot", (8,  AssocLeft))
+      , ("rem",  (8,  AssocLeft))
       , ("div",  (8,  AssocLeft))
       , ("mod",  (8,  AssocLeft))
       , ("/",    (8,  AssocLeft))

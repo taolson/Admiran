@@ -314,8 +314,7 @@ mutRecErr ns
     = tc_fail,           if #ns < 2       || don't add additional note if just a single (self-recursive) name
     = tc_errorNote info, otherwise
       where
-        s    = intercalate ", " $ map (converse showsExName "") ns
-        info = Info $ "in mutually-recursive definition of " ++ s
+        info = Info . shows "in mutually-recursive definition of " . showsCommaList showsExName ns $ ""
 
 
 || builtin type testing

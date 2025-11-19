@@ -656,7 +656,7 @@ inlineGroup defs ns st
     = (m_union cmpname defs ndefs2, st3), if ni < inlineMaxIterations & view inFuel st3 > 0  || add inlined version if inlining was succesful
     = (m_union cmpname defs ndefs1, st3), otherwise                                          || revert to original if could only inline partial
       where
-        st1               = addNote ("--- " ++ intercalate " " (map showName ns) ++ " ---") st
+        st1               = addNote (shows "--- " . showsListMapped " " showsName ns $ " ---") st
         ndefs1            = foldl addDef m_empty ns
         st2               = set inLenv [Env defs] . set inFuel (inlineMaxComplexity * #ns) . set inSimplified True $ st1
         (ndefs2, st3, ni) = hd . dropWhile canInlineMore . iterate inlineDefs $ (ndefs1, st2, 0)

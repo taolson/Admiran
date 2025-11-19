@@ -56,8 +56,8 @@ makeTuplePat ns  = Pctor (builtinTupleName (#ns)) (map Pvar ns)
 || e.g. Tuple3 ==> * -> ** -> *** -> Ttuple * ** ***
 makeTupleCtorType :: name -> texpr
 makeTupleCtorType n
-    = error ((shows "makeTupleCtorType: " . showsName n) " is not a Tuple constructor"), if isNothing msize
-    = foldr Tarr (Ttuple tvars) tvars,                                                   otherwise
+    = error ("makeTupleCtorType: " ++ showName n ++ " is not a Tuple constructor"), if isNothing msize
+    = foldr Tarr (Ttuple tvars) tvars,                                              otherwise
       where
         msize = stripPrefix cmpchar "Tuple" (getName n)
         tsize = intval (fromJust msize)
@@ -178,7 +178,7 @@ builtinUnitName    = makeBuiltinName "Unit"     || use "Unit" instead of "()" be
 builtinExitName    = makeBuiltinName "exit#"
 
 builtinTupleName :: int -> name
-builtinTupleName n = makeBuiltinName ((shows "Tuple" . showsint n) "")
+builtinTupleName n = makeBuiltinName ("Tuple" ++ showint n)
 
 builtinTupleArity :: name -> int
 builtinTupleArity (Builtin n) = intval ns where Just ns = stripPrefix cmpchar "Tuple" n

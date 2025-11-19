@@ -87,8 +87,8 @@ module ::=
         defnMap                    || top-level type specifications
         nameMap                    || top-level environment for this module, mapping Unqualified names to Qualified names
 
-showModule :: module -> string
-showModule m
+showmodule :: showI module
+showmodule m
     = lay . map showDefn . m_keys $ defns
       where
         defns          = view modDefns m
@@ -96,6 +96,9 @@ showModule m
         showDefn n     = mshow (m_lookup cmpname n specs) ++ mshow (m_lookup cmpname n defns)
         mshow Nothing  = ""
         mshow (Just a) = showast a ++ "\n"
+
+|| don't derive ordI comparison for module, since we don't use it and it would be large
+cmpmodule = undef
 
 || create an empty module with a name and initial environment
 emptyModule :: fileSpec -> nameMap -> module
