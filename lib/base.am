@@ -114,7 +114,7 @@ comparing, descending :: ordI ** -> (* -> **) -> ordI *
 || comparing is used to create an ordering instance based upon the results of applying function f
 || to the two values, typically used in things like sorting, e.g.
 ||    sortBy (comparing cmpint length) ["four", "three", "two"] would return ["two", "four", "three"]
-comparing  cmp f a b = cmp (f a) (f b)
+comparing cmp f a b = cmp (f a) (f b)
 
 || descending is like comparing, except it uses the opposite order:
 ||    sortBy (descending cmpint length) ["four", "three", "two"] would return ["three", "four", "two"]

@@ -6,12 +6,18 @@
 %import <io>                    (>>=)/io_bind
 %import <maybe>
 %import <state>
+
+%import "../compiler/module"
+
+|| the "module" module from compiler depends upon the following modules also
+|| located in the compiler directory; we explicitly import them here, because
+|| the build system currently doesn't have a way of specifying a library directory
+|| for module lookup other than the current directory or the system directory
 %import "../compiler/ast"
 %import "../compiler/config"
 %import "../compiler/dependency"
 %import "../compiler/exception"
 %import "../compiler/grammar"
-%import "../compiler/module"
 %import "../compiler/name"
 %import "../compiler/parser"
 %import "../compiler/predef"
@@ -33,5 +39,5 @@ main :: io ()
 main
     = getArgs >>= go
       where
-        go [fn] = deserialize fn >>= showModule .> putStrLn
+        go [fn] = deserialize fn >>= showmodule .> putStrLn
         go _    = error "usage: dumpX2 <file name>"

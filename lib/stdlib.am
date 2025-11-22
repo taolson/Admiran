@@ -294,9 +294,9 @@ showint n = showintBase 10 "" n
 
 || arithmetic operations on word#
 (+), (-), (*) :: int -> int -> int
-(I# a#) +    (I# b#)  = case a# +# b# of w# -> I# w#
-(I# a#) -    (I# b#)  = case a# -# b# of w# -> I# w#
-(I# a#) *    (I# b#)  = case a# *# b# of w# -> I# w#
+(I# a#) + (I# b#)  = case a# +# b# of w# -> I# w#
+(I# a#) - (I# b#)  = case a# -# b# of w# -> I# w#
+(I# a#) * (I# b#)  = case a# *# b# of w# -> I# w#
 
 || Note on quotrem# and divmod# builtin functions returning multiple results:
 || quotrem# and divmod# are defined to return two results: the quotient and the

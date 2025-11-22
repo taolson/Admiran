@@ -171,9 +171,6 @@ updateLabels insns
                               \lbl       -> m_lookup cmpstring lbl jm >>=?
                               \(lbl', _) -> Just $ setArgs lbl' i
 
-showres Nothing = "Nothing"
-showres (Just (lbl, _)) = "Just " ++ lbl
-
 || classify a block type and perform the appropriate operation
 || returns Nothing if the block was a replaced ctor block (to remove it from the code)
 classify :: block -> maybeState gSt block
