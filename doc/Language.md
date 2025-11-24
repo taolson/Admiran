@@ -95,6 +95,12 @@ A type variable is used to specify a polymorphic type parameter in a type defini
 They are written as a string of `*` characters, disambiguated by the length of the string. For example,
 `either * ** ::= Left * | Right **` defines a data type `either` which has two type parameters `*` and `**`.
 
+#### Reserved Names and Symbols
+
+The following names and symbols are reserved in the language to allow unambiguous parsing of programs:
+
+    abstype case if of otherwise type where with = :: ::= .. | <- ->
+
 ## Lexical Structure
 
 The lexical structure of an Admiran program consists of a sequence of *tokens*, separated by whitespace.
