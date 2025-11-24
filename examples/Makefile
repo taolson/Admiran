@@ -1,6 +1,6 @@
 AMC= ../bin/amc
 
-EXAMPLES= hello fib eDigits primes subMin zebra fizzBuzz
+EXAMPLES= hello fib eDigits primes subMin zebra fizzBuzz caesar
 
 .SUFFIXES:
 .SUFFIXES: .am

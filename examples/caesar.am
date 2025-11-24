@@ -1,0 +1,72 @@
+|| Caesar cipher demo of encoding a string and cracking an encoded string
+
+
+%import <base>
+%import <io>
+%import <fix16>
+%import <state>         (>>)/st_right
+%import <vector>
+
+
+|| encode a string by substituting a rotated alphabet
+encode :: int -> string -> string
+encode n s
+    = map (code .> rot .> decode) s
+      where
+        codeA = code 'a'
+        codeZ = code 'z'
+
+        rot c = (c - codeA + n) $mod 26 + codeA, if codeA <= c <= codeZ
+              = c,                               otherwise
+
+|| standard Caesar cipher uses a rotation of 3
+caesar :: string -> string
+caesar s = encode 3 s
+
+|| frequency-of-occurrence table for the English alphabet (percent)
+english :: [fix16]
+english = freqs |> split ',' |> map fix16val
+          where
+            freqs = "8.2,1.5,2.8,4.3,12.7,2.2,2.0,6.1,7.0,0.2,0.8,4.0,2.4,6.7,7.5,1.9,0.1,6.0,6.3,9.1,2.8,1.0,2.4,0.2,2.0,0.1"
+
+percent :: int -> int -> fix16
+percent n m = toFix16Int 100 *. toFix16Int n /. toFix16Int m
+
+rotate :: int -> [*] -> [*]
+rotate n xs = drop n xs ++ take n xs
+
+|| generate a frequency-of-occurrence table for a string
+freqs :: string -> [fix16]
+freqs s
+    = v_rep 26 0 |> runSTVector go |> v_toList |> mkTable
+      where
+        mkTable xs = map ($percent tot) xs where tot = sum xs
+        go mv = st_mapM_ ins s
+                where
+                  ins c
+                      = v_unsafeModify mv (+1) i, if 0 <= i <= 25
+                      = st_pure (      ),         otherwise
+                        where
+                          i = code c - code 'a'
+
+|| chi-squared test comparing two frequency-of-occurrence tables
+chisqr :: [fix16] -> [fix16] -> fix16
+chisqr xs ys
+    = zipWith (\x y -> ((x -. y) *. (x -. y)) /. y) xs ys |> foldl (+.) (toFix16Int 0)
+
+|| crack a Caesar-encoded string by finding the best chi-squared test match for all possible shift amounts,
+|| then decode using the negative shift
+uncaesar :: string -> string
+uncaesar s
+    = encode (-shift) s
+      where
+        table  = freqs s
+        chitab = enumerate [rotate i table $chisqr english | i <- [0 .. 25]]
+        shift  = minBy cmpfix16 snd chitab |> fst
+
+main :: io ()
+main = io_mapM_ print [("plain", id), ("encoded", caesar), ("cracked", uncaesar . caesar)]
+       where
+         s = "Admiran is a lazy functional language"
+
+         print (lbl, f) = putStrLn $ padl 10 (lbl ++ ":") ++ f s
