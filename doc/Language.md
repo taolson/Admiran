@@ -99,7 +99,7 @@ They are written as a string of `*` characters, disambiguated by the length of t
 
 The following names and symbols are reserved in the language to allow unambiguous parsing of programs:
 
-    abstype case if of otherwise type where with = :: ::= .. | <- ->
+`abstype` `case` `if` `of` `otherwise` `type` `where` `with` `=` `::` `::=` `..` `|` `<-` `->`
 
 ## Lexical Structure
 
