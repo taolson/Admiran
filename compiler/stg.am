@@ -1,9 +1,10 @@
 || stg.am -- convert AST to Spineless Tagless G-Machine VM representation, using eval-apply model
 
 
-%export codeObj codePtr stgCode heapInfo heapObj heapPtr stgHeap stackObj stgStack continuation
-        value refSpace ref r0Ref r1Ref r2Ref isReg opr r0Opr r1Opr r2Opr applyToEnvPtr enterEnv0Ptr selRetPtr
-        selApplyPtr blackHolePtr localEnv stgInsn showvalue cmpopr showopr showstgInsn showheapObj showstackObj
+%export codeObj codePtr stgCode heapInfo heapObj heapPtr stgHeap stackObj stgStack continuation value
+        refSpace ref r0Ref r1Ref r2Ref e0Ref isReg opr r0Opr r1Opr r2Opr e0Opr
+        applyToEnvPtr enterEnv0Ptr selRetPtr selApplyPtr blackHolePtr
+        localEnv stgInsn showvalue cmpopr showopr showstgInsn showheapObj showstackObj
         buildStg heapObjWords stringWords
 
 %import <base>

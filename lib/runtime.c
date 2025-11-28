@@ -102,14 +102,15 @@ typedef struct _arrayObj {
 } arrayObj;
 
 // functions and data to communicate between Admiran and C
-extern value GetStartClosure(); // get the closure address for the Admiran start routine 
-extern void  EnterAdmiran ();   // enter a Admiran closure
-extern void  CallAdmiran ();    // call a Admiran codeblock
-extern void  RetAdmiran ();     // return a value to a Admiran continuation
-extern void  PackArgs0 ();      // needed to make Admiran-comptible return values
-extern void *ApplyToEnvFns[];   // array of functions to perform ApplyToEnv on a variable number of env values
-extern void *GlobalBase;        // marker for the base of the global heap area (static heapPtrs in Admiran code)
-extern void *GlobalTop;         // marker for the top of the global heap area
+extern value GetStackPtr ();     // get the stack pointer to initialize gcMaxStack
+extern value GetStartClosure (); // get the closure address for the Admiran start routine 
+extern void  EnterAdmiran ();    // enter a Admiran closure
+extern void  CallAdmiran ();     // call a Admiran codeblock
+extern void  RetAdmiran ();      // return a value to a Admiran continuation
+extern void  PackArgs0 ();       // needed to make Admiran-comptible return values
+extern void *ApplyToEnvFns[];    // array of functions to perform ApplyToEnv on a variable number of env values
+extern void *GlobalBase;         // marker for the base of the global heap area (static heapPtrs in Admiran code)
+extern void *GlobalTop;          // marker for the top of the global heap area
 
 // state save/restore area for registers used by Admiran code
 // Env is a static area to save the continuation closure environment from the stack when returning to a continuation
@@ -208,6 +209,24 @@ void finish (int status)
 void gcMinor ();
 void gcMajor (value *copyBase);
 void gcGrowHeap ();
+
+// initialize the stack, setting gcMaxStk and the Stk value
+void stackInit ()
+{
+  // enable this and remove the asm when the bootstrap compilers are re-built to include GetStackPtr
+#ifdef NODEF
+  gcMaxStack = GetStackPtr ();
+  Stk = gcMaxStack;
+#else
+#ifdef __APPLE__
+  asm ( "movq %rsp, _gcMaxStack(%rip);" );
+  Stk = gcMaxStack;
+#else
+  asm ( "movq %rsp, gcMaxStack(%rip);" );
+  Stk = gcMaxStack;
+#endif
+#endif
+}
 
 // initialize the heap, allocating two half-spaces plus a roots list
 void heapInit ()
@@ -1033,17 +1052,11 @@ void systemOp (value op, value rd, value sval)
 
 int main (int argc, char **argv)
 {
-  // capture the stack pointer high address for use in GC
-#ifdef __APPLE__
-  asm ( "movq %rsp, _gcMaxStack(%rip);" );
-#else
-  asm ( "movq %rsp, gcMaxStack(%rip);" );
-#endif
-
   sysArgc = argc;
   sysArgv = argv;
   setvbuf (stdout, NULL, _IONBF, BUFSIZ);
-  heapInit ();
+  stackInit ();
+  heapInit  ();
   statsInit ();
   Stk       = gcMaxStack;
   Arg[0]    = GetStartClosure ();

@@ -522,7 +522,7 @@ genUnpackArgs
       where
         genUnpack n
             = shows ("\nUnpackArgs" ++ showint n ++ ":\n")    .
-              genMove (Reg, 0) (Ref (Env, 0))                 .  || unpack tag
+              genMove r0Ref e0Opr                             .  || unpack tag
               genOpcode "leaq" [cvtCMemAddr packFn, cvtReg 1] .  || restore packFn (if we need to pack again due to another update)
               genMoveToArgs env                               .  || move the rest of the Env to the Args
               genOpcode "ret" []                                 || return to the continuation
@@ -1291,11 +1291,18 @@ genGC
       genRestoreState                             .
       genOpcode "ret" []
 
+|| generate the C-callable function that returns the stack pointer
+genGetStackPtr :: showS
+genGetStackPtr
+    = genCGlobal "GetStackPtr"            .
+      genOpcode  "movq" [x86SP, cvtReg 0] .
+      genOpcode  "ret" []
+
 || generate the C-callable function that returns the start closure
 genGetStartClosure :: opr -> showS
 genGetStartClosure ha
     = genCGlobal "GetStartClosure" .
-      genMove   r0Ref ha           .
+      genMove r0Ref ha             .
       genOpcode "ret" []
 
 || generate the EnterAdmiran routine, which restores the Admiran register
