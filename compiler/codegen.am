@@ -1335,6 +1335,7 @@ genInterface start
     = genSection "text"        .
       genGeneralApply          .
       genGC                    .
+      genGetStackPtr           .
       genGetStartClosure start .
       genEnterAdmiran          .
       genCallAdmiran           .
