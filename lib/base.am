@@ -26,6 +26,10 @@ on op f
       where
         go x y = f x $op f y
 
+|| apply a function to a value if the bool is True, otherwise return the value
+applyWhen :: bool -> (* -> *) -> * -> *
+applyWhen p f x = if' p (f x) x
+
 
 || currying
 
@@ -247,6 +251,10 @@ null _  = False
 any, all :: (* -> bool) -> [*] -> bool
 any p = foldr ((\/) . p) False
 all p = foldr ((&) . p) True
+
+allEqual :: ordI * -> [*] -> bool
+allEqual cmp []       = True
+allEqual cmp (x : xs) = all (_eq cmp x) xs
 
 || test whether a value is an element of a list
 elem :: ordI * -> * -> [*] -> bool
