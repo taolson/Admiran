@@ -21,14 +21,11 @@ iterate' f
 || perform function f on both arguments of a binary operator, then perform the operator
 || e.g. "(*) $on fst" performs multiplication on the first part of two pairs
 on :: (** -> ** -> ***) -> (* -> **) -> * -> * -> ***
-on op f
-    = go
-      where
-        go x y = f x $op f y
+on op f = \x y -> f x $op f y
 
 || apply a function to a value if the bool is True, otherwise return the value
 applyWhen :: bool -> (* -> *) -> * -> *
-applyWhen p f x = if' p (f x) x
+applyWhen p f = \x -> if' p (f x) x
 
 
 || currying
@@ -133,79 +130,49 @@ descending cmp f a b
 
 cmptuple3 :: ordI * -> ordI ** -> ordI *** -> ordI (*, **, ***)
 cmptuple3 cmpa cmpb cmpc
-    = go
-      where
-        go (a0, b0, c0) (a1, b1, c1) = cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1
+    = \(a0, b0, c0) (a1, b1, c1) -> cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1
 
 showtuple3 :: showI * -> showI ** -> showI *** -> showI (*, **, ***)
-showtuple3 sa sb sc
-    = go
-      where
-        go (a, b, c) = "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ")"
+showtuple3 sa sb sc = \(a, b, c) -> "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ")"
 
 cmptuple4 :: ordI * -> ordI ** -> ordI *** -> ordI **** -> ordI (*, **, ***, ****)
 cmptuple4 cmpa cmpb cmpc cmpd
-    = go
-      where
-        go (a0, b0, c0, d0) (a1, b1, c1, d1) = cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1
+    = \(a0, b0, c0, d0) (a1, b1, c1, d1) -> cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1
 
 showtuple4 :: showI * -> showI ** -> showI *** -> showI **** -> showI (*, **, ***, ****)
-showtuple4 sa sb sc sd
-    = go
-      where
-        go (a, b, c, d) = "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ")"
+showtuple4 sa sb sc sd = \(a, b, c, d) -> "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ")"
 
 cmptuple5 :: ordI * -> ordI ** -> ordI *** -> ordI **** -> ordI ***** -> ordI (*, **, ***, ****, *****)
 cmptuple5 cmpa cmpb cmpc cmpd cmpe
-    = go
-      where
-        go (a0, b0, c0, d0, e0) (a1, b1, c1, d1, e1) = cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1 $thenCmp cmpe e0 e1
+    = \(a0, b0, c0, d0, e0) (a1, b1, c1, d1, e1) -> cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1 $thenCmp cmpe e0 e1
 
 showtuple5 :: showI * -> showI ** -> showI *** -> showI **** -> showI ***** -> showI (*, **, ***, ****, *****)
-showtuple5 sa sb sc sd se
-    = go
-      where
-        go (a, b, c, d, e) = "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ", " ++ se e ++ ")"
+showtuple5 sa sb sc sd se = \(a, b, c, d, e) -> "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ", " ++ se e ++ ")"
 
 cmptuple6 :: ordI * -> ordI ** -> ordI *** -> ordI **** -> ordI ***** -> ordI ****** -> ordI (*, **, ***, ****, *****, ******)
 cmptuple6 cmpa cmpb cmpc cmpd cmpe cmpf
-    = go
-      where
-        go (a0, b0, c0, d0, e0, f0) (a1, b1, c1, d1, e1, f1)
-            = cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1 $thenCmp cmpe e0 e1 $thenCmp cmpf f0 f1
+    = \(a0, b0, c0, d0, e0, f0) (a1, b1, c1, d1, e1, f1) ->
+        cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1 $thenCmp cmpe e0 e1 $thenCmp cmpf f0 f1
 
 showtuple6 :: showI * -> showI ** -> showI *** -> showI **** -> showI ***** -> showI ****** -> showI (*, **, ***, ****, *****, ******)
-showtuple6 sa sb sc sd se sf
-    = go
-      where
-        go (a, b, c, d, e, f) = "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ", " ++ se e ++ ", " ++ sf f ++ ")"
+showtuple6 sa sb sc sd se sf = \(a, b, c, d, e, f) -> "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ", " ++ se e ++ ", " ++ sf f ++ ")"
 
 cmptuple7 :: ordI * -> ordI ** -> ordI *** -> ordI **** -> ordI ***** -> ordI ****** -> ordI ******* ->
              ordI (*, **, ***, ****, *****, ******, *******)
 cmptuple7 cmpa cmpb cmpc cmpd cmpe cmpf cmpg
-    = go
-      where
-        go (a0, b0, c0, d0, e0, f0, g0) (a1, b1, c1, d1, e1, f1, g1)
-            = cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1 $thenCmp cmpe e0 e1 $thenCmp cmpf f0 f1 $thenCmp cmpg g0 g1
+    = \(a0, b0, c0, d0, e0, f0, g0) (a1, b1, c1, d1, e1, f1, g1) ->
+        cmpa a0 a1 $thenCmp cmpb b0 b1 $thenCmp cmpc c0 c1 $thenCmp cmpd d0 d1 $thenCmp cmpe e0 e1 $thenCmp cmpf f0 f1 $thenCmp cmpg g0 g1
 
 showtuple7 :: showI * -> showI ** -> showI *** -> showI **** -> showI ***** -> showI ****** -> showI ******* ->
               showI (*, **, ***, ****, *****, ******, *******)
 showtuple7 sa sb sc sd se sf sg
-    = go
-      where
-        go (a, b, c, d, e, f, g) = "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ", " ++ se e ++ ", " ++ sf f ++ ", " ++ sg g ++ ")"
+    = \(a, b, c, d, e, f, g) -> "(" ++ sa a ++ ", " ++ sb b ++ ", " ++ sc c ++ ", " ++ sd d ++ ", " ++ se e ++ ", " ++ sf f ++ ", " ++ sg g ++ ")"
 
 pair :: * -> ** -> (*, **)
 pair a b = (a, b)
 
-cmppair a b = cmptuple2 a b
-showpair a  = showtuple2 a
-
 triple :: * -> ** -> *** -> (*, **, ***)
 triple a b c = (a, b, c)
-
-cmptriple a b = cmptuple3 a b
-showtriple a  = showtuple3 a
 
 setFst :: *** -> (*, **) -> (***, **)
 setFst a (_, b) = (a, b)
@@ -271,10 +238,7 @@ find p
 
 || count the number of elements of a list that match a predicate
 count :: (* -> bool) -> [*] -> int
-count p
-    = foldl go 0
-      where
-        go n x = if' (p x) (n + 1) n
+count p = foldl (\n x -> if' (p x) (n + 1) n) 0
 
 || return the index of the first element matching predicate, or return Nothing
 elemIndex :: (* -> bool) -> [*] -> maybe int
@@ -691,17 +655,11 @@ zipWith fn
 
 || unzip a list of tuples into two lists
 unzip2 :: [(*, **)] -> ([*], [**])
-unzip2 xs
-    = foldr go ([], []) xs
-      where
-        go (a, b) (as, bs) = (a : as, b : bs)
+unzip2 xs = foldr (\(a, b) (as, bs) -> (a : as, b : bs)) ([], []) xs
 
 || unzip a list of 3-element tuples into 3 lists
 unzip3 :: [(*, **, ***)] -> ([*], [**], [***])
-unzip3 xs
-    = foldr go ([], [], []) xs
-      where
-        go (a, b, c) (as, bs, cs) = (a : as, b : bs, c : cs)
+unzip3 xs = foldr (\(a, b, c) (as, bs, cs) -> (a : as, b : bs, c : cs)) ([], [], []) xs
 
 transpose :: [[*]] -> [[*]]
 transpose []       = []
