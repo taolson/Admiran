@@ -82,19 +82,13 @@ s_lookupGE cmp v
                 GT -> go (Just v') l
 
 s_fromList :: ordI * -> [*] -> s_set *
-s_fromList cmp = foldr (s_insert cmp) s_empty
+s_fromList cmp = foldl (converse (s_insert cmp)) s_empty
 
 s_union :: ordI * -> s_set * -> s_set * -> s_set *
-s_union cmp s1 s2
-    = foldl ins s1 (s_toList s2)
-      where
-        ins s v = s_insert cmp v s 
+s_union cmp s1 s2 = foldl (converse (s_insert cmp)) s1 $ s_toList s2
 
 s_difference :: ordI * -> s_set * -> s_set * -> s_set *
-s_difference cmp s1 s2
-    = foldl del s1 (s_toList s2)
-      where
-        del s v = s_delete cmp v s 
+s_difference cmp s1 s2 = foldl (converse (s_delete cmp)) s1 $ s_toList s2
 
 s_intersect :: ordI * -> s_set * -> s_set * -> s_set *
 s_intersect cmp s1 s2
