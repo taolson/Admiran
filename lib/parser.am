@@ -144,6 +144,12 @@ p_noneOf s
       where
         not x = ~ x
 
+|| structure parsers
+p_inParens, p_inBrackets, p_inBraces :: parser * -> parser *
+p_inParens   p = p_char '(' $p_right p $p_left p_char ')'
+p_inBrackets p = p_char '[' $p_right p $p_left p_char ']'
+p_inBraces   p = p_char '{' $p_right p $p_left p_char '}'
+
 || parser which matches a specific string
 p_string :: [char] -> parser [char]
 p_string s = foldr (p_right . p_char) (p_pure s) s
