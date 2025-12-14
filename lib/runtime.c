@@ -216,19 +216,8 @@ void gcGrowHeap ();
 // initialize the stack, setting gcMaxStk and the Stk value
 void stackInit ()
 {
-  // enable this and remove the asm when the bootstrap compilers are re-built to include GetStackPtr
-#if 1
   gcMaxStack = GetStackPtr ();
   Stk = gcMaxStack;
-#else
-#ifdef __APPLE__
-  asm ( "movq %rsp, _gcMaxStack(%rip);" );
-  Stk = gcMaxStack;
-#else
-  asm ( "movq %rsp, gcMaxStack(%rip);" );
-  Stk = gcMaxStack;
-#endif
-#endif
 }
 
 // initialize the heap, allocating two half-spaces plus a roots list
