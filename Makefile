@@ -2,7 +2,7 @@
 OS := $(shell uname -s)
 ifeq ($(OS), Darwin)
 AMC_BOOT := amcMacOS.s
-CCOPTS := -O2 -Wl,-no_pie
+CCOPTS := -arch x86_64 -O2 -Wl,-no_pie	#force x86_64 compile to allow Apple Silicon Macs to run under Parallels
 endif
 ifeq ($(OS), Linux)
 AMC_BOOT := amcLinux.s

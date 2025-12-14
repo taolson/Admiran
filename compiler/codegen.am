@@ -93,7 +93,7 @@ genAsmName (Internal n d)  = convertSpecial n
 genAsmName n               = convertSpecial (showName n)
 
 genSection :: string -> showS
-genSection s = shows "\n\t." . shows s . shows "\n"
+genSection s = shows "\n\t." . shows s . shows "\n\t.align\t3\n"
 
 || generate a label for a Admiran function
 genGlobal, genCGlobal :: string -> showS
@@ -695,6 +695,7 @@ genInsn (CaseVec c cps)
 
         genVec = genOpcode    "leaq" [cvtMemAddr "1f", x86MovTmp]  .  || addr of base of table of codePtrs
                  genJmpOpcode "jmp"  (X86Idx x86MovTmp tag 4 0)    .  || index into it by scaling the tag value by 4 (because tag bit is already present)
+                 shows "\t.align\t3\n"                             .  || force alignment of table to prevent compiler warnings
                  shows "1:\n"                                      .  || generate inline table of codePtrs
                  foldr (.) id (map (genValue . Caddr) cps)
 
@@ -826,8 +827,8 @@ genInsn (Update d (Imm (Caddr cp)))
         || so we just pop it into the upd tmp register
         || Reg 0, Reg 1 are live, so use Reg 3 as a temp
         genUpdate
-            = genOpcode    "popq" [upd]                                   . || get heapPtr to update
-              genJmpOpcode "call" packFn                                  . || create a new closure and pack args into it
+            = genJmpOpcode "call" packFn                                  . || create a new closure and pack args into it
+              genOpcode    "popq" [upd]                                   . || get heapPtr to update
               genOpcode    "movb" [X86Imm 2, addX86Offset (-1) upd]       . || update old closure's tag byte to Hfwd (2)
               genOpcode    "leaq" [fwdPtr, addX86Offset 7 upd]            . || update old closure's code ptr to do forwarding
               genOpcode    "leaq" [addX86Offset 1 x86Env, x86MovTmp]      . || update env 0 in old closure to point to new closure

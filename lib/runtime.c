@@ -147,6 +147,7 @@ char ** sysArgv;
 // stats
 int     gcMinorCount;
 int     gcMajorCount;
+int     gcGrowCount;
 int     gcMinorInterval;
 int     gcRootsOverflowCount;
 int     applyCount;
@@ -163,6 +164,7 @@ void statsInit ()
 {
   gcMinorCount            = 0;
   gcMajorCount            = 0;
+  gcGrowCount             = 0;
   gcMinorInterval         = 0;
   gcRootsOverflowCount    = 0;
   applyCount              = 0;
@@ -196,6 +198,7 @@ void finish (int status)
   printf ("*** admiran time: %lu usec (%.1f%%)\n", admiranTime, 100.0 * admiranTime / totalTime);
   printf ("*** gcMinors: %d gcMinor time: %lu usec (%.1f%%)\n", gcMinorCount, gcMinorTime, 100.0 * gcMinorTime / totalTime);
   printf ("*** gcMajors: %d gcMajor time: %lu usec (%.1f%%)\n", gcMajorCount, gcMajorTime, 100.0 * gcMajorTime / totalTime);
+  printf ("*** gcGrows:  %d\n", gcGrowCount);
   printf ("*** gcRootsOverflow: %d\n", gcRootsOverflowCount);
   printf ("gcRootsOverflowCount: %d\napplyCount: %d\noverAppliedCount: %d\nunderAppliedCount: %d\napplyPapCount: %d\n",
           gcRootsOverflowCount, applyCount, overAppliedCount, underAppliedPapCount, applyPapCount);
@@ -214,7 +217,7 @@ void gcGrowHeap ();
 void stackInit ()
 {
   // enable this and remove the asm when the bootstrap compilers are re-built to include GetStackPtr
-#ifdef NODEF
+#if 1
   gcMaxStack = GetStackPtr ();
   Stk = gcMaxStack;
 #else
@@ -684,6 +687,7 @@ void gcGrowHeap ()
   }
 
   // grow heap to the greater of the shortage amount or +50%, limited to available memory
+  ++gcGrowCount;
   growByHalf = growByHalf > gcRootsAlloc - gcMinFree ? gcRootsAlloc - gcMinFree : growByHalf;
   gcHeapTop  = growByHalf > growToRequest ? growByHalf : growToRequest;
 
@@ -1058,7 +1062,6 @@ int main (int argc, char **argv)
   stackInit ();
   heapInit  ();
   statsInit ();
-  Stk       = gcMaxStack;
   Arg[0]    = GetStartClosure ();
   startTime = clock ();
   EnterAdmiran ();

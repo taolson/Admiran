@@ -566,38 +566,38 @@ buildCodeCallBuiltin :: name -> [expr] -> [ref] -> state bdSt stgInsn
 buildCodeCallBuiltin n args dsts
     = go (getName n)
       where
-        opr0      = makeOpr (args ! 0)
-        opr1      = makeOpr (args ! 1)
-        opr2      = makeOpr (args ! 2)
-        zero      = makeImmOpr 0
+        opr0 = makeOpr (args ! 0)
+        opr1 = makeOpr (args ! 1)
+        opr2 = makeOpr (args ! 2)
+        zero = makeImmOpr 0
 
-        dst0      = dsts ! 0
-        dst1      = dsts ! 1
+        dst0 = dsts ! 0
+        dst1 = dsts ! 1
 
-        opD0  op    = st_pure (op dst0 r0Opr)
-        opDS  op    = op dst0       <$>   opr0
-        opDZS op    = op dst0 zero  <$>   opr0
-        opDSS op    = st_liftA2 (op dst0) opr0 opr1
-        opPSS op    = st_liftA2 (op dst0 dst1) opr0 opr1
-        opSS  op    = st_liftA2 op        opr0 opr1
-        opSSS op    = st_liftA3 op        opr0 opr1 opr2
+        opD0  op = st_pure (op dst0 r0Opr)
+        opDS  op = op dst0       <$>   opr0
+        opDZS op = op dst0 zero  <$>   opr0
+        opDSS op = st_liftA2 (op dst0) opr0 opr1
+        opPSS op = st_liftA2 (op dst0 dst1) opr0 opr1
+        opSS  op = st_liftA2 op        opr0 opr1
+        opSSS op = st_liftA3 op        opr0 opr1 opr2
 
         || primitive arithmetic operations on word#
-        go "+#"               = opDSS Add
-        go "-#"               = opDSS Sub
-        go "*#"               = opDSS Mul
-        go "quotrem#"         = opPSS QuotRem
-        go "divmod#"          = opPSS DivMod
-        go "cmp#"             = opDSS Cmp
-        go "getTag#"          = opD0  Mov
+        go "+#"       = opDSS Add
+        go "-#"       = opDSS Sub
+        go "*#"       = opDSS Mul
+        go "quotrem#" = opPSS QuotRem
+        go "divmod#"  = opPSS DivMod
+        go "cmp#"     = opDSS Cmp
+        go "getTag#"  = opD0  Mov
 
         || primitive bit operations on word#
-        go "band#"            = opDSS Band
-        go "bor#"             = opDSS Bor
-        go "bxor#"            = opDSS Bxor
-        go "bnot#"            = opDS  Bnot
-        go "bshl#"            = opDSS Bshl
-        go "bshr#"            = opDSS Bshr
+        go "band#" = opDSS Band
+        go "bor#"  = opDSS Bor
+        go "bxor#" = opDSS Bxor
+        go "bnot#" = opDS  Bnot
+        go "bshl#" = opDSS Bshl
+        go "bshr#" = opDSS Bshr
 
         || operations on packed byte streams
         go "allocByteStream#" = opDZS AllocStream
@@ -606,26 +606,26 @@ buildCodeCallBuiltin n args dsts
         go "writeByteStream#" = opDSS WriteStream
 
         || operations on arrays
-        go "allocArray#"      = opDS  AllocArray
-        go "fillArray#"       = opSS  FillArray
-        go "copyArray#"       = opSS  CopyArray
-        go "readArray#"       = opDSS ReadArray
-        go "writeArray#"      = opSSS WriteArray
+        go "allocArray#" = opDS  AllocArray
+        go "fillArray#"  = opSS  FillArray
+        go "copyArray#"  = opSS  CopyArray
+        go "readArray#"  = opDSS ReadArray
+        go "writeArray#" = opSSS WriteArray
 
         || system and file operations
-        go "exit#"            = opDS  (SystemOp 0)
-        go "openFileRead#"    = opDS  (SystemOp 1)
-        go "openFileWrite#"   = opDS  (SystemOp 2)
-        go "openFileAppend#"  = opDS  (SystemOp 3)
-        go "closeFile#"       = opDS  (SystemOp 4)
-        go "readFile#"        = opDS  (SystemOp 5)
-        go "writeFile#"       = opDS  (SystemOp 6)
-        go "mtimeFile#"       = opDS  (SystemOp 7)
-        go "getArg#"          = opDS  (SystemOp 8)
-        go "systemCmd#"       = opDS  (SystemOp 9)
-        go "clock#"           = opDS  (SystemOp 10)
+        go "exit#"           = opDS  (SystemOp 0)
+        go "openFileRead#"   = opDS  (SystemOp 1)
+        go "openFileWrite#"  = opDS  (SystemOp 2)
+        go "openFileAppend#" = opDS  (SystemOp 3)
+        go "closeFile#"      = opDS  (SystemOp 4)
+        go "readFile#"       = opDS  (SystemOp 5)
+        go "writeFile#"      = opDS  (SystemOp 6)
+        go "mtimeFile#"      = opDS  (SystemOp 7)
+        go "getArg#"         = opDS  (SystemOp 8)
+        go "systemCmd#"      = opDS  (SystemOp 9)
+        go "clock#"          = opDS  (SystemOp 10)
 
-        go s                  = error ("buildCodeCallBuiltin: missing definition for builtin " ++ s)
+        go s = error ("buildCodeCallBuiltin: missing definition for builtin " ++ s)
 
 
 || build code for an Ecall (function) or an Evar (thunk), based upon info from the call fopr and any closureInfo
