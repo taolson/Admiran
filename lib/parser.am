@@ -145,10 +145,11 @@ p_noneOf s
         not x = ~ x
 
 || structure parsers
-p_inParens, p_inBrackets, p_inBraces :: parser * -> parser *
+p_inParens, p_inBrackets, p_inBraces, p_inAngles :: parser * -> parser *
 p_inParens   p = p_char '(' $p_right p $p_left p_char ')'
 p_inBrackets p = p_char '[' $p_right p $p_left p_char ']'
 p_inBraces   p = p_char '{' $p_right p $p_left p_char '}'
+p_inAngles   p = p_char '<' $p_right p $p_left p_char '>'
 
 || parser which matches a specific string
 p_string :: [char] -> parser [char]
