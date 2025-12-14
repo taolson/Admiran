@@ -38,9 +38,9 @@ all other required modules will be built as required.
 
 ## System Requirements
 
-Admiran currently only runs on x86-64 based MacOS or Linux systems.  The only external dependency
-is a C compiler for assembling the generated asm files and linking them with the C runtime library.
-(this is automatically done when compiling an Admiran source file).
+Admiran currently only runs on x86-64 based MacOS or Linux systems (or under Rosetta 2 on Apple silicon).
+The only external dependency is a C compiler for assembling the generated asm files and linking them with
+the C runtime library. This is automatically done when compiling an Admiran source file.
 
 ## Features
 
