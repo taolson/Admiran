@@ -93,7 +93,7 @@ genAsmName (Internal n d)  = convertSpecial n
 genAsmName n               = convertSpecial (showName n)
 
 genSection :: string -> showS
-genSection s = shows "\n\t." . shows s . shows "\n\t.align\t3\n"
+genSection s = shows "\n\t." . shows s . shows "\n\t.p2align\t3\n"
 
 || generate a label for a Admiran function
 genGlobal, genCGlobal :: string -> showS
@@ -695,7 +695,7 @@ genInsn (CaseVec c cps)
 
         genVec = genOpcode    "leaq" [cvtMemAddr "1f", x86MovTmp]  .  || addr of base of table of codePtrs
                  genJmpOpcode "jmp"  (X86Idx x86MovTmp tag 4 0)    .  || index into it by scaling the tag value by 4 (because tag bit is already present)
-                 shows "\t.align\t3\n"                             .  || force alignment of table to prevent compiler warnings
+                 shows "\t.p2align\t3\n"                           .  || force alignment of table to prevent compiler warnings
                  shows "1:\n"                                      .  || generate inline table of codePtrs
                  foldr (.) id (map (genValue . Caddr) cps)
 

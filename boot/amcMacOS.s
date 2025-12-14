@@ -1,6 +1,6 @@
 
 	.text
-	.align	3
+	.p2align	3
 
 	.globl	GeneralApply
 GeneralApply:
@@ -1246,7 +1246,7 @@ ApplyToEnv15:
 	jmp	GeneralApply
 
 	.data
-	.align	3
+	.p2align	3
 
 	.globl	_ApplyToEnvFns
 _ApplyToEnvFns:
@@ -1268,7 +1268,7 @@ _ApplyToEnvFns:
 	.quad	ApplyToEnv15
 
 	.text
-	.align	3
+	.p2align	3
 
 OverApplyThunk1:
 	subq	$8, %rsp
@@ -1830,7 +1830,7 @@ ApplyArg15:
 	ret	
 
 	.text
-	.align	3
+	.p2align	3
 # builtin.<unpack>
 
 	.globl	co0
@@ -3303,7 +3303,7 @@ co90:
 # CaseVec Ref (Reg, 0) [91, 92, 93]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co91
 	.quad	co92
@@ -3419,7 +3419,7 @@ co97:
 # CaseVec Ref (Reg, 0) [148, 149, 150, 151, 152, 153]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co148
 	.quad	co149
@@ -3439,7 +3439,7 @@ co98:
 # CaseVec Ref (Reg, 0) [99, 100, 101, 102, 103, 104]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co99
 	.quad	co100
@@ -3524,7 +3524,7 @@ co105:
 # CaseVec Ref (Reg, 0) [108, 109, 110, 111, 112, 113]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co108
 	.quad	co109
@@ -3677,7 +3677,7 @@ co114:
 # CaseVec Ref (Reg, 0) [117, 118, 119, 120, 121, 122]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co117
 	.quad	co118
@@ -3830,7 +3830,7 @@ co123:
 # CaseVec Ref (Reg, 0) [126, 127, 128, 129, 130, 131]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co126
 	.quad	co127
@@ -3982,7 +3982,7 @@ co132:
 # CaseVec Ref (Reg, 0) [133, 134, 135, 136, 137, 138]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co133
 	.quad	co134
@@ -4067,7 +4067,7 @@ co139:
 # CaseVec Ref (Reg, 0) [142, 143, 144, 145, 146, 147]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co142
 	.quad	co143
@@ -6229,7 +6229,7 @@ co263:
 # CaseVec Ref (Reg, 0) [264, 265, 266, 267, 268, 269]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co264
 	.quad	co265
@@ -9874,7 +9874,7 @@ co468:
 # CaseVec Ref (Reg, 0) [473, 474, 475]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co473
 	.quad	co474
@@ -10133,7 +10133,7 @@ co483:
 # CaseVec Ref (Reg, 0) [489, 490, 491, 492, 493, 494]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co489
 	.quad	co490
@@ -14405,7 +14405,7 @@ co722:
 # CaseVec Ref (Reg, 0) [723, 724, 725]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co723
 	.quad	co724
@@ -15937,7 +15937,7 @@ co818:
 # CaseVec Ref (Reg, 0) [823, 824, 825]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co823
 	.quad	co824
@@ -18342,7 +18342,7 @@ co948:
 # CaseVec Ref (Reg, 0) [955, 956, 957]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co955
 	.quad	co956
@@ -22654,7 +22654,7 @@ co1219:
 # CaseVec Ref (Reg, 0) [1220, 1221, 1222]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co1220
 	.quad	co1221
@@ -30734,7 +30734,7 @@ co1638:
 # CaseVec Ref (Reg, 0) [1639, 1640, 1641, 1642, 1643, 1644]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co1639
 	.quad	co1640
@@ -30816,7 +30816,7 @@ co1646:
 # CaseVec Ref (Reg, 0) [1647, 1648, 1649, 1650, 1651, 1652]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co1647
 	.quad	co1648
@@ -43497,7 +43497,7 @@ co2292:
 # CaseVec Ref (Reg, 0) [2302, 2303, 2304]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co2302
 	.quad	co2303
@@ -47014,7 +47014,7 @@ co2445:
 # CaseVec Ref (Reg, 0) [2446, 2447, 2448, 2449, 2450, 2451]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co2446
 	.quad	co2447
@@ -49732,7 +49732,7 @@ co2587:
 # CaseVec Ref (Reg, 0) [2588, 2589, 2590]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co2588
 	.quad	co2589
@@ -82843,7 +82843,7 @@ co4188:
 # CaseVec Ref (Reg, 0) [4209, 4210, 4211, 4212, 4213, 4214]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co4209
 	.quad	co4210
@@ -84136,7 +84136,7 @@ co4246:
 # CaseVec Ref (Reg, 0) [4247, 4248, 4249, 4250]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co4247
 	.quad	co4248
@@ -88811,7 +88811,7 @@ co4477:
 # CaseVec Ref (Reg, 0) [4478, 4479, 4480]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co4478
 	.quad	co4479
@@ -89766,7 +89766,7 @@ co4530:
 # CaseVec Ref (Reg, 0) [4545, 4546, 4547, 4548]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co4545
 	.quad	co4546
@@ -92365,7 +92365,7 @@ co4655:
 # CaseVec Ref (Reg, 0) [4656, 4657, 4658, 4659, 4660, 4661]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co4656
 	.quad	co4657
@@ -96225,7 +96225,7 @@ co4813:
 # CaseVec Ref (Reg, 0) [4822, 4823, 4824]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co4822
 	.quad	co4823
@@ -104292,7 +104292,7 @@ co5183:
 # CaseVec Ref (Reg, 0) [5196, 5197, 5198, 5199, 5200, 5201]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5196
 	.quad	co5197
@@ -108457,7 +108457,7 @@ co5374:
 # CaseVec Ref (Reg, 0) [5387, 5388, 5389, 5390, 5391, 5392]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5387
 	.quad	co5388
@@ -111267,7 +111267,7 @@ co5498:
 # CaseVec Ref (Reg, 0) [5499, 5500, 5501, 5502, 5503, 5504]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5499
 	.quad	co5500
@@ -118069,7 +118069,7 @@ co5836:
 # CaseVec Ref (Reg, 0) [5837, 5838, 5839, 5840, 5841, 5842]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5837
 	.quad	co5838
@@ -118139,7 +118139,7 @@ co5844:
 # CaseVec Ref (Reg, 0) [5845, 5846, 5847, 5848, 5849, 5850]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5845
 	.quad	co5846
@@ -118576,7 +118576,7 @@ co5868:
 # CaseVec Ref (Reg, 0) [5869, 5870, 5871, 5872, 5873, 5874]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5869
 	.quad	co5870
@@ -119261,7 +119261,7 @@ co5906:
 # CaseVec Ref (Reg, 0) [5908, 5909, 5910, 5911, 5912, 5913]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5908
 	.quad	co5909
@@ -119594,7 +119594,7 @@ co5922:
 # CaseVec Ref (Reg, 0) [5923, 5924, 5925, 5926, 5927, 5928]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5923
 	.quad	co5924
@@ -119995,7 +119995,7 @@ co5945:
 # CaseVec Ref (Reg, 0) [5953, 5954, 5955, 5956, 5957, 5958]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co5953
 	.quad	co5954
@@ -132185,7 +132185,7 @@ co6532:
 # CaseVec Ref (Reg, 0) [6533, 6534, 6535]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co6533
 	.quad	co6534
@@ -141261,7 +141261,7 @@ co6965:
 # CaseVec Ref (Reg, 0) [7062, 7063, 7064, 7065]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co7062
 	.quad	co7063
@@ -157479,7 +157479,7 @@ co7684:
 # CaseVec Ref (Reg, 0) [7685, 7686, 7687, 7688, 7689, 7690]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co7685
 	.quad	co7686
@@ -158598,7 +158598,7 @@ co7733:
 # CaseVec Ref (Reg, 0) [7735, 7736, 7737, 7738, 7739, 7740]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co7735
 	.quad	co7736
@@ -159168,7 +159168,7 @@ co7762:
 # CaseVec Ref (Reg, 0) [7763, 7764, 7765, 7766, 7767, 7768]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co7763
 	.quad	co7764
@@ -160096,7 +160096,7 @@ co7809:
 # CaseVec Ref (Reg, 0) [7833, 7834, 7835, 7836]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co7833
 	.quad	co7834
@@ -175076,7 +175076,7 @@ co8473:
 # CaseVec Ref (Reg, 0) [8477, 8478, 8479]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co8477
 	.quad	co8478
@@ -193005,7 +193005,7 @@ co9400:
 # CaseVec Ref (Reg, 0) [9406, 9407, 9408, 9409]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9406
 	.quad	co9407
@@ -193507,7 +193507,7 @@ co9429:
 # CaseVec Ref (Reg, 0) [9430, 9431, 9432]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9430
 	.quad	co9431
@@ -193711,7 +193711,7 @@ co9442:
 # CaseVec Ref (Reg, 0) [9443, 9444, 9445]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9443
 	.quad	co9444
@@ -194135,7 +194135,7 @@ co9465:
 # CaseVec Ref (Reg, 0) [9467, 9468, 9469, 9470]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9467
 	.quad	co9468
@@ -194287,7 +194287,7 @@ co9475:
 # CaseVec Ref (Reg, 0) [9477, 9478, 9479, 9480]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9477
 	.quad	co9478
@@ -196156,7 +196156,7 @@ co9584:
 # CaseVec Ref (Reg, 0) [9589, 9590, 9591, 9592]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9589
 	.quad	co9590
@@ -196344,7 +196344,7 @@ co9595:
 # CaseVec Ref (Reg, 0) [9598, 9599, 9600]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9598
 	.quad	co9599
@@ -196490,7 +196490,7 @@ co9603:
 # CaseVec Ref (Reg, 0) [9605, 9606, 9607, 9608]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9605
 	.quad	co9606
@@ -196680,7 +196680,7 @@ co9615:
 # CaseVec Ref (Reg, 0) [9656, 9657, 9658, 9659]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9656
 	.quad	co9657
@@ -197593,7 +197593,7 @@ co9666:
 # CaseVec Ref (Reg, 0) [9668, 9669, 9670, 9671]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9668
 	.quad	co9669
@@ -197683,7 +197683,7 @@ co9673:
 # CaseVec Ref (Reg, 0) [9674, 9675, 9676, 9677]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9674
 	.quad	co9675
@@ -197737,7 +197737,7 @@ co9679:
 # CaseVec Ref (Reg, 0) [9680, 9681, 9682, 9683]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9680
 	.quad	co9681
@@ -199182,7 +199182,7 @@ co9757:
 # CaseVec Ref (Reg, 0) [9758, 9759, 9760]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9758
 	.quad	co9759
@@ -199242,7 +199242,7 @@ co9762:
 # CaseVec Ref (Reg, 0) [9763, 9764, 9765, 9766]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9763
 	.quad	co9764
@@ -199589,7 +199589,7 @@ co9782:
 # CaseVec Ref (Reg, 0) [9786, 9787, 9788, 9789]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9786
 	.quad	co9787
@@ -202003,7 +202003,7 @@ co9906:
 # CaseVec Ref (Reg, 0) [9907, 9908, 9909, 9910]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9907
 	.quad	co9908
@@ -202188,7 +202188,7 @@ co9920:
 # CaseVec Ref (Reg, 0) [9927, 9928, 9929]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9927
 	.quad	co9928
@@ -202843,7 +202843,7 @@ co9952:
 # CaseVec Ref (Reg, 0) [9962, 9963, 9964]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co9962
 	.quad	co9963
@@ -203779,7 +203779,7 @@ co10005:
 # CaseVec Ref (Reg, 0) [10018, 10019, 10020]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10018
 	.quad	co10019
@@ -203795,7 +203795,7 @@ co10006:
 # CaseVec Ref (Reg, 0) [10007, 10008, 10009]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10007
 	.quad	co10008
@@ -203839,7 +203839,7 @@ co10010:
 # CaseVec Ref (Reg, 0) [10011, 10012, 10013]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10011
 	.quad	co10012
@@ -203883,7 +203883,7 @@ co10014:
 # CaseVec Ref (Reg, 0) [10015, 10016, 10017]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10015
 	.quad	co10016
@@ -204604,7 +204604,7 @@ co10056:
 # CaseVec Ref (Reg, 0) [10088, 10089, 10090, 10091]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10088
 	.quad	co10089
@@ -204621,7 +204621,7 @@ co10057:
 # CaseVec Ref (Reg, 0) [10058, 10059, 10060, 10061]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10058
 	.quad	co10059
@@ -204673,7 +204673,7 @@ co10062:
 # CaseVec Ref (Reg, 0) [10063, 10064, 10065, 10066]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10063
 	.quad	co10064
@@ -204727,7 +204727,7 @@ co10067:
 # CaseVec Ref (Reg, 0) [10073, 10074, 10075, 10076]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10073
 	.quad	co10074
@@ -204929,7 +204929,7 @@ co10077:
 # CaseVec Ref (Reg, 0) [10084, 10085, 10086, 10087]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10084
 	.quad	co10085
@@ -206947,7 +206947,7 @@ co10171:
 # CaseVec Ref (Reg, 0) [10190, 10191, 10192]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10190
 	.quad	co10191
@@ -209546,7 +209546,7 @@ co10301:
 # CaseVec Ref (Reg, 0) [10308, 10309, 10310]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10308
 	.quad	co10309
@@ -210760,7 +210760,7 @@ co10362:
 # CaseVec Ref (Reg, 0) [10363, 10364, 10365, 10366]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10363
 	.quad	co10364
@@ -210867,7 +210867,7 @@ co10371:
 # CaseVec Ref (Reg, 0) [10373, 10374, 10375, 10376]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10373
 	.quad	co10374
@@ -221078,7 +221078,7 @@ co10845:
 # CaseVec Ref (Reg, 0) [10856, 10857, 10858, 10859]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10856
 	.quad	co10857
@@ -222757,7 +222757,7 @@ co10926:
 # CaseVec Ref (Reg, 0) [10936, 10937, 10938, 10939]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10936
 	.quad	co10937
@@ -223338,7 +223338,7 @@ co10960:
 # CaseVec Ref (Reg, 0) [10967, 10968, 10969]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co10967
 	.quad	co10968
@@ -224884,7 +224884,7 @@ co11043:
 # CaseVec Ref (Reg, 0) [11050, 11051, 11052]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11050
 	.quad	co11051
@@ -225291,7 +225291,7 @@ co11066:
 # CaseVec Ref (Reg, 0) [11073, 11074, 11075]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11073
 	.quad	co11074
@@ -227083,7 +227083,7 @@ co11168:
 # CaseVec Ref (Reg, 0) [11169, 11170, 11171, 11172]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11169
 	.quad	co11170
@@ -227234,7 +227234,7 @@ co11177:
 # CaseVec Ref (Reg, 0) [11178, 11179, 11180, 11181]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11178
 	.quad	co11179
@@ -227945,7 +227945,7 @@ co11225:
 # CaseVec Ref (Reg, 0) [11268, 11269, 11270]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11268
 	.quad	co11269
@@ -231934,7 +231934,7 @@ co11470:
 # CaseVec Ref (Reg, 0) [11477, 11478, 11479]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11477
 	.quad	co11478
@@ -232728,7 +232728,7 @@ co11512:
 # CaseVec Ref (Reg, 0) [11525, 11526, 11527]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11525
 	.quad	co11526
@@ -233869,7 +233869,7 @@ co11572:
 # CaseVec Ref (Reg, 0) [11592, 11593, 11594]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11592
 	.quad	co11593
@@ -233901,7 +233901,7 @@ co11574:
 # CaseVec Ref (Reg, 0) [11587, 11588, 11589]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11587
 	.quad	co11588
@@ -236167,7 +236167,7 @@ co11719:
 # CaseVec Ref (Reg, 0) [11732, 11733, 11734]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11732
 	.quad	co11733
@@ -237950,7 +237950,7 @@ co11831:
 # CaseVec Ref (Reg, 0) [11842, 11843, 11844]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11842
 	.quad	co11843
@@ -239214,7 +239214,7 @@ co11891:
 # CaseVec Ref (Reg, 0) [11930, 11931, 11932]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11930
 	.quad	co11931
@@ -240158,7 +240158,7 @@ co11936:
 # CaseVec Ref (Reg, 0) [11949, 11950, 11951, 11952]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co11949
 	.quad	co11950
@@ -244408,7 +244408,7 @@ co12002:
 # CaseVec Ref (Reg, 0) [12037, 12038, 12039, 12040]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co12037
 	.quad	co12038
@@ -246216,7 +246216,7 @@ co12101:
 # CaseVec Ref (Reg, 0) [12102, 12103, 12104, 12105, 12106, 12107]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co12102
 	.quad	co12103
@@ -257820,7 +257820,7 @@ co12652:
 # CaseVec Ref (Reg, 0) [12658, 12659, 12660, 12661, 12662, 12663]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co12658
 	.quad	co12659
@@ -269918,7 +269918,7 @@ co13235:
 # CaseVec Ref (Reg, 0) [13240, 13241, 13242]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co13240
 	.quad	co13241
@@ -271831,7 +271831,7 @@ co13325:
 # CaseVec Ref (Reg, 0) [13326, 13327, 13328, 13329]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co13326
 	.quad	co13327
@@ -273222,7 +273222,7 @@ co13397:
 # CaseVec Ref (Reg, 0) [13445, 13446, 13447, 13448]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co13445
 	.quad	co13446
@@ -277601,7 +277601,7 @@ co13603:
 # CaseVec Ref (Reg, 0) [13634, 13635, 13636, 13637]
 	leaq	1f(%rip), %rbx
 	jmp	*(%rbx, %rax, 4)
-	.align	3
+	.p2align	3
 1:
 	.quad	co13634
 	.quad	co13635
@@ -288687,7 +288687,7 @@ co14131:
 
 
 	.data
-	.align	3
+	.p2align	3
 
 	.globl	_GlobalBase
 _GlobalBase:
@@ -300463,9 +300463,9 @@ ho6632:
 	.quad	0
 
 ho6635:
-	.quad	42949804037
-	.ascii	"\t.align\t3\n"
-	.byte	0, 0, 0, 0, 0, 0
+	.quad	51539738629
+	.ascii	"\t.p2align\t3\n"
+	.byte	0, 0, 0, 0
 
 ho6638:
 	.quad	65537
@@ -300938,9 +300938,9 @@ ho6890:
 	.quad	0
 
 ho6893:
-	.quad	47244771333
-	.ascii	"\n\t.align\t3\n"
-	.byte	0, 0, 0, 0, 0
+	.quad	55834705925
+	.ascii	"\n\t.p2align\t3\n"
+	.byte	0, 0, 0
 
 ho6896:
 	.quad	256
