@@ -292,7 +292,7 @@ showint n = showintBase 10 "" n
 (I# a#) >  (I# b#) = case a# $cmp# b# of 2# -> True;  _ -> False
 (I# a#) >= (I# b#) = case a# $cmp# b# of 1# -> False; _ -> True
 
-|| arithmetic operations on word#
+|| arithmetic operations on int
 (+), (-), (*) :: int -> int -> int
 (I# a#) + (I# b#)  = case a# +# b# of w# -> I# w#
 (I# a#) - (I# b#)  = case a# -# b# of w# -> I# w#
@@ -327,7 +327,7 @@ a $mod  b = case divmod  a b of (_, r) -> r
 subtract :: int -> int -> int
 subtract b = \a -> a - b
 
-|| bit-wise operations on word#
+|| bit-wise operations on int
 (.&.), (.|.), (.^.),(.<<.), (.>>.) :: int -> int -> int
 (I# a#) .&.  (I# b#) = case a# $band# b# of w# -> I# w#
 (I# a#) .|.  (I# b#) = case a# $bor#  b# of w# -> I# w#

@@ -65,7 +65,7 @@ getCost cmp k m = m_findWithDefault cmp maxCost k m
 
 || add the movesfrom src to dsts, updating mstate
 addMoves :: rstate * ** -> mstate * ** -> * -> [*] -> mstate * **
-addMoves (cmp, cmpo, gf, xf, cf, ef) ms src dsts
+addMoves (cmp, cmpo, _, _, cf, ef) ms src dsts
     = foldl go ms dsts
       where
         srcCost = view ms_gs ms |> getCost cmp src
@@ -84,17 +84,17 @@ addMoves (cmp, cmpo, gf, xf, cf, ef) ms src dsts
                 os'      = s_delete cmpo (prevEst, dst) os, if update & prevEst < maxCost
                          = os,                              otherwise
 
-                ms'      = set ms_os (s_insert cmpo (estCost, dst) os') .      || add dst to open set
-                           over ms_gs (m_insert cmp dst cost)           .      || add new best cost for dst
-                           over ms_fs (m_insert cmp dst estCost)        .      || add new best estimate of final cost for dst
-                           over ms_pm (m_insert cmp dst src)            $ ms   || add new best path step
+                ms'      = set  ms_os (s_insert cmpo (estCost, dst) os') .     || add dst to open set
+                           over ms_gs (m_insert cmp dst cost)            .     || add new best cost for dst
+                           over ms_fs (m_insert cmp dst estCost)         .     || add new best estimate of final cost for dst
+                           over ms_pm (m_insert cmp dst src)             $ ms  || add new best path step
 
 solve :: rstate * ** -> mstate * ** -> ([*], mstate * **)
 solve rs ms
     = go ms
       where
-        gf = view rs_gf  rs
-        xf = view rs_xf  rs
+        gf = view rs_gf rs
+        xf = view rs_xf rs
 
         go ms = case view ms_os ms |> s_viewMin of
                   Nothing -> ([], ms)

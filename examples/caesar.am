@@ -1,12 +1,10 @@
-|| Caesar cipher demo of encoding a string and cracking an encoded string
-
+|| caesar.am -- Caesar cipher demo of encoding a string and cracking an encoded string
 
 %import <base>
 %import <io>
 %import <fix16>
 %import <state>         (>>)/st_right
 %import <vector>
-
 
 || encode a string by substituting a rotated alphabet
 encode :: int -> string -> string
@@ -45,7 +43,7 @@ freqs s
                 where
                   ins c
                       = v_unsafeModify mv (+1) i, if 0 <= i <= 25
-                      = st_pure (      ),         otherwise
+                      = st_pure (),               otherwise
                         where
                           i = code c - code 'a'
 
