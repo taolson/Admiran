@@ -171,7 +171,7 @@ p_rangeBy
 p_rangeExpr :: parser expr
 p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
 
-|| parse an expression term 
+|| parse an expression term
 p_term :: parser expr
 p_term
     = (Evar <$> p_varOrConstructor) <|>
@@ -209,7 +209,7 @@ exprOrNegLit e = e
 ||
 || parse a term (with an optional prefix op) and push it on the expr stack
 ||
-|| NOTE: this might also be used for parsing type expressions, if the Eap and Evar and ap2 used in 
+|| NOTE: this might also be used for parsing type expressions, if the Eap and Evar and ap2 used in
 || p_expAp and reductions are parameterized so that they could be substituted by Tap / Tarr  and Tname
 || would also have to change signatures to refer to (ast *) instead of expr
 || at that point, it would be best to gather all the parameterized functions into an p_expInfo structure
@@ -582,7 +582,7 @@ p_sig :: parser [defn]
 p_sig = (map fst . concat) <$> (p_some p_spec)
 
 || parse a type definition
-|| only used at the top-level, so only return the module insertion function 
+|| only used at the top-level, so only return the module insertion function
 || Note: since we allow definition of infix operators, a type synonym
 ||       can be ambiguously parsed as an infix operator (==) definition, so if there
 ||       is an error in parsing a type synonym, it would be tried as an infix operator
@@ -591,7 +591,7 @@ p_sig = (map fst . concat) <$> (p_some p_spec)
 p_tdef :: parser modInserter
 p_tdef
     = p_liftA3 mkSyn  p_getLoc (p_tform <* p_eqeq)      (p_inLayout p_type <|> p_expected "a type synonym")          <|>
-      p_liftA3 mkData p_getLoc (p_tform <* p_sym "::=") (p_inLayout p_constructs <|> p_expected "a data definition") <|> 
+      p_liftA3 mkData p_getLoc (p_tform <* p_sym "::=") (p_inLayout p_constructs <|> p_expected "a data definition") <|>
       p_liftA3 mkAbs  p_getLoc (p_ident "abstype" *> p_tform) (p_ident "with" *> p_inLayout p_sig)
       where
         mkSyn  loc tf  t    = modInsDef  (DefSyn  tf  t                  (locAnno loc))

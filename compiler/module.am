@@ -55,7 +55,7 @@ libAlias ::=
     Alias       name name |
     AliasRemove name
 
-|| binding of %free variables or types 
+|| binding of %free variables or types
 libBinding ::=
     BindVar  name expr  |
     BindType name texpr
@@ -79,7 +79,7 @@ buildStatus ::= Unbuilt | Built | Serialized
 module ::=
     Module
         fileSpec                   || module file
-        buildStatus                
+        buildStatus
         (either [libPart] nameMap) || exports, initially a list of libParts, eventually reified into a nameMap
         [libEnv]                   || imports
         defnMap                    || top-level definitions (functions, simple patterns, data types, and type synonyms, all in the same namespace)
@@ -150,7 +150,7 @@ modExportMap
         err = error "modExportMap: exports not a map"
 
         getf (Module fs bs (Right exs) ins defs pats specs env) = exs
-        getf _ = err                                                     
+        getf _ = err
 
         overf fn (Module fs bs (Right exs) ins defs pats specs env) = Module fs bs (Right (fn exs)) ins defs pats specs env
         overf fn _ = err
@@ -309,7 +309,7 @@ makeStrictCtor n tag cts an
         (_, vs )  = genNames "var" 0 cts        || generate names for the constructor vars
         pvs       = map Pvar vs
         evs       = map Evar vs
-        d         = DefFn sc [] (builtinPack n tag (#cts)) an  || note: nullary DefFn instead of DefPat
+        d         = DefFn sc [] (builtinPack n tag (#cts)) an  || note: nullary DefFn instead of DefPat; arity from builtinPack
 
         mkStrict (e, t) k
             = (Ecase Csingle e [CaseAlt Pwildcard k]), if isStrict t
@@ -330,7 +330,7 @@ modInsData d m
                 t      = foldr Tarr dt $ map unStrict cts
                 spec   = DefSpec (Tname n []) t an
                 fn     = makeStrictCtor n tag cts an,              if any isStrict cts
-                       = DefFn n [] (builtinPack n tag (#cts)) an, otherwise    || note: nullary DefFn instead of DefPat
+                       = DefFn n [] (builtinPack n tag (#cts)) an, otherwise    || note: nullary DefFn instead of DefPat; arity from builtinPack
         insFn m _      = undef  || added to remove compiler warning
 
 || insert a type specification

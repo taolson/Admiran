@@ -24,7 +24,7 @@ showsExceptionType Error = shows "error "
 || indentifying information for each exception
 exceptionInfo ::=
     AmbiguousName  [name]            |       || ambiguous name reference
-    Arity                            |       || arity mismatch in arguments for function or type 
+    Arity                            |       || arity mismatch in arguments for function or type
     BadCtor        name  name        |       || constructor is not a member of the data defn
     BadPattern     pat               |       || pattern is not a constructor or variable
     CtorArity      name              |       || constructor used with wrong arity in formal

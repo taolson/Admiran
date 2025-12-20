@@ -52,7 +52,7 @@ addDsErr :: exceptionInfo -> dsSt -> dsSt
 addDsErr ei st = over dsErrs ((Error, ei, view dsLoc st) :) st
 
 
-|| an equation is a tuple of unmatched patterns, a final expression, and a rename map 
+|| an equation is a tuple of unmatched patterns, a final expression, and a rename map
 equation == ([pat], expr, nameMap)
 
 equationPats :: equation -> [pat]
@@ -75,7 +75,7 @@ match [] eqns st
         loc                    = fromMaybe emptyLocation . view dsLocation $ st
         rhss                   = map addRenames eqns
         addRenames (x, rhs, m) = rhs,                                            if m_null m
-                               = Elet True m_empty (map mkPat (m_toList m)) rhs, otherwise      || introduce a new Let binding to rename the vars 
+                               = Elet True m_empty (map mkPat (m_toList m)) rhs, otherwise      || introduce a new Let binding to rename the vars
         mkPat (k, v)           = DefPat (Pvar k) (Evar v) (locAnno loc)
 
 match (var : vars) eqns st
@@ -188,7 +188,7 @@ matchCtor var vars peqns st
                                                        (rest, st') = partitionByCtorName sel cns p2 st
 
 
-|| a ctorEqn is a ctor name, its pattern vars, and an expression 
+|| a ctorEqn is a ctor name, its pattern vars, and an expression
 ctorEqn == (name, [pat], expr)
 
 || algorithm for desugaring (possibly complex) pattern definitions
@@ -327,7 +327,7 @@ desugarAst k (ElistComp e quals an) st
 
         || desugar a multiple-pattern generator e.g. x, y <- zs;
         dsGenMult ge ps c gen nextQual
-            = (Elet True (m_singleton n (DefPat (Pvar n) ge an)) [] e, st')           
+            = (Elet True (m_singleton n (DefPat (Pvar n) ge an)) [] e, st')
               where
                 (gen', n) = genName "lst" $ view dsGen st               || define a common variable n for the generator ge to use on multiple quals
                 (e, st')  = go ps c $ set dsGen gen' st                 || generate for each pattern in a qualifier
@@ -415,7 +415,7 @@ desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
         numPatVars            = #ns
         singlePatVar          = numPatVars == 1
 
-        cn                    = c,                                                                  if simpleCtor                              
+        cn                    = c,                                                                  if simpleCtor
                               = builtinTupleName numPatVars,                                        otherwise
 
         patMatch              = Eap (builtinSel c 0) caseTree,                                      if simpleCtor & singlePatVar & useSel

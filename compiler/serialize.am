@@ -24,7 +24,7 @@ deserializer * == state string *
 
 || used to encode positive numbers < 96, e.g. ctor encodings
 serialCtor :: serializer int
-serialCtor n = (decode (n + 32) :) 
+serialCtor n = (decode (n + 32) :)
 
 deserialCtor :: deserializer int
 deserialCtor []       = error "deserialCtor: []"
@@ -163,7 +163,7 @@ serialCaseSel Cpriority = serialCtor 2
 serialCaseSel Cvectored = serialCtor 3
 
 deserialCaseSel :: deserializer caseSel
-deserialCaseSel 
+deserialCaseSel
     = ctor <$> deserialCtor
       where
         ctor 0 = Cnone
@@ -177,7 +177,7 @@ serialMultSel Mfun = serialCtor 0
 serialMultSel Mpat = serialCtor 1
 
 deserialMultSel :: deserializer multSel
-deserialMultSel 
+deserialMultSel
     = ctor <$> deserialCtor
       where
         ctor 0 = Mfun
@@ -358,7 +358,7 @@ serialLibPart :: serializer libPart
 serialLibPart (LibIdent n l)  = serialCtor 0 . serialName n     . serialLoc l
 serialLibPart (LibRemove n l) = serialCtor 1 . serialName n     . serialLoc l
 serialLibPart (LibFile f l)   = serialCtor 2 . serialFileSpec f . serialLoc l
-serialLibPart (LibAll l)      = serialCtor 3 . serialLoc l              
+serialLibPart (LibAll l)      = serialCtor 3 . serialLoc l
 
 deserialLibPart :: deserializer libPart
 deserialLibPart

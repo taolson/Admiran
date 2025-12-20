@@ -72,7 +72,7 @@ ast ::=
         Tarr        texpr   texpr              |       || arrow (function type) e.g. int -> char
         Tstrict     texpr                      |       || strict form, used in constructor arguments
 
-        || defn                           
+        || defn
         DefFn       name    [pat]  expr  anno  |       || name, vars, rhs
         DefMult     multSel [defn]             |       || grouping for multiple DefFns of the same name or a DefPat and its accessors
         DefPat      pat     expr         anno  |       || pattern to match, rhs
@@ -327,7 +327,7 @@ showsAstPrec d a
         go a = error $ "unhandled ast in showsprec: " ++ showast a
 
 showsOpPrec :: int -> name -> expr -> expr -> showS
-showsOpPrec d op e1 e2 
+showsOpPrec d op e1 e2
     = showsInParensIf (d > prec) s
       where
         s              = showsAstPrec precL e1 . shows (" " ++ showName op ++ " ") . showsAstPrec precR e2

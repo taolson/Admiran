@@ -109,7 +109,7 @@ p_headerInsn :: parser insn
 p_headerInsn
     = (Comment <$> p_comment) <|>
       (p_liftA2 Pseudo (p_spaces' >> p_pseudo isGlobl) (p_spaces' >> p_restOfLine))
-           
+
 p_header :: parser [insn]
 p_header = p_many (p_many p_nl >> p_headerInsn)
 

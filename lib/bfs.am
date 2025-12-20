@@ -40,7 +40,7 @@ bfsSolve cmp start gf xf xs
                 (adj, xs')    = xf (v, xs)
                 (adj', cs')   = foldl addMove ([], cs) adj
                 pm'           = foldl addPath pm adj'
-                addPath pm v' = m_insert cmp v' v pm 
+                addPath pm v' = m_insert cmp v' v pm
 
                 addMove (adj, cs) v'
                     = (adj, cs),   if s_member cmp v' cs

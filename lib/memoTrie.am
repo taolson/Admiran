@@ -86,7 +86,7 @@ memofix mf f
 ||         fib' f n
 ||             = n,                     if n < 2
 ||             = f (n - 1) + f (n - 2), otherwise
-|| 
+||
 || %import <io>
 || main :: io ()
 || main = fib 80 |> showint |> putStrLn

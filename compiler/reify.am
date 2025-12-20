@@ -32,7 +32,7 @@ reifyImports genv
                 loci = locOnlyInfo loc
                 env  = view modEnv m
 
-                updateModEnv e = set modEnv e m 
+                updateModEnv e = set modEnv e m
                 getExports     = lookupExportMap loci genv fs
                 doAliases ienv = ex_foldM aliasNameMap ienv aliases
                 doMerge        = mergeEnvironments loci qual as env
@@ -67,7 +67,7 @@ reifyExports genv
         exps = view modExportParts m
         env  = view modEnv m
 
-        updateGenv m       = set genvMod m genv 
+        updateGenv m       = set genvMod m genv
         updateExportMap nm = setModExportMap nm m
 
         doExports []   = doExports [LibAll (initLocation mn)]           || default is to export everything

@@ -112,7 +112,7 @@ buildModule mm n
             , reifyDefns notData          || reify all the desugared fn and pat definitions
             , rename                      || qualify or uniquely rename as Internal all Unqualified names
             , analyze                     || free var analysis for rewrite
-            , rewrite                     || organize Elets for typecheck, cleanup and general optimizations   
+            , rewrite                     || organize Elets for typecheck, cleanup and general optimizations
             , analyzeWarn                 || re-do free var analysis after rewrite and check for unused variables and non-exhaustive patterns
             , reifySyns                   || expand type synonyms to base types, checking for cycles
             , reifyTypes                  || expand specs and dataDefs with expanded type synonyms

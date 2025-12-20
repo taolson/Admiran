@@ -26,7 +26,7 @@ token ::=
     Tident     name     |       || identifier
     Tsymbol    name     |       || symbol (binary operator)
     TlitInt    int      |       || literal integer
-    TlitChar   char     |       || literal character e.g. 'x' 
+    TlitChar   char     |       || literal character e.g. 'x'
     TlitString string   |       || literal string e.g. "this is a test"
     TprimInt   int      |       || primitive int literal (int#)
     TprimChar  char     |       || primitive char literal (char#)

@@ -50,7 +50,7 @@ unresolveName (Qualified m n) = Unresolved m n
 unresolveName n               = n
 
 
-|| testing 
+|| testing
 
 isUnqualified, isUnresolved, isQualified, isPrivate, isBuiltin, isInternal, isBuiltinTuple :: name -> bool
 isUnqualified (Unqualified n) = True

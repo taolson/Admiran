@@ -92,7 +92,7 @@ renameAst k (Elet rec defs ps e) st
         isRenamePat _                                    = False
 
         mkDep (n, (DefPat (Pvar n1) (Evar n2) an)) = (n1, [n2])
-        mkDep _ = undef || added to remove compiler warning                                    
+        mkDep _ = undef || added to remove compiler warning
 
         || handle renamePats by installing the mapping from n1 -> n2 in the rename map
         renamePat st n1
@@ -190,7 +190,7 @@ renameDef n st
         (gen', n') = genName s' . view rnGen $ st
         st'        = addRnEnv n n' . set rnGen gen' $ st
 
-|| check for unbound tvarReferences in a texpr 
+|| check for unbound tvarReferences in a texpr
 tvarRef :: astRewriteTraverser rnSt
 tvarRef k (Tvar n) st
     = (Tvar n, st')

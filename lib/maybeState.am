@@ -2,7 +2,7 @@
 ||
 || Note: the strictness of this implementation somewhat relies upon the inlining optimizations
 || in the compiler (e.g. inlining mst_runState, mst_bind, etc.) If this is compiled with inlining
-|| disabled, then extra thunks are created which may cause space leaks 
+|| disabled, then extra thunks are created which may cause space leaks
 
 
 %export + mst_runState mst_evalState mst_execState

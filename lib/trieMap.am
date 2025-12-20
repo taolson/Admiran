@@ -20,9 +20,9 @@
 
 
 || a trieBranch holds a prefix key and its associated sub-trie
-trieBranch * ** == ([*], trie * **)     
+trieBranch * ** == ([*], trie * **)
 
-|| result of matching a key with a trieBranch 
+|| result of matching a key with a trieBranch
 matchResult * ** ::=
     Mfail                               |
     Mkey  (trie * **) [*] [*]           |  || match full prefix -- t, remaining key, prefix

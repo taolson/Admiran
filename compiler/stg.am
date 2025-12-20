@@ -602,7 +602,7 @@ buildCodeCallBuiltin n args dsts
         || operations on packed byte streams
         go "allocByteStream#" = opDZS AllocStream
         go "allocFileStream#" = opDSS AllocStream       || a FileStream uses the same Hstream obj as a ByteStream, only with the fd field specified
-        go "readByteStream#"  = opDS  ReadStream 
+        go "readByteStream#"  = opDS  ReadStream
         go "writeByteStream#" = opDSS WriteStream
 
         || operations on arrays
@@ -651,7 +651,7 @@ buildCodeCall fe args
                 checkInfo Nothing                      = mkGeneral
                 checkInfo (Just (cp, arity, ef, isFn)) = mkDirect Nothing cp arity ef isFn
 
-                || use the known heapObj info 
+                || use the known heapObj info
                 checkHobj hp (Hfun cp arity, env) = mkDirect (Just hp) cp arity (null env) True
                 checkHobj hp (Hthunk cp, env)     = mkDirect (Just hp) cp 0     (null env) False
                 checkHobj hp hObj                 = mkGeneral
@@ -956,9 +956,9 @@ makeStart n genv
         || world type and World token used by io to sequence io actions
         tWorld     = Tname (Qualified "io" "world") []
         worldName  = Qualified "io" "World"
-        world      = Evar worldName 
+        world      = Evar worldName
 
-        || must be "io ()" or its equivalent type expansion "World -> ((), World)"        
+        || must be "io ()" or its equivalent type expansion "World -> ((), World)"
         ioWorldSpec t
             = _eq cmptexpr t (Tname (Qualified "io" "io") [builtinTypeUnit]) \/
               _eq cmptexpr t (Tarr tWorld (Ttuple [builtinTypeUnit, tWorld]))

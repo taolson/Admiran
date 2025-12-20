@@ -154,7 +154,7 @@ astRewriteMap t AVLLeaf = st_pure AVLLeaf
 astRewriteMap t (AVLNode (k, v) l r h)
     = st_liftA3 mkNode (t v) (astRewriteMap t l) (astRewriteMap t r)
       where
-        mkNode v l r = AVLNode (k, v) l r h              
+        mkNode v l r = AVLNode (k, v) l r h
 
 || wrap a defnMap and pat list in an Elet to allow easy traversal of both, unwrapping when done
 astRewriteInLet :: astRewriter * -> defnMap -> [defn] -> state * (defnMap, [defn])

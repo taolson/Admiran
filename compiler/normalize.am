@@ -90,15 +90,15 @@ normalizeAst k (Ecall f args) st
         noArityNorm             = isNothing mfArity \/ fArity == 0 \/ fArity == argsArity
 
         || over-applied function
-        (args1, args2)          = splitAt fArity argsSimp               || split args into two calls
-        (overF, st2)            = normalizeExpr (Ecall fSimp args1) st1 || normalize the first call as the simplified fn for the second call
+        (args1, args2) = splitAt fArity argsSimp                || split args into two calls
+        (overF, st2)   = normalizeExpr (Ecall fSimp args1) st1  || normalize the first call as the simplified fn for the second call
 
         || under-applied function
-        gen               = view nmGen st1
-        (gen1, ns)        = genNames "var" gen [1 .. fArity - argsArity]        || generate partial application function variable names
-        (gen2, pap)       = genName "`pap" gen1                                 || generate function name
-        d                 = DefFn pap (map Pvar ns) (Ecall fSimp (argsSimp ++ map Evar ns)) $ mkAnno st1
-        st3               = set nmGen gen2 . over nmThunks (d :) $ st1
+        gen         = view nmGen st1
+        (gen1, ns)  = genNames "var" gen [1 .. fArity - argsArity]      || generate partial application function variable names
+        (gen2, pap) = genName "`pap" gen1                               || generate function name
+        d           = DefFn pap (map Pvar ns) (Ecall fSimp (argsSimp ++ map Evar ns)) $ mkAnno st1
+        st3         = set nmGen gen2 . over nmThunks (d :) $ st1
 
         || create a new thunk defn for any complex expr
         normalizeExpr e st
@@ -130,27 +130,11 @@ normalizeAst k a st
         getDefns (Elet _ defs _ _) = defs
         getDefns a                 = m_empty
 
-        update (DefFn n vars e an) st
-            = (DefFn n vars e' an, st')
-              where
-                (e', st') = wrapLets e st
-
-        update (DefPat p e an) st
-            = (DefPat p e' an, st')
-              where
-                (e', st') = wrapLets e st
-
-        update (Elet rec defs ps e) st
-            = (Elet rec defs ps e', st')
-              where (e', st') = wrapLets e st
-
-        update (CaseAlt p e) st
-            = (CaseAlt p e', st')
-              where
-                (e', st') = wrapLets e st
-
-        update a st
-            = (a, set nmThunks inThunks st)
+        update (DefFn n vars e an)  st = case wrapLets e st of (e', st') -> (DefFn n vars e' an, st')
+        update (DefPat p e an)      st = case wrapLets e st of (e', st') -> (DefPat p e' an, st')
+        update (Elet rec defs ps e) st = case wrapLets e st of (e', st') -> (Elet rec defs ps e', st')
+        update (CaseAlt p e)        st = case wrapLets e st of (e', st') -> (CaseAlt p e', st')
+        update a                    st = (a, set nmThunks inThunks st)
 
         wrapLets a st
             = (foldl wrapLet a (view nmThunks st), set nmThunks inThunks st)
@@ -160,10 +144,9 @@ normalizeAst k a st
                 isEager e                     = False
 
                 wrapLet a (DefPat p e an)
-                    = Ecase Csingle e [CaseAlt p a],                if ~bs_null (view anStrict an) \/ useEagerCtors & isEager e
+                    = Ecase Csingle e [CaseAlt p a], if ~bs_null (view anStrict an) \/ useEagerCtors & isEager e
 
-                wrapLet a d
-                    = Elet False (m_singleton (defnName d) d) [] a, otherwise
+                wrapLet a d = Elet False (m_singleton (defnName d) d) [] a
 
 
 || normalize all the defns in a module

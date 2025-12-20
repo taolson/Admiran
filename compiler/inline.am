@@ -340,7 +340,7 @@ inlineAst k (Ecase b (Evar n) alts) st
         || note: restriction on Internal only gives best overall results
         inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
 
-        || Conservative inlining doesn't inline complex vars        
+        || Conservative inlining doesn't inline complex vars
 ||        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & isSimple e & cpx <= inlineMaxFnComplexity
         (md, cf)     = lookupEnv n st
         d            = fromJust md

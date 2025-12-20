@@ -40,7 +40,7 @@
 ||
 || heapPtr values stored in Args or Regs registers, or the env of a closure must be tagged with the lsb set to 1.  The base
 || values stored in Env and Frm registers are also tagged.  Immediate heapPtr values are not tagged, because they only exist
-|| in code objs, and point to global closures which are not moved during garbage collection.  Any time an effective 
+|| in code objs, and point to global closures which are not moved during garbage collection.  Any time an effective
 || heap address is calulated using an offset from the Frm, an implicit '1' bit should be added.  And every time a pointer to
 || a closure is dereferenced (to get its tag, cp, or env values), the tag bit should be counteracted with an explicit offset
 || of (-1).  Tagging should occur when a Frm operand is generated, or when an immediate heapPtr is used as an operand.
@@ -106,23 +106,12 @@ genCGlobal lbl
     = shows "\n\t.globl\t" . shows codegenCsymbolPrefix . shows lbl . shows "\n" .
       shows codegenCsymbolPrefix . shows lbl . shows ":\n"
 
-|| generate padding after a string to align to the next 8-byte quadword
-|| if the string is empty, generate 8 bytes of padding to allow for a minimum of 1 quadword of space
-genPad :: string -> showS
-genPad s
-    = id,              if len > 0 & extra == 0  || no padding if we are on an 8-byte boundary of a non-empty string
-    = pad (8 - extra), otherwise
-      where
-        len   = #s
-        extra = len $rem 8
-        pad n = shows "\t.byte\t" . showsCommaList showsint (rep n 0) . shows "\n"
-
 genQuad :: showS -> showS
 genQuad f = shows "\t.quad\t" . f . shows "\n"
 
 genAscii :: string -> showS
 genAscii s
-    = id,                                             if #s == 0 
+    = id,                                             if #s == 0
     = shows "\t.ascii\t" . genCString s . shows "\n", otherwise
 
 genCodeLabel :: codePtr -> showS
@@ -265,9 +254,6 @@ cvtMemCodePtr cp = cvtMemAddr (genCodeLabel cp "")
 
 cvtHeapPtr :: heapPtr -> x86Opr
 cvtHeapPtr hp = cvtMemAddr (genHeapLabel hp "")
-
-cvtIndexAddr :: ref -> ref -> int -> int -> x86Opr
-cvtIndexAddr b i s n = X86Idx (cvtRef b) (cvtRef i) s n
 
 || convert an Arg reference to an x86Opr
 cvtArgState, cvtArg :: int -> x86Opr
@@ -433,7 +419,7 @@ genQuotRem d a (Imm (Word b))
       genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
       genOpcode "idivq" [dr]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
       where
-        dr = cvtRef d  
+        dr = cvtRef d
 
 genQuotRem d a b
     = genMove d b                                  .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
@@ -456,7 +442,7 @@ genWriteBarrier upd
       genJmpOpcode "jl"    (cvtJmpAddr "0f")                       .    || still space; proceed
       genOpcode    "movq"  [X86Imm 0, cvtCMemAddr "gcRequestSize"] .    || set request size of 0 for GC (since this is for roots rather than heap)
       genJmpOpcode "call"  (cvtJmpAddr "GC")                       .    || and jump to the GC handler to compact the roots table
-      shows "0:\n"                                                 
+      shows "0:\n"
       || fall through to code after write barrier
 
 || generate code to allocate a fixed number of words from the heap, generating a jump to
@@ -889,9 +875,8 @@ genInsn (DivMod dq dr a b)
 
 || the stgInsn Cmp semantics generate a 0# (eq), 1# (lt), or 2# (gt) result, but that would
 || be somewhat expensive to generate x86 code for.  Instead we perform an x86 cmpq insn, which
-|| leaves its result in the flags register.  
-|| Since the x86 cmp doesn't have an explicit destination register, it can be optimized to a single
-|| instruction if the operands are compatible.
+|| leaves its result in the flags register. Since the x86 cmp doesn't have an explicit destination
+|| register, it can be optimized to a single instruction if the operands are compatible.
 genInsn (Cmp d a b)
     = genMove d a .
       genOpcode "cmpq" [xb, cvtRef d], if isX86Mem xa & isX86Mem xb \/ isX86Imm xa
@@ -987,7 +972,7 @@ genInsn (ReadStream d s)
       genShl1      d                                        .   || shift by one to add value tag
       genOpcode    "incw"   [posw]                          .   || increment pos in tag
       genOpcode    "movw"   [posw, addX86Offset 5 sreg]     .
-      shows "1:\n"      
+      shows "1:\n"
       where
         pos          = x86MovTmp
         posw         = word0 pos
@@ -1009,7 +994,7 @@ genInsn (WriteStream d s c)
       genOpcode    "incw"   [limw]                          .   || increment limit in tag
       genOpcode    "movw"   [limw, addX86Offset 3 sreg]     .
       genMove      d (Imm (Word 0))                         .   || success indication
-      shows "1:\n"      
+      shows "1:\n"
       where
         lim          = x86MovTmp
         limw         = word0 lim
@@ -1103,7 +1088,7 @@ genInsn (WriteArray a (Imm (Word i)) v)
       genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) areg]     . || check if we've already added areg to the roots list
       genJmpOpcode "je"   (cvtJmpAddr "2f")                      .
       genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", vreg]        . || check if vreg is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                      . || not in new space, 
+      genJmpOpcode "jb"   (cvtJmpAddr "2f")                      . || not in new space,
       genOpcode    "movb" [X86Imm 7, addX86Offset (-1) areg]     . || mark as being added to roots list
       genWriteBarrier areg                                       .
       shows "2:\n"
@@ -1122,7 +1107,7 @@ genInsn (WriteArray a i v)
       genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) areg]     . || check if we've already added areg to the roots list
       genJmpOpcode "je"   (cvtJmpAddr "2f")                      .
       genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", vreg]        . || check if vreg is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                      . || not in new space, 
+      genJmpOpcode "jb"   (cvtJmpAddr "2f")                      . || not in new space,
       genOpcode    "movb" [X86Imm 7, addX86Offset (-1) areg]     . || mark as being added to roots list
       genWriteBarrier areg                                       .
       shows "2:\n"
@@ -1241,7 +1226,7 @@ genHeapObj (hp, (hi, env))
         genTagBody (Hstream s)
             = genQuad tagword .
               genAscii s      .
-              genPad s                                  || ensure we are on an 8-byte boundary after ascii string 
+              shows "\t.p2align\t3\n"           || ensure we are on an 8-byte boundary after ascii string
               where
                 tagword = showsint $ genPrimStringTag s
 

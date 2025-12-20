@@ -44,7 +44,7 @@ viewTup3_2 (a, b, c) = c; overTup3_2 fn (a, b, c) = (a, b, fn c); lensTup3_2 = L
 viewTup4_0 (a, b, c, d) = a; overTup4_0 fn (a, b, c, d) = (fn a, b, c, d); lensTup4_0 = Lens viewTup4_0 overTup4_0
 viewTup4_1 (a, b, c, d) = b; overTup4_1 fn (a, b, c, d) = (a, fn b, c, d); lensTup4_1 = Lens viewTup4_1 overTup4_1
 viewTup4_2 (a, b, c, d) = c; overTup4_2 fn (a, b, c, d) = (a, b, fn c, d); lensTup4_2 = Lens viewTup4_2 overTup4_2
-viewTup4_3 (a, b, c, d) = d; overTup4_3 fn (a, b, c, d) = (a, b, c, fn d); lensTup4_3 = Lens viewTup4_3 overTup4_3 
+viewTup4_3 (a, b, c, d) = d; overTup4_3 fn (a, b, c, d) = (a, b, c, fn d); lensTup4_3 = Lens viewTup4_3 overTup4_3
 
 || lenses for 5-tuples
 viewTup5_0 (a, b, c, d, e) = a; overTup5_0 fn (a, b, c, d, e) = (fn a, b, c, d, e); lensTup5_0 = Lens viewTup5_0 overTup5_0
@@ -77,5 +77,5 @@ viewTup8_2 (a, b, c, d, e, f, g, h) = c; overTup8_2 fn (a, b, c, d, e, f, g, h) 
 viewTup8_3 (a, b, c, d, e, f, g, h) = d; overTup8_3 fn (a, b, c, d, e, f, g, h) = (a, b, c, fn d, e, f, g, h); lensTup8_3 = Lens viewTup8_3 overTup8_0
 viewTup8_4 (a, b, c, d, e, f, g, h) = e; overTup8_4 fn (a, b, c, d, e, f, g, h) = (a, b, c, d, fn e, f, g, h); lensTup8_4 = Lens viewTup8_4 overTup8_0
 viewTup8_5 (a, b, c, d, e, f, g, h) = f; overTup8_5 fn (a, b, c, d, e, f, g, h) = (a, b, c, d, e, fn f, g, h); lensTup8_5 = Lens viewTup8_5 overTup8_0
-viewTup8_6 (a, b, c, d, e, f, g, h) = g; overTup8_6 fn (a, b, c, d, e, f, g, h) = (a, b, c, d, e, f, fn g, h); lensTup8_6 = Lens viewTup8_6 overTup8_0 
+viewTup8_6 (a, b, c, d, e, f, g, h) = g; overTup8_6 fn (a, b, c, d, e, f, g, h) = (a, b, c, d, e, f, fn g, h); lensTup8_6 = Lens viewTup8_6 overTup8_0
 viewTup8_7 (a, b, c, d, e, f, g, h) = h; overTup8_7 fn (a, b, c, d, e, f, g, h) = (a, b, c, d, e, f, g, fn h); lensTup8_7 = Lens viewTup8_7 overTup8_0

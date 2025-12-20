@@ -1,4 +1,4 @@
-|| check the files specified on the command line for lines that exceed 159 columns or are not empty but blank
+|| check the files specified on the command line for lines that exceed 159 columns or end with spaces
 
 
 %import <base>
@@ -10,7 +10,12 @@
 result == (string, [num])
 
 blankOrLong :: string -> bool
-blankOrLong s = ~null s & (all isSpace s \/ #s >= 160)
+blankOrLong s
+    = go 0 s
+      where
+        go n []       = False
+        go n [c]      = n >= 159 \/ isSpace c
+        go n (c : cs) = go (n + 1) cs
 
 processFile :: string -> io result
 processFile fn

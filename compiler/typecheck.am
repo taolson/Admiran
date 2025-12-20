@@ -460,7 +460,7 @@ infer (Elet True defs _ e)
 
                 f3 ts2 sm1
                     = tc_over tcEnv (te_subst sm1) *>
-                      lexPoly ts2' infer e         >>= 
+                      lexPoly ts2' infer e         >>=
                       f4 sm1
                       where
                         ts2' = m_fmap (t_subst sm1) ts2
@@ -560,7 +560,7 @@ extend um sm tvn t
                 extended    = m_union cmpint mapped sm'
                 tv          = Tvar tvn
                 Tarr tv' t' = normalize $ Tarr tv t
-                Tvar tvn'   = tv'                
+                Tvar tvn'   = tv'
 
                 fvars Infer = t_ftv t
                 fvars Check = oFvars
@@ -571,7 +571,7 @@ unify' :: unifyMode -> texpr -> texpr -> substMap -> tcState substMap
 unify' um t1 t2 sm
     = go t1 t2
       where
-        go (Tvar tvn)    t2            = go t1' t2',           if m_member cmpint tvn sm        || unify 
+        go (Tvar tvn)    t2            = go t1' t2',           if m_member cmpint tvn sm        || unify
                                        = extend um sm tvn t2', otherwise                        || extend
                                            where
                                              t1' = subst sm tvn
@@ -608,7 +608,7 @@ unify t1 t2 sm
 
 subsumes :: texpr -> texpr -> substMap -> tcState substMap
 subsumes t1 t2 sm
-    = tc_set tcFvars (t_ftv t2) *> 
+    = tc_set tcFvars (t_ftv t2) *>
       (unify' Check t1 t2 sm <|>
       tc_errorNote (Unify (normalize t1) (normalize t2)))   || add additional error info for the top-level unification types
 

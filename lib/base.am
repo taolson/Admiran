@@ -647,7 +647,7 @@ sortOn cmp f
 
 || zip two lists with the supplied function
 zipWith :: (* -> ** -> ***) -> [*] -> [**] -> [***]
-zipWith fn 
+zipWith fn
     = go
       where
         go (x : xs) (y : ys) = fn x y : go xs ys

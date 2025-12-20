@@ -189,7 +189,7 @@ appendS (Stream nexta sa) (Stream nextb sb)
         next (Sright s) = case nextb s of
                            Done       -> Done
                            Skip s'    -> Skip (Sright s')
-                           Yield x s' -> Yield x (Sright s') 
+                           Yield x s' -> Yield x (Sright s')
 
 zip2S :: stream * ** -> stream *** **** -> stream (*, ***) (**, ****, smaybe *)
 zip2S (Stream nexta sa) (Stream nextb sb)

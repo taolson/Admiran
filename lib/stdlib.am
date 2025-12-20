@@ -108,7 +108,7 @@ compare cmp a b = cmp a b
 || inlining for presection/postsection use as in filter
 _eq, _ne, _lt, _le, _gt, _ge :: ordI * -> * -> * -> bool
 _eq cmp a = \b -> case cmp a b of EQ -> True;  _ -> False
-_ne cmp a = \b -> case cmp a b of EQ -> False; _ -> True 
+_ne cmp a = \b -> case cmp a b of EQ -> False; _ -> True
 _lt cmp a = \b -> case cmp a b of LT -> True;  _ -> False
 _le cmp a = \b -> case cmp a b of GT -> False; _ -> True
 _gt cmp a = \b -> case cmp a b of GT -> True;  _ -> False
@@ -177,7 +177,7 @@ readByteStream s#
 writeByteStream :: word# -> string -> string
 writeByteStream s# [] = []
 writeByteStream s# (C# c# : cs)
-    = case writeByteStream# s# c# of 
+    = case writeByteStream# s# c# of
         0# -> writeByteStream s# cs     || return of 0# indicates write was successful
         _  -> C# c# : cs                || non-zero return indicates buffer was full; return unwritten portion of string
 
@@ -209,7 +209,7 @@ f . g = \x -> f (g x)
 (.>) :: (* -> **) -> (** -> ***) -> * -> ***
 g .> f = \x -> f (g x)
 
-|| note: converse is partially-applied here with f and the first argument expected, since that is the 
+|| note: converse is partially-applied here with f and the first argument expected, since that is the
 || most common use, due to the compiler using converse for postsection operations e.g. filter (> 1)
 converse :: (* -> ** -> ***) -> ** -> * -> ***
 converse f a = \b -> f b a
@@ -522,7 +522,7 @@ xs ! n
         go [] _ = err
         go (x : xs) n
             = x,             if n == 0
-            = go xs (n - 1), otherwise                      
+            = go xs (n - 1), otherwise
 
 last :: [*] -> *
 last []       = error "last: empty list"

@@ -188,7 +188,7 @@ demandAst k a
                 an'    = set anStrict strict an
 
                findVarIdx s (i, n)
-                   = bs_insert i s, if s_member cmpname n dns 
+                   = bs_insert i s, if s_member cmpname n dns
                    = s,             otherwise
 
        doDef _ _ = undef  || added to remove compiler warning
