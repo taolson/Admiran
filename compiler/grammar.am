@@ -702,87 +702,51 @@ envMap  == m_map name (s_set name)  || map from an Unqualified or Unresolved nam
 defnMap == m_map name defn          || map from Qualified name to top-level definition in module
 
 || operator precedence and associativity
-|| assocCompare allows comparison operators to be associative by chaining them with an '&'
-|| e.g. 1 < a < 10 is rewritten as 1 < a & a < 10
-assoc ::= AssocLeft | AssocRight | AssocPrefix | AssocCompare
-
 || note: this sets up a fixed precedence and associativity for common operators; all others
 || are treated as the default of highest precedence (apPrec) and AssocRight
 || eventually this should be migrated to an ability to define the prec and assoc of an operator
 || when the operator is defined, but that requires some work to the module, admiranParser, and
 || reify modules
-precAssocTable :: m_map string (int, assoc)
-precAssocTable
-    = m_fromList cmpstring
-      [ ("$",    (0,  AssocRight))      || function application with lowest precedence
-      , ("$!",   (0,  AssocRight))      || strict function application with lowest precedence
-      , ("|>",   (1,  AssocLeft))       || reverse function application / chaining ('&' in Haskell)
-      , (">>=",  (1,  AssocLeft))       || generic monad bind
-      , (">=>",  (1,  AssocRight))      || generic monad Kleisli composition arrow
-      , (">>",   (1,  AssocLeft))       || generic monad right
-      , ("<<",   (1,  AssocLeft))       || generic monad left
-      , (":",    (1,  AssocRight))      || list constructor
-      , ("++",   (1,  AssocRight))      || list append
-      , ("--",   (1,  AssocRight))      || list difference
-      , ("\\/",  (2,  AssocRight))      || boolean OR
-      , ("&",    (3,  AssocRight))      || boolean AND
-      , ("<|>",  (3,  AssocLeft))       || generic alternative
-      , ("~",    (4,  AssocPrefix))     || boolean NOT
-      , ("<$>",  (4,  AssocLeft))       || generic functor fmap
-      , ("<*>",  (4,  AssocLeft))       || generic applicative apply
-      , ("<*",   (4,  AssocLeft))       || generic applicative left
-      , ("*>",   (4,  AssocLeft))       || generic applicative right
 
-      , (">",    (5,  AssocCompare))    || comparisons for boxed int type
-      , (">=",   (5,  AssocCompare))
-      , ("==",   (5,  AssocCompare))
-      , ("~=",   (5,  AssocCompare))
-      , ("<=",   (5,  AssocCompare))
-      , ("<",    (5,  AssocCompare))
+|| assocCompare allows comparison operators to be associative by chaining them with an '&'
+|| e.g. 1 < a < 10 is rewritten as 1 < a & a < 10
+assoc ::= AssocLeft | AssocRight | AssocPrefix | AssocCompare
 
-      , (">.",   (5,  AssocCompare))    || comparisons for boxed char type
-      , (">=.",  (5,  AssocCompare))
-      , ("==.",  (5,  AssocCompare))
-      , ("~=.",  (5,  AssocCompare))
-      , ("<=.",  (5,  AssocCompare))
-      , ("<.",   (5,  AssocCompare))
-
-      , (">$",   (5,  AssocCompare))    || comparisons for boxed string type
-      , (">=$",  (5,  AssocCompare))
-      , ("==$",  (5,  AssocCompare))
-      , ("~=$",  (5,  AssocCompare))
-      , ("<=$",  (5,  AssocCompare))
-      , ("<$",   (5,  AssocCompare))
-
-      , (".&.",  (5,  AssocLeft))       || bitwise boolean AND
-      , (".|.",  (5,  AssocLeft))       || bitwise boolean OR
-      , (".^.",  (5,  AssocLeft))       || bitwise boolean XOR
-      , (".<<.", (6,  AssocLeft))       || bit shift left
-      , (".>>.", (6,  AssocLeft))       || arithmetic bit shift right
-
-      , ("+#",   (6,  AssocLeft))       || arithmetic on unboxed word# type
-      , ("-#",   (6,  AssocLeft))       || Note: these are unused for assoc/prec, since builtin arithmetic is
-      , ("*#",   (8,  AssocLeft))       || performed with strict case..of.  Remove?
-
-      , ("+",    (6,  AssocLeft))       || arithmetic on boxed int type
-      , ("-",    (6,  AssocLeft))
-      , ("neg",  (7,  AssocPrefix))
-      , ("*",    (8,  AssocLeft))
-      , ("quot", (8,  AssocLeft))
-      , ("rem",  (8,  AssocLeft))
-      , ("div",  (8,  AssocLeft))
-      , ("mod",  (8,  AssocLeft))
-      , ("/",    (8,  AssocLeft))
-      , ("^",    (9,  AssocRight))
-
-      , (".",    (10, AssocRight))      || function composition
-      , (".>",   (10, AssocLeft))       || flipped function composition
-      , ("#",    (11, AssocPrefix))     || list length
-      , ("!",    (12, AssocLeft))       || list indexing
-      , ("!!",   (12, AssocLeft))       || vector indexing
+|| Compact representation of operator precedence and associativity: each line represents
+|| operators of equal precendence, with lines ordered from lowest to highest precedence.
+|| Operators on a line are space-separated, and begin with a 'R', 'L', 'C', or 'P' to specify
+|| associativity.
+opPrecRepr
+    = [ "R$ R$!"
+      , "L|> L>>= R>=> L>> L<< R: R++ R--"
+      , "R\\/"
+      , "R& L<|>"
+      , "P~ L<$> L<*> L<* L*>"
+      , "C> C>= C== C~= C<= C< C>. C>=. C==. C~=. C<=. C<. C>$ C>=$ C==$ C~=$ C<=$ C<$ L.&. L.|. L.^."
+      , "L.<<. L.>>. L+ L-"
+      , "Pneg"
+      , "L* Lquot Lrem Ldiv Lmod L/"
+      , "R^"
+      , "R. L.>"
+      , "P#"
+      , "L! L!!"
       ]
 
-apPrec = 13
+|| dynamically-built precAssocTable and value for application precedence, built from
+|| parsing the lines in opPrecRepr
+(precAssocTable, apPrec)
+    = foldl insLevel (m_empty, 0) opPrecRepr
+      where
+        insLevel (m, prec) s = (words s |> foldl (ins prec) m, prec + 1)
+
+        ins prec m (a : op) = m_insert cmpstring op (prec, toAssoc a) m
+        ins prec _ _        = undef     || added to remove compiler warning
+
+        toAssoc 'L' = AssocLeft
+        toAssoc 'R' = AssocRight
+        toAssoc 'C' = AssocCompare
+        toAssoc 'P' = AssocPrefix
+        toAssoc x   = undef             || added to remove compiler warning
 
 || look up operator in prec/assoc table, first removing any module qualifier
 opPrecAssoc :: name -> (int, assoc)
