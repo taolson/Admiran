@@ -10,11 +10,16 @@
 
 || "world" is an abstract type with an unexported constructor "World" which is used as
 || a token to sequence actions in the io monad. Since "World" is not exported, the io
-|| functions defined here cannot be run without being a part of the io monad chain.
+|| functions defined here cannot be run without being a part of the io monad chain (except by
+|| using the "unsafePerformIO" function escape hatch).
 world ::= World
 
 || io is implemented as a state monad with the special state world.
 io * == state world *
+
+|| perform the io effect e without having to be in the io monad
+unsafePerformIO :: io * -> *
+unsafePerformIO e = st_evalState e World
 
 || a wrapper on a byteStream# (which is just a word# that represents the raw heapAddr of an allocated byteStream#)
 || which allows for top-level handle thunks like stdin
@@ -154,9 +159,13 @@ stdin  = case allocFileStream# 0# 32# of fs# -> Handle fs#
 stdout = case allocFileStream# 1# 32# of fs# -> Handle fs#
 stderr = case allocFileStream# 2# 32# of fs# -> Handle fs#
 
+|| put a char to stdout
+putChar :: char -> io ()
+putChar c = hPutChar stdout c
+
 || put a string to stdout
 putStr :: string -> io ()
-putStr s = writeFileStream stdout s
+putStr s = hPutStr stdout s
 
 || put a string with a final newline character to stdout
 putStrLn :: string -> io ()
@@ -164,7 +173,7 @@ putStrLn s = putStr (s ++ "\n")
 
 || put a string to stderr
 errStr :: string -> io ()
-errStr s = writeFileStream stderr s
+errStr s = hPutStr stderr s
 
 || put a string with a final newline character to stderr
 errStrLn :: string -> io ()
