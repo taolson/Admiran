@@ -22,5 +22,5 @@ streamFile fn world
                 c# -> case c# $cmp# 0# of
                         1# -> case readFile# fs# of
                                 0# -> case closeFile# fs# of _ -> Done
-                                _  -> next fs#
+                                _  -> Skip fs#
                         _  -> Yield (C# c#) fs#
