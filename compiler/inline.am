@@ -37,10 +37,6 @@ noInlineNames = map makeStdlibName               ["unsafeWriteStdErr", "trace", 
                 map (Qualified streamModuleName) ["toStream", "fromStream", "readByteStreamS"]       ++
                 noReturnNames
 
-|| builtin functions that can be inlined by computing at compile-time
-inlineBuiltinNames = ["cmp#", "+#", "-#", "*#", "band#", "bor#", "bshl#", "bshr#"]
-
-
 || a localEnv consists of a stack of frames, which are either a function boundary marker
 || or a defnMap.  The function boundary marker is used to indicate whether we have crossed
 || a function definition boundary when performing a lookup, to later determine viability
@@ -247,39 +243,20 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) (Evar n : args)) 
         ctorCallArgs (Ecall (Evar c) args) = Just args, if isConstructor c
         ctorCallArgs e                     = Nothing
 
-|| compute some builtin functions on literal unboxed int values -- useful for, e.g. determining
-|| rangeByFromTo loop direction at compile time, or removing dead code during specialization of
-|| case expressions
-inlineAst k (Ecall (Evar (Builtin fn)) [(EprimInt a), (EprimInt b)]) st
-    = (EprimInt r, st'), if member cmpstring inlineBuiltinNames fn
+|| inline a call to builtin cmp# where both operands are literals
+|| note: this is handled separately from other builtin operators on literals, as it
+|| has EprimInt and EprimChar forms, and no partial identity operations
+inlineAst k (Ecall (Evar (Builtin "cmp#")) [ea, eb]) st
+    = handle ea eb
       where
-        st' = addInfo ("inlined builtin " ++ fn) . set inSimplified True $ st
-        r   = doBuiltin fn a b
+        st'  = addInfo "inlined builtin cmp#" . set inSimplified True $ st
 
-        doBuiltin "+#"    a b = a + b
-        doBuiltin "-#"    a b = a - b
-        doBuiltin "*#"    a b = a * b
-        doBuiltin "band#" a b = a .&. b
-        doBuiltin "bor#"  a b = a .|. b
-        doBuiltin "bshl#" a b = a .<<. b
-        doBuiltin "bshr#" a b = a .>>. b
-        doBuiltin "cmp#"  a b
-            = case cmpint a b of
-                EQ -> 0
-                LT -> 1
-                GT -> 2
-        doBuiltin _       _ _ = undef    || added to remove compiler warning
+        handle (EprimInt  a) (EprimInt  b) = (gen cmpint  a b, st')             || rewrite as EprimInt  literal
+        handle (EprimChar a) (EprimChar b) = (gen cmpchar a b, st')             || rewrite as EprimChar literal
+        handle _             _             = k (Ecall builtinCmp [ea, eb]) st   || no rewrite; continue traversal
 
-|| inline builtin cmp# on literal unboxed char values
-inlineAst k (Ecall (Evar (Builtin "cmp#")) [(EprimChar a), (EprimChar b)]) st
-    = (EprimInt r, st')
-      where
-        st' = addInfo "inlined builtin cmp" . set inSimplified True $ st
-        r   = case cmpchar a b of
-                EQ -> 0
-                LT -> 1
-                GT -> 2
-
+        gen cmp a b = case cmp a b of EQ -> EprimInt 0; LT -> EprimInt 1; GT -> EprimInt 2
+                  
 || collapse toStream/fromStream pairs
 || note: the fromStream may be the final expr in a chain of Elets, so we need to walk
 || the chain to check the final expr
@@ -487,40 +464,57 @@ simplifyAst k (Ecase b e alts) st
       where
         st' = addInfo "simplified no-return scrutinee" . set inSimplified True $ st
 
-|| simplify builtin functions that have identity operands
+|| simplify operations on builtin functions with literal operands
 || note that this pattern match uses the more complex (Ecase (Ecall ..) [CaseAlt ..]) pattern, rather than
 || the simpler inner Ecall, to allow us to collapse the entire expr
 simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e]) st
-    = checkIdentAdd ea eb, if fn ==$ "+#"
-    = checkIdentSub ea eb, if fn ==$ "-#"
-    = checkIdentMul ea eb, if fn ==$ "*#"
-    = checkIdentOr  ea eb, if fn ==$ "bor#"
-    = checkIdentAnd ea eb, if fn ==$ "band#"
+    = checkAdd ea eb, if fn ==$ "+#"
+    = checkSub ea eb, if fn ==$ "-#"
+    = checkMul ea eb, if fn ==$ "*#"
+    = checkOr  ea eb, if fn ==$ "bor#"
+    = checkAnd ea eb, if fn ==$ "band#"
+    = checkShl ea eb, if fn ==$ "bshl#"
+    = checkShr ea eb, if fn ==$ "bshr#"
       where
-        st'     = addInfo ("inlined identity on builtin " ++ fn) . set inSimplified True $ st
-        base    = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e]) st
+        st'     = addInfo ("inlined builtin " ++ fn) . set inSimplified True $ st
+        defl    = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e]) st
         repl e' = k (replace e [(v, e')]) st'
 
-        checkIdentAdd (EprimInt 0) eb = repl eb
-        checkIdentAdd ea (EprimInt 0) = repl ea
-        checkIdentAdd _  _            = base
+        checkAdd (EprimInt a) (EprimInt b) = repl . EprimInt $ a + b
+        checkAdd (EprimInt 0) eb           = repl eb
+        checkAdd ea           (EprimInt 0) = repl ea
+        checkAdd _            _            = defl
 
-        checkIdentSub ea (EprimInt 0) = repl ea
-        checkIdentSub _  _            = base
+        checkSub (EprimInt a) (EprimInt b) = repl . EprimInt $ a - b
+        checkSub ea           (EprimInt 0) = repl ea
+        checkSub _            _            = defl
 
-        checkIdentMul (EprimInt 0) eb = repl (EprimInt 0)
-        checkIdentMul (EprimInt 1) eb = repl eb
-        checkIdentMul ea (EprimInt 0) = repl (EprimInt 0)
-        checkIdentMul ea (EprimInt 1) = repl ea
-        checkIdentMul _  _            = base
+        checkMul (EprimInt a) (EprimInt b) = repl . EprimInt $ a * b
+        checkMul (EprimInt 0) eb           = repl . EprimInt $ 0
+        checkMul (EprimInt 1) eb           = repl eb
+        checkMul ea           (EprimInt 0) = repl . EprimInt $ 0
+        checkMul ea           (EprimInt 1) = repl ea
+        checkMul _            _            = defl
 
-        checkIdentOr  (EprimInt 0) eb = repl eb
-        checkIdentOr  ea (EprimInt 0) = repl ea
-        checkIdentOr  _  _            = base
+        checkOr  (EprimInt a) (EprimInt b) = repl . EprimInt $ a .|. b
+        checkOr  (EprimInt 0) eb           = repl eb
+        checkOr  ea           (EprimInt 0) = repl ea
+        checkOr  _            _            = defl
 
-        checkIdentAnd (EprimInt 0) eb = repl (EprimInt 0)
-        checkIdentAnd ea (EprimInt 0) = repl (EprimInt 0)
-        checkIdentAnd _  _            = base
+        checkAnd (EprimInt a) (EprimInt b) = repl . EprimInt $ a .&. b
+        checkAnd (EprimInt 0) eb           = repl . EprimInt $ 0
+        checkAnd ea           (EprimInt 0) = repl . EprimInt $ 0
+        checkAnd _            _            = defl
+
+        checkShl (EprimInt a) (EprimInt b) = repl . EprimInt $ a .<<. b
+        checkShl (EprimInt 0) eb           = repl . EprimInt $ 0
+        checkShl ea           (EprimInt 0) = repl ea
+        checkShl _            _            = defl
+
+        checkShr (EprimInt a) (EprimInt b) = repl . EprimInt $ a .>>. b
+        checkShr (EprimInt 0) eb           = repl . EprimInt $ 0
+        checkShr ea           (EprimInt 0) = repl ea
+        checkShr _            _            = defl
 
 || swap order of an Ecase where the scrutinee is also an Ecase
 || note: this duplicates alts1 #alts2 times. Since we are duplicating alts1, and there
