@@ -396,15 +396,6 @@ genMoveToMem dBase
         movEnv (i, a)
             = genOpcode (movOpForOpr a) [cvtOpr a, addX86Offset (i * 8) dBase]
 
-|| add with untagged immediate
-genAddI :: ref -> int -> showS
-genAddI d n = genOpcode "addq" [X86Imm n, cvtRef d]
-
-|| shifts by 1 bit
-genSar1, genShl1 :: ref -> showS
-genSar1 d = genOpcode "sarq" [cvtRef d]
-genShl1 d = genOpcode "shlq" [cvtRef d]
-
 || Generate the first common part of a combined div/mod operation
 || Since the x86-64 idivq instruction operates on fixed registers
 || %rax(Reg 0) and %rdx (Arg 2), move the operands to those registers.
@@ -423,11 +414,13 @@ genQuotRem d a (Imm (Word b))
 
 genQuotRem d a b
     = genMove d b                                  .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
-      genSar1 d                                    .    || remove value tag
+      genOpcode "sarq" [dr]                        .    || remove value tag
       genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
       genOpcode "sarq" [x86rax]                    .    || remove value tag
       genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
-      genOpcode "idivq" [cvtRef d]                      || perform 128b/64b divide; quotient in %rax, remainder in %rdx
+      genOpcode "idivq" [dr]                      || perform 128b/64b divide; quotient in %rax, remainder in %rdx
+      where
+        dr = cvtRef d
 
 || generate code to perform a write-barrier check on the addr in register upd
 genWriteBarrier :: x86Opr -> showS
@@ -968,12 +961,13 @@ genInsn (ReadStream d s)
       genOpcode    "movzwq" [addX86Offset 5 sreg, pos]      .   || extract position field from the tag (into whole register pos)
       genOpcode    "cmpw"   [addX86Offset 3 sreg, posw]     .   || compare pos to limit
       genJmpOpcode "jae"    (cvtJmpAddr "1f")               .   || jump if pos >= limit
-      genOpcode    "movzbq" [X86Idx sreg pos 1 7, cvtRef d] .   || extract byte from stream at pos
-      genShl1      d                                        .   || shift by one to add value tag
+      genOpcode    "movzbq" [X86Idx sreg pos 1 7, rd]       .   || extract byte from stream at pos
+      genOpcode    "shlq"   [rd]                            .   || shift by one to add value tag
       genOpcode    "incw"   [posw]                          .   || increment pos in tag
       genOpcode    "movw"   [posw, addX86Offset 5 sreg]     .
       shows "1:\n"
       where
+        rd           = cvtRef d
         pos          = x86MovTmp
         posw         = word0 pos
         (sreg, movs) = ensureX86Reg x86Tmp1 s
