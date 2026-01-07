@@ -512,6 +512,10 @@ uninterleave xs
       where
         ui x (xs, ys) = (x : ys, xs)
 
+|| perfect shuffle of a list
+shuffle :: [*] -> [*]
+shuffle xs = split2 xs |> uncurry interleave
+
 || chunk a list into n-sized chunks
 chunk :: int -> [*] -> [[*]]
 chunk n xs
