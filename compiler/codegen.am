@@ -373,19 +373,19 @@ genMoveToArgs
         genMoves alts ((i, v) : vs)
             = relocate . moveArg . genMoves alts' vs
               where
-                d        = (Arg, i)
-                x86d     = cvtRef d
-                doReloc  = member cmpopr (map snd vs) (Ref d)
-                x86dAlt  = cvtArgState i        || alt location for arg, if it is still needed
-                x86v     = m_findWithDefault cmpopr (cvtOpr v) v alts
-                moveArg  = id,                                     if _eq cmpx86Opr x86v x86d   || don't move if already there
-                         = genOpcode (movOpForOpr v) [x86v, x86d], otherwise
+                d       = (Arg, i)
+                xd      = cvtRef d
+                doReloc = member cmpopr (map snd vs) (Ref d)
+                xdAlt   = cvtArgState i        || alt location for arg, if it is still needed
+                xv      = m_findWithDefault cmpopr (cvtOpr v) v alts
+                moveArg = id,                                   if _eq cmpx86Opr xv xd   || don't move if already there
+                        = genOpcode (movOpForOpr v) [xv, xd],   otherwise
 
-                alts'    = m_insert cmpopr (Ref d) x86dAlt alts,   if doReloc
-                         = alts,                                   otherwise
+                alts'   = m_insert cmpopr (Ref d) xdAlt alts,   if doReloc
+                        = alts,                                 otherwise
 
-                relocate = genOpcode "movq" [x86d, x86dAlt],       if doReloc
-                         = id,                                     otherwise
+                relocate = genOpcode "movq" [xd, xdAlt],        if doReloc
+                         = id,                                  otherwise
 
 || generate a series of instructions to move a list of operands to a memory area
 || the first argument is the x86Opr holding the base address to move to
@@ -404,23 +404,23 @@ genMoveToMem dBase
 || Note: %rax and %rdx are destroyed, and must be saved and restored around this operation, if required
 genQuotRem :: ref -> opr -> opr -> showS
 genQuotRem d a (Imm (Word b))
-    = genOpcode "movq" [X86Imm b, dr]              .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
+    = genOpcode "movq" [X86Imm b, xd]              .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
       genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
       genOpcode "sarq" [x86rax]                    .    || remove value tag
       genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
-      genOpcode "idivq" [dr]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
+      genOpcode "idivq" [xd]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
       where
-        dr = cvtRef d
+        xd = cvtRef d
 
 genQuotRem d a b
     = genMove d b                                  .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
-      genOpcode "sarq" [dr]                        .    || remove value tag
+      genOpcode "sarq" [xd]                        .    || remove value tag
       genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
       genOpcode "sarq" [x86rax]                    .    || remove value tag
       genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
-      genOpcode "idivq" [dr]                      || perform 128b/64b divide; quotient in %rax, remainder in %rdx
+      genOpcode "idivq" [xd]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
       where
-        dr = cvtRef d
+        xd = cvtRef d
 
 || generate code to perform a write-barrier check on the addr in register upd
 genWriteBarrier :: x86Opr -> showS
@@ -736,45 +736,45 @@ genInsn (AllocFrame n)
 
 || generate an function closure
 genInsn (Fclosure d cp ar env)
-    = genOpcode "movq" [X86Imm tag, dBase]                      .
-      genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 dBase] .
-      genMoveToMem     (addX86Offset 16 dBase) env
+    = genOpcode "movq" [X86Imm tag, xd]                      .
+      genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
+      genMoveToMem     (addX86Offset 16 xd) env
       where
-        dBase = cvtRef d
-        tag   = genFunTag ar (#env)
+        xd  = cvtRef d
+        tag = genFunTag ar (#env)
 
 || generate a thunk closure
 genInsn (Tclosure d cp env)
-    = genOpcode "movq" [X86Imm tag, dBase]                      .
-      genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 dBase] .
-      genMoveToMem     (addX86Offset 16 dBase) zenv
+    = genOpcode "movq" [X86Imm tag, xd]                      .
+      genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
+      genMoveToMem     (addX86Offset 16 xd) zenv
       where
-        dBase = cvtRef d
-        zenv  = [Imm (Word 0)], if null env     || if no env, fill reserved update word with 0
-              = env,            otherwise
-        tag   = genThunkTag (#zenv)
+        xd   = cvtRef d
+        zenv = [Imm (Word 0)], if null env     || if no env, fill reserved update word with 0
+             = env,            otherwise
+        tag  = genThunkTag (#zenv)
 
 || generate a fatbar alternate closure, capturing the current stack pointer value
 || if the destination is a Reg ref, then allocate space for the closure
 || if the destination is a Frm ref, then space has already been allocated
 genInsn (Sclosure d cp env)
-    = mbAlloc          d (#env + 3)                             .       || +3 = slot for tag, slot for codePtr, slot for stackPtr value
-      genOpcode "movq" [X86Imm tag, addX86Offset 0 dBase]       .
-      genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 dBase] .
-      genMoveToMem     (addX86Offset 16 dBase) env              .       || copy env to closure env
-      genOpcode "movq" [x86SP, addX86Offset spLoc dBase]        .       || save current SP after env
-      mbTag            d                                                || tag destination as heapPtr, if we performed an alloc
+    = mbAlloc          d (#env + 3)                          .  || +3 = slot for tag, slot for codePtr, slot for stackPtr value
+      genOpcode "movq" [X86Imm tag, addX86Offset 0 xd]       .
+      genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
+      genMoveToMem     (addX86Offset 16 xd) env              .  || copy env to closure env
+      genOpcode "movq" [x86SP, addX86Offset spLoc xd]        .  || save current SP after env
+      mbTag            d                                        || tag destination as heapPtr, if we performed an alloc
       where
-        dBase = cvtRef d
+        xd    = cvtRef d
         nenv  = #env
         tag   = genFbAltTag nenv
         spLoc = (2 + nenv) * 8                  || tagword + cp + env words in front of spLoc
 
         mbAlloc (Frm, _) n = id                 || destination is a frm ref, allocation already performed
-        mbAlloc _ n        = genAlloc dBase n   || destination is a register -- perform allocation
+        mbAlloc _ n        = genAlloc xd n      || destination is a register -- perform allocation
 
         mbTag (Frm, _) = id
-        mbTag _        = genOpcode "incq" [dBase]
+        mbTag _        = genOpcode "incq" [xd]
 
 || generate a thunk closure for a saturated constructor value, capturing its tag and args
 || The tag and arg arity are not known at compile time, so the constructor puts the
@@ -961,13 +961,13 @@ genInsn (ReadStream d s)
       genOpcode    "movzwq" [addX86Offset 5 sreg, pos]      .   || extract position field from the tag (into whole register pos)
       genOpcode    "cmpw"   [addX86Offset 3 sreg, posw]     .   || compare pos to limit
       genJmpOpcode "jae"    (cvtJmpAddr "1f")               .   || jump if pos >= limit
-      genOpcode    "movzbq" [X86Idx sreg pos 1 7, rd]       .   || extract byte from stream at pos
-      genOpcode    "shlq"   [rd]                            .   || shift by one to add value tag
+      genOpcode    "movzbq" [X86Idx sreg pos 1 7, xd]       .   || extract byte from stream at pos
+      genOpcode    "shlq"   [xd]                            .   || shift by one to add value tag
       genOpcode    "incw"   [posw]                          .   || increment pos in tag
       genOpcode    "movw"   [posw, addX86Offset 5 sreg]     .
       shows "1:\n"
       where
-        rd           = cvtRef d
+        xd           = cvtRef d
         pos          = x86MovTmp
         posw         = word0 pos
         (sreg, movs) = ensureX86Reg x86Tmp1 s
@@ -1015,7 +1015,7 @@ genInsn (AllocArray d a)
       genOpcode "movq" [x86Tmp1, addX86Offset 0 xd] . || move the tagword into the heapObj
       genOpcode "incq" [xd]                           || and return the tagged heapObj addr
       where
-        xd         = cvtRef d
+        xd = cvtRef d
 
 || fill an array with a replicated value
 genInsn (FillArray a v)
