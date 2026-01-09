@@ -199,27 +199,21 @@ v_sortBy cmp v
 
 || binary search a sorted vector for a matching entry, based upon the result of the cmp fn
 || return the matching value and its index or Nothing
+|| uses a search on the open interval [lo .. hi), which is inclusive of lo but exclusive of hi
 v_search :: (* -> ordering) -> vector * -> maybe (int, *)
 v_search cmp v
-    = go 0 (v_length v - 1)
+    = go 0 $ v_length v
       where
-        choose x eqf ltf gtf
-            = case x of
-                EQ -> eqf
-                LT -> ltf
-                GT -> gtf
-
         go lo hi
-            = choose (cmp vl) (Just (lo,  vl)) Nothing     (check hi vh), if hi - lo < 2
-            = choose (cmp vm) (Just (mid, vm)) (go lo mid) (go mid hi),   otherwise
+            = Nothing, if lo == hi
+            = check,   otherwise
               where
-                mid = (lo + hi) $quot 2
-                vl  = v !! lo
-                vm  = v !! mid
-                vh  = v !! hi
-
-        check hi vh = choose (cmp vh) (Just (hi, vh)) Nothing Nothing
-
+                mid   = lo + (hi - lo) $quot 2
+                vm    = v !! mid
+                check = case cmp vm of
+                          EQ -> Just (mid, vm)
+                          LT -> go (mid + 1) hi
+                          GT -> go lo mid
 
 || conversions
 
