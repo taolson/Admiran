@@ -1,7 +1,7 @@
 || grammar.am -- Admiran expression, type, and definition grammars
 
 
-%export + -precAssocTable
+%export +  -opPrecRepr -precAssocTable
 
 %import <base>
 %import <bitSet>
@@ -415,7 +415,10 @@ isPctor pat             = False
 isPwildcard Pwildcard   = True
 isPwildcard pat         = False
 
-isPvarOrWild p          = isPvar p \/ isPwildcard p
+isPvarOrWild (Pvar _)   = True
+isPvarOrWild Pwildcard  = True
+isPvarOrWild _          = False
+||isPvarOrWild p          = isPvar p \/ isPwildcard p
 
 unPvar :: texpr -> name
 unPvar (Pvar n)         = n
@@ -722,10 +725,10 @@ opPrecRepr
       , "R\\/"
       , "R& L<|>"
       , "P~ L<$> L<*> L<* L*>"
-      , "C> C>= C== C~= C<= C< C>. C>=. C==. C~=. C<=. C<. C>$ C>=$ C==$ C~=$ C<=$ C<$ L.&. L.|. L.^."
+      , "C== C~= C< C> C<= C>= C==. C~=. C<. C>. C<=. C>=. C==$ C~=$ C<$ C>$ C<=$ C>=$ L.&. L.|. L.^."
       , "L.<<. L.>>. L+ L-"
       , "Pneg"
-      , "L* Lquot Lrem Ldiv Lmod L/"
+      , "L* Lquotrem Ldivmod Lquot Lrem Ldiv Lmod L/"
       , "R^"
       , "R. L.>"
       , "P#"
