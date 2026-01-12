@@ -35,17 +35,17 @@ coInsns = lensSnd
 || a heap object is a list of environment values tagged with a heap Info containing info for execution and garbage collection
 heapInfo ::=
     || these heapObjects can be applied directly if the arities match the #args
-    Hfun    codePtr! int! |       || function with arity int, list values are free variable values of the function
-    Hthunk  codePtr!      |       || thunk (arity 0)
-    Hfwd    heapPtr!      |       || forward to another heapPtr (used when an Hthunk is updated to its computed value)
+    Hfun    codePtr int |       || function with arity int, list values are free variable values of the function
+    Hthunk  codePtr     |       || thunk (arity 0)
+    Hfwd    heapPtr     |       || forward to another heapPtr (used when an Hthunk is updated to its computed value)
 
     || these heapObjects need a more general helper function to apply
-    Hpap    heapPtr!      |       || partial application of Hfun at heapPtr , list values are the under-applied arguments
-    Hfbalt  codePtr! int! |       || fatbar alternate, with captured stack pointer to unwind to
+    Hpap    heapPtr     |       || partial application of Hfun at heapPtr , list values are the under-applied arguments
+    Hfbalt  codePtr int |       || fatbar alternate, with captured stack pointer to unwind to
 
     || these heapObjects are data only (no codePtr)
-    Hstream [char]        |       || a byteStream holding a packed list of chars
-    Harray  int!                  || a contiguous array of size int, starting with the next word
+    Hstream [char]      |       || a byteStream holding a packed list of chars
+    Harray  int                 || a contiguous array of size int, starting with the next word
 
 heapObj     == (heapInfo, [value])
 closure     == heapObj                          || type synonym for a heapObj
@@ -78,7 +78,7 @@ continuation == stackObj         || type synonym for stackObj
 stgStack     == [continuation]
 
 || values are either unboxed Words, code pointers, or heap pointers
-value ::= Word int! | Caddr codePtr! | Haddr heapPtr!
+value ::= Word int | Caddr codePtr | Haddr heapPtr
 
 || a ref represents a variable holding a value, and is an index into a particular space
 refSpace ::=
