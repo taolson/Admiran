@@ -418,7 +418,6 @@ isPwildcard pat         = False
 isPvarOrWild (Pvar _)   = True
 isPvarOrWild Pwildcard  = True
 isPvarOrWild _          = False
-||isPvarOrWild p          = isPvar p \/ isPwildcard p
 
 unPvar :: texpr -> name
 unPvar (Pvar n)         = n
