@@ -244,13 +244,15 @@ elemIndex p
 enumerate :: [*] -> [(int, *)]
 enumerate = zip2 [0 ..]
 
-isPrefixOf :: ordI * -> [*] -> [*] -> bool
-isPrefixOf cmp
-    = go
+isPrefixOf, isInfixOf :: ordI * -> [*] -> [*] -> bool
+isPrefixOf cmp p
+    = go p
       where
         go []       _        = True
         go (x : xs) []       = False
         go (x : xs) (y : ys) = _eq cmp x y & go xs ys
+
+isInfixOf cmp p = \xs -> any (isPrefixOf cmp p) $ tails xs
 
 stripPrefix :: ordI * -> [*] -> [*] -> maybe [*]
 stripPrefix cmp
