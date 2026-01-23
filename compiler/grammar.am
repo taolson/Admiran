@@ -568,8 +568,8 @@ isSyn a = isDefSyn a \/ isDefAbs a
 defnName :: ast -> name
 defnName (DefFn n vars e an)    = n
 defnName (DefMult m (d : ds))   = defnName d
-defnName (DefPat (Pvar n) e an) = n
-defnName (DefPat p e an)        = Unqualified "pattern"
+defnName (DefPat p e an)        = unPvar p,   if isPvar p
+                                = ctorName p, if isPctor p
 defnName (DefSyn tf te an)      = tformName tf
 defnName (DefData tf ctors an)  = tformName tf
 defnName (DefSpec tf te an)     = tformName tf
