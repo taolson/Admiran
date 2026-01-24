@@ -136,7 +136,8 @@ x86Opr ::=
     X86Imm int                          |    || an immediate value
     X86Reg string                       |    || an x86 register name
     X86Mem (maybe x86Opr) string int    |    || a memory address, with optional base reg, the symbolic offset, the numeric offset
-    X86Idx x86Opr x86Opr int int             || a memory address, with a base x86Reg, an index x86Reg, a scale value, and an offset
+    X86Idx x86Opr x86Opr int int        |    || a memory address, with a base x86Reg, an index x86Reg, a scale value, and an offset
+    X86Scl x86Opr int int                    || an x86Reg, scaled by a scale value + an int (X86Idx without a base reg)
 
 isX86Imm, isX86Imm64, isX86Reg, isX86Mem :: x86Opr -> bool
 isX86Imm (X86Imm n)       = True
@@ -158,6 +159,7 @@ addX86Offset a (X86Imm n)       = X86Imm (n + a)
 addX86Offset a (X86Reg r)       = X86Mem (Just (X86Reg r)) "" a
 addX86Offset a (X86Mem b o n)   = X86Mem b o (n + a)
 addX86Offset a (X86Idx b i s n) = X86Idx b i s (n + a)
+addX86Offset a (X86Scl r s n)   = X86Scl r s (n + a)
 
 genX86Opr :: x86Opr -> showS
 genX86Opr (X86Imm n) = shows "$" . showsint n
@@ -179,6 +181,14 @@ genX86Opr (X86Idx b i s n)
         showsOffset 0 = id
         showsOffset n = showsint n
         showsIdx      = showsInParens $ showsCommaList id [genX86Opr b, genX86Opr i, showsint s]
+
+genX86Opr (X86Scl r s n)
+    = showsOffset n . showsIdx
+      where
+        showsOffset 0 = id
+        showsOffset n = showsint n
+        showsIdx      = showsInParens $ showsCommaList id [shows "", genX86Opr r, showsint s]
+
 
 || x86Jmp instructions have a slightly different format for memory addresses than other x86 insns
 genX86JmpOpr :: x86Opr -> showS
@@ -820,22 +830,58 @@ genInsn (Update d (Imm (Caddr cp)))
                 fwdPtr = cvtMemCodePtr enterEnv0Ptr
 
 genInsn (Mov d a)   = genMove d a
-genInsn (Add d a b) = genMove d a . genOpcode "addq" [cvtOpr b, cvtRef d]
-genInsn (Sub d a b) = genMove d a . genOpcode "subq" [cvtOpr b, cvtRef d]
+
+genInsn (Add d a b)
+    = optimize xa xb xd
+      where
+        xa = cvtOpr a
+        xb = cvtOpr b
+        xd = cvtRef d
+
+        optimize (X86Imm n) (X86Reg _) (X86Reg _) = genOpcode "leaq" [addX86Offset n xb, xd]
+        optimize (X86Reg _) (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset n xa, xd]
+        optimize (X86Reg _) (X86Reg _) (X86Reg _) = genOpcode "leaq" [X86Idx xa xb 1 0, xd]
+        optimize _          _          _          = genMove d a . genOpcode "addq" [xb, xd]
+
+genInsn (Sub d a b)
+    = optimize xa xb xd
+      where
+        xa = cvtOpr a
+        xb = cvtOpr b
+        xd = cvtRef d
+      
+        || perform some x86-64 leaq optimizations for Add
+        optimize (X86Reg _) (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset (-n) xa, xd]
+        optimize _          _          _          = genMove d a . genOpcode "subq" [xb, xd]
 
 || x86-64 multiply is limited to reg/mem operands, so if one is Imm, make sure
 || it is the first operand, since that is explicitly moved to the destination register
 genInsn (Mul d a (Imm b)) = genInsn (Mul d (Imm b) a)
 
-|| multiplication needs one of the operand's implicit 0 Int tag bits to be removed so that the
-|| actual multiply creates a single implicit 0 Int tag bit in the result
 genInsn (Mul d a b)
-    = genOpcode "movq"  [cvtOpr a, dreg] .
-      genOpcode "sarq"  [dreg]           .      || remove value tag
-      genOpcode "imulq" [cvtOpr b, dreg] .
-      movd                                      || move result to final destination, if it isn't dreg
+    = optimize xa xb
       where
-        (dreg, movd) = ensureX86DstReg x86Tmp1 d
+        xa         = cvtOpr a
+        xb         = cvtOpr b
+        (xd, movd) = ensureX86DstReg x86Tmp1 d
+
+        || check for multiplication by immediate that can be replaced by leaq
+        optimize (X86Imm n) (X86Reg _)
+            = genOpcode "leaq" [X86Scl xb xn 0, xd]          . movd, if member cmpint [1, 2, 4, 8] xn
+            = genOpcode "leaq" [X86Idx xb xb (xn - 1) 0, xd] . movd, if member cmpint [3, 5, 9] xn
+              where xn = n .>>. 1
+
+        || multiply by immediate can pre-shift immediate value to remove the value tag
+        optimize (X86Imm n) _
+            = genOpcode "movq"  [X86Imm xn, xd] . genOpcode "imulq" [xb, xd] . movd
+              where xn = n .>>. 1
+
+        || general mul
+        optimize _ _
+            = genOpcode "movq"  [xa, xd] .
+              genOpcode "sarq"  [xd]     .      || remove value tag
+              genOpcode "imulq" [xb, xd] .
+              movd                              || move result to final destination, if it isn't dreg
 
 genInsn (QuotRem dq dr a b)
     = genOpcode    "pushq" [x86rdx]               .     || save %rdx, as it is destroyed during QuotRem
