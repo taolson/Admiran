@@ -359,6 +359,8 @@ ensureX86Reg default a
         op = genOpcode (movOpForOpr a) [xa, default]
 
 || same as above, but for a destination reference
+|| this should be used in generating STGInsns where the dst must be an x86Reg, or
+|| may be referenced multiple times (minimizes extraneous mov generation)
 ensureX86DstReg :: x86Opr -> ref -> (x86Opr, showS)
 ensureX86DstReg default d
     = (xd, id),      if isX86Reg xd
@@ -368,6 +370,8 @@ ensureX86DstReg default d
         op = genOpcode "movq" [default, xd]
 
 || move opr to ref
+|| code generation that can operate on any opr type (including Imm addresses and Frm offsets) should use this
+|| code generation that only operates on Words or Arg/Env/Reg regs can use "movq" directly instead of this
 genMove :: ref -> opr -> showS
 genMove d a
     = id,                                             if _eq cmpopr (Ref d) a || don't gen anything if it is already in place
@@ -413,25 +417,21 @@ genMoveToMem dBase
 || the quotient is in %rax and the remainder in %rdx at the end.
 || Code that calls this is in charge of adding an Int tag and moving the correct result to the destination
 || Note: %rax and %rdx are destroyed, and must be saved and restored around this operation, if required
-genQuotRem :: ref -> opr -> opr -> showS
-genQuotRem d a (Imm (Word b))
-    = genOpcode "movq" [X86Imm b, xd]              .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
-      genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
-      genOpcode "sarq" [x86rax]                    .    || remove value tag
-      genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
-      genOpcode "idivq" [xd]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
-      where
-        xd = cvtRef d
+genQuotRem :: x86Opr -> x86Opr -> showS
+genQuotRem xa (X86Imm b)
+    = genOpcode "movq"  [X86Imm (b .>>. 1), x86Tmp1] .  || move imm divisor to temp reg xt
+      genOpcode "movq"  [xa, x86rax]                 .  || move dividend to %rax
+      genOpcode "sarq"  [x86rax]                     .  || remove tag bit from dividend
+      genOpcode "cqto"  []                           .  || sign-extend to %rdx for upper 64 bits of dividend
+      genOpcode "idivq" [x86Tmp1]                       || perform 128b/64b divide; quotient in %rax, remainder in %rdx
 
-genQuotRem d a b
-    = genMove d b                                  .    || copy opr b to destination so we can manipulate it (done first because cqto destroys rdx)
-      genOpcode "sarq" [xd]                        .    || remove value tag
-      genOpcode (movOpForOpr a) [cvtOpr a, x86rax] .    || copy opr a to %rax, lower 64 bits of dividend
-      genOpcode "sarq" [x86rax]                    .    || remove value tag
-      genOpcode "cqto" []                          .    || sign-extend to %rdx for upper 64 bits of dividend)
-      genOpcode "idivq" [xd]                            || perform 128b/64b divide; quotient in %rax, remainder in %rdx
-      where
-        xd = cvtRef d
+genQuotRem xa xb
+    = genOpcode "movq"  [xb, x86Tmp1]                .  || move imm divisor to temp reg xt
+      genOpcode "sarq"  [x86Tmp1]                    .  || remove tag bit from divisor
+      genOpcode "movq"  [xa, x86rax]                 .  || move dividend to %rax
+      genOpcode "sarq"  [x86rax]                     .  || remove tag bit from dividend
+      genOpcode "cqto"  []                           .  || sign-extend to %rdx for upper 64 bits of dividend
+      genOpcode "idivq" [x86Tmp1]                       || perform 128b/64b divide; quotient in %rax, remainder in %rdx
 
 || generate code to perform a write-barrier check on the addr in register upd
 genWriteBarrier :: x86Opr -> showS
@@ -833,26 +833,26 @@ genInsn (Update d (Imm (Caddr cp)))
 genInsn (Mov d a) = genMove d a
 
 genInsn (Add d a b)
-    = optimize xa xb xd
+    = optimize xa xb
       where
-        xa = cvtOpr a
-        xb = cvtOpr b
-        xd = cvtRef d
+        xa         = cvtOpr a
+        xb         = cvtOpr b
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
 
-        optimize (X86Imm n) (X86Reg _) (X86Reg _) = genOpcode "leaq" [addX86Offset n xb, xd]
-        optimize (X86Reg _) (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset n xa, xd]
-        optimize (X86Reg _) (X86Reg _) (X86Reg _) = genOpcode "leaq" [X86Idx xa xb 1 0, xd]
-        optimize _          _          _          = genMove d a . genOpcode "addq" [xb, xd]
+        optimize (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset n xb, xd]              . movd
+        optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset n xa, xd]              . movd
+        optimize (X86Reg _) (X86Reg _) = genOpcode "leaq" [X86Idx xa xb 1 0, xd]               . movd
+        optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "addq" [xb, xd] . movd
 
 genInsn (Sub d a b)
-    = optimize xa xb xd
+    = optimize xa xb
       where
-        xa = cvtOpr a
-        xb = cvtOpr b
-        xd = cvtRef d
+        xa         = cvtOpr a
+        xb         = cvtOpr b
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
 
-        optimize (X86Reg _) (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset (-n) xa, xd]
-        optimize _          _          _          = genMove d a . genOpcode "subq" [xb, xd]
+        optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset (-n) xa, xd]           . movd
+        optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "subq" [xb, xd] . movd
 
 || x86-64 imulq only handles reg/mem operands, so check for Imm operands and handle specially
 genInsn (Mul d a b)
@@ -862,39 +862,42 @@ genInsn (Mul d a b)
       where
         xa = cvtOpr a
         xb = cvtOpr b
-        xd = cvtRef d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
 
         || Mul imm reg can be replaced by a leaq if the imm is 1, 2, 3, 4, 5, 8, or 9
         || and can optimize away the tag removal of the imm operand, otherwise
         optimizeImm xr (X86Imm n)
-            = genOpcode "movq"  [X86Imm n', xd] . genOpcode "imulq" [xr, xd], if ~isX86Reg xr \/ isX86Imm64 (X86Imm n)
-            = genOpcode "leaq"  [X86Scl xr n'          0, xd],                if member cmpint [1, 2, 4, 8] n'
-            = genOpcode "leaq"  [X86Idx xr xr (n' - 1) 0, xd],                if member cmpint [3, 5, 9] n'
-            = genOpcode "imulq" [X86Imm n', xr, xd],                          otherwise
+            = genOpcode "movq"  [X86Imm n', xd] . genOpcode "imulq" [xr, xd] . movd, if ~isX86Reg xr \/ isX86Imm64 (X86Imm n)
+            = genOpcode "leaq"  [X86Scl xr n'          0, xd]                . movd, if member cmpint [1, 2, 4, 8] n'
+            = genOpcode "leaq"  [X86Idx xr xr (n' - 1) 0, xd]                . movd, if member cmpint [3, 5, 9] n'
+            = genOpcode "imulq" [X86Imm n', xr, xd]                          . movd, otherwise
               where
                 n' = n .>>. 1
 
         optimizeImm a b = undef
 
-        genMul = genOpcode "movq" [xa, xd] .    || move operand a to destination
-                 genOpcode "sarq" [xd]     .    || shift right to remove tag bit
-                 genOpcode "imulq" [xb, xd]     || multiply by operand b
+        genMul = genOpcode "movq"  [xa, xd] .   || move operand a to destination
+                 genOpcode "sarq"  [xd]     .   || remove tag bit
+                 genOpcode "imulq" [xb, xd] .   || multiply by operand b
+                 movd                           || move to final destination, if not a reg
 
 genInsn (QuotRem dq dr a b)
     = genOpcode    "pushq" [x86rdx]      .      || save %rdx, as it is destroyed during QuotRem
-      genQuotRem dr a b                  .
+      genQuotRem xa xb                   .      || use xdr as a temp reg during f
       genOpcode    "shlq"  [x86rax]      .
       genOpcode    "movq"  [x86rax, xdq] .
       genOpcode    "shlq"  [x86rdx]      .
       genOpcode    "movq"  [x86rdx, xdr] .
       genOpcode    "popq"  [x86rdx]
       where
+        xa  = cvtOpr a
+        xb  = cvtOpr b
         xdq = cvtRef dq
         xdr = cvtRef dr
 
 genInsn (DivMod dq dr a b)
     = genOpcode    "pushq" [x86rdx]            .        || save %rdx, as it is destroyed during QuotRem
-      genQuotRem dr a b                        .
+      genQuotRem xa xb                         .
       genOpcode    "movq"  [x86rax, xdq]       .
       genOpcode    "movq"  [x86rdx, xdr]       .
       genOpcode    "cmpq"  [X86Imm 0, x86rdx]  .        || check if remainder is zero
@@ -912,6 +915,8 @@ genInsn (DivMod dq dr a b)
       genOpcode    "shlq"  [xdr]               .        || add Int tag bit (0) to remainder
       genOpcode    "popq"  [x86rdx]                     || restore original %rdx
       where
+        xa  = cvtOpr a
+        xb  = cvtOpr b
         xdq = cvtRef dq
         xdr = cvtRef dr
 
@@ -941,42 +946,47 @@ genInsn (Bshl d a (Imm (Word b))) = genMove d a . genOpcode "shlq" [X86Imm b, cv
 || shift count must be placed in %cl
 genInsn (Bshl d a b)
     = genOpcode "movq" [x86rcx, x86Tmp0]  .     || save rcx so that it can be used for shift count
-      genMove d a                         .
+      genOpcode "movq" [cvtOpr a, xd]     .
       genOpcode "movq" [cvtOpr b, x86rcx] .
       genOpcode "sarq" [x86rcx]           .     || remove tag bit from shift amount
-      genOpcode "shlq" [xcl, cvtRef d]    .
+      genOpcode "shlq" [xcl, xd]          .
+      movd                                .
       genOpcode "movq" [x86Tmp0, x86rcx]        || restore rcx
       where
-        xcl = byte0 x86rcx
+        xcl        = byte0 x86rcx
+        (xd, movd) = ensureX86DstReg x86Tmp1 d
 
 || specialized version for shift amount known at compile-time
 genInsn (Bshr d a (Imm (Word b)))
-    = genMove d a                       .
-      genOpcode "sarq" [X86Imm b, xd]   .
-      genOpcode "andq" [X86Imm (-2), xd]        || ensure the tag bit is 0
+    = genOpcode "movq" [cvtOpr a, xd]    .
+      genOpcode "sarq" [X86Imm b, xd]    .
+      genOpcode "andq" [X86Imm (-2), xd] .      || ensure the tag bit is 0
+      movd
       where
-        xd = cvtRef d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
 
 || general version for shift amount known at runtime
 genInsn (Bshr d a b)
     = genOpcode "movq" [x86rcx, x86Tmp0]  .     || save rcx so that it can be used for shift count
-      genMove d a                         .
+      genOpcode "movq" [cvtOpr a, xd]     .
       genOpcode "movq" [cvtOpr b, x86rcx] .
       genOpcode "sarq" [x86rcx]           .     || remove tag bit from shift amount
       genOpcode "sarq" [xcl, xd]          .
       genOpcode "andq" [X86Imm (-2), xd]  .     || ensure the tag bit is 0
+      movd                                .
       genOpcode "movq" [x86Tmp0, x86rcx]        || restore rcx
       where
-        xcl = byte0 x86rcx
-        xd  = cvtRef d
+        xcl        = byte0 x86rcx
+        (xd, movd) = ensureX86DstReg x86Tmp1 d
 
 || a bitwise NOT must set the bottom bit to 0 to maintain the tag bit
 genInsn (Bnot d a)
-    = genOpcode "movq" [cvtOpr a, xd] .
-      genOpcode "notq" [xd]           .
-      genOpcode "andq" [X86Imm (-2), xd]        || ensure the tag bit is 0
+    = genOpcode "movq" [cvtOpr a, xd]    .
+      genOpcode "notq" [xd]              .
+      genOpcode "andq" [X86Imm (-2), xd] .      || ensure the tag bit is 0
+      movd
       where
-        xd = cvtRef d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
 
 || Note: generic selRet and selApply are expanded to individual functions for each of the Arg registers
 || and reference during the generation of a PushCont insn, so Sel insn shouldn't be generated, here; just ignore it
@@ -1141,10 +1151,10 @@ genInsn (WriteArray a (Imm (Word i)) v)
       genWriteBarrier xa                                   .
       shows "2:\n"
       where
-        (xa, mova) = ensureX86Reg x86Tmp0  a
+        (xa, mova) = ensureX86Reg x86Tmp0 a
         xv         = cvtOpr v
-        movv         = movOpForOpr v
-        idx          = i * 8 + 7        || add 7 to get to the base of the array
+        movv       = movOpForOpr v
+        idx        = i * 8 + 7        || add 7 to get to the base of the array
 
 || general version for index known at runtime
 genInsn (WriteArray a i v)
