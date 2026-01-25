@@ -383,16 +383,17 @@ genMoveToArgs
         genMoves alts ((i, v) : vs)
             = relocate . moveArg . genMoves alts' vs
               where
-                d       = (Arg, i)
-                xd      = cvtRef d
-                doReloc = member cmpopr (map snd vs) (Ref d)
-                xdAlt   = cvtArgState i        || alt location for arg, if it is still needed
-                xv      = m_findWithDefault cmpopr (cvtOpr v) v alts
-                moveArg = id,                                   if _eq cmpx86Opr xv xd   || don't move if already there
-                        = genOpcode (movOpForOpr v) [xv, xd],   otherwise
+                d        = (Arg, i)
+                xd       = cvtRef d
+                doReloc  = member cmpopr (map snd vs) (Ref d)
+                xdAlt    = cvtArgState i                        || alt location for arg, if it is still needed
+                xv       = m_findWithDefault cmpopr (cvtOpr v) v alts
 
-                alts'   = m_insert cmpopr (Ref d) xdAlt alts,   if doReloc
-                        = alts,                                 otherwise
+                moveArg  = id,                                  if _eq cmpx86Opr xv xd   || don't move if already there
+                         = genOpcode (movOpForOpr v) [xv, xd],  otherwise
+
+                alts'    = m_insert cmpopr (Ref d) xdAlt alts,  if doReloc
+                         = alts,                                otherwise
 
                 relocate = genOpcode "movq" [xd, xdAlt],        if doReloc
                          = id,                                  otherwise
@@ -651,15 +652,15 @@ genInsn ApplyToEnv = id
 
 || enter the Hfbalt closure pointed to by fopr, unwinding the stack to the saved sp
 genInsn (Fail fopr)
-    = genMove r2Ref fopr                                          .     || copy fopr into x86Env
-      genOpcode    "movzwq" [addX86Offset 1 x86Env, x86Tmp0]      .     || extract the env size field and use it to index into the env
-      genOpcode    "movq"   [X86Idx x86Env x86Tmp0 8 7, x86SP]    .     || copy saved sp to x86SP to unwind stack (7 to remove tag and get last word)
+    = genMove r2Ref fopr                                       .        || copy fopr into x86Env
+      genOpcode    "movzwq" [addX86Offset 1 x86Env, x86Tmp0]   .        || extract the env size field and use it to index into the env
+      genOpcode    "movq"   [X86Idx x86Env x86Tmp0 8 7, x86SP] .        || copy saved sp to x86SP to unwind stack (7 to remove tag and get last word)
       genJmpOpcode "jmp"    (addX86Offset 7 x86Env)                     || untag and jump to closure's cp
 
 genInsn (Ret val aty)
-    = genMove r0Ref  val                          .             || update the returned tag value
-      genArity aty                                .             || generate the arity-setting move
-      genOpcode    "ret" []                                     || return to continuation addr on top of stack
+    = genMove r0Ref  val .      || update the returned tag value
+      genArity aty       .      || generate the arity-setting move
+      genOpcode    "ret" []     || return to continuation addr on top of stack
       where
         genArity (Imm (Word n))
             = genOpcode "leaq" [cvtCMemAddr packFn, cvtReg 1]   || set r1 to packArgs fn corresponding to #of args
@@ -678,14 +679,14 @@ genInsn (CaseVec c cps)
     = genVec, otherwise
       where
         tag    = cvtReg 0
-        genSeq = genOpcode    "cmpq" [X86Imm 0, tag]               .
-                 genJmpOpcode "je"   (cvtJmpCodePtr (cps ! 0))     .
+        genSeq = genOpcode    "cmpq" [X86Imm 0, tag]              .
+                 genJmpOpcode "je"   (cvtJmpCodePtr (cps ! 0))    .
                  genJmpOpcode "jmp"  (cvtJmpCodePtr (cps ! 1))
 
-        genVec = genOpcode    "leaq" [cvtMemAddr "1f", x86MovTmp]  .  || addr of base of table of codePtrs
-                 genJmpOpcode "jmp"  (X86Idx x86MovTmp tag 4 0)    .  || index into it by scaling the tag value by 4 (because tag bit is already present)
-                 shows "\t.p2align\t3\n"                           .  || force alignment of table to prevent compiler warnings
-                 shows "1:\n"                                      .  || generate inline table of codePtrs
+        genVec = genOpcode    "leaq" [cvtMemAddr "1f", x86MovTmp] .     || addr of base of table of codePtrs
+                 genJmpOpcode "jmp"  (X86Idx x86MovTmp tag 4 0)   .     || index into it by scaling the tag value by 4 (because tag bit is already present)
+                 shows "\t.p2align\t3\n"                          .     || force alignment of table to prevent compiler warnings
+                 shows "1:\n"                                     .     || generate inline table of codePtrs
                  foldr (.) id (map (genValue . Caddr) cps)
 
 genInsn (Jmp cp) = genJmpOpcode "jmp" (cvtJmpCodePtr cp)
@@ -732,7 +733,7 @@ genInsn (PushCont cp env)
 genInsn (PopEnv 0) = id                                         || nothing required for a null closure env
 genInsn (PopEnv n)
     = err,                                            if n >= codegenMaxEnv
-    = foldr (.) id (map doPop [2 .. n + 1])       .             || leaves 2 slots at beginning of Env to emulate a heap closure tag and codePtr
+    = foldr (.) id (map doPop [2 .. n + 1]) .                   || leaves 2 slots at beginning of Env to emulate a heap closure tag and codePtr
       genOpcode "leaq" [addX86Offset 1 genv, x86Env], otherwise || set the x86Env to the global Env area
       where
         genv    = cvtCMemAddr "Env"
@@ -816,20 +817,20 @@ genInsn (Update d (Imm (Caddr cp)))
         || so we just pop it into the upd tmp register
         || Reg 0, Reg 1 are live, so use Reg 3 as a temp
         genUpdate
-            = genJmpOpcode "call" packFn                                  . || create a new closure and pack args into it
-              genOpcode    "popq" [upd]                                   . || get heapPtr to update
-              genOpcode    "movb" [X86Imm 2, addX86Offset (-1) upd]       . || update old closure's tag byte to Hfwd (2)
-              genOpcode    "leaq" [fwdPtr, addX86Offset 7 upd]            . || update old closure's code ptr to do forwarding
-              genOpcode    "leaq" [addX86Offset 1 x86Env, x86MovTmp]      . || update env 0 in old closure to point to new closure
-              genOpcode    "movq" [x86MovTmp, addX86Offset 15 upd]        .
-              genWriteBarrier upd                                           || perform a write barrier check on upd
+            = genJmpOpcode "call" packFn                             .  || create a new closure and pack args into it
+              genOpcode    "popq" [upd]                              .  || get heapPtr to update
+              genOpcode    "movb" [X86Imm 2, addX86Offset (-1) upd]  .  || update old closure's tag byte to Hfwd (2)
+              genOpcode    "leaq" [fwdPtr, addX86Offset 7 upd]       .  || update old closure's code ptr to do forwarding
+              genOpcode    "leaq" [addX86Offset 1 x86Env, x86MovTmp] .  || update env 0 in old closure to point to new closure
+              genOpcode    "movq" [x86MovTmp, addX86Offset 15 upd]   .
+              genWriteBarrier upd                                       || perform a write barrier check on upd
               where
                 packFn = cvtReg 1
                 upd    = cvtReg 3       || x86MovTmp is used, and R0, R1 (x86Tmp0, x86Tmp1) are live, but R3 is available
                                         || and is not destroyed by the packFns, so it doesn't need to be saved
                 fwdPtr = cvtMemCodePtr enterEnv0Ptr
 
-genInsn (Mov d a)   = genMove d a
+genInsn (Mov d a) = genMove d a
 
 genInsn (Add d a b)
     = optimize xa xb xd
@@ -849,80 +850,82 @@ genInsn (Sub d a b)
         xa = cvtOpr a
         xb = cvtOpr b
         xd = cvtRef d
-      
-        || perform some x86-64 leaq optimizations for Add
+
         optimize (X86Reg _) (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset (-n) xa, xd]
         optimize _          _          _          = genMove d a . genOpcode "subq" [xb, xd]
 
-|| x86-64 multiply is limited to reg/mem operands, so if one is Imm, make sure
-|| it is the first operand, since that is explicitly moved to the destination register
-genInsn (Mul d a (Imm b)) = genInsn (Mul d (Imm b) a)
-
+|| x86-64 imulq only handles reg/mem operands, so check for Imm operands and handle specially
 genInsn (Mul d a b)
-    = optimize xa xb
+    = optimizeImm xa xb, if isX86Imm xb
+    = optimizeImm xb xa, if isX86Imm xa
+    = genMul,            otherwise
       where
-        xa         = cvtOpr a
-        xb         = cvtOpr b
-        (xd, movd) = ensureX86DstReg x86Tmp1 d
+        xa = cvtOpr a
+        xb = cvtOpr b
+        xd = cvtRef d
 
-        || check for multiplication by immediate that can be replaced by leaq
-        optimize (X86Imm n) (X86Reg _)
-            = genOpcode "leaq" [X86Scl xb xn 0, xd]          . movd, if member cmpint [1, 2, 4, 8] xn
-            = genOpcode "leaq" [X86Idx xb xb (xn - 1) 0, xd] . movd, if member cmpint [3, 5, 9] xn
-              where xn = n .>>. 1
+        || Mul imm reg can be replaced by a leaq if the imm is 1, 2, 3, 4, 5, 8, or 9
+        || and can optimize away the tag removal of the imm operand, otherwise
+        optimizeImm xr (X86Imm n)
+            = genOpcode "movq"  [X86Imm n', xd] . genOpcode "imulq" [xr, xd], if ~isX86Reg xr \/ isX86Imm64 (X86Imm n)
+            = genOpcode "leaq"  [X86Scl xr n'          0, xd],                if member cmpint [1, 2, 4, 8] n'
+            = genOpcode "leaq"  [X86Idx xr xr (n' - 1) 0, xd],                if member cmpint [3, 5, 9] n'
+            = genOpcode "imulq" [X86Imm n', xr, xd],                          otherwise
+              where
+                n' = n .>>. 1
 
-        || multiply by immediate can pre-shift immediate value to remove the value tag
-        optimize (X86Imm n) _
-            = genOpcode "movq"  [X86Imm xn, xd] . genOpcode "imulq" [xb, xd] . movd
-              where xn = n .>>. 1
+        optimizeImm a b = undef
 
-        || general mul
-        optimize _ _
-            = genOpcode "movq"  [xa, xd] .
-              genOpcode "sarq"  [xd]     .      || remove value tag
-              genOpcode "imulq" [xb, xd] .
-              movd                              || move result to final destination, if it isn't dreg
+        genMul = genOpcode "movq" [xa, xd] .    || move operand a to destination
+                 genOpcode "sarq" [xd]     .    || shift right to remove tag bit
+                 genOpcode "imulq" [xb, xd]     || multiply by operand b
 
 genInsn (QuotRem dq dr a b)
-    = genOpcode    "pushq" [x86rdx]               .     || save %rdx, as it is destroyed during QuotRem
-      genQuotRem dr a b                           .
-      genOpcode    "shlq"  [x86rax]               .
-      genOpcode    "movq"  [x86rax, cvtRef dq]    .
-      genOpcode    "shlq"  [x86rdx]               .
-      genOpcode    "movq"  [x86rdx, cvtRef dr]    .
+    = genOpcode    "pushq" [x86rdx]      .      || save %rdx, as it is destroyed during QuotRem
+      genQuotRem dr a b                  .
+      genOpcode    "shlq"  [x86rax]      .
+      genOpcode    "movq"  [x86rax, xdq] .
+      genOpcode    "shlq"  [x86rdx]      .
+      genOpcode    "movq"  [x86rdx, xdr] .
       genOpcode    "popq"  [x86rdx]
+      where
+        xdq = cvtRef dq
+        xdr = cvtRef dr
 
 genInsn (DivMod dq dr a b)
-    = genOpcode    "pushq" [x86rdx]               .     || save %rdx, as it is destroyed during QuotRem
-      genQuotRem dr a b                           .
-      genOpcode    "movq"  [x86rax, cvtRef dq]    .
-      genOpcode    "movq"  [x86rdx, cvtRef dr]    .
-      genOpcode    "cmpq"  [X86Imm 0, x86rdx]     .     || check if remainder is zero
-      genJmpOpcode "jz"    (cvtJmpAddr "0f")      .     || if so, no fixup required
-      genOpcode    "movq"  [cvtOpr b, x86rax]     .
-      genOpcode    "sarq"  [X86Imm 63, x86rax]    .     || sign of b extended as mask
-      genOpcode    "sarq"  [X86Imm 63, x86rdx]    .     || sign of rem extended as mask
-      genOpcode    "xorq"  [x86rdx, x86rax]       .     || mask if sign b ~= sign rem (adjustment required)
-      genOpcode    "addq"  [x86rax, cvtRef dq]    .     || add adjustment to quotient (0 or -1)
-      genOpcode    "andq"  [cvtOpr b, x86rax]     .     || mask divisor (0 if no adjustment or d if adjustment)
-      genOpcode    "sarq"  [x86rax]               .     || untag divisor
-      genOpcode    "addq"  [x86rax, cvtRef dr]    .     || add into remainder to correct for mod
-      shows "0:\n"                                .
-      genOpcode    "shlq"  [cvtRef dq]            .     || add Int tag bit (0) to quotient
-      genOpcode    "shlq"  [cvtRef dr]            .     || add Int tag bit (0) to remainder
+    = genOpcode    "pushq" [x86rdx]            .        || save %rdx, as it is destroyed during QuotRem
+      genQuotRem dr a b                        .
+      genOpcode    "movq"  [x86rax, xdq]       .
+      genOpcode    "movq"  [x86rdx, xdr]       .
+      genOpcode    "cmpq"  [X86Imm 0, x86rdx]  .        || check if remainder is zero
+      genJmpOpcode "jz"    (cvtJmpAddr "0f")   .        || if so, no fixup required
+      genOpcode    "movq"  [cvtOpr b, x86rax]  .
+      genOpcode    "sarq"  [X86Imm 63, x86rax] .        || sign of b extended as mask
+      genOpcode    "sarq"  [X86Imm 63, x86rdx] .        || sign of rem extended as mask
+      genOpcode    "xorq"  [x86rdx, x86rax]    .        || mask if sign b ~= sign rem (adjustment required)
+      genOpcode    "addq"  [x86rax, xdq]       .        || add adjustment to quotient (0 or -1)
+      genOpcode    "andq"  [cvtOpr b, x86rax]  .        || mask divisor (0 if no adjustment or d if adjustment)
+      genOpcode    "sarq"  [x86rax]            .        || untag divisor
+      genOpcode    "addq"  [x86rax, xdr]       .        || add into remainder to correct for mod
+      shows "0:\n"                             .
+      genOpcode    "shlq"  [xdq]               .        || add Int tag bit (0) to quotient
+      genOpcode    "shlq"  [xdr]               .        || add Int tag bit (0) to remainder
       genOpcode    "popq"  [x86rdx]                     || restore original %rdx
+      where
+        xdq = cvtRef dq
+        xdr = cvtRef dr
 
 || the stgInsn Cmp semantics generate a 0# (eq), 1# (lt), or 2# (gt) result, but that would
 || be somewhat expensive to generate x86 code for.  Instead we perform an x86 cmpq insn, which
 || leaves its result in the flags register. Since the x86 cmp doesn't have an explicit destination
 || register, it can be optimized to a single instruction if the operands are compatible.
 genInsn (Cmp d a b)
-    = genMove d a .
-      genOpcode "cmpq" [xb, cvtRef d], if isX86Mem xa & isX86Mem xb \/ isX86Imm xa
-    = genOpcode "cmpq" [xb, xa],       otherwise
+    = genMove d a . genOpcode "cmpq" [xb, xd], if isX86Mem xa & isX86Mem xb \/ isX86Imm xa
+    = genOpcode "cmpq" [xb, xa],               otherwise
       where
         xa = cvtOpr a
         xb = cvtOpr b
+        xd = cvtRef d
 
 || bitwise operations on words
 || and, or, and xor correctly keep the tag bit 0
@@ -932,9 +935,7 @@ genInsn (Bxor d a b) = genMove d a . genOpcode "xorq" [cvtOpr b, cvtRef d]
 
 || bitwise shifts must remove the tag bit from the shift amount before shifting
 || specialized version for shift amount known at compile-time
-genInsn (Bshl d a (Imm (Word b)))
-    = genMove d a .
-      genOpcode "shlq" [X86Imm b, cvtRef d]
+genInsn (Bshl d a (Imm (Word b))) = genMove d a . genOpcode "shlq" [X86Imm b, cvtRef d]
 
 || general version for shift amount known at runtime
 || shift count must be placed in %cl
@@ -950,27 +951,32 @@ genInsn (Bshl d a b)
 
 || specialized version for shift amount known at compile-time
 genInsn (Bshr d a (Imm (Word b)))
-    = genMove d a                           .
-      genOpcode "sarq" [X86Imm b, cvtRef d] .
-      genOpcode "andq" [X86Imm (-2), cvtRef d]  || ensure the tag bit is 0
+    = genMove d a                       .
+      genOpcode "sarq" [X86Imm b, xd]   .
+      genOpcode "andq" [X86Imm (-2), xd]        || ensure the tag bit is 0
+      where
+        xd = cvtRef d
 
 || general version for shift amount known at runtime
 genInsn (Bshr d a b)
-    = genOpcode "movq" [x86rcx, x86Tmp0]       .        || save rcx so that it can be used for shift count
-      genMove d a                              .
-      genOpcode "movq" [cvtOpr b, x86rcx]      .
-      genOpcode "sarq" [x86rcx]                .        || remove tag bit from shift amount
-      genOpcode "sarq" [xcl, cvtRef d]         .
-      genOpcode "andq" [X86Imm (-2), cvtRef d] .        || ensure the tag bit is 0
-      genOpcode "movq" [x86Tmp0, x86rcx]                || restore rcx
+    = genOpcode "movq" [x86rcx, x86Tmp0]  .     || save rcx so that it can be used for shift count
+      genMove d a                         .
+      genOpcode "movq" [cvtOpr b, x86rcx] .
+      genOpcode "sarq" [x86rcx]           .     || remove tag bit from shift amount
+      genOpcode "sarq" [xcl, xd]          .
+      genOpcode "andq" [X86Imm (-2), xd]  .     || ensure the tag bit is 0
+      genOpcode "movq" [x86Tmp0, x86rcx]        || restore rcx
       where
         xcl = byte0 x86rcx
+        xd  = cvtRef d
 
 || a bitwise NOT must set the bottom bit to 0 to maintain the tag bit
 genInsn (Bnot d a)
-    = genOpcode "movq" [cvtOpr a, cvtRef d] .
-      genOpcode "notq" [cvtRef d]           .
-      genOpcode "andq" [X86Imm (-2), cvtRef d]  || ensure the tag bit is 0
+    = genOpcode "movq" [cvtOpr a, xd] .
+      genOpcode "notq" [xd]           .
+      genOpcode "andq" [X86Imm (-2), xd]        || ensure the tag bit is 0
+      where
+        xd = cvtRef d
 
 || Note: generic selRet and selApply are expanded to individual functions for each of the Arg registers
 || and reference during the generation of a PushCont insn, so Sel insn shouldn't be generated, here; just ignore it
@@ -998,49 +1004,50 @@ genInsn (AllocStream d fd sz)
       genOpcode "movq" [x86Tmp1, addX86Offset 0 xd]     .       || move the tagword into the heapObj
       genOpcode "incq" [xd]                                     || and return the tagged heapObj addr
       where
-        xd         = cvtRef d
+        xd = cvtRef d
 
 || read a byte from the Hstream a, returning -1 if at the end of the stream
 genInsn (ReadStream d s)
-    = genMove      d (Imm (Word (-1)))                      .   || move default end-of-stream to destination
-      movs                                                  .   || ensure stream value (heapPtr) is in a register
-      genOpcode    "movzwq" [addX86Offset 5 sreg, pos]      .   || extract position field from the tag (into whole register pos)
-      genOpcode    "cmpw"   [addX86Offset 3 sreg, posw]     .   || compare pos to limit
-      genJmpOpcode "jae"    (cvtJmpAddr "1f")               .   || jump if pos >= limit
-      genOpcode    "movzbq" [X86Idx sreg pos 1 7, xd]       .   || extract byte from stream at pos
-      genOpcode    "shlq"   [xd]                            .   || shift by one to add value tag
-      genOpcode    "incw"   [posw]                          .   || increment pos in tag
-      genOpcode    "movw"   [posw, addX86Offset 5 sreg]     .
+    = genMove      d (Imm (Word (-1)))                  .       || move default end-of-stream to destination
+      movs                                              .       || ensure stream value (heapPtr) is in a register
+      genOpcode    "movzwq" [addX86Offset 5 xs, pos]    .       || extract position field from the tag (into whole register pos)
+      genOpcode    "cmpw"   [addX86Offset 3 xs, posw]   .       || compare pos to limit
+      genJmpOpcode "jae"    (cvtJmpAddr "1f")           .       || jump if pos >= limit
+      genOpcode    "movzbq" [X86Idx xs pos 1 7, xd]     .       || extract byte from stream at pos
+      genOpcode    "shlq"   [xd]                        .       || shift by one to add value tag
+      genOpcode    "incw"   [posw]                      .       || increment pos in tag
+      genOpcode    "movw"   [posw, addX86Offset 5 xs]   .       || and move it back to position field
+      movd                                              .       || move result to dst, if it isn't already there
       shows "1:\n"
       where
-        xd           = cvtRef d
-        pos          = x86MovTmp
-        posw         = word0 pos
-        (sreg, movs) = ensureX86Reg x86Tmp1 s
+        (xd, movd) = ensureX86DstReg x86Tmp0 d                  || xd must be an X86Reg for byte extraction
+        pos        = x86MovTmp
+        posw       = word0 pos
+        (xs, movs) = ensureX86Reg x86Tmp1 s
 
 || write a byte to the Hstream s
 || return 0 if the byte was succesfully written, -1 otherwise
 genInsn (WriteStream d s c)
-    = genMove      d (Imm (Word (-1)))                      .   || move default buffer full indication to destination
-      movs                                                  .   || ensure stream value (heaptr) is in a register
-      genOpcode    "movzwq" [addX86Offset 3 sreg, lim]      .   || extract limit field from tag
-      genOpcode    "movzwq" [addX86Offset 1 sreg, creg]     .   || extract buffer qwords field from tag
-      genOpcode    "shlq"   [X86Imm 3, creg]                .   || convert buffer size to bytes
-      genOpcode    "cmpq"   [creg, lim]                     .   || compare current limit to buffer size
-      genJmpOpcode "jae"    (cvtJmpAddr "1f")               .   || jump if lim >= buffer size
-      genOpcode    "movq"   [cvtOpr c, creg]                .   || move char value to creg to allow lsb aliasing
-      genOpcode    "sarq"   [creg]                          .   || remove value tag
-      genOpcode    "movb"   [cregb, X86Idx sreg lim 1 7]    .   || insert byte into stream at lim
-      genOpcode    "incw"   [limw]                          .   || increment limit in tag
-      genOpcode    "movw"   [limw, addX86Offset 3 sreg]     .
-      genMove      d (Imm (Word 0))                         .   || success indication
+    = genMove      d (Imm (Word (-1)))                  .       || move default buffer full indication to destination
+      movs                                              .       || ensure stream value (heaptr) is in a register
+      genOpcode    "movzwq" [addX86Offset 3 xs, lim]    .       || extract limit field from tag
+      genOpcode    "movzwq" [addX86Offset 1 xs, creg]   .       || extract buffer qwords field from tag
+      genOpcode    "shlq"   [X86Imm 3, creg]            .       || convert buffer size to bytes
+      genOpcode    "cmpq"   [creg, lim]                 .       || compare current limit to buffer size
+      genJmpOpcode "jae"    (cvtJmpAddr "1f")           .       || jump if lim >= buffer size
+      genOpcode    "movq"   [cvtOpr c, creg]            .       || move char value to creg to allow lsb aliasing
+      genOpcode    "sarq"   [creg]                      .       || remove value tag
+      genOpcode    "movb"   [cregb, X86Idx xs lim 1 7]  .       || insert byte into stream at lim
+      genOpcode    "incw"   [limw]                      .       || increment limit in tag
+      genOpcode    "movw"   [limw, addX86Offset 3 xs]   .
+      genMove      d (Imm (Word 0))                     .       || success indication
       shows "1:\n"
       where
-        lim          = x86MovTmp
-        limw         = word0 lim
-        creg         = x86Tmp0                  || note: d could also be R0 (x86Tmp0), but is written after the creg temp use
-        cregb        = byte0 creg
-        (sreg, movs) = ensureX86Reg x86Tmp1 s
+        lim        = x86MovTmp
+        limw       = word0 lim
+        creg       = x86Tmp0            || note: d could also be R0 (x86Tmp0), but is written after the creg temp use
+        cregb      = byte0 creg
+        (xs, movs) = ensureX86Reg x86Tmp1 s
 
 || allocate an array
 || specialized version for size known at compile-time
@@ -1065,96 +1072,97 @@ genInsn (AllocArray d a)
 
 || fill an array with a replicated value
 genInsn (FillArray a v)
-    = mova                                                .   || ensure operands are in registers
-      movv                                                .
-      genOpcode    "movq" [addX86Offset (-1) areg, ireg]  .   || areg is tagged heapPtr of array; get tagword
-      genOpcode    "sarq" [X86Imm 32, ireg]               .   || extract array size (untagged)
-      genOpcode    "cmpq" [X86Imm 0, ireg]                .   || test for empty array
-      genJmpOpcode "jle"  (cvtJmpAddr "1f")               .   || note: test for index <= 0 to compensate for starting at size
-      shows "0:\n"                                        .   || loop top
-      genOpcode    "movq" [vreg, X86Idx areg ireg 8 (-1)] .   || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "decq" [ireg]                          .
-      genJmpOpcode "jg"   (cvtJmpAddr "0b")               .   || note: test for index > 0 to compensate for starting at size
-      shows "1:\n"                                            || loop exit
+    = mova                                           .  || ensure operands are in registers
+      movv                                           .
+      genOpcode    "movq" [addX86Offset (-1) xa, xi] .  || xa is tagged heapPtr of array; get tagword
+      genOpcode    "sarq" [X86Imm 32, xi]            .  || extract array size (untagged)
+      genOpcode    "cmpq" [X86Imm 0, xi]             .  || test for empty array
+      genJmpOpcode "jle"  (cvtJmpAddr "1f")          .  || note: test for index <= 0 to compensate for starting at size
+      shows "0:\n"                                   .  || loop top
+      genOpcode    "movq" [xv, X86Idx xa xi 8 (-1)]  .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
+      genOpcode    "decq" [xi]                       .
+      genJmpOpcode "jg"   (cvtJmpAddr "0b")          .  || note: test for index > 0 to compensate for starting at size
+      shows "1:\n"                                      || loop exit
       where
-        ireg         = x86Tmp0
-        (areg, mova) = ensureX86Reg x86Tmp1 a
-        (vreg, movv) = ensureX86Reg x86MovTmp v
+        xi         = x86Tmp0
+        (xa, mova) = ensureX86Reg x86Tmp1 a
+        (xv, movv) = ensureX86Reg x86MovTmp v
 
 || copy an array
 || note: assumes sizes match!
 genInsn (CopyArray d a)
-    = mova                                               .   || ensure array operand a is in a register
-      genOpcode    "movq" [addX86Offset (-1) areg, ireg] .   || xa is tagged heapPtr of array; get tagword
-      genOpcode    "sarq" [X86Imm 32, ireg]              .   || extract array size (untagged)
-      genOpcode    "cmpq" [X86Imm 0, ireg]               .   || test for empty array
-      genJmpOpcode "jle"  (cvtJmpAddr "1f")              .   || note: test for index <= 0 to compensate for starting at size
-      shows "0:\n"                                       .   || loop top
-      genOpcode    "movq" [X86Idx areg ireg 8 (-1), tmp] .   || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "movq" [tmp, X86Idx xd ireg 8 (-1)]   .   || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "decq" [ireg]                         .
-      genJmpOpcode "jg"   (cvtJmpAddr "0b")              .   || note: test for index > 0 to compensate for starting at size
-      shows "1:\n"                                           || loop exit
+    = mova                                           .  || ensure array operand a is in a register
+      genOpcode    "movq" [addX86Offset (-1) xa, xi] .  || xa is tagged heapPtr of array; get tagword
+      genOpcode    "sarq" [X86Imm 32, xi]            .  || extract array size (untagged)
+      genOpcode    "cmpq" [X86Imm 0, xi]             .  || test for empty array
+      genJmpOpcode "jle"  (cvtJmpAddr "1f")          .  || note: test for index <= 0 to compensate for starting at size
+      shows "0:\n"                                   .  || loop top
+      genOpcode    "movq" [X86Idx xa xi 8 (-1), tmp] .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
+      genOpcode    "movq" [tmp, X86Idx xd xi 8 (-1)] .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
+      genOpcode    "decq" [xi]                       .
+      genJmpOpcode "jg"   (cvtJmpAddr "0b")          .  || note: test for index > 0 to compensate for starting at size
+      shows "1:\n"                                      || loop exit
       where
-        ireg         = x86Tmp0
-        (areg, mova) = ensureX86Reg x86Tmp1 a
-        tmp          = x86MovTmp
-        xd           = cvtOpr d
+        xi         = x86Tmp0
+        (xa, mova) = ensureX86Reg x86Tmp1 a
+        tmp        = x86MovTmp
+        xd         = cvtOpr d                           || note: d is an opr in CopyArray, not a ref
 
 || read an array at an index
 || specialized version for index known at compile-time
 genInsn (ReadArray d a (Imm (Word i)))
-    = mova                                            . || ensure array a operand is in a register
-      genOpcode "movq" [addX86Offset idx areg, cvtRef d]
+    = mova                                      .       || ensure array a operand is in a register
+      genOpcode "movq" [addX86Offset idx xa, xd]
       where
-        (areg, mova) = ensureX86Reg x86Tmp0 a
-        idx          = i * 8 + 7        || add 7 to get to the base of the array
+        (xa, mova) = ensureX86Reg x86Tmp0 a
+        xd         = cvtRef d
+        idx        = i * 8 + 7        || add 7 to get to the base of the array
 
 || general version for index known at runtime
 genInsn (ReadArray d a i)
     = mova                                      .
       movi                                      .
-      genOpcode "movq" [X86Idx areg ireg 4 7, xd]       || offset of 8 -1 to subtract the tag bit
+      genOpcode "movq" [X86Idx xa xi 4 7, xd]       || offset of 8 -1 to subtract the tag bit
       where
-        (areg, mova) = ensureX86Reg x86Tmp0 a
-        (ireg, movi) = ensureX86Reg x86Tmp1 i
+        (xa, mova) = ensureX86Reg x86Tmp0 a
+        (xi, movi) = ensureX86Reg x86Tmp1 i
         xd           = cvtRef d
 
 || write an array at an index
 || specialized version for index known at compile-time
 genInsn (WriteArray a (Imm (Word i)) v)
-    = mova                                                       . || ensure array a operand is in a register
-      genOpcode    movv   [vreg, addX86Offset idx areg]          . || perform write
-      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) areg]     . || check if we've already added areg to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "2f")                      .
-      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", vreg]        . || check if vreg is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                      . || not in new space,
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) areg]     . || mark as being added to roots list
-      genWriteBarrier areg                                       .
+    = mova                                                 .    || ensure array a operand is in a register
+      genOpcode    movv   [xv, addX86Offset idx xa]        .    || perform write
+      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
+      genJmpOpcode "je"   (cvtJmpAddr "2f")                .
+      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
+      genJmpOpcode "jb"   (cvtJmpAddr "2f")                .    || not in new space,
+      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      genWriteBarrier xa                                   .
       shows "2:\n"
       where
-        (areg, mova) = ensureX86Reg x86Tmp0  a
-        vreg         = cvtOpr v
+        (xa, mova) = ensureX86Reg x86Tmp0  a
+        xv         = cvtOpr v
         movv         = movOpForOpr v
         idx          = i * 8 + 7        || add 7 to get to the base of the array
 
 || general version for index known at runtime
 genInsn (WriteArray a i v)
-    = mova                                                       . || ensure all operands are in x86 registers for x86Idx insn
-      movi                                                       .
-      movv                                                       .
-      genOpcode    "movq" [vreg, X86Idx areg ireg 4 7]           . || offset of 8 - 1 to subtract the tag bit
-      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) areg]     . || check if we've already added areg to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "2f")                      .
-      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", vreg]        . || check if vreg is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                      . || not in new space,
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) areg]     . || mark as being added to roots list
-      genWriteBarrier areg                                       .
+    = mova                                                 .    || ensure all operands are in x86 registers for x86Idx insn
+      movi                                                 .
+      movv                                                 .
+      genOpcode    "movq" [xv, X86Idx xa xi 4 7]           .    || offset of 8 - 1 to subtract the tag bit
+      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
+      genJmpOpcode "je"   (cvtJmpAddr "2f")                .
+      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
+      genJmpOpcode "jb"   (cvtJmpAddr "2f")                .    || not in new space,
+      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      genWriteBarrier xa                                   .
       shows "2:\n"
       where
-       (areg, mova) = ensureX86Reg x86Tmp0 a
-       (ireg, movi) = ensureX86Reg x86Tmp1 i
-       (vreg, movv) = ensureX86Reg x86MovTmp v
+       (xa, mova) = ensureX86Reg x86Tmp0 a
+       (xi, movi) = ensureX86Reg x86Tmp1 i
+       (xv, movv) = ensureX86Reg x86MovTmp v
 
 || perform a system op, putting the op# in arg0, the destination register number in arg1, and the source operand in arg2
 genInsn (SystemOp n (Reg, d) s)
