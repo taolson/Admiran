@@ -256,7 +256,7 @@ inlineAst k (Ecall (Evar (Builtin "cmp#")) [ea, eb]) st
         handle _             _             = k (Ecall builtinCmp [ea, eb]) st   || no rewrite; continue traversal
 
         gen cmp a b = case cmp a b of EQ -> EprimInt 0; LT -> EprimInt 1; GT -> EprimInt 2
-                  
+
 || collapse toStream/fromStream pairs
 || note: the fromStream may be the final expr in a chain of Elets, so we need to walk
 || the chain to check the final expr
