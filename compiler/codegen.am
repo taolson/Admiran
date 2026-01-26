@@ -359,8 +359,8 @@ ensureX86Reg default a
         op = genOpcode (movOpForOpr a) [xa, default]
 
 || same as above, but for a destination reference
-|| this should be used in generating STGInsns where the dst must be an x86Reg, or
-|| may be referenced multiple times (minimizes extraneous mov generation)
+|| this should be used during generation of stgInsns where the dst must be an x86Reg, or
+|| to improve performance of generated code that references the dst multiple times
 ensureX86DstReg :: x86Opr -> ref -> (x86Opr, showS)
 ensureX86DstReg default d
     = (xd, id),      if isX86Reg xd
@@ -832,18 +832,21 @@ genInsn (Update d (Imm (Caddr cp)))
 
 genInsn (Mov d a) = genMove d a
 
+|| Add, optimized to use single insn "leaq" equivalent when possible
 genInsn (Add d a b)
-    = optimize xa xb
+    = optimize xb xa, if isX86Imm xa    || Add is commutative; prefer imm in second operand
+    = optimize xa xb, otherwise         || to minimize variants
       where
         xa         = cvtOpr a
         xb         = cvtOpr b
         (xd, movd) = ensureX86DstReg x86Tmp0 d
 
-        optimize (X86Imm n) (X86Reg _) = genOpcode "leaq" [addX86Offset n xb, xd]              . movd
-        optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset n xa, xd]              . movd
-        optimize (X86Reg _) (X86Reg _) = genOpcode "leaq" [X86Idx xa xb 1 0, xd]               . movd
-        optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "addq" [xb, xd] . movd
+        optimize x1 (X86Imm n) = genOpcode "leaq" [addX86Offset n x1, xd] . movd, if isX86Reg x1
+        optimize x1 x2
+             = genOpcode "leaq" [X86Idx x1 x2 1 0, xd]               . movd, if isX86Reg x1 & isX86Reg x2
+             = genOpcode "movq" [x2, xd] . genOpcode "addq" [x1, xd] . movd, otherwise  || x2 may be 64-bit imm; use it in mov
 
+|| Sub, optimized to use single insn "leaq" equivalent when possible
 genInsn (Sub d a b)
     = optimize xa xb
       where
@@ -854,32 +857,32 @@ genInsn (Sub d a b)
         optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset (-n) xa, xd]           . movd
         optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "subq" [xb, xd] . movd
 
-|| x86-64 imulq only handles reg/mem operands, so check for Imm operands and handle specially
+|| Mul, optimized to use single insn "leaq" or the three-operand immediate equivalent, when possible
 genInsn (Mul d a b)
-    = optimizeImm xa xb, if isX86Imm xb
-    = optimizeImm xb xa, if isX86Imm xa
-    = genMul,            otherwise
+    = optimize xb xa, if isX86Imm xa    || Mul is commutative; prefer imm in second operand
+    = optimize xa xb, otherwise         || to minimize variants
       where
-        xa = cvtOpr a
-        xb = cvtOpr b
+        xa         = cvtOpr a
+        xb         = cvtOpr b
         (xd, movd) = ensureX86DstReg x86Tmp0 d
 
         || Mul imm reg can be replaced by a leaq if the imm is 1, 2, 3, 4, 5, 8, or 9
         || and can optimize away the tag removal of the imm operand, otherwise
-        optimizeImm xr (X86Imm n)
-            = genOpcode "movq"  [X86Imm n', xd] . genOpcode "imulq" [xr, xd] . movd, if ~isX86Reg xr \/ isX86Imm64 (X86Imm n)
-            = genOpcode "leaq"  [X86Scl xr n'          0, xd]                . movd, if member cmpint [1, 2, 4, 8] n'
-            = genOpcode "leaq"  [X86Idx xr xr (n' - 1) 0, xd]                . movd, if member cmpint [3, 5, 9] n'
-            = genOpcode "imulq" [X86Imm n', xr, xd]                          . movd, otherwise
+        optimize x1 (X86Imm n)
+            = genOpcode "movq"  [X86Imm n', xd] . genOpcode "imulq" [x1, xd] . movd, if ~isX86Reg x1 \/ isX86Imm64 (X86Imm n)
+            = genOpcode "leaq"  [X86Scl x1 n'          0, xd]                . movd, if member cmpint [1, 2, 4, 8] n'
+            = genOpcode "leaq"  [X86Idx x1 x1 (n' - 1) 0, xd]                . movd, if member cmpint [3, 5, 9] n'
+            = genOpcode "imulq" [X86Imm n', x1, xd]                          . movd, otherwise
               where
                 n' = n .>>. 1
 
-        optimizeImm a b = undef
-
-        genMul = genOpcode "movq"  [xa, xd] .   || move operand a to destination
-                 genOpcode "sarq"  [xd]     .   || remove tag bit
-                 genOpcode "imulq" [xb, xd] .   || multiply by operand b
-                 movd                           || move to final destination, if not a reg
+        || general Mul form; move second operand into dst to handle the case where it
+        || is an x86Imm64
+        optimize x1 x2
+            = genOpcode "movq"  [x2, xd] .      || move operand a to destination
+              genOpcode "sarq"  [xd]     .      || remove tag bit
+              genOpcode "imulq" [x1, xd] .      || multiply by operand b
+              movd                              || move to final destination, if not a reg
 
 genInsn (QuotRem dq dr a b)
     = genOpcode    "pushq" [x86rdx]      .      || save %rdx, as it is destroyed during QuotRem
