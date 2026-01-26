@@ -720,7 +720,7 @@ assoc ::= AssocLeft | AssocRight | AssocPrefix | AssocCompare
 || associativity.
 opPrecRepr
     = [ "R$ R$!"
-      , "L|> L>>= R>=> L>> L<< R: R++ R--"
+      , "L|> L!> L>>= R>=> L>> L<< R: R++ R--"
       , "R\\/"
       , "R& L<|>"
       , "P~ L<$> L<*> L<* L*>"

@@ -10,6 +10,10 @@
 ($!) :: (* -> **) -> * -> **
 f $! x = x $seq f x
 
+|| flipped version of ($!) for uniform left-to-right computation flow
+(!>) :: * -> (* -> **) -> **
+x !> f = x $seq f x
+
 || strict iteration
 iterate' :: (* -> *) -> * -> [*]
 iterate' f
@@ -119,7 +123,7 @@ comparing cmp f = cmp $on f
 
 || descending is like comparing, except it uses the opposite order:
 ||    sortBy (descending cmpint length) ["four", "three", "two"] would return ["three", "four", "two"]
-descending cmp f = (\a b -> cmp b a) $on f
+descending cmp f = (converse cmp) $on f
 
 
 || Tuple functions
@@ -252,7 +256,7 @@ isPrefixOf cmp p
         go (x : xs) []       = False
         go (x : xs) (y : ys) = _eq cmp x y & go xs ys
 
-isInfixOf cmp p = \xs -> any (isPrefixOf cmp p) $ tails xs
+isInfixOf cmp p = any (isPrefixOf cmp p) . tails
 
 stripPrefix :: ordI * -> [*] -> [*] -> maybe [*]
 stripPrefix cmp
