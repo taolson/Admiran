@@ -7,7 +7,7 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>
+%import <maybe>                 (>>=?)/mb_bind
 %import <state>                 (>>=)/st_bind
 %import "ast"
 %import "config"
@@ -356,7 +356,10 @@ desugarAst k (Ecase Cnone e alts) st
         sortedLitAlts         = sortOn cmpint getLit alts
         sortedCtorAlts        = sortOn cmpint getCtorTag alts
         failAlt               = CaseAlt Pwildcard builtinFail
-        allCtors              = map getName . fromMaybe [] . lookupCtorNames genv . getCtorName . hd $ alts
+        allCtors              = fromMaybef [] (map getName) $ find isCtorAlt alts >>=? (getCtorName .> lookupCtorNames genv)
+
+        isCtorAlt (CaseAlt (Pctor _ _) _) = True
+        isCtorAlt _                       = False
 
         getPat (CaseAlt p e)= p
         getPat _            = undef     || added to remove compiler warning
