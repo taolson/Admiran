@@ -92,7 +92,7 @@ renameAst k (Elet rec defs ps e) st
         isRenamePat _                                    = False
 
         mkDep (n, (DefPat (Pvar n1) (Evar n2) an)) = (n1, [n2])
-        mkDep _ = undef || added to remove compiler warning
+        mkDep _ = unreachable
 
         || handle renamePats by installing the mapping from n1 -> n2 in the rename map
         renamePat st n1
@@ -150,7 +150,7 @@ renameAst k a st
         renamePatRef p             = st_pure p
 
         tvarDefs (Tname n tvs)     = st_fmap (Tname n) (st_mapM tvarDef tvs)
-        tvarDefs _                 = undef      || added to remove compiler warning
+        tvarDefs _                 = unreachable
 
         tvarRefs te                = astRewriteLex tvarRef te
 

@@ -49,7 +49,7 @@ deriveShow d
         showForType (Tname n vars)
             = foldl Eap (Evar . Unqualified $ "show" ++ getName n) $ map showForType vars
 
-        showForType _ = undef      || added to remove compiler warning
+        showForType _ = unreachable
 
         findInstName te            = fromMaybe (Unqualified "undef") . mb_fmap snd . find ((_eq cmptexpr te) . fst) $ instNames
 
@@ -67,7 +67,7 @@ deriveShow d
                 appendShow s1 s2 = ap2 stdAppend s1 $ ap2 stdAppend (Estring " ") s2
                 mkShow (t, i)    = Eap (showForType t) . Evar $ Internal "a" i
 
-         genDef _ = undef       || added to remove compiler warning
+         genDef _ = unreachable
 
 || derive an ord instance spec and defn for a user-defined data type or synonym
 deriveOrd :: defn -> (defn, defn)
@@ -111,7 +111,7 @@ deriveOrd d
         cmpForType (Tname n vars)
             = foldl Eap (Evar . Unqualified $ "cmp" ++ getName n) $ map cmpForType vars
 
-        cmpForType _ = undef    || added to remove compiler warning
+        cmpForType _ = unreachable
 
         findInstName te           = fromMaybe (Unqualified "undef") . mb_fmap snd . find ((_eq cmptexpr te) . fst) $ instNames
 
@@ -131,7 +131,7 @@ deriveOrd d
                       where
                         (_, vars) = genNames s 0 tas
 
-                genPat _ _ = undef        || added to remove compiler warning
+                genPat _ _ = unreachable
 
 || derive any missing instances for ord, show for the dataDefs
 deriveInstances :: globalEnv -> excpt globalEnv

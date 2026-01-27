@@ -444,7 +444,7 @@ buildCodeAlt (CaseAlt (Pctor cn vars) e)
 buildCodeAlt (CaseAlt p e)
     = inAltEnv [] (buildCode e)
 
-buildCodeAlt _ = undef  || added to remove compiler warning (all caseAlts handled, but it is a type alias for ast)
+buildCodeAlt _ = unreachable
 
 || build the code for the CaseAlts, resetting the regGen and frmGen values to their common initial values for each,
 || setting them to the max regGen and frmGen values used upon return

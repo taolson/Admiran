@@ -239,4 +239,4 @@ reifyDefAbs genv
               where
                 d = DefData tf [] an
 
-        update _ _ = undef      || added to remove compiler warning
+        update _ _ = unreachable

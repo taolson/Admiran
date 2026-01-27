@@ -42,7 +42,7 @@ p_symbol
     = p_any >>=? mkSym
       where
         mkSym (Tsymbol n) = p_pure n
-        mkSym t           = p_fail
+        mkSym _           = p_fail
 
 p_infix :: parser name
 p_infix
@@ -81,7 +81,7 @@ p_literal
         flit (TlitString s) = p_pure (Estring s)
         flit (TprimInt n)   = p_pure (EprimInt n)
         flit (TprimChar c)  = p_pure (EprimChar c)
-        flit t              = p_fail
+        flit _              = p_fail
 
 || comma separated list of many
 p_listManyOf :: parser * -> parser [*]
@@ -235,7 +235,7 @@ p_expAp pPre pInf pTerm es ops
     = (pTerm >>= fexpr es) <|> p_expFinal es ops
       where
         fexpr (e1 : es') e2 = p_expOp pPre pInf pTerm (Eap e1 e2 : es') ops
-        fexpr _          _  = undef     || added to remove compiler warning
+        fexpr _          _  = unreachable
 
 || check the relative precedence of the top two oprs on the opr stack
 || reduce by combining with EOpr onto the expr stack
@@ -304,7 +304,7 @@ p_casePat
         isCasePat (Plit e)       = isUnboxed e
         isCasePat (Pctor _ vars) = all isPvarOrWild vars
         isCasePat Pwildcard      = True
-        isCasePat p              = False
+        isCasePat _              = False
 
 p_caseAlt :: parser caseAlt
 p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs)
@@ -386,7 +386,7 @@ makePatFn args e
       where
         unVar (Pvar v) = v
         unVar (Evar v) = v
-        unVar _        = undef  || added to remove compiler warning
+        unVar _        = unreachable
 
         || determine if we have parsed a Pctor, a Pvar, a Pwildcard, or a fnform
         classifyVar v
@@ -450,7 +450,7 @@ p_tvar
     = p_any >>=? ftvar
       where
         ftvar (Tsymbol n) = p_pure . Tvar . length . getName $ n, if isTvarSymbol n
-        ftvar t           = p_fail
+        ftvar _           = p_fail
 
 || parse an infix type operator, allowing the reserved name "->", but disallowing tvars and "!" (confuses with strictness annotation)
 p_tinfix :: parser name
@@ -550,7 +550,7 @@ p_construct
         mkConstr n vars                = Tname n vars
         mkInfConstr t1 n t2            = Tname n [t1, t2]
         apConstr (Tname n vars1) vars2 = Tname n (vars1 ++ vars2)
-        apConstr _               _     = undef  || added to remove compiler warning
+        apConstr _               _     = unreachable
 
 p_constructs :: parser [tform]
 p_constructs = p_someSepBy p_vBar p_construct
@@ -615,7 +615,7 @@ p_fileSpec
       where
         mkStd n            = FileSpec stdlibPath (getName n)
         fid (TlitString s) = p_pure (fileSpecFromString s), if #s > 0   || fileSpec cannot be the null string
-        fid t              = p_fail
+        fid _              = p_fail
 
 p_libPart :: parser libPart
 p_libPart
@@ -660,8 +660,7 @@ p_env :: parser libEnv
 p_env
     = (p_liftA4 mkEnv p_getLoc p_fileSpec p_libQual p_libAs <*> p_optional p_binder) <*> p_many p_alias
       where
-        mkEnv loc fs lq la mbi as
-            = (fs, loc, lq, la, fromMaybe [] mbi, as)
+        mkEnv loc fs lq la mbi as = (fs, loc, lq, la, fromMaybe [] mbi, as)
 
 p_libDir :: parser modInserter
 p_libDir

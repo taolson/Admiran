@@ -191,7 +191,7 @@ demandAst k a
                    = bs_insert i s, if s_member cmpname n dns
                    = s,             otherwise
 
-       doDef _ _ = undef  || added to remove compiler warning
+       doDef _ _ = unreachable
 
 demandGroup :: defnMap -> [name] -> state dmSt defnMap
 demandGroup defs ns

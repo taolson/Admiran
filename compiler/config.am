@@ -1,4 +1,3 @@
-||
 || config.am -- compiler configuration parameters
 ||
 || currently these configuration parameters are defined in this module, but some or all of them may be migrated
@@ -11,14 +10,14 @@
 os ::= MacOS | Linux
 
 || these parameters must be set when installing the compiler
-hostOS                = Linux           || set to Linux or MacOS
-admiranLibPath        = "../lib"        || set to the absolute path name fo the lib directory
+hostOS                = MacOS           || set to Linux or MacOS
+admiranLibPath        = "/Users/tim/Programming/Admiran/lib"
                                         || e.g. "/home/tim/Programming/Admiran/lib"
 
 || os-dependant configuration parameters
 (codegenCsymbolPrefix, ccOpts)
     = case hostOS of
-        MacOS -> ("_", "-O2 -Wl,-no_pie")
+        MacOS -> ("_", "-arch x86_64 -O2 -Wl,-no_pie")          || force x86_64 build
         Linux -> ("",  "-O2 -fno-pie -no-pie -z noexecstack")
 
 || shouldn't have to be touched, but configurable

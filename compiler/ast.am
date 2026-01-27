@@ -162,4 +162,4 @@ astRewriteInLet t defs pats
     = unpack $st_fmap t (Elet True defs pats (Eint 0))
       where
         unpack (Elet _ defs' pats' _) = (defs', pats')
-        unpack _                      = undef   || added to remove compiler warning
+        unpack _                      = unreachable

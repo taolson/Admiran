@@ -710,10 +710,10 @@ genInsn (PushCont cp env)
         genPushAppEnv n              = genPushCont (cvtMemAddr ("ApplyToEnv" ++ showint n)) env
 
         genPushRetArg [Imm (Word n)] = genPushCont (cvtMemAddr ("RetArg"   ++ showint n)) []
-        genPushRetArg _              = undef    || added to remove compiler warning
+        genPushRetArg _              = unreachable
 
         genPushAppArg [Imm (Word n)] = genPushCont (cvtMemAddr ("ApplyArg" ++ showint n)) []
-        genPushAppArg _              = undef    || added to remove compiler warning
+        genPushAppArg _              = unreachable
 
         genPushGeneric               = genPushCont (cvtMemCodePtr cp) env
 
@@ -1200,7 +1200,7 @@ genCmpCaseVec cmp (CaseVec (Ref (Reg, creg)) [cpEq, cpLt, cpGt])
       where
         (Cmp (Reg, cmpRslt) _ _) = cmp
 
-genCmpCaseVec _ _ = undef       || added to remove compiler warning
+genCmpCaseVec _ _ = unreachable
 
 || if an explicit Cmp preceeds a Jeq, then we don't need to generate an implicit compare
 || (see genInsn Jeq for more details)

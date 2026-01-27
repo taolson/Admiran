@@ -426,7 +426,7 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts)) st
                 DefPat _ e' _ = d
 
         insLet (CaseAlt p e) = CaseAlt p (Elet rec defs ps e)
-        insLet _             = undef    || added to remove compiler warning
+        insLet _             = unreachable
 
         tallyUses (Evar n) used = used \/ m_member cmpname n defs
         tallyUses a        used = used
@@ -456,7 +456,7 @@ simplifyAst k (Elet b defs ps e) st
                     = 1, if view defnAnRec d & s_member cmpname (defnName d) (view defnAnFree d)
                     = 0, otherwise
 
-         f _ _ = undef    || added to remove compiler warning
+         f _ _ = unreachable
 
 || simplify case exprs that don't return
 simplifyAst k (Ecase b e alts) st
@@ -535,7 +535,7 @@ simplifyAst k (Ecase b1 (Ecase b2 tst alts2) alts1) st
               where
                 (e', genv') = renameExpr "" (Ecase b1 e alts1) (view inGenv st)
 
-        pushAlt _ _ = undef       || added to remove compiler warning
+        pushAlt _ _ = unreachable
 
 || simplify an Ecase with a constant constructor scrutinee by replacing it with its corresponding caseAlt
 || this is the main simplification optimization which the others are trying to expose
@@ -606,7 +606,7 @@ simplifyAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecase b tst al
         st'  = addInfo note . over inFuel (subtract (cpx * (#alts - 1))) . set inSimplified True $ st
 
         pushSel (CaseAlt p e) = (CaseAlt p (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [e]))
-        pushSel _             = undef   || added to remove compiler warning
+        pushSel _             = unreachable
 
 || float a case outside of an Ecall fn
 || exposes opportunities to inline the called fn, as it becomes specialized in each alt
@@ -618,7 +618,7 @@ simplifyAst k (Ecall (Ecase b e alts) args) st
         st'   = addInfo note . set inSimplified True $ st
 
         insCall (CaseAlt p e) = CaseAlt p (Ecall e args)
-        insCall _             = undef   || added to remove compiler warning
+        insCall _             = unreachable
 
 || float let outside of an Ecall fn
 || exposes opportunities to inline the called fn

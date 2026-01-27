@@ -27,15 +27,15 @@ serialCtor :: serializer int
 serialCtor n = (decode (n + 32) :)
 
 deserialCtor :: deserializer int
-deserialCtor []       = error "deserialCtor: []"
 deserialCtor (c : cs) = (code c - 32, cs)
+deserialCtor _        = unreachable
 
 serialChar :: serializer char
 serialChar c = (c :)
 
 deserialChar :: deserializer char
-deserialChar []       = error "deserialChar: []"
 deserialChar (c : cs) = (c, cs)
+deserialChar _        = unreachable
 
 || serialize a positive integer
 serialPosInt :: serializer int
@@ -61,7 +61,7 @@ deserialInt
       where
         mkInt 0 n = n
         mkInt 1 n = neg n
-        mkInt _ _ = undef       || added to remove compiler warning
+        mkInt _ _ = unreachable
 
 serialString :: serializer string
 serialString s = serialPosInt (#s) . (s ++)
@@ -80,7 +80,7 @@ deserialBool
       where
         encBool 0 = False
         encBool 1 = True
-        encBool _ = undef       || added to remove compiler warning
+        encBool _ = unreachable
 
 serialTup2 :: serializer * -> serializer ** -> serializer (*, **)
 serialTup2 sa sb (a, b) = sa a . sb b
@@ -146,7 +146,7 @@ deserialEither dl dr
       where
         dse 0 = Left  <$> dl
         dse 1 = Right <$> dr
-        dse _ = undef       || added to remove compiler warning
+        dse _ = unreachable
 
 serialBitSet :: serializer bitSet
 serialBitSet s =  bs_toInt s |> serialInt
@@ -170,7 +170,7 @@ deserialCaseSel
         ctor 1 = Csingle
         ctor 2 = Cpriority
         ctor 3 = Cvectored
-        ctor _ = undef  || added to remove compiler warning
+        ctor _ = unreachable
 
 serialMultSel :: serializer multSel
 serialMultSel Mfun = serialCtor 0
@@ -182,7 +182,7 @@ deserialMultSel
       where
         ctor 0 = Mfun
         ctor 1 = Mpat
-        ctor _ = undef  || added to remove compiler warning
+        ctor _ = unreachable
 
 
 serialLoc :: serializer location
@@ -215,7 +215,7 @@ deserialName
         ctor 3 = st_liftA2 Private     deserialString deserialString
         ctor 4 =           Builtin <$> deserialString
         ctor 5 = st_liftA2 Internal    deserialString deserialPosInt
-        ctor _ = undef  || added to remove compiler warning
+        ctor _ = unreachable
 
 serialDefnMap :: serializer defnMap
 serialDefnMap = serialList (serialTup2 serialName serialAst) . m_toList
@@ -319,7 +319,7 @@ deserialAst
         ctor 35 =           EprimInt    <$> deserialInt
         ctor 36 =           EprimChar   <$> deserialChar
         ctor 37 =           EprimString <$> deserialString
-        ctor n  = error ("deserialCtor: unknown ctor id " ++ showint n)
+        ctor _  = undef
 
 
 || module serialization
@@ -340,7 +340,7 @@ deserialLibQual
       where
         ctor 0 = st_pure LibUnqualified
         ctor 1 = st_pure LibQualified
-        ctor _ = undef  || added to remove compiler warning
+        ctor _ = unreachable
 
 serialLibAs :: serializer libAs
 serialLibAs LibNoAs   = serialCtor 0
@@ -352,7 +352,7 @@ deserialLibAs
       where
         ctor 0 = st_pure LibNoAs
         ctor 1 = LibAs <$> deserialString
-        ctor _ = undef  || added to remove compiler warning
+        ctor _ = unreachable
 
 serialLibPart :: serializer libPart
 serialLibPart (LibIdent n l)  = serialCtor 0 . serialName n     . serialLoc l
@@ -368,7 +368,7 @@ deserialLibPart
         ctor 1 = st_liftA2 LibRemove    deserialName     deserialLoc
         ctor 2 = st_liftA2 LibFile      deserialFileSpec deserialLoc
         ctor 3 =           LibAll <$>   deserialLoc
-        ctor _ = undef  || added to remove compiler warning
+        ctor _ = unreachable
 
 serialLibAlias :: serializer libAlias
 serialLibAlias (Alias n1 n2)   = serialCtor 0 . serialName n1 . serialName n2
@@ -380,7 +380,7 @@ deserialLibAlias
       where
         dla 0 = st_liftA2 Alias deserialName deserialName
         dla 1 = AliasRemove <$> deserialName
-        dla _ = undef       || added to remove compiler warning
+        dla _ = unreachable
 
 serialLibBinding :: serializer libBinding
 serialLibBinding (BindVar n e)   = serialCtor 0 . serialName n . serialAst e
@@ -392,7 +392,7 @@ deserialLibBinding
       where
         dlb 0 = st_liftA2 BindVar  deserialName deserialAst
         dlb 1 = st_liftA2 BindType deserialName deserialAst
-        dlb _ = undef       || added to remove compiler warning
+        dlb _ = unreachable
 
 serialLibEnv :: serializer libEnv
 serialLibEnv = serialTup6 serialFileSpec serialLoc serialLibQual serialLibAs (serialList serialLibBinding) (serialList serialLibAlias)
@@ -412,7 +412,7 @@ deserialBuildStatus
         mkbs 0 = Unbuilt
         mkbs 1 = Built
         mkbs 2 = Serialized
-        mkbs _ = undef  || added to remove compiler warning
+        mkbs _ = unreachable
 
 serialModule :: serializer module
 serialModule (Module fs bs exs ins defs pats specs env)

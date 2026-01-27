@@ -134,7 +134,7 @@ matchLit var vars peqns st
         trueCase     = CaseAlt (Pctor stdTrueName  []) e'
 
         tst (Plit lit) = ap2 (eqOpForLit lit) (Evar var) lit
-        tst _          = undef           || added to remove compiler warning
+        tst _          = unreachable
 
 
 || match a group of constructors of the same type (irrefutable, if all ctor groups are irrefutable)
@@ -236,7 +236,7 @@ patCaseTree ((c, ps, rhs) : cs) mr st
                       where
                         (n, st') = st_genName "ctor" st
 
-                go _ = undef    || added to remove compiler warning
+                go _ = unreachable
 
                 st_genName n st
                     = (n', set dsGen gen' st)
@@ -343,7 +343,7 @@ desugarAst k (Econd conds) st
 
         mkCase (Cdefault e) rest = e            || early-out on default
         mkCase (Cif tst e)  rest = Ecase Cvectored tst [CaseAlt (Pctor stdFalseName []) rest, CaseAlt (Pctor stdTrueName []) e]
-        mkCase _            _    = undef        || added to remove compiler warning
+        mkCase _            _    = unreachable
 
 || desugar explicit case exprs (set the caseSel flag correctly)
 desugarAst k (Ecase Cnone e alts) st
@@ -362,16 +362,16 @@ desugarAst k (Ecase Cnone e alts) st
         isCtorAlt _                       = False
 
         getPat (CaseAlt p e)= p
-        getPat _            = undef     || added to remove compiler warning
+        getPat _            = unreachable
 
         getLit (CaseAlt (Plit (EprimInt n)) e) = n
-        getLit _                               = undef || added to remove compiler warning
+        getLit _                               = unreachable
 
         getCtorName (CaseAlt (Pctor n vars) e) = n
-        getCtorName _                          = undef || added to remove compiler warning
+        getCtorName _                          = unreachable
 
         getCtorTag (CaseAlt (Pctor n vars) e) = fromMaybe 0 $ elemIndex (==$ getName n) allCtors
-        getCtorTag _                          = undef || added to remove compiler warning
+        getCtorTag _                          = unreachable
 
         checkPats ps
             = (Csingle,   alts),              if #ps == 1 & irrefutable lastPat

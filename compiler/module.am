@@ -331,7 +331,7 @@ modInsData d m
                 spec   = DefSpec (Tname n []) t an
                 fn     = makeStrictCtor n tag cts an,              if any isStrict cts
                        = DefFn n [] (builtinPack n tag (#cts)) an, otherwise    || note: nullary DefFn instead of DefPat; arity from builtinPack
-        insFn m _      = undef  || added to remove compiler warning
+        insFn m _      = unreachable
 
 || insert a type specification
 modInsSpec :: defn -> modInserter
@@ -441,7 +441,7 @@ lookupCtorNames genv n
       where
         s                            = getName n
         baseName (DefSpec tf te an ) = tformName $ baseType te
-        baseName _                   = undef    || added to remove compiler warning
+        baseName _                   = unreachable
 
 || lookup the arity for a function reference in the global environment
 || since constuctor definitions use the poly-arity "pack" builtin, they don't have arguments,

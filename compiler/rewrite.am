@@ -73,7 +73,7 @@ rewriteAst k (Eap e1 e2) st
     = (k (Eap e1 e2) $st_bind mkCall) st        || rewrite sub-expressions e1 & e2, then make them into an Ecall
       where
         mkCall (Eap f e) st = (checkInline f e, st)
-        mkCall _         _  = undef     || added to remove compiler warning
+        mkCall _         _  = unreachable
 
         checkInline (Ecall (Evar cn) [f])    e = checkInline f e,           if _eq cmpname cn stdApplyName
         checkInline (Ecall (Evar cn) [e])    f = checkInline f e,           if _eq cmpname cn stdRapplyName

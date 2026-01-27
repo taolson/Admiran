@@ -257,7 +257,7 @@ builtinEnv
         || insert both qualified and unqualified names
         ins env (Tname n ts) = m_insert cmpname (unqualifyName n) n . m_insert cmpname n n $ env
         ins env (Evar  n)    = m_insert cmpname (unqualifyName n) n . m_insert cmpname n n $ env
-        ins env _            = undef     || added to remove compiler warning
+        ins env _            = unreachable
 
 builtinSpecs :: defnMap
 builtinSpecs
