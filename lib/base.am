@@ -210,10 +210,6 @@ xs |*| ys = [(x, y) | x <- xs; y <- ys]
 
 || list functions
 
-null :: [*] -> bool
-null [] = True
-null _  = False
-
 || return whether any / all of the elements match a predicate
 any, all :: (* -> bool) -> [*] -> bool
 any p = foldr ((\/) . p) False

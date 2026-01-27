@@ -1,7 +1,7 @@
 || stdlib.am -- standard environment
 
 
- %export + -null -unsafeWriteStdErr     || null defined in <base>, but defined and used internally, here, to avoid dependency
+ %export + -unsafeWriteStdErr
 
 
 || Note on unboxed primitive values:
@@ -497,8 +497,6 @@ cmplist cmp'
 
 || testing
 
-|| null is defined in <base>, but is use internally here and not exported
-|| so that there is no circular dependency
 null :: [*] -> bool
 null [] = True
 null _  = False
