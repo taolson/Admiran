@@ -147,8 +147,8 @@ Unboxed characters can also be written with character literals, e.g. `'a'#`.
 ### Layout
 
 Admiran programs are *layout sensitive*, meaning that the correct parsing of a program depends upon how lines
-are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=` `::`) in a definition,
-or a `%import` or `%export` directive, or the `of` in a `case .. of` expression, or the `->` in a case
+are indented with respect to each other. After a definition symbol (a `=`, `==`, `::=`, `::`) in a definition,
+or an `%import` or `%export` directive, or the `of` in a `case .. of` expression, or the `->` in a case
 alternative, the beginning column number of the following token is captured, and used to disambiguate where
 the expression ends. If a subsequent line starts at or beyond the current layout column, it is considered to
 be a continuation of the current construct. Otherwise, it signals the end of the current construct and starts
