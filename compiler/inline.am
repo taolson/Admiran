@@ -23,7 +23,7 @@
 
 
 || functions which don't return (call error and terminate)
-noReturnNames = map makeStdlibName ["exit", "error#", "error", "blackHole", "undef", "caseFail", "matchFail", "cmpFn"]
+noReturnNames = map makeStdlibName ["exit", "error#", "error", "blackHole", "undef", "unreachable", "caseFail", "matchFail", "cmpFn"]
 
 || functions we shouldn't inline
 isIOfn :: name -> bool
