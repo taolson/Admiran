@@ -91,15 +91,12 @@ makeBuiltinCtorDef n
       where
         an   = locAnno (initLocation "builtin")
 
-        aty  = 0,                   if _eq cmpname n builtinNilName \/ _eq cmpname n builtinUnitName
+        aty  = builtinTupleArity n, if isBuiltinTuple n
              = 2,                   if _eq cmpname n builtinConsName
-             = builtinTupleArity n, if isBuiltinTuple n
-             = err,                 otherwise
+             = 0,                   otherwise
 
         tag  = 1,                   if _eq cmpname n builtinConsName
              = 0,                   otherwise
-
-        err  = error ("makeBuiltinCtorDef: undefined name " ++ showName n)
 
 || stdlib names used in compiler
 stdFalseName     = makeStdlibName "False"

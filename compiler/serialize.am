@@ -319,7 +319,7 @@ deserialAst
         ctor 35 =           EprimInt    <$> deserialInt
         ctor 36 =           EprimChar   <$> deserialChar
         ctor 37 =           EprimString <$> deserialString
-        ctor _  = undef
+        ctor _  = unreachable
 
 
 || module serialization
