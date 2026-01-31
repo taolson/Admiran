@@ -172,23 +172,10 @@ foldlS f z (Stream next s)
         go z s = case next s of
                    Done       -> z
                    Skip s'    -> go z s'
-                   Yield x s' -> case f z x of z' -> go z' s'
-
-foldwS :: (word# -> * -> word#) -> word# -> stream * ** -> int
-foldwS (@) z (Stream next s)
-    = go z s
-      where
-        go z s = case next s of
-                   Done       -> I# z
-                   Skip s'    -> go z s'
-                   Yield x s' -> case z @ x of z' -> go z' s'
-
-sumS, productS :: stream int * -> int
-sumS     s = foldwS (\n (I# x) -> n +# x) 0# s
-productS s = foldwS (\n (I# x) -> n *# x) 1# s
+                   Yield x s' -> case f z x of z' -> (go z' s')
 
 lengthS :: stream * ** -> int
-lengthS  s = foldwS (\n _ -> n +# 1#) 0# s
+lengthS s = foldlS inc 0 s where inc n _ = n + 1
 
 appendS :: stream * ** -> stream * *** -> stream * (seither ** ***)
 appendS (Stream nexta sa) (Stream nextb sb)

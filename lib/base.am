@@ -533,6 +533,9 @@ nub cmp
         go []       = []
         go (x : xs) = x : go (filter (_ne cmp x) xs)
 
+length :: [*] -> int
+length xs = #xs
+
 || place a common element in between the elements of a list, e.g.
 || intersperse ',' "test" = "t,e,s,t"
 intersperse :: * -> [*] -> [*]

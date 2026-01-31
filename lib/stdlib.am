@@ -365,8 +365,8 @@ max cmp xs = foldl1 (max2 cmp) xs
 min cmp xs = foldl1 (min2 cmp) xs
 
 sum, product :: [int] -> int
-sum xs     = foldw (\n (I# x) -> n +# x) 0# xs
-product xs = foldw (\n (I# x) -> n *# x) 1# xs
+sum     xs = foldl (+) 0 xs
+product xs = foldl (*) 1 xs
 
 || conversions between int and string
 showintBase :: int -> string -> int -> string
@@ -608,15 +608,6 @@ foldr1 f
         go [x]      = x
         go (x : xs) = f x (go xs)
 
-|| strict left-fold of a list with a word# operation and accumulator
-|| used for performance-tuning common int list reductions
-foldw :: (word# -> * -> word#) -> word# -> [*] -> int
-foldw (@) z
-    = go z
-      where
-        go z []       = I# z
-        go z (x : xs) = case z @ x of z' -> go z' xs
-
 || strict left-fold, written to allow inlining with first two parameters
 foldl :: (* -> ** -> *) -> * -> [**] -> *
 foldl f z
@@ -629,10 +620,8 @@ foldl1 :: (* -> * -> *) -> [*] -> *
 foldl1 f []       = error "foldl1: empty list"
 foldl1 f (x : xs) = foldl f x xs
 
-|| length of a list
-length, (#) :: [*] -> int
-length xs = foldw (\n _ -> n +# 1#) 0# xs
-(#)    xs = length xs
+(#) :: [*] -> int
+(#) xs = foldl inc 0 xs where inc n _ =  n + 1
 
 reverse :: [*] -> [*]
 reverse xs = foldl (converse (:)) [] xs
