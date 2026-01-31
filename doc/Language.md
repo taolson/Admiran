@@ -789,8 +789,8 @@ of an algebraic data type is a binary tree of integers:
 
     intTree ::= Leaf | Node int intTree intTree
 
-This introduces a new data type `intTree` with constructors `Leaf` and `Node`. `Leaf` is a constructor
-with no arguments, while the `Node` constructor creates an `intTree` from an int value and a left and right `intTree`.
+This introduces a new data type `tree` with constructors `Leaf` and `Node`. `Leaf` is a constructor with no arguments,
+while the `Node` constructor creates a `tree` from an int value and a left and right intTree.
 
 An algebraic data type with a single constructor can be used to define a *record* type, such as:
 
@@ -846,13 +846,6 @@ corresponding field type in the constructor:
 
 Whenever the constructor SP is used to construct a strict pair, it will first evaluate
 any strict arguments, rather than storing them as thunks.
-
-To define a strict type variable field, the type-variable must be space-separated from the
-`!`, e.g.
-
-    strictTree * ::= Leaf | * ! (strictTree *)! (strictTree *)!
-
-to disambiguate it from an infix type operator.
 
 #### Automatic Derivation of `ord` and `show`
 
