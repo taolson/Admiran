@@ -16,7 +16,7 @@
 || note on value tagging:
 || GC needs to differentiate word# values from heapPtrs, since it moves heapPtrs around during compaction.  The original STG machine did this
 || without per-address tags by having information about the various closure free vars in the info section, but there still are issues with trying
-|| to trace the Reg/Arg register values, which can also hold word# values or heaPtrs.  Instead, we use the lower bit of a value to distinguish
+|| to trace the Reg/Arg register values, which can also hold word# values or heapPtrs.  Instead, we use the lower bit of a value to distinguish
 || between a word# (0) and heapPtr (1).  Since heapPtrs must always be 8-byte aligned, the bottom 3 bits are implicitly 0, so we can tag them
 || with an lsb of '1' and use an offset of -1 in any address calculation to strip the tag bit.  This allows '0' to be used as the tag bit
 || for word# values, which simplifies calculations using them.

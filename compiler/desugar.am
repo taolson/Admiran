@@ -361,8 +361,8 @@ desugarAst k (Ecase Cnone e alts) st
         isCtorAlt (CaseAlt (Pctor _ _) _) = True
         isCtorAlt _                       = False
 
-        getPat (CaseAlt p e)= p
-        getPat _            = unreachable
+        getPat (CaseAlt p e) = p
+        getPat _             = unreachable
 
         getLit (CaseAlt (Plit (EprimInt n)) e) = n
         getLit _                               = unreachable
