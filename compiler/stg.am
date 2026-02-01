@@ -64,13 +64,7 @@ heapObjWords (info, env)
 
 || compute the number of 8-byte words each packed string requires
 stringWords :: string -> int
-stringWords s
-    = q + extra
-      where
-        len    = #s
-        (q, r) = quotrem len 8
-        extra  = 1, if r > 0
-               = 0, otherwise
+stringWords s = case quotrem (#s) 8 of (q, r) -> q + if' (r > 0) 1 0
 
 || a stack object is a continuation codePtr and a list of values (free variable values for the continuation code)
 stackObj     == (codePtr, [value])
