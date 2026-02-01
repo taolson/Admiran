@@ -1018,9 +1018,10 @@ type definitions:
 
 The type `word#` represents a raw 64-bit machine word, which can represent an unboxed integer or heap
 address. Low-level built-in functions operate exclusively on `word#` arguments and return `word#` results.
-`word#` values can be used as function or constructor arguments and returned as a value, but cannot be passed
-into polymorphic functions, stored in polymorphic data structures, or bound to a variable via a `where`
-clause or as part of a more complex expression.
+`word#` values can be used as function or constructor arguments, but cannot be passed into polymorphic
+functions, stored in polymorphic data structures, or bound to a variable via a `where` clause or as part
+of a more complex expression.  They also currently cannot be returned as function results, except for
+the built-in functions handled by the compiler.
 
 ### `unit`
 
