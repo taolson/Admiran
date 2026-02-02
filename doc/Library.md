@@ -3,6 +3,10 @@
 This file documents the exported module interface for each of the modules in the Admiran library,
 including Data definitions, type synonyms, and definition type specs
 
+### astar
+    astar.aStarReachable :: (* -> * -> stdlib.ordering) -> * -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> stdlib.int) -> (* -> stdlib.int) -> avl.avlTree ((*, *))
+    astar.aStarSolve :: (* -> * -> stdlib.ordering) -> * -> (* -> stdlib.bool) -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> stdlib.int) -> (* -> stdlib.int) -> ([*], **)
+
 ### avl
     avl.avlTree * ::= avl.AVLLeaf | avl.AVLNode * (avl.avlTree *) (avl.avlTree *) stdlib.int
     avl.AVLLeaf :: avl.avlTree *
@@ -155,6 +159,9 @@ including Data definitions, type synonyms, and definition type specs
     base.xor :: stdlib.bool -> stdlib.bool -> stdlib.bool
     base.zipWith :: (* -> ** -> ***) -> [*] -> [**] -> [***]
 
+### bfs
+    bfs.bfsSolve :: (* -> * -> stdlib.ordering) -> * -> (* -> stdlib.bool) -> ((*, **) -> ([*], **)) -> ** -> ([*], **)
+
 ### bitSet
     bitSet.bitSet :: type
     bitSet.bs_all :: stdlib.int -> bitSet.bitSet
@@ -177,6 +184,25 @@ including Data definitions, type synonyms, and definition type specs
     bitSet.cmpbitSet :: bitSet.bitSet -> bitSet.bitSet -> stdlib.ordering
     bitSet.showbitSet :: bitSet.bitSet -> [stdlib.char]
 
+### dequeue
+    dequeue.dequeue * ::= dequeue.FT0 | dequeue.FT1 * | dequeue.FT2 * * | dequeue.FT3 * * * | dequeue.FTN (dequeue.dequeue *) (dequeue.dequeue (dequeue.dequeue *)) (dequeue.dequeue *)
+    dequeue.FT0 :: dequeue.dequeue *
+    dequeue.FT1 :: * -> dequeue.dequeue *
+    dequeue.FT2 :: * -> * -> dequeue.dequeue *
+    dequeue.FT3 :: * -> * -> * -> dequeue.dequeue *
+    dequeue.FTN :: dequeue.dequeue * -> dequeue.dequeue (dequeue.dequeue *) -> dequeue.dequeue * -> dequeue.dequeue *
+    dequeue.dq_addL :: * -> dequeue.dequeue * -> dequeue.dequeue *
+    dequeue.dq_addR :: * -> dequeue.dequeue * -> dequeue.dequeue *
+    dequeue.dq_empty :: dequeue.dequeue *
+    dequeue.dq_fromList :: [*] -> dequeue.dequeue *
+    dequeue.dq_null :: dequeue.dequeue * -> stdlib.bool
+    dequeue.dq_singleton :: * -> dequeue.dequeue *
+    dequeue.dq_size :: dequeue.dequeue * -> stdlib.int
+    dequeue.dq_toList :: dequeue.dequeue * -> [*]
+    dequeue.dq_viewL :: dequeue.dequeue * -> maybe.maybe ((*, dequeue.dequeue *))
+    dequeue.dq_viewR :: dequeue.dequeue * -> maybe.maybe ((*, dequeue.dequeue *))
+    dequeue.showdequeue :: (* -> [stdlib.char]) -> dequeue.dequeue * -> [stdlib.char]
+
 ### either
     either.either * ** ::= either.Left * | either.Right **
     either.Left :: * -> either.either * **
@@ -197,6 +223,35 @@ including Data definitions, type synonyms, and definition type specs
     either.isRight :: either.either * ** -> stdlib.bool
     either.partitionEithers :: [either.either * **] -> ([*], [**])
     either.showeither :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> either.either * ** -> [stdlib.char]
+
+### fix16
+    fix16.fix16 :: type
+    (fix16.*.) :: fix16.fix16 -> fix16.fix16 -> fix16.fix16
+    (fix16.+.) :: fix16.fix16 -> fix16.fix16 -> fix16.fix16
+    (fix16.-.) :: fix16.fix16 -> fix16.fix16 -> fix16.fix16
+    (fix16./.) :: fix16.fix16 -> fix16.fix16 -> fix16.fix16
+    fix16.cmpfix16 :: fix16.fix16 -> fix16.fix16 -> stdlib.ordering
+    fix16.fix16Frac :: fix16.fix16 -> stdlib.int
+    fix16.fix16Int :: fix16.fix16 -> stdlib.int
+    fix16.fix16val :: [stdlib.char] -> fix16.fix16
+    fix16.showfix16 :: fix16.fix16 -> [stdlib.char]
+    fix16.toFix16Frac :: stdlib.int -> fix16.fix16
+    fix16.toFix16Int :: stdlib.int -> fix16.fix16
+
+### heap
+    heap.heap * ::= heap.Hempty | heap.Heap stdlib.int (heap.htree *)
+    heap.Heap :: stdlib.int -> heap.htree * -> heap.heap *
+    heap.Hempty :: heap.heap *
+    heap.h_empty :: heap.heap *
+    heap.h_fromList :: (* -> * -> stdlib.ordering) -> [*] -> heap.heap *
+    heap.h_insert :: (* -> * -> stdlib.ordering) -> * -> heap.heap * -> heap.heap *
+    heap.h_null :: heap.heap * -> stdlib.bool
+    heap.h_singleton :: * -> heap.heap *
+    heap.h_size :: heap.heap * -> stdlib.int
+    heap.h_toList :: heap.heap * -> [*]
+    heap.h_union :: (* -> * -> stdlib.ordering) -> heap.heap * -> heap.heap * -> heap.heap *
+    heap.h_viewMin :: (* -> * -> stdlib.ordering) -> heap.heap * -> maybe.maybe ((*, heap.heap *))
+    heap.showheap :: (* -> [stdlib.char]) -> heap.heap * -> [stdlib.char]
 
 ### io
     io.handle ::= io.Handle builtin.word#
@@ -236,6 +291,9 @@ including Data definitions, type synonyms, and definition type specs
     io.unsafePerformIO :: (io.world -> (*, io.world)) -> *
     io.writeFile :: [stdlib.char] -> [stdlib.char] -> io.world -> (builtin.unit, io.world)
     io.writeFileStream :: io.handle -> [stdlib.char] -> io.world -> (builtin.unit, io.world)
+
+### ioStream
+    ioStream.streamFile :: [stdlib.char] -> io.world -> (stream.stream stdlib.char builtin.word#, io.world)
 
 ### lens
     lens.lens * ** ::= lens.Lens (* -> **) ((** -> **) -> * -> *)
@@ -440,6 +498,22 @@ including Data definitions, type synonyms, and definition type specs
     maybeState.mst_some :: (* -> (maybe.maybe **, *)) -> * -> (maybe.maybe ([**]), *)
     maybeState.showmaybeState :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> (* -> (maybe.maybe **, *)) -> [stdlib.char]
 
+### memo
+    memo.memoSt * ** == (* -> * -> stdlib.ordering, avl.avlTree ((*, **))) -> (**, (* -> * -> stdlib.ordering, avl.avlTree ((*, **))))
+    memo.memo :: (* -> (* -> * -> stdlib.ordering, avl.avlTree ((*, **))) -> (**, (* -> * -> stdlib.ordering, avl.avlTree ((*, **))))) -> * -> (* -> * -> stdlib.ordering, avl.avlTree ((*, **))) -> (**, (* -> * -> stdlib.ordering, avl.avlTree ((*, **))))
+
+### memoTrie
+    memoTrie.Tree :: memoTrie.tree * -> * -> memoTrie.tree * -> memoTrie.tree *
+    memoTrie.cmptree :: (* -> * -> stdlib.ordering) -> memoTrie.tree * -> memoTrie.tree * -> stdlib.ordering
+    memoTrie.memo :: (* -> stdlib.int) -> (stdlib.int -> *) -> (* -> **) -> * -> **
+    memoTrie.memochar :: (stdlib.char -> *) -> stdlib.char -> *
+    memoTrie.memofix :: ((* -> **) -> * -> **) -> ((* -> **) -> * -> **) -> * -> **
+    memoTrie.memoint :: (stdlib.int -> *) -> stdlib.int -> *
+    memoTrie.memolist :: ((* -> [**] -> ***) -> ** -> [**] -> ***) -> ([*] -> ***) -> [**] -> ***
+    memoTrie.memopair :: ((* -> **) -> *** -> **** -> *****) -> ((*6 -> *7) -> **) -> ((*, *6) -> *7) -> (***, ****) -> *****
+    memoTrie.memostring :: ([stdlib.char] -> *) -> [stdlib.char] -> *
+    memoTrie.showtree :: (* -> [stdlib.char]) -> memoTrie.tree * -> [stdlib.char]
+
 ### parser
     parser.parser * == (builtin.word#, builtin.word#, [stdlib.char]) -> (maybe.maybe *, (builtin.word#, builtin.word#, [stdlib.char]))
     parser.psSt == (builtin.word#, builtin.word#, [stdlib.char])
@@ -483,6 +557,41 @@ including Data definitions, type synonyms, and definition type specs
     parser.readIntlist :: [stdlib.char] -> [stdlib.int]
     parser.showparser :: (* -> [stdlib.char]) -> ((builtin.word#, builtin.word#, [stdlib.char]) -> (maybe.maybe *, (builtin.word#, builtin.word#, [stdlib.char]))) -> [stdlib.char]
     parser.showpsSt :: (builtin.word#, builtin.word#, [stdlib.char]) -> [stdlib.char]
+
+### rws
+    rws.rws * ** *** **** == * -> *** -> [**] -> (****, ***, [**])
+    rws.cmprws :: (* -> * -> stdlib.ordering) -> (** -> ** -> stdlib.ordering) -> (*** -> *** -> stdlib.ordering) -> (**** -> **** -> stdlib.ordering) -> (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (****, ***, [**])) -> stdlib.ordering
+    rws.rws_apply :: (* -> *** -> [**] -> (**** -> *****, ***, [**])) -> (* -> *** -> [**] -> (****, ***, [**])) -> * -> *** -> [**] -> (*****, ***, [**])
+    rws.rws_ask :: * -> *** -> [**] -> (*, ***, [**])
+    rws.rws_asks :: (* -> ****) -> * -> *** -> [**] -> (****, ***, [**])
+    rws.rws_bind :: (* -> *** -> [**] -> (****, ***, [**])) -> (**** -> * -> *** -> [**] -> (*****, ***, [**])) -> * -> *** -> [**] -> (*****, ***, [**])
+    rws.rws_bind2 :: (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> (**** -> ***** -> * -> *** -> [**] -> (*6, ***, [**])) -> * -> *** -> [**] -> (*6, ***, [**])
+    rws.rws_bind3 :: (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> (* -> *** -> [**] -> (*6, ***, [**])) -> (**** -> ***** -> *6 -> * -> *** -> [**] -> (*7, ***, [**])) -> * -> *** -> [**] -> (*7, ***, [**])
+    rws.rws_evalRWS :: (* -> *** -> [**] -> (****, ***, [**])) -> * -> *** -> [**] -> (****, [**])
+    rws.rws_execRWS :: (* -> *** -> [**] -> (****, ***, [**])) -> * -> *** -> [**] -> (***, [**])
+    rws.rws_filterM :: (**** -> * -> *** -> [**] -> (stdlib.bool, ***, [**])) -> [****] -> * -> *** -> [**] -> ([****], ***, [**])
+    rws.rws_fmap :: (**** -> *****) -> (* -> *** -> [**] -> (****, ***, [**])) -> * -> *** -> [**] -> (*****, ***, [**])
+    rws.rws_foldM :: (***** -> **** -> * -> *** -> [**] -> (*****, ***, [**])) -> ***** -> [****] -> * -> *** -> [**] -> (*****, ***, [**])
+    rws.rws_forM :: [****] -> (**** -> * -> *** -> [**] -> (*****, ***, [**])) -> * -> *** -> [**] -> (builtin.unit, ***, [**])
+    rws.rws_get :: * -> *** -> [**] -> (***, ***, [**])
+    rws.rws_join :: (* -> *** -> [**] -> (* -> *** -> [**] -> (****, ***, [**]), ***, [**])) -> * -> *** -> [**] -> (****, ***, [**])
+    rws.rws_kbind :: (**** -> * -> *** -> [**] -> (*****, ***, [**])) -> (***** -> * -> *** -> [**] -> (*6, ***, [**])) -> **** -> * -> *** -> [**] -> (*6, ***, [**])
+    rws.rws_left :: (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> * -> *** -> [**] -> (****, ***, [**])
+    rws.rws_liftA2 :: (**** -> ***** -> *6) -> (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> * -> *** -> [**] -> (*6, ***, [**])
+    rws.rws_liftA3 :: (**** -> ***** -> *6 -> *7) -> (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> (* -> *** -> [**] -> (*6, ***, [**])) -> * -> *** -> [**] -> (*7, ***, [**])
+    rws.rws_liftA4 :: (**** -> ***** -> *6 -> *7 -> *8) -> (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> (* -> *** -> [**] -> (*6, ***, [**])) -> (* -> *** -> [**] -> (*7, ***, [**])) -> * -> *** -> [**] -> (*8, ***, [**])
+    rws.rws_local :: (* -> *) -> (* -> *** -> [**] -> (****, ***, [**])) -> * -> *** -> [**] -> (****, ***, [**])
+    rws.rws_mapM :: (**** -> * -> *** -> [**] -> (*****, ***, [**])) -> [****] -> * -> *** -> [**] -> ([*****], ***, [**])
+    rws.rws_mapM_ :: (**** -> * -> *** -> [**] -> (*****, ***, [**])) -> [****] -> * -> *** -> [**] -> (builtin.unit, ***, [**])
+    rws.rws_modify :: (*** -> ***) -> * -> *** -> [**] -> (builtin.unit, ***, [**])
+    rws.rws_pure :: **** -> * -> *** -> [**] -> (****, ***, [**])
+    rws.rws_put :: *** -> * -> *** -> [**] -> (builtin.unit, ***, [**])
+    rws.rws_right :: (* -> *** -> [**] -> (****, ***, [**])) -> (* -> *** -> [**] -> (*****, ***, [**])) -> * -> *** -> [**] -> (*****, ***, [**])
+    rws.rws_runRWS :: (* -> *** -> [**] -> (****, ***, [**])) -> * -> *** -> [**] -> (****, ***, [**])
+    rws.rws_sequence :: [* -> *** -> [**] -> (****, ***, [**])] -> * -> *** -> [**] -> ([****], ***, [**])
+    rws.rws_tell :: ** -> * -> *** -> [**] -> (builtin.unit, ***, [**])
+    rws.rws_tells :: ([**] -> [**]) -> * -> *** -> [**] -> (builtin.unit, ***, [**])
+    rws.showrws :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> (*** -> [stdlib.char]) -> (**** -> [stdlib.char]) -> (* -> *** -> [**] -> (****, ***, [**])) -> [stdlib.char]
 
 ### set
     set.s_set * == avl.avlTree *
@@ -709,3 +818,280 @@ including Data definitions, type synonyms, and definition type specs
     stdlib.zip2 :: [*] -> [**] -> [(*, **)]
     stdlib.zip3 :: [*] -> [**] -> [***] -> [(*, **, ***)]
 
+### stream
+    stream.step * ** ::= stream.Done | stream.Skip ** | stream.Yield * **
+    stream.stream * ** ::= stream.Stream (** -> stream.step * **) **
+    (stream.#@) :: [*] -> stdlib.int
+    (stream.++@) :: [*] -> [*] -> [*]
+    (stream..@) :: (** -> ***) -> (* -> **) -> * -> ***
+    stream.Done :: stream.step * **
+    stream.Skip :: ** -> stream.step * **
+    stream.Stream :: (** -> stream.step * **) -> ** -> stream.stream * **
+    stream.Yield :: * -> ** -> stream.step * **
+    stream.allS :: (* -> stdlib.bool) -> stream.stream * ** -> stdlib.bool
+    stream.all_ :: (* -> stdlib.bool) -> [*] -> stdlib.bool
+    stream.anyS :: (* -> stdlib.bool) -> stream.stream * ** -> stdlib.bool
+    stream.any_ :: (* -> stdlib.bool) -> [*] -> stdlib.bool
+    stream.appendS :: stream.stream * ** -> stream.stream * *** -> stream.stream * (stream.seither ** ***)
+    stream.cmpseither :: (* -> * -> stdlib.ordering) -> (** -> ** -> stdlib.ordering) -> stream.seither * ** -> stream.seither * ** -> stdlib.ordering
+    stream.cmpsmaybe :: (* -> * -> stdlib.ordering) -> stream.smaybe * -> stream.smaybe * -> stdlib.ordering
+    stream.cmpstep :: (* -> * -> stdlib.ordering) -> (** -> ** -> stdlib.ordering) -> stream.step * ** -> stream.step * ** -> stdlib.ordering
+    stream.cmpstream :: (* -> * -> stdlib.ordering) -> stream.stream * ** -> stream.stream * ** -> stdlib.ordering
+    stream.concatMapS :: (* -> stream.stream ** ***) -> stream.stream * **** -> stream.stream ** ((****, stream.smaybe (stream.stream ** ***)))
+    stream.concatMap_ :: (* -> [**]) -> [*] -> [**]
+    stream.dropS :: stdlib.int -> stream.stream * ** -> stream.stream * ((stdlib.int, **))
+    stream.dropWhileS :: (* -> stdlib.bool) -> stream.stream * ** -> stream.stream * ((stdlib.bool, **))
+    stream.dropWhile_ :: (* -> stdlib.bool) -> [*] -> [*]
+    stream.drop_ :: stdlib.int -> [*] -> [*]
+    stream.enumerateS :: stream.stream * ** -> stream.stream ((stdlib.int, *)) ((stdlib.int, **))
+    stream.filterS :: (* -> stdlib.bool) -> stream.stream * ** -> stream.stream * **
+    stream.filter_ :: (* -> stdlib.bool) -> [*] -> [*]
+    stream.foldlS :: (* -> *** -> *) -> * -> stream.stream *** ** -> *
+    stream.foldl_ :: (* -> ** -> *) -> * -> [**] -> *
+    stream.foldrS :: (* -> *** -> ***) -> *** -> stream.stream * ** -> ***
+    stream.foldr_ :: (* -> ** -> **) -> ** -> [*] -> **
+    stream.fromStream :: stream.stream * ** -> [*]
+    stream.interleaveS :: stream.stream * ** -> stream.stream * *** -> stream.stream * ((stdlib.bool, **, ***))
+    stream.interleave_ :: [*] -> [*] -> [*]
+    stream.iterateS :: (* -> *) -> * -> stream.stream * *
+    stream.iterate_ :: (* -> *) -> * -> [*]
+    stream.lastS :: stream.stream * ** -> *
+    stream.last_ :: [*] -> *
+    stream.lengthS :: stream.stream * ** -> stdlib.int
+    stream.length_ :: [*] -> stdlib.int
+    stream.linesS :: stream.stream stdlib.char * -> stream.stream ([stdlib.char]) ((stream.smaybe ([stdlib.char]), *))
+    stream.lines_ :: [stdlib.char] -> [[stdlib.char]]
+    stream.mapS :: (* -> ***) -> stream.stream * ** -> stream.stream *** **
+    stream.map_ :: (* -> **) -> [*] -> [**]
+    stream.rangeByFromS :: stdlib.int -> stdlib.int -> stream.stream stdlib.int builtin.word#
+    stream.rangeByFrom_ :: stdlib.int -> stdlib.int -> [stdlib.int]
+    stream.rangeByS :: stdlib.int -> stdlib.int -> stdlib.int -> stream.stream stdlib.int builtin.word#
+    stream.rangeBy_ :: stdlib.int -> stdlib.int -> stdlib.int -> [stdlib.int]
+    stream.rangeFromS :: stdlib.int -> stream.stream stdlib.int builtin.word#
+    stream.rangeFrom_ :: stdlib.int -> [stdlib.int]
+    stream.rangeS :: stdlib.int -> stdlib.int -> stream.stream stdlib.int builtin.word#
+    stream.range_ :: stdlib.int -> stdlib.int -> [stdlib.int]
+    stream.readByteStreamS :: builtin.word# -> stream.stream stdlib.char builtin.word#
+    stream.readByteStream_ :: builtin.word# -> [stdlib.char]
+    stream.showseither :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> stream.seither * ** -> [stdlib.char]
+    stream.showsmaybe :: (* -> [stdlib.char]) -> stream.smaybe * -> [stdlib.char]
+    stream.showstep :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> stream.step * ** -> [stdlib.char]
+    stream.showstream :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> stream.stream * ** -> [stdlib.char]
+    stream.takeS :: stdlib.int -> stream.stream * ** -> stream.stream * ((stdlib.int, **))
+    stream.takeWhileS :: (* -> stdlib.bool) -> stream.stream * ** -> stream.stream * **
+    stream.takeWhile_ :: (* -> stdlib.bool) -> [*] -> [*]
+    stream.take_ :: stdlib.int -> [*] -> [*]
+    stream.tlS :: stream.stream * ** -> stream.stream * ((stdlib.bool, **))
+    stream.tl_ :: [*] -> [*]
+    stream.toStream :: [*] -> stream.stream * ([*])
+    stream.wordsS :: stream.stream stdlib.char * -> stream.stream ([stdlib.char]) ((stream.smaybe ([stdlib.char]), *))
+    stream.words_ :: [stdlib.char] -> [[stdlib.char]]
+    stream.zip2S :: stream.stream * ** -> stream.stream *** **** -> stream.stream ((*, ***)) ((**, ****, stream.smaybe *))
+    stream.zip2_ :: [*] -> [**] -> [(*, **)]
+    stream.zipWithS :: (* -> ** -> ***) -> stream.stream * **** -> stream.stream ** ***** -> stream.stream *** ((****, *****, stream.smaybe *))
+    stream.zipWith_ :: (* -> ** -> ***) -> [*] -> [**] -> [***]
+
+### trieMap
+    trieMap.matchResult * ** ::= trieMap.Mfail | trieMap.Mkey (trieMap.trie * **) ([*]) ([*]) | trieMap.Mpre (trieMap.trie * **) ([*]) ([*]) | trieMap.Mpart (trieMap.trie * **) ([*]) ([*]) ([*])
+    trieMap.trie * ** ::= trieMap.Trie ([([*], trieMap.trie * **)]) (maybe.maybe **)
+    trieMap.trieBranch * ** == ([*], trieMap.trie * **)
+    trieMap.Mfail :: trieMap.matchResult * **
+    trieMap.Mkey :: trieMap.trie * ** -> [*] -> [*] -> trieMap.matchResult * **
+    trieMap.Mpart :: trieMap.trie * ** -> [*] -> [*] -> [*] -> trieMap.matchResult * **
+    trieMap.Mpre :: trieMap.trie * ** -> [*] -> [*] -> trieMap.matchResult * **
+    trieMap.Trie :: [([*], trieMap.trie * **)] -> maybe.maybe ** -> trieMap.trie * **
+    trieMap.cmpmatchResult :: (* -> * -> stdlib.ordering) -> (** -> ** -> stdlib.ordering) -> trieMap.matchResult * ** -> trieMap.matchResult * ** -> stdlib.ordering
+    trieMap.cmptrie :: (* -> * -> stdlib.ordering) -> (** -> ** -> stdlib.ordering) -> trieMap.trie * ** -> trieMap.trie * ** -> stdlib.ordering
+    trieMap.cmptrieBranch :: (* -> * -> stdlib.ordering) -> (** -> ** -> stdlib.ordering) -> ([*], trieMap.trie * **) -> ([*], trieMap.trie * **) -> stdlib.ordering
+    trieMap.showmatchResult :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> trieMap.matchResult * ** -> [stdlib.char]
+    trieMap.showtrie :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> trieMap.trie * ** -> [stdlib.char]
+    trieMap.showtrieBranch :: (* -> [stdlib.char]) -> (** -> [stdlib.char]) -> ([*], trieMap.trie * **) -> [stdlib.char]
+    trieMap.t_adjust :: (* -> * -> stdlib.ordering) -> (** -> **) -> [*] -> trieMap.trie * ** -> trieMap.trie * **
+    trieMap.t_delete :: (* -> * -> stdlib.ordering) -> [*] -> trieMap.trie * ** -> trieMap.trie * **
+    trieMap.t_elems :: trieMap.trie * ** -> [**]
+    trieMap.t_empty :: trieMap.trie * **
+    trieMap.t_filter :: (** -> stdlib.bool) -> trieMap.trie * ** -> trieMap.trie * **
+    trieMap.t_findWithDefault :: (* -> * -> stdlib.ordering) -> ** -> [*] -> trieMap.trie * ** -> **
+    trieMap.t_fmap :: (** -> ***) -> trieMap.trie * ** -> trieMap.trie * ***
+    trieMap.t_foldl :: (*** -> ** -> ***) -> *** -> trieMap.trie * ** -> ***
+    trieMap.t_foldr :: (** -> *** -> ***) -> *** -> trieMap.trie * ** -> ***
+    trieMap.t_fromList :: (* -> * -> stdlib.ordering) -> [([*], **)] -> trieMap.trie * **
+    trieMap.t_insert :: (* -> * -> stdlib.ordering) -> [*] -> ** -> trieMap.trie * ** -> trieMap.trie * **
+    trieMap.t_insertWith :: (* -> * -> stdlib.ordering) -> (** -> ** -> **) -> [*] -> ** -> trieMap.trie * ** -> trieMap.trie * **
+    trieMap.t_keys :: trieMap.trie * ** -> [[*]]
+    trieMap.t_lookup :: (* -> * -> stdlib.ordering) -> [*] -> trieMap.trie * ** -> maybe.maybe **
+    trieMap.t_null :: trieMap.trie * ** -> stdlib.bool
+    trieMap.t_prefix :: (* -> * -> stdlib.ordering) -> [*] -> trieMap.trie * ** -> maybe.maybe **
+    trieMap.t_toList :: trieMap.trie * ** -> [([*], **)]
+    trieMap.t_union :: (* -> * -> stdlib.ordering) -> trieMap.trie * ** -> trieMap.trie * ** -> trieMap.trie * **
+    trieMap.tb_find :: (* -> * -> stdlib.ordering) -> [*] -> [([*], trieMap.trie * **)] -> trieMap.matchResult * **
+    trieMap.tb_match :: (* -> * -> stdlib.ordering) -> [*] -> ([*], trieMap.trie * **) -> trieMap.matchResult * **
+    trieMap.tb_modify :: (* -> * -> stdlib.ordering) -> (trieMap.matchResult * ** -> maybe.maybe (([*], trieMap.trie * **))) -> [*] -> [([*], trieMap.trie * **)] -> maybe.maybe ([([*], trieMap.trie * **)])
+
+### v2
+    v2.v2 * ::= v2.V2 * *
+    v2.V2 :: * -> * -> v2.v2 *
+    v2.cmpv2 :: (* -> * -> stdlib.ordering) -> v2.v2 * -> v2.v2 * -> stdlib.ordering
+    v2.lensV2_0 :: lens.lens (v2.v2 *) *
+    v2.lensV2_1 :: lens.lens (v2.v2 *) *
+    v2.overV2_0 :: (* -> *) -> v2.v2 * -> v2.v2 *
+    v2.overV2_1 :: (* -> *) -> v2.v2 * -> v2.v2 *
+    v2.showv2 :: (* -> [stdlib.char]) -> v2.v2 * -> [stdlib.char]
+    v2.v2_abs :: v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_add :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_apply :: v2.v2 (* -> **) -> v2.v2 * -> v2.v2 **
+    v2.v2_bind :: v2.v2 * -> (* -> v2.v2 **) -> v2.v2 **
+    v2.v2_cmul :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_dist :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> stdlib.int
+    v2.v2_div :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_fmap :: (* -> **) -> v2.v2 * -> v2.v2 **
+    v2.v2_foldl :: (** -> * -> **) -> ** -> v2.v2 * -> **
+    v2.v2_foldr :: (* -> ** -> **) -> ** -> v2.v2 * -> **
+    v2.v2_liftA2 :: (* -> ** -> ***) -> v2.v2 * -> v2.v2 ** -> v2.v2 ***
+    v2.v2_max :: (* -> * -> stdlib.ordering) -> v2.v2 * -> v2.v2 * -> v2.v2 *
+    v2.v2_min :: (* -> * -> stdlib.ordering) -> v2.v2 * -> v2.v2 * -> v2.v2 *
+    v2.v2_mod :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_mul :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_neg :: v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_product :: v2.v2 stdlib.int -> stdlib.int
+    v2.v2_pure :: * -> v2.v2 *
+    v2.v2_quot :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_rem :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_sequence :: [v2.v2 *] -> v2.v2 ([*])
+    v2.v2_signum :: v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_sub :: v2.v2 stdlib.int -> v2.v2 stdlib.int -> v2.v2 stdlib.int
+    v2.v2_sum :: v2.v2 stdlib.int -> stdlib.int
+    v2.viewV2_0 :: v2.v2 * -> *
+    v2.viewV2_1 :: v2.v2 * -> *
+
+### v3
+    v3.v3 * ::= v3.V3 * * *
+    v3.V3 :: * -> * -> * -> v3.v3 *
+    v3.cmpv3 :: (* -> * -> stdlib.ordering) -> v3.v3 * -> v3.v3 * -> stdlib.ordering
+    v3.lensV3_0 :: lens.lens (v3.v3 *) *
+    v3.lensV3_1 :: lens.lens (v3.v3 *) *
+    v3.lensV3_2 :: lens.lens (v3.v3 *) *
+    v3.overV3_0 :: (* -> *) -> v3.v3 * -> v3.v3 *
+    v3.overV3_1 :: (* -> *) -> v3.v3 * -> v3.v3 *
+    v3.overV3_2 :: (* -> *) -> v3.v3 * -> v3.v3 *
+    v3.showv3 :: (* -> [stdlib.char]) -> v3.v3 * -> [stdlib.char]
+    v3.v3_abs :: v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_add :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_apply :: v3.v3 (* -> **) -> v3.v3 * -> v3.v3 **
+    v3.v3_bind :: v3.v3 * -> (* -> v3.v3 **) -> v3.v3 **
+    v3.v3_dist :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> stdlib.int
+    v3.v3_div :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_fmap :: (* -> **) -> v3.v3 * -> v3.v3 **
+    v3.v3_foldl :: (** -> * -> **) -> ** -> v3.v3 * -> **
+    v3.v3_foldr :: (* -> ** -> **) -> ** -> v3.v3 * -> **
+    v3.v3_liftA2 :: (* -> ** -> ***) -> v3.v3 * -> v3.v3 ** -> v3.v3 ***
+    v3.v3_max :: (* -> * -> stdlib.ordering) -> v3.v3 * -> v3.v3 * -> v3.v3 *
+    v3.v3_min :: (* -> * -> stdlib.ordering) -> v3.v3 * -> v3.v3 * -> v3.v3 *
+    v3.v3_mod :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_mul :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_neg :: v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_product :: v3.v3 stdlib.int -> stdlib.int
+    v3.v3_pure :: * -> v3.v3 *
+    v3.v3_quot :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_rem :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_sequence :: [v3.v3 *] -> v3.v3 ([*])
+    v3.v3_signum :: v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_sub :: v3.v3 stdlib.int -> v3.v3 stdlib.int -> v3.v3 stdlib.int
+    v3.v3_sum :: v3.v3 stdlib.int -> stdlib.int
+    v3.viewV3_0 :: v3.v3 * -> *
+    v3.viewV3_1 :: v3.v3 * -> *
+    v3.viewV3_2 :: v3.v3 * -> *
+
+### vector
+    vector.mvector * ::= vector.MVector stdlib.int builtin.word#
+    vector.vector * ::= vector.Vector stdlib.int builtin.word#
+    vector.st * == builtin.unit -> (*, builtin.unit)
+    vector.stRef * == vector.mvector *
+    (vector.!!) :: vector.vector * -> stdlib.int -> *
+    (vector.//) :: vector.vector * -> [(stdlib.int, *)] -> vector.vector *
+    vector.MVector :: stdlib.int -> builtin.word# -> vector.mvector *
+    vector.Vector :: stdlib.int -> builtin.word# -> vector.vector *
+    vector.cmpmvector :: (* -> * -> stdlib.ordering) -> vector.mvector * -> vector.mvector * -> stdlib.ordering
+    vector.cmpst :: (* -> * -> stdlib.ordering) -> (builtin.unit -> (*, builtin.unit)) -> (builtin.unit -> (*, builtin.unit)) -> stdlib.ordering
+    vector.cmpstRef :: (* -> * -> stdlib.ordering) -> vector.mvector * -> vector.mvector * -> stdlib.ordering
+    vector.cmpvector :: (* -> * -> stdlib.ordering) -> vector.vector * -> vector.vector * -> stdlib.ordering
+    vector.modifySTRef :: vector.mvector * -> (* -> *) -> builtin.unit -> (builtin.unit, builtin.unit)
+    vector.newSTRef :: * -> builtin.unit -> (vector.mvector *, builtin.unit)
+    vector.readSTRef :: vector.mvector * -> builtin.unit -> (*, builtin.unit)
+    vector.runST :: (builtin.unit -> (*, builtin.unit)) -> *
+    vector.runSTVector :: (vector.mvector * -> builtin.unit -> (**, builtin.unit)) -> vector.vector * -> vector.vector *
+    vector.safeIndex :: stdlib.int -> stdlib.int -> stdlib.int
+    vector.showmvector :: (* -> [stdlib.char]) -> vector.mvector * -> [stdlib.char]
+    vector.showst :: (* -> [stdlib.char]) -> (builtin.unit -> (*, builtin.unit)) -> [stdlib.char]
+    vector.showstRef :: (* -> [stdlib.char]) -> vector.mvector * -> [stdlib.char]
+    vector.showvector :: (* -> [stdlib.char]) -> vector.vector * -> [stdlib.char]
+    vector.v_all :: (* -> stdlib.bool) -> vector.vector * -> stdlib.bool
+    vector.v_any :: (* -> stdlib.bool) -> vector.vector * -> stdlib.bool
+    vector.v_append :: vector.vector * -> vector.vector * -> vector.vector *
+    vector.v_clone :: vector.mvector * -> ** -> (vector.mvector *, **)
+    vector.v_fill :: vector.mvector * -> * -> ** -> (builtin.unit, **)
+    vector.v_filter :: (* -> stdlib.bool) -> vector.vector * -> vector.vector *
+    vector.v_find :: (* -> stdlib.bool) -> vector.vector * -> maybe.maybe *
+    vector.v_first :: vector.vector * -> *
+    vector.v_fmap :: (* -> **) -> vector.vector * -> vector.vector **
+    vector.v_fmapWithIndex :: (stdlib.int -> * -> **) -> vector.vector * -> vector.vector **
+    vector.v_foldl :: (** -> * -> **) -> ** -> vector.vector * -> **
+    vector.v_foldr :: (* -> ** -> **) -> ** -> vector.vector * -> **
+    vector.v_freeze :: vector.mvector * -> ** -> (vector.vector *, **)
+    vector.v_fromList :: [*] -> vector.vector *
+    vector.v_fromStream :: stdlib.int -> stream.stream * ** -> vector.vector *
+    vector.v_generate :: stdlib.int -> (stdlib.int -> *) -> vector.vector *
+    vector.v_index :: vector.vector * -> stdlib.int -> *
+    vector.v_iterateN :: stdlib.int -> (* -> *) -> * -> vector.vector *
+    vector.v_last :: vector.vector * -> *
+    vector.v_length :: vector.vector * -> stdlib.int
+    vector.v_max :: (* -> * -> stdlib.ordering) -> vector.vector * -> *
+    vector.v_min :: (* -> * -> stdlib.ordering) -> vector.vector * -> *
+    vector.v_mlength :: vector.mvector * -> stdlib.int
+    vector.v_modify :: vector.mvector * -> (* -> *) -> stdlib.int -> ** -> (builtin.unit, **)
+    vector.v_product :: vector.vector stdlib.int -> stdlib.int
+    vector.v_read :: vector.mvector * -> stdlib.int -> ** -> (*, **)
+    vector.v_rep :: stdlib.int -> * -> vector.vector *
+    vector.v_replace :: vector.vector * -> [(stdlib.int, *)] -> vector.vector *
+    vector.v_search :: (* -> stdlib.ordering) -> vector.vector * -> maybe.maybe ((stdlib.int, *))
+    vector.v_singleton :: * -> vector.vector *
+    vector.v_sortBy :: (* -> * -> stdlib.ordering) -> vector.vector * -> vector.vector *
+    vector.v_sum :: vector.vector stdlib.int -> stdlib.int
+    vector.v_thaw :: vector.vector * -> vector.mvector *
+    vector.v_toList :: vector.vector * -> [*]
+    vector.v_toStream :: vector.vector * -> stream.stream * stdlib.int
+    vector.v_unsafeFreeze :: vector.mvector * -> ** -> (vector.vector *, **)
+    vector.v_unsafeIndex :: vector.vector * -> stdlib.int -> *
+    vector.v_unsafeModify :: vector.mvector * -> (* -> *) -> stdlib.int -> ** -> (builtin.unit, **)
+    vector.v_unsafeRead :: vector.mvector * -> stdlib.int -> ** -> (*, **)
+    vector.v_unsafeReplace :: vector.mvector * -> [(stdlib.int, *)] -> ** -> (builtin.unit, **)
+    vector.v_unsafeThaw :: vector.vector * -> vector.mvector *
+    vector.v_unsafeWrite :: vector.mvector * -> stdlib.int -> * -> ** -> (builtin.unit, **)
+    vector.v_write :: vector.mvector * -> stdlib.int -> * -> ** -> (builtin.unit, **)
+    vector.v_zipWith :: (* -> ** -> ***) -> vector.vector * -> vector.vector ** -> vector.vector ***
+    vector.writeSTRef :: vector.mvector * -> * -> builtin.unit -> (builtin.unit, builtin.unit)
+
+### zipper
+    zipper.zipper * ::= zipper.Zipper ([*]) ! ([*]) !
+    zipper.Zipper :: [*] -> [*] -> zipper.zipper *
+    zipper.cmpzipper :: (* -> * -> stdlib.ordering) -> zipper.zipper * -> zipper.zipper * -> stdlib.ordering
+    zipper.showzipper :: (* -> [stdlib.char]) -> zipper.zipper * -> [stdlib.char]
+    zipper.z_begin :: zipper.zipper * -> zipper.zipper *
+    zipper.z_beginp :: zipper.zipper * -> stdlib.bool
+    zipper.z_cursor :: zipper.zipper * -> *
+    zipper.z_delete :: zipper.zipper * -> zipper.zipper *
+    zipper.z_empty :: zipper.zipper *
+    zipper.z_end :: zipper.zipper * -> zipper.zipper *
+    zipper.z_endp :: zipper.zipper * -> stdlib.bool
+    zipper.z_fmap :: (* -> **) -> zipper.zipper * -> zipper.zipper **
+    zipper.z_fold :: (** -> * -> **) -> ** -> zipper.zipper * -> **
+    zipper.z_fromList :: [*] -> zipper.zipper *
+    zipper.z_insert :: * -> zipper.zipper * -> zipper.zipper *
+    zipper.z_left :: zipper.zipper * -> zipper.zipper *
+    zipper.z_modify :: (* -> *) -> zipper.zipper * -> zipper.zipper *
+    zipper.z_null :: zipper.zipper * -> stdlib.bool
+    zipper.z_pop :: zipper.zipper * -> zipper.zipper *
+    zipper.z_push :: * -> zipper.zipper * -> zipper.zipper *
+    zipper.z_right :: zipper.zipper * -> zipper.zipper *
+    zipper.z_singleton :: * -> zipper.zipper *
+    zipper.z_toList :: zipper.zipper * -> [*]
