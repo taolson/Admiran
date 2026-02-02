@@ -1,6 +1,6 @@
 # Admiran Library Modules
 
-This file documents the exported module interface for each of the modules in the Admiran library,
+This file documents the exported module interface for each of the modules in the Admiran lib directory,
 including Data definitions, type synonyms, and definition type specs
 
 ### astar
