@@ -1,6 +1,6 @@
 AMC= ../bin/amc
 
-TOOLS= badlines dumpSTG dumpX2 sloc genericCtors
+TOOLS= badlines dumpSTG dumpX2 sloc genericCtors interface
 
 .SUFFIXES:
 .SUFFIXES: .am

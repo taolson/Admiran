@@ -1,0 +1,54 @@
+|| interface.am -- print the type specifications of a module's exported definitions
+
+%import <base>
+%import <either>
+%import <io>
+%import <lens>
+%import <map>
+%import <maybe>
+%import <state>         (>>=)/st_bind (>>)/st_right
+
+%import "../compiler/module"
+
+|| the "module" module from compiler depends upon the following modules also
+|| located in the compiler directory; we explicitly import them here, because
+|| the build system currently doesn't have a way of specifying a library directory
+|| for module lookup other than the current directory or the system directory
+%import "../compiler/ast"
+%import "../compiler/config"
+%import "../compiler/dependency"
+%import "../compiler/exception"
+%import "../compiler/grammar"
+%import "../compiler/name"
+%import "../compiler/parser"
+%import "../compiler/predef"
+%import "../compiler/serialize"
+%import "../compiler/tokenizer"
+
+processModule :: module -> io ()
+processModule m
+    = putStrLn ("### " ++ mn) >> io_forM expStrings (\s -> putStrLn $ "    " ++ s) >> putStrLn ""
+      where
+        mn         = view modName m
+        specs      = view modSpecs m
+        defs       = view modDefns m
+        dataDefs   = m_filter cmpname isDefData defs
+        synDefs    = m_filter cmpname isDefSyn defs
+        expNames   = view modExportMap m |> m_toList |> filter (fst .> isUnresolved) |> map snd
+        expStrings = concatMap defStrings [dataDefs, synDefs, specs]
+
+        defStrings m = map (\n -> m_lookup cmpname n m) expNames |> catMaybes |> map showdefn |> sortBy cmpstring
+
+process :: string -> io ()
+process fx
+    = mtimeFile fx >>= exists
+      where
+        exists tsm
+            = io_pure (),                                                   if tsm < 0
+            = readFile fx >>= st_evalState deserialModule .> processModule, otherwise
+
+main :: io ()
+main
+    = getArgs >>= io_mapM_ (x2Name .> process)
+      where
+        x2Name s = withoutSuffix "am" s |> withSuffix "x2"
