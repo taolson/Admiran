@@ -8,6 +8,7 @@
 %import <maybe>
 %import <state>         (>>=)/st_bind (>>)/st_right
 
+%import "../compiler/admiranParser"
 %import "../compiler/module"
 
 || the "module" module from compiler depends upon the following modules also
@@ -22,33 +23,34 @@
 %import "../compiler/name"
 %import "../compiler/parser"
 %import "../compiler/predef"
-%import "../compiler/serialize"
 %import "../compiler/tokenizer"
 
-processModule :: module -> io ()
-processModule m
-    = putStrLn ("### " ++ mn) >> io_forM expStrings (\s -> putStrLn $ "    " ++ s) >> putStrLn ""
+printSpecs :: (string, module) -> io ()
+printSpecs (comment, m)
+    = putStrLn ("### " ++ mn) >> putStrLn comment >> io_forM defStrings (\s -> putStrLn $ "    " ++ s) >> putStrLn ""
       where
         mn         = view modName m
-        specs      = view modSpecs m
-        defs       = view modDefns m
-        dataDefs   = m_filter cmpname isDefData defs
-        synDefs    = m_filter cmpname isDefSyn defs
-        expNames   = view modExportMap m |> m_toList |> filter (fst .> isUnresolved) |> map snd
-        expStrings = concatMap defStrings [dataDefs, synDefs, specs]
-
-        defStrings m = map (\n -> m_lookup cmpname n m) expNames |> catMaybes |> map showdefn |> sortBy cmpstring
+        specs      = view modSpecs m |> m_elems
+        defs       = view modDefns m |> m_elems
+        dataDefs   = filter isDefData defs
+        synDefs    = filter isDefSyn  defs
+        defStrings = concatMap (map showdefn .> sortBy cmpstring) [dataDefs, synDefs, specs]
 
 process :: string -> io ()
-process fx
-    = mtimeFile fx >>= exists
+process s
+    = readFile fn >>= doParse
       where
-        exists tsm
-            = io_pure (),                                                   if tsm < 0
-            = readFile fx >>= st_evalState deserialModule .> processModule, otherwise
+        fs         = fileSpecFromString s
+        fn         = fullFileName fs |> withSuffix "am"
+        initModule = emptyModule fs m_empty
+
+        doParse s = extractComment s |> mapSnd (parse initModule .> check) |> printSpecs
+
+        extractComment ('|' : '|' : ' ' : xs) = break (==. '\n') xs
+        extractComment xs               = ([], xs)
+
+        check (Left _)       = error ("parsing " ++ showfileSpec fs)
+        check (Right (m, _)) = m
 
 main :: io ()
-main
-    = getArgs >>= io_mapM_ (x2Name .> process)
-      where
-        x2Name s = withoutSuffix "am" s |> withSuffix "x2"
+main = getArgs >>= io_mapM_ process
