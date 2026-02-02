@@ -4,6 +4,7 @@ This file documents the interface for each of the definitions in the Admiran lib
 
 ### astar
 astar.am -- implementation of the A-Star search algorithm
+
     astar.mstate * ** == (**, s_set ((int, *)), m_map * int, m_map * int, m_map * *)
     astar.rstate * ** == (ordI *, ordI ((int, *)), * -> bool, (*, **) -> ([*], **), * -> * -> int, * -> int)
     astar.aStarReachable :: ordI * -> * -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> m_map * *
@@ -16,6 +17,7 @@ astar.am -- implementation of the A-Star search algorithm
 
 ### avl
 avl.am -- AVL tree
+
     avl.avlTree * ::= avl.AVLLeaf | avl.AVLNode * (avlTree *) (avlTree *) int
     avl.AVLLeaf :: avlTree *
     avl.AVLNode :: * -> avlTree * -> avlTree * -> int -> avlTree *
@@ -47,6 +49,7 @@ avl.am -- AVL tree
 
 ### bag
 bag.am -- implementation of a strict multiset using AVL trees
+
     bag.b_bag * == m_map * int
     bag.b_delete :: ordI * -> * -> b_bag * -> b_bag *
     bag.b_deleteTimes :: ordI * -> * -> int -> b_bag * -> b_bag *
@@ -60,6 +63,7 @@ bag.am -- implementation of a strict multiset using AVL trees
 
 ### base
 base.am -- common extensions to Admiran's standard library
+
     (base.!>) :: * -> (* -> **) -> **
     (base.$!) :: (* -> **) -> * -> **
     (base.&&&) :: (* -> **) -> (* -> ***) -> * -> (**, ***)
@@ -175,11 +179,13 @@ base.am -- common extensions to Admiran's standard library
 
 ### bfs
 bfs.am -- implementation of a shortest path finder using a breadth-first search
+
     bfs.backtrace :: ordI * -> * -> ** -> m_map * * -> ([*], **)
     bfs.bfsSolve :: ordI * -> * -> (* -> bool) -> ((*, **) -> ([*], **)) -> ** -> ([*], **)
 
 ### bitSet
 bitSet.am -- representation of a set of small (< 64) natural numbers using an int, as an abstract type
+
     bitSet.bs_all :: int -> bitSet
     bitSet.bs_delete :: int -> bitSet -> bitSet
     bitSet.bs_difference :: bitSet -> bitSet -> bitSet
@@ -202,6 +208,7 @@ bitSet.am -- representation of a set of small (< 64) natural numbers using an in
 
 ### dequeue
 dequeue.am -- a double-ended queue of elements that allows quick insertion / deletion at both ends
+
     dequeue.dequeue * ::= dequeue.FT0 | dequeue.FT1 * | dequeue.FT2 * * | dequeue.FT3 * * * | dequeue.FTN (dequeue *) (dequeue (dequeue *)) (dequeue *)
     dequeue.FT0 :: dequeue *
     dequeue.FT1 :: * -> dequeue *
@@ -222,6 +229,7 @@ dequeue.am -- a double-ended queue of elements that allows quick insertion / del
 
 ### either
 either.am -- sum type of two distinct types
+
     either.either * ** ::= either.Left * | either.Right **
     either.Left :: * -> either * **
     either.Right :: ** -> either * **
@@ -242,6 +250,7 @@ either.am -- sum type of two distinct types
 
 ### fix16
 fixed-point representation with 16-bit fractional part, as a substitute for floats
+
     (fix16.*.) :: fix16 -> fix16 -> fix16
     (fix16.+.) :: fix16 -> fix16 -> fix16
     (fix16.-.) :: fix16 -> fix16 -> fix16
@@ -256,6 +265,7 @@ fixed-point representation with 16-bit fractional part, as a substitute for floa
 
 ### heap
 heap.am -- tree-based priority queue
+
     heap.heap * ::= heap.Hempty | heap.Heap int (htree *)
     heap.htree * ::= heap.HTnode int ! * (hforest *)
     heap.hforest * == [htree *]
@@ -286,6 +296,7 @@ heap.am -- tree-based priority queue
 
 ### io
 io.am -- the IO monad for sequencing access to the outside world
+
     io.handle ::= io.Handle word#
     io.world ::= io.World
     io.io * == state world *
@@ -321,10 +332,12 @@ io.am -- the IO monad for sequencing access to the outside world
 
 ### ioStream
 ioStream.am -- io with streams
+
     ioStream.streamFile :: string -> io (stream char word#)
 
 ### lens
 lens.am -- optics for accessing nested structures
+
     lens.lens * ** ::= lens.Lens (* -> **) ((** -> **) -> * -> *)
     lens.Lens :: (* -> **) -> ((** -> **) -> * -> *) -> lens * **
     lens.composeLens :: lens * ** -> lens ** *** -> lens * ***
@@ -334,6 +347,7 @@ lens.am -- optics for accessing nested structures
 
 ### map
 map.am -- implementation of a strict map from key to value, using AVL trees
+
     map.m_map * ** == avlTree ((*, **))
     map.m_adjust :: ordI * -> (** -> **) -> * -> m_map * ** -> m_map * **
     map.m_alter :: ordI * -> (maybe ** -> maybe **) -> * -> m_map * ** -> m_map * **
@@ -359,6 +373,7 @@ map.am -- implementation of a strict map from key to value, using AVL trees
 
 ### maybe
 maybe.am -- sum type of "Nothing" and another type
+
     maybe.maybe * ::= maybe.Nothing | maybe.Just *
     maybe.Just :: * -> maybe *
     maybe.Nothing :: maybe *
@@ -385,6 +400,7 @@ maybe.am -- sum type of "Nothing" and another type
 
 ### maybeState
 maybeState.am -- functor / applicative / monad / alternative for a state monad augmented with maybe
+
     maybeState.maybeState * ** == state * (maybe **)
     maybeState.mst_alt :: maybeState * ** -> maybeState * ** -> maybeState * **
     maybeState.mst_apply :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***
@@ -419,11 +435,13 @@ maybeState.am -- functor / applicative / monad / alternative for a state monad a
 
 ### memo
 memo.am -- memoization of a single-argument function with a state map
+
     memo.memoSt * ** == state ((ordI *, m_map * **)) **
     memo.memo :: (* -> memoSt * **) -> * -> memoSt * **
 
 ### memoTrie
 memoTrie.am -- memoization of functions using a lazy mapping of indices in a trie
+
     memoTrie.tree * ::= memoTrie.Tree (tree *) * (tree *)
     memoTrie.Tree :: tree * -> * -> tree * -> tree *
     memoTrie.memo :: (* -> int) -> (int -> *) -> (* -> **) -> * -> **
@@ -435,6 +453,7 @@ memoTrie.am -- memoization of functions using a lazy mapping of indices in a tri
 
 ### parser
 parser.am -- a parser combinator library for strings, based upon the maybeState monad, which tracks line and column position for error reporting
+
     parser.parser * == maybeState psSt *
     parser.psSt == (word#, word#, [char])
     parser.p_alt :: parser * -> parser * -> parser *
@@ -476,6 +495,7 @@ parser.am -- a parser combinator library for strings, based upon the maybeState 
 
 ### rws
 rws.am -- reader+writer+state functor/applicative/monad with strict writer and state
+
     rws.rws * ** *** **** == * -> *** -> [**] -> (****, ***, [**])
     rws.rws_apply :: rws * ** *** (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
     rws.rws_ask :: rws * ** *** *
@@ -510,6 +530,7 @@ rws.am -- reader+writer+state functor/applicative/monad with strict writer and s
 
 ### set
 set.am -- implementation of a strict set using AVL trees
+
     set.s_set * == avlTree *
     set.s_difference :: ordI * -> s_set * -> s_set * -> s_set *
     set.s_filter :: ordI * -> (* -> bool) -> s_set * -> s_set *
@@ -526,6 +547,7 @@ set.am -- implementation of a strict set using AVL trees
 
 ### state
 state.am -- strict state functor / applicative / monad
+
     state.state * ** == * -> (**, *)
     state.st_apply :: state * (** -> ***) -> state * ** -> state * ***
     state.st_bind :: state * ** -> (** -> state * ***) -> state * ***
@@ -560,6 +582,7 @@ state.am -- strict state functor / applicative / monad
 
 ### stdlib
 stdlib.am -- standard environment
+
     stdlib.bool ::= stdlib.False | stdlib.True
     stdlib.char ::= stdlib.C# word#
     stdlib.int ::= stdlib.I# word#
@@ -710,6 +733,7 @@ stdlib.am -- standard environment
 
 ### stream
  stream.am -- implementation of streams from the paper:
+
     stream.seither * ** ::= stream.Sleft * | stream.Sright **
     stream.smaybe * ::= stream.Snothing | stream.Sjust *
     stream.step * ** ::= stream.Done | stream.Skip ** | stream.Yield * **
@@ -784,6 +808,7 @@ stdlib.am -- standard environment
 
 ### trieMap
 trieMap.am -- strict map from a key to a value, where the key is a list of elements
+
     trieMap.matchResult * ** ::= trieMap.Mfail | trieMap.Mkey (trie * **) ([*]) ([*]) | trieMap.Mpre (trie * **) ([*]) ([*]) | trieMap.Mpart (trie * **) ([*]) ([*]) ([*])
     trieMap.trie * ** ::= trieMap.Trie ([trieBranch * **]) (maybe **)
     trieMap.trieBranch * ** == ([*], trie * **)
@@ -816,6 +841,7 @@ trieMap.am -- strict map from a key to a value, where the key is a list of eleme
 
 ### v2
  v2.am -- 2D vectors and associated operations
+
     v2.v2 * ::= v2.V2 * *
     v2.V2 :: * -> * -> v2 *
     v2.v2_abs :: v2 int -> v2 int
@@ -845,6 +871,7 @@ trieMap.am -- strict map from a key to a value, where the key is a list of eleme
 
 ### v3
  v3.am -- 3D vectors and associated operations
+
     v3.v3 * ::= v3.V3 * * *
     v3.V3 :: * -> * -> * -> v3 *
     v3.v3_abs :: v3 int -> v3 int
@@ -873,6 +900,7 @@ trieMap.am -- strict map from a key to a value, where the key is a list of eleme
 
 ### vector
 vector.am -- immutable and mutable vectors, and the ST monad for sequencing in-place modification
+
     vector.mvector * ::= vector.MVector int word#
     vector.vector * ::= vector.Vector int word#
     vector.st * == state builtin.unit *
@@ -937,6 +965,7 @@ vector.am -- immutable and mutable vectors, and the ST monad for sequencing in-p
 
 ### zipper
 zipper.am -- implementation of a list with a cursor
+
     zipper.zipper * ::= zipper.Zipper ([*]) ! ([*]) !
     zipper.Zipper :: [*] -> [*] -> zipper *
     zipper.z_begin :: zipper * -> zipper *

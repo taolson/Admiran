@@ -27,14 +27,17 @@
 
 printSpecs :: (string, module) -> io ()
 printSpecs (comment, m)
-    = putStrLn ("### " ++ mn) >> putStrLn comment >> io_forM defStrings (\s -> putStrLn $ "    " ++ s) >> putStrLn ""
+    = putStrLn ("### " ++ mn)     >>
+      putStrLn (comment  ++ "\n") >>
+      io_forM defStrings putStrLn >>
+      putStrLn ""
       where
         mn         = view modName m
         specs      = view modSpecs m |> m_elems
         defs       = view modDefns m |> m_elems
         dataDefs   = filter isDefData defs
         synDefs    = filter isDefSyn  defs
-        defStrings = concatMap (map showdefn .> sortBy cmpstring) [dataDefs, synDefs, specs]
+        defStrings = concatMap (map showdefn .> sortBy cmpstring .> map ("    " ++)) [dataDefs, synDefs, specs]
 
 process :: string -> io ()
 process s
