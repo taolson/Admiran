@@ -284,14 +284,11 @@ inlineAst k (Ecall (Evar n) args) st
         st'  = addInfo note . set inSimplified True $ st
 
 || inline the function body of a call
-|| if inlineable, return without continuing through the new inlined body, to allow more inlining
-|| of other functions at the same "level", first.  If enough fuel remains, another pass will continue
-|| inlining through the new inlined body
 || NOTE: this will aggressively inline thunks, even if they are expensive, causing duplication of work (and
 || memoization to fail).  However, removing the possibility entirely causes a big performance drop.  Need to
 || figure out the right balance, here.
 inlineAst k (Ecall (Evar n) args) st
-    = (e, st2), if inlinable
+    = k e st2, if inlinable
       where
         inlinable = canInline n & isJust md & ~view defnAnRec d & fnArity d <= #args & cpx <= inlineMaxFnComplexity
         (md, _)   = lookupEnv n st
