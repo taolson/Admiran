@@ -18,7 +18,7 @@
 %import <map>
 %import <maybe>
 %import <maybeState>            (>>=)/mst_bind tc_pure/mst_pure tc_fail/mst_fail tc_maybe/mst_maybe (<$>)/mst_fmap
-                                tc_liftA2/mst_liftA2 tc_bind2/mst_bind2  (<*)/mst_left (*>)/mst_right
+                                tc_liftA2/mst_liftA2 tc_bind2/mst_bind2  (<<)/mst_left (>>)/mst_right
                                 tc_mapM/mst_mapM tc_foldM/mst_foldM
 %import <set>
 %import <state>
@@ -244,7 +244,7 @@ lookupScheme n st
 
 || generate a new Tvar number from the state
 newTvar :: tcState texpr
-newTvar = Tvar <$> (tc_view tcGen) <* tc_over tcGen (+ 1)
+newTvar = Tvar <$> (tc_view tcGen) << tc_over tcGen (+ 1)
 
 || create a new instance of a type scheme by creating new Tvars for the schematic vars
 instantiate :: scheme -> tcState (texpr, substMap)
@@ -307,6 +307,20 @@ genTypeMap dm
 mkTypeMap :: [pat] -> [texpr] -> typeMap
 mkTypeMap ps ts
     = m_fromList cmpname . map (mapFst unPvar) . filter (isPvar . fst) $ zip2 ps ts
+
+|| extract the types of the pats from the defn's DefSpec, if available
+|| this allows a form of bidirectional type checking where the user-defined top-level DefSpec
+|| is preferred to the typechecker's inferred type, which makes error reporting more precise
+|| if no spec is found, return new Tvars for the pats
+typesFromSpec :: name -> [pat] -> tcState [texpr]
+typesFromSpec n vars
+    = (tc_view tcGenv >>= getSpec) <|> tc_mapM (const newTvar) vars 
+      where
+        nvars        = #vars
+        getSpec genv = lookupSpec genv n |> fromMaybef tc_fail genScm   || find the typeSpec for a name
+        genScm s     = mkScheme s |> instantiate >>= genTs              || generate a new scheme from the spec
+        genTs (s, _) = typeList s |> fst |> take nvars |> check         || collect the individual var types
+        check ts     = if' (null ts) tc_fail (tc_pure ts)               || return them if we have enough
 
 || report extra info when an error is encountered in mutual recursive definitions
 mutRecErr :: [name] -> tcState *
@@ -459,7 +473,7 @@ infer (Elet True defs _ e)
                 f2 (ts2, sm) = (unifyMaps Infer ts1 ts2 sm >>= f3 ts2) <|> mutRecErr (m_keys defs)
 
                 f3 ts2 sm1
-                    = tc_over tcEnv (te_subst sm1) *>
+                    = tc_over tcEnv (te_subst sm1) >>
                       lexPoly ts2' infer e         >>=
                       f4 sm1
                       where
@@ -472,10 +486,10 @@ infer d
     = error ("unhandled infer case: " ++ showast d), otherwise
       where
         loc        = defnLocInfo d
-        locInfer d = tc_over tcLoc (mergeLocInfo loc) *> inferDef d
+        locInfer d = tc_over tcLoc (mergeLocInfo loc) >> inferDef d
 
         inferDef (DefFn n vars e an)
-            = tc_mapM (const newTvar) vars >>= f1       || create new Tvars for the arguments
+            = typesFromSpec n vars >>= f1      || preferably use types from type spec, or infer with new Tvars
               where
                 f1 ts = lexMono tdefs infer e >>= f2 ts || infer the type of the body in a new mono environment
                         where
@@ -527,7 +541,7 @@ inferList [] = tc_pure ([], id_subst)
 inferList (e : es)
     = infer e >>= f1
       where
-        f1 (t, sm)        = tc_over tcEnv (te_subst sm) *> (inferList es >>= f2 t sm)
+        f1 (t, sm)        = tc_over tcEnv (te_subst sm) >> (inferList es >>= f2 t sm)
         f2 t sm (ts, sm') = tc_pure (t_subst sm' t : ts, subComp sm' sm)
 
 inferMap :: defnMap -> tcState (typeMap, substMap)
@@ -582,8 +596,8 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = go t2 t2 <* tc_note (TypeHole nt2), if isTWild t1
-                                       = go t1 t1 <* tc_note (TypeHole nt1), if isTWild t2
+        go t1            t2            = go t2 t2 << tc_note (TypeHole nt2), if isTWild t1
+                                       = go t1 t1 << tc_note (TypeHole nt1), if isTWild t2
                                        = tc_error $ Unify nt1 nt2,           otherwise
                                          where
                                            nt1 = normalize t1
@@ -608,7 +622,7 @@ unify t1 t2 sm
 
 subsumes :: texpr -> texpr -> substMap -> tcState substMap
 subsumes t1 t2 sm
-    = tc_set tcFvars (t_ftv t2) *>
+    = tc_set tcFvars (t_ftv t2) >>
       (unify' Check t1 t2 sm <|>
       tc_errorNote (Unify (normalize t1) (normalize t2)))   || add additional error info for the top-level unification types
 
