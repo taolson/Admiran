@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -178,6 +179,17 @@ void statsInit ()
   gcMajorTime             = 0;
 }
 
+// report a runtime error
+void runtimeError (char *format, ...)
+{
+  va_list argptr;
+
+  fprintf (stderr, "runtime error: ");
+  va_start (argptr, format);
+  vfprintf (stderr, format, argptr);
+  va_end (argptr);
+}
+  
 // add the current execution time duration to a time bin
 void tallyTime (clock_t *bin)
 {
@@ -324,8 +336,8 @@ value heapRelocateValue (value v)
 #endif
 
   if (obj -> tag > Hreloc) {
-    fprintf (stderr, "*** heapRelocateValue: nonsensical tag %d for obj %p\n", obj -> tag, obj);
-    fprintf (stderr, "*** originated from %s %" PRIu64 "\n", gcRootInfo, gcRootIndex);
+    runtimeError ("heapRelocateValue: nonsensical tag %d for obj %p\n", obj -> tag, obj);
+    runtimeError ("originated from %s %" PRIu64 "\n", gcRootInfo, gcRootIndex);
     exit (1);
   }
   switch (obj -> tag) {
@@ -381,8 +393,8 @@ void gcTraceObj (heapObj *obj)
   arrayObj  *ao;
 
   if (obj -> tag > Hreloc) {
-    fprintf (stderr, "*** gcTraceObj: nonsensical tag %d for obj %p\n", obj -> tag, obj);
-    fprintf (stderr, "*** originated from %s %" PRIu64 "\n", gcRootInfo, gcRootIndex);
+    runtimeError ("gcTraceObj: nonsensical tag %d for obj %p\n", obj -> tag, obj);
+    runtimeError ("originated from %s %" PRIu64 "\n", gcRootInfo, gcRootIndex);
     exit (1);
   }
     
@@ -418,8 +430,8 @@ void gcTraceObj (heapObj *obj)
     break;
 
   case Hreloc:
-    fprintf (stderr, "*** gcTraceObj encountered an Hreloc obj\n");
-    fprintf (stderr, "*** originated from %s %" PRIu64 "\n", gcRootInfo, gcRootIndex);
+    runtimeError ("gcTraceObj encountered an Hreloc obj\n");
+    runtimeError ("originated from %s %" PRIu64 "\n", gcRootInfo, gcRootIndex);
     exit (1);
   }
 }
@@ -628,7 +640,7 @@ void gcMajor (value *copyBase)
 
   // check if old space has exceeded the maximum halfspace size
   if (gcOldAlloc - gcOldBase > (gcRootsAlloc - gcOldBase) / 2) {
-    fprintf (stderr, "\n*** out of memory\n");
+    runtimeError ("\n*** out of memory\n");
     exit (1);
   }
     
@@ -671,7 +683,7 @@ void gcGrowHeap ()
 
   // check for out of memory condition (we have already grown the stack to the max possible value)
   if (gcHeapTop >= gcRootsAlloc - gcMinFree) {
-    fprintf (stderr, "\n*** out of memory in growHeap\n");
+    runtimeError ("out of memory in growHeap\n");
     exit (1);
   }
 
@@ -682,7 +694,7 @@ void gcGrowHeap ()
 
   // check for out of memory condition (not enough space for current request)
   if (gcHeapTop > gcRootsAlloc - gcMinFree) {
-    fprintf (stderr, "\n*** out of memory in growHeap\n");
+    runtimeError ("out of memory in growHeap\n");
     exit (1);
   }
 
@@ -825,7 +837,7 @@ void apply ()
     apply ();
     
   default:
-    fprintf (stderr, "*** Apply not implemented for %d\n", obj -> tag);
+    runtimeError ("Apply not implemented for %d\n", obj -> tag);
     exit (1);
   }
 }
@@ -1038,7 +1050,7 @@ void systemOp (value op, value rd, value sval)
     break;
 
   default:
-    fprintf (stderr, "*** systemOp %d not implemented\n", uop);
+    runtimeError ("systemOp %d not implemented\n", uop);
     exit (1);
   }
 }
