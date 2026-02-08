@@ -143,7 +143,7 @@ isX86Imm, isX86Imm64, isX86Reg, isX86Mem :: x86Opr -> bool
 isX86Imm (X86Imm n)       = True
 isX86Imm _                = False
 
-isX86Imm64 (X86Imm n)     = abs n > 0x7fffffff
+isX86Imm64 (X86Imm n)     = abs n >= 0x80000000
 isX86Imm64 _              = False
 
 isX86Reg (X86Reg s)       = True
@@ -841,7 +841,7 @@ genInsn (Add d a b)
         xb         = cvtOpr b
         (xd, movd) = ensureX86DstReg x86Tmp0 d
 
-        optimize x1 (X86Imm n) = genOpcode "leaq" [addX86Offset n x1, xd] . movd, if isX86Reg x1
+        optimize x1 (X86Imm n) = genOpcode "leaq" [addX86Offset n x1, xd] . movd, if isX86Reg x1 & ~isX86Imm64 (X86Imm n)
         optimize x1 x2
              = genOpcode "leaq" [X86Idx x1 x2 1 0, xd]               . movd, if isX86Reg x1 & isX86Reg x2
              = genOpcode "movq" [x2, xd] . genOpcode "addq" [x1, xd] . movd, otherwise  || x2 may be 64-bit imm; use it in mov
@@ -854,7 +854,7 @@ genInsn (Sub d a b)
         xb         = cvtOpr b
         (xd, movd) = ensureX86DstReg x86Tmp0 d
 
-        optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset (-n) xa, xd]           . movd
+        optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset (-n) xa, xd]           . movd, if ~isX86Imm64 (X86Imm n)
         optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "subq" [xb, xd] . movd
 
 || Mul, optimized to use single insn "leaq" or the three-operand immediate equivalent, when possible
