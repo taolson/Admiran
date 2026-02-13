@@ -308,7 +308,7 @@ builtinSpecs
                 , "writeFile#        :: word# -> word#"                 || write a file buffer byteStream to the file, and return the status
                 , "mtimeFile#        :: word# -> word#"                 || get the modification timestamp for a file (or 0, if non-existent)
                 , "getArg#           :: word# -> word#"                 || get arg count [0] or argument readStream [1 .. argc -1]
-                , "systemCmd#        :: word# -> word#"                 || execute the shell command specified by a bytStream and return its int result
+                , "systemCmd#        :: word# -> word#"                 || execute the shell command specified by a byteStream and return its int result
                 , "clock#            :: word# -> word#"                 || return the current user time clock (usec); argument is unused to force function
                 ]
         insertSpec m d = m_insert cmpname (defnName d) d m

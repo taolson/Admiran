@@ -4,10 +4,11 @@ This file documents the interface for each of the definitions in the Admiran lib
 
 ### builtin
 
-built-in values and functions implemented in the compiler or the runtime
+Built-in values and functions implemented in the compiler or the runtime.  In addition to those
+shown here, tuples of any arity are dynamically created and implicitly defined.
 
-    Unit              :: unit
-    Nil               :: [*]
+    Unit              :: unit                          || parsed as "()" in the parser
+    Nil               :: [*]                           || parsed as "[]" in the parser
     :                 :: * -> [*] -> [*]
     
     || primitive arithmetic operations on word#
@@ -52,7 +53,7 @@ built-in values and functions implemented in the compiler or the runtime
     writeFile#        :: word# -> word#                || write a file buffer byteStream to the file, and return the status
     mtimeFile#        :: word# -> word#                || get the modification timestamp for a file (or 0, if non-existent)
     getArg#           :: word# -> word#                || get arg count [0] or argument readStream [1 .. argc -1]
-    systemCmd#        :: word# -> word#                || execute the shell command specified by a bytStream and return its int result
+    systemCmd#        :: word# -> word#                || execute the shell command specified by a byteStream and return its int result
     clock#            :: word# -> word#                || return the current user time clock (usec); argument is unused to force function
 
 ### astar
