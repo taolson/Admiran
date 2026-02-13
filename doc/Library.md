@@ -2,6 +2,59 @@
 
 This file documents the interface for each of the definitions in the Admiran library modules
 
+### builtin
+
+built-in values and functions implemented in the compiler or the runtime
+
+    Unit              :: unit
+    Nil               :: [*]
+    :                 :: * -> [*] -> [*]
+    
+    || primitive arithmetic operations on word#
+    cmp#              :: word# -> word# -> word#       || cmp returns 0# -> EQ, 1# -> LT, 2# -> GT
+    +#                :: word# -> word# -> word#
+    -#                :: word# -> word# -> word#
+    *#                :: word# -> word# -> word#
+    quotrem#          :: word# -> word# -> (word#, word#)
+    divmod#           :: word# -> word# -> (word#, word#)
+    
+    || primitive bit-wise operations on word#
+    band#             :: word# -> word# -> word#
+    bor#              :: word# -> word# -> word#
+    bxor#             :: word# -> word# -> word#
+    bnot#             :: word# -> word#
+    bshl#             :: word# -> word# -> word#
+    bshr#             :: word# -> word# -> word#
+    
+    || operations on packed byte streams
+    allocByteStream#  :: word# -> word#                || return a ref to a newly-allocated byteStream
+    allocFileStream#  :: word# -> word# -> word#       || return a ref to a newly-allocated byteStream with specified fd field
+    readByteStream#   :: word# -> word#                || read a byte from byteStream ref
+    writeByteStream#  :: word# -> word# -> word#       || write a byte to a byteStream ref, returning success/fail indication
+    
+    || operations on arrays
+    allocArray#       :: word# -> word#                || alloc a contiguous array of N entries (uninitialized), and return its ref
+    fillArray#        :: word# -> * -> unit            || fill an existing array with a constant value
+    copyArray#        :: word# -> word# -> unit        || copy contents of src array to dst array (already allocated, sizes must match!)
+    readArray#        :: word# -> word# -> *           || read a value from the array ref at the given index
+    writeArray#       :: word# -> word# -> * -> unit   || write a value to the array ref at the given index
+    
+    || compiler support
+    getTag#           :: * -> word#                    || get tag of a constructor application (for use in ordI instances)
+    
+    || system operations
+    exit#             :: word# -> *                    || exit with the status word (return type is * for typechecker)
+    openFileRead#     :: word# -> word#                || open file named by a byteStream for read and return a file buffer byteStream
+    openFileWrite#    :: word# -> word#                || open or create file named by a byteStream for write
+    openFileAppend#   :: word# -> word#                || open or create file named by a byteStream for append
+    closeFile#        :: word# -> unit                 || close an open file buffer byteStream
+    readFile#         :: word# -> word#                || fill a file buffer byteStream from the file, and return the read status
+    writeFile#        :: word# -> word#                || write a file buffer byteStream to the file, and return the status
+    mtimeFile#        :: word# -> word#                || get the modification timestamp for a file (or 0, if non-existent)
+    getArg#           :: word# -> word#                || get arg count [0] or argument readStream [1 .. argc -1]
+    systemCmd#        :: word# -> word#                || execute the shell command specified by a bytStream and return its int result
+    clock#            :: word# -> word#                || return the current user time clock (usec); argument is unused to force function
+
 ### astar
 astar.am -- implementation of the A-Star search algorithm
 
