@@ -10,8 +10,9 @@
 os ::= MacOS | Linux
 
 || these parameters must be set when installing the compiler
-hostOS                = Linux           || set to Linux or MacOS
-admiranLibPath        = "../lib"        || set to absolute path of Admiran lib directory e.g. "/home/user/Programming/Admiran/lib"
+hostOS                = MacOS           || set to Linux or MacOS
+admiranLibPath        = "/Users/tim/Programming/Admiran/lib"
+                                        || e.g. "/home/tim/Programming/Admiran/lib"
 
 || os-dependant configuration parameters
 (codegenCsymbolPrefix, ccOpts)
@@ -34,8 +35,9 @@ useEagerCtors         = False   || experimental; may not work
 useStreamFusion       = False   || experimental; currently doesn't work; use stream functions explicitly in code, instead
 
 || verbose output configuration
-demandVerbose         = False
-inlineVerbose         = False
+demandVerbose         = False   || report information during demand pass
+inlineVerbose         = False   || report information during inlining pass
+annoVerbose           = False   || display a detailed anno field when pretty-printing an AST
 noteLengthLimit       = 100
 
 || code generator resource sizes (NOTE: must match the sizes defined in runtime.c)
