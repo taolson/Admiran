@@ -392,6 +392,16 @@ ioStream.am -- io with streams
 ### lens
 lens.am -- optics for accessing nested structures
 
+In addition to the explicit data type and functions shown here, lenses for tuples 2 - 8
+are implemented, with explicit view and over functions, as well as the lenses, to allow optimization of code that performs
+explicit view/over operations on known tuples.  Also, by having the view/over functions defined at the top-level
+of the module, inlining Lens operations have a better opportunity to inline the view or over fn as well, even
+when composing lenses.  The names of these are specified as `lensTup<arity>_<field>` where `<arity>` is the tuple arity
+and `<field>` is the index of the tuple field being specified, e.g.
+
+    lensTup3_0          || the lens data structure for the first field in a 3-tuple
+    viewTup4_1          || the function to view the second field in a 4-tuple
+
     lens.lens * ** ::= lens.Lens (* -> **) ((** -> **) -> * -> *)
     lens.Lens :: (* -> **) -> ((** -> **) -> * -> *) -> lens * **
     lens.composeLens :: lens * ** -> lens ** *** -> lens * ***
