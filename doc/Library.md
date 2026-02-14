@@ -512,6 +512,8 @@ memoTrie.am -- memoization of functions using a lazy mapping of indices in a tri
     memoTrie.memochar :: (char -> *) -> char -> *
     memoTrie.memofix :: ((* -> **) -> * -> **) -> ((* -> **) -> * -> **) -> * -> **
     memoTrie.memoint :: (int -> *) -> int -> *
+    memoTrie.memolist :: ((* -> [*] -> **) -> * -> [*] -> **) -> ([*] -> **) -> [*] -> **
+    memoTrie.memopair :: ((* -> ** -> ***) -> * -> ** -> ***) -> ((** -> ***) -> ** -> ***) -> ((*, **) -> ***) -> (*, **) -> ***
     memoTrie.memostring :: (string -> *) -> string -> *
     memoTrie.t_fmap :: (* -> **) -> tree * -> tree **
 
