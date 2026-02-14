@@ -51,11 +51,11 @@ v_rep n x
 
 || generate a vector from its index values
 v_generate :: int -> (int -> *) -> vector *
-v_generate n f = (v_fromStream n . mapS f . rangeFromS) 0
+v_generate n f = rangeFromS 0 |> mapS f |> v_fromStream n
 
 || iterate a function from an initial value to produce a vector
 v_iterateN :: int -> (* -> *) -> * -> vector *
-v_iterateN n f = v_fromStream n . iterateS f
+v_iterateN n f = iterateS f .> v_fromStream n
 
 
 || vector accessing
@@ -93,7 +93,7 @@ v_fmap f v
       where
         n     = v_length v
         mv    = v_unsafeThaw $ v_rep n undef
-        go mv = st_forM [0 .. n - 1] (\i -> v_unsafeWrite mv i . f . v_unsafeIndex v $ i)
+        go mv = st_forM [0 .. n - 1] (\i -> v_unsafeIndex v i |> f |> v_unsafeWrite mv i)
 
 v_fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
 v_fmapWithIndex f v
@@ -101,11 +101,11 @@ v_fmapWithIndex f v
       where
         n     = v_length v
         mv    = v_unsafeThaw $ v_rep n undef
-        go mv = st_forM [0 .. n - 1] (\i -> v_unsafeWrite mv i . f i . v_unsafeIndex v $ i)
+        go mv = st_forM [0 .. n - 1] (\i -> v_unsafeIndex v i |> f i |> v_unsafeWrite mv i)
 
 || filter can change size of a vector, so it's easiest just to convert to/from stream
 v_filter :: (* -> bool) -> vector * -> vector *
-v_filter f = v_fromList . filter f . v_toList   || list used so we can get length of filtered list
+v_filter f = v_toList .> filter f .> v_fromList || list used so we can get length of filtered list
 
 || lazy right-fold, to allow early-out of folding function
 v_foldr :: (* -> ** -> **) -> ** -> vector * -> **
@@ -155,8 +155,8 @@ v_sum     = v_foldl (+) 0
 v_product = v_foldl (*) 1
 
 v_any, v_all :: (* -> bool) -> vector * -> bool
-v_any p = v_foldr ((\/) . p) False
-v_all p = v_foldr ((&) . p) True
+v_any p = v_foldr (p .> (\/)) False
+v_all p = v_foldr (p .> (&))  True
 
 v_find :: (* -> bool) -> vector * -> maybe *
 v_find p
@@ -249,7 +249,7 @@ v_fromList :: [*] -> vector *
 v_fromList es = v_fromStream n (toStream es) where n = #es
 
 v_toList :: vector * -> [*]
-v_toList = fromStream . v_toStream
+v_toList = v_toStream .> fromStream
 
 
 || unsafe operations on vectors
@@ -370,7 +370,7 @@ runSTVector f v
 stRef * == mvector *
 
 newSTRef :: * -> st (stRef *)
-newSTRef = st_pure . v_unsafeThaw . v_singleton
+newSTRef = v_singleton .> v_unsafeThaw .> st_pure
 
 readSTRef :: stRef * -> st *
 readSTRef a = v_unsafeRead a 0

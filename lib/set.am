@@ -102,11 +102,11 @@ s_intersect cmp s1 s2
         go xs ys = []
 
 s_filter :: ordI * -> (* -> bool) -> s_set * -> s_set *
-s_filter cmp p = s_fromList cmp . filter p . s_toList
+s_filter cmp p = s_toList .> filter p .> s_fromList cmp
 
 
 || functor interface
 || s_fmap changes the key value that is used in the AVL tree, so the easiest
 || way to do it is to serialize to a list, map, then deserialize to the new set
 s_fmap :: ordI ** -> (* -> **) -> s_set * -> s_set **
-s_fmap cmp f = s_fromList cmp . map f . s_toList
+s_fmap cmp f = s_toList .> map f .> s_fromList cmp

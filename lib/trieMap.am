@@ -161,7 +161,7 @@ t_adjust :: ordI * -> (** -> **) -> [*] -> trie * ** -> trie * **
 t_adjust cmp f k t
     = fromMaybe t $ go k t
       where
-        go [] (Trie bs mv) = (Trie bs . Just . f) <$>? mv       || trie matches key -- perform adjustment if value exists
+        go [] (Trie bs mv) = (f .> Just .> Trie bs) <$>? mv     || trie matches key -- perform adjustment if value exists
         go k  (Trie bs mv) = converse Trie mv <$>? tb_modify cmp check k bs
 
         check (Mkey t k p) = pair p <$>? go k t         || continue matching k, return modified trieBranch if an adjust occurred

@@ -330,8 +330,8 @@ wordsS (Stream next s)
                                 True  -> Yield (reverse xs) (Snothing, s')
 
 anyS, allS :: (* -> bool) -> stream * ** -> bool
-anyS p = foldrS ((\/) . p) False
-allS p = foldrS ((&) . p) True
+anyS p = foldrS (p .> (\/)) False
+allS p = foldrS (p .> (&)) True
 
 
 || backwards-compatible re-implementations of <stdlib> and <base> list functions,
@@ -412,7 +412,7 @@ zipWith_ :: (* -> ** -> ***) -> [*] -> [**] -> [***]
 zipWith_ f xs ys = fromStream (zipWithS f (toStream xs) (toStream ys))
 
 concatMap_ :: (* -> [**]) -> [*] -> [**]
-concatMap_ f xs = fromStream (concatMapS (toStream . f) (toStream xs))
+concatMap_ f xs = fromStream (concatMapS (f .> toStream) (toStream xs))
 
 take_ :: int -> [*] -> [*]
 take_ n xs = fromStream (takeS n (toStream xs))

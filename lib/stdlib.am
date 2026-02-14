@@ -502,7 +502,7 @@ null [] = True
 null _  = False
 
 member :: ordI * -> [*] -> * -> bool
-member cmp xs a = foldr ((\/) . (_eq cmp a)) False xs
+member cmp xs a = foldr ((_eq cmp a) .> (\/)) False xs
 
 || accessing
 hd :: [*] -> *

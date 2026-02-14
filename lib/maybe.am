@@ -31,7 +31,7 @@ catMaybes :: [maybe *] -> [*]
 catMaybes xs = [x | Just x <- xs]
 
 mapMaybe :: (* -> maybe **) -> [*] -> [**]
-mapMaybe f = catMaybes . map f
+mapMaybe f = map f .> catMaybes
 
 
 || monad interface
@@ -46,7 +46,7 @@ mb_kbind :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
 mb_kbind f g = \x -> f x $mb_bind g
 
 mb_mapM :: (* -> maybe **) -> [*] -> maybe [**]
-mb_mapM f xs = foldr (mb_liftA2 (:) . f) (mb_pure []) xs
+mb_mapM f xs = foldr (f .> mb_liftA2 (:)) (mb_pure []) xs
 
 mb_filterM :: (* -> maybe bool) -> [*] -> maybe [*]
 mb_filterM p xs
@@ -68,7 +68,7 @@ mb_sequence xs = foldr (mb_liftA2 (:)) (mb_pure []) xs
 
 || functor interface
 mb_fmap :: (* -> **) -> maybe * -> maybe **
-mb_fmap f ma = ma $mb_bind (mb_pure . f)
+mb_fmap f ma = ma $mb_bind (f .> mb_pure)
 
 
 || applicative interface

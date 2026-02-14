@@ -85,7 +85,7 @@ m_lookup cmp k
               GT -> go r
 
 m_findWithDefault :: ordI * -> ** -> * -> m_map * ** -> **
-m_findWithDefault cmp d k = fromMaybe d . m_lookup cmp k
+m_findWithDefault cmp d k = m_lookup cmp k .> fromMaybe d
 
 m_fromList :: ordI * -> [(*, **)] -> m_map * **
 m_fromList cmp
@@ -127,7 +127,7 @@ m_filter cmp p
         ignoreKey p (k, x) = p x
 
 m_filterWithKey :: ordI * -> ((*, **) -> bool) -> m_map * ** -> m_map * **
-m_filterWithKey cmp p = m_fromList cmp . filter p . m_toList
+m_filterWithKey cmp p = m_toList .> filter p .> m_fromList cmp
 
 m_mapAccumL :: (**** -> ** -> (****, ***)) -> **** -> m_map * ** -> (****, m_map * ***)
 m_mapAccumL f s

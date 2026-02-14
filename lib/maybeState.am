@@ -23,7 +23,7 @@ mst_modify :: (* -> *) -> maybeState * ()
 mst_modify f = mb_pure $st_fmap st_modify f
 
 mst_pure :: ** -> maybeState * **
-mst_pure a = st_pure . mb_pure $ a
+mst_pure a = a |> mb_pure |> st_pure
 
 mst_fail :: maybeState * **
 mst_fail = st_pure Nothing
@@ -46,10 +46,10 @@ mst_kbind :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> may
 mst_kbind f g = \x -> f x $mst_bind g
 
 mst_mapM :: (** -> maybeState * ***) -> [**] -> maybeState * [***]
-mst_mapM f xs = foldr (mst_liftA2 (:) . f) (mst_pure []) xs
+mst_mapM f xs = foldr (f .> mst_liftA2 (:)) (mst_pure []) xs
 
 mst_mapM_ :: (** -> maybeState * ***) -> [**] -> maybeState * ()
-mst_mapM_ f xs = foldr (mst_right . f) (mst_pure ()) xs
+mst_mapM_ f xs = foldr (f .> mst_right) (mst_pure ()) xs
 
 mst_forM :: [**] -> (** -> maybeState * ***) -> maybeState * ()
 mst_forM xs f = mst_mapM_ f xs
@@ -77,7 +77,7 @@ mst_sequence_ xs = foldr mst_right (mst_pure ()) xs
 
 || functor interface
 mst_fmap :: (** -> ***) -> maybeState * ** -> maybeState * ***
-mst_fmap f m = m $mst_bind (mst_pure . f)
+mst_fmap f m = m $mst_bind (f .> mst_pure)
 
 
 || applicative interface

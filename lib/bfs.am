@@ -15,7 +15,7 @@ backtrace :: ordI * -> * -> ** -> m_map * * -> ([*], **)
 backtrace cmp move xs pm
     = (path, xs)
       where
-        path       = (fst . hd . dropWhile (isJust . snd) . iterate bt) ([], Just move)
+        path       = ([], Just move) |> iterate bt |> dropWhile (snd .> isJust) |> hd |> fst
         bt (p, mm) = (m : p, lu)
                      where
                        lu       = m_lookup cmp m pm

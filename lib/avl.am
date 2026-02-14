@@ -154,7 +154,7 @@ a_union cmp a1 a2 = foldr (a_insert cmp) a1 (a_toList a2)
 
 || functor interface
 a_fmap :: ordI ** -> (* -> **) -> avlTree * -> avlTree **
-a_fmap cmp f = a_fromList cmp . map f . a_toList        || mapping can change value order, so rebuild from mapped list
+a_fmap cmp f = a_toList .> map f .> a_fromList cmp      || mapping can change value order, so rebuild from mapped list
 
 
 || foldable interface

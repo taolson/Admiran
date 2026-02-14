@@ -94,4 +94,4 @@ dq_toList FT0         = []
 dq_toList (FT1 a)     = [a]
 dq_toList (FT2 a b)   = [a, b]
 dq_toList (FT3 a b c) = [a, b, c]
-dq_toList (FTN l m r) = dq_toList l ++ (concatMap dq_toList . dq_toList) m ++ dq_toList r
+dq_toList (FTN l m r) = dq_toList l ++ (dq_toList .> concatMap dq_toList) m ++ dq_toList r

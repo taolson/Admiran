@@ -55,13 +55,13 @@ memochar f = memo code decode f
 || memoize a function on a tuple, given the memoizers for the tuple elements
 || by chaining the memoizers for the product type (a, b), providing a trie of tries
 memopair :: ((* -> (** -> ***)) -> (* -> (** -> ***))) -> ((** -> ***) -> (** -> ***)) -> ((*, **) -> ***) -> ((*, **) -> ***)
-memopair ma mb f = uncurry . ma $ mb . curry f
+memopair ma mb f = curry f .> mb |> ma .> uncurry
 
 || memoize a function on a list, given the memoizer for a list element by
 || chaining a sequence of memoizers to provided a nested trie structure
 memolist :: ((* -> [*] -> **) -> (* -> [*] -> **)) -> ([*] -> **) -> ([*] -> **)
 memolist me f
-    = delist . me $ memolist me . enlist f
+    = enlist f .> memolist me |> me .> delist
       where
         delist g   = viewL .> fromMaybef (f []) (uncurry g)     || apply g to the (hd, tl) of a list, or apply f to [] if the list is empty
         enlist g x = (x :) .> g                                 || append x to the remaining tl and apply g
@@ -74,10 +74,7 @@ memostring f = memolist memochar f
 || second argument is the recursive function to memoize, open-coded with the
 || function to call to recurse
 memofix :: ((* -> **) -> (* -> **)) -> ((* -> **) -> (* -> **)) -> (* -> **)
-memofix mf f
-    = mf f'
-      where
-        f' = f (mf f')
+memofix mf f = mf f' where f' = mf f' |> f
 
 || example of memoizing the fibonacci function
 || fib :: int -> int

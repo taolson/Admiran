@@ -212,8 +212,8 @@ xs |*| ys = [(x, y) | x <- xs; y <- ys]
 
 || return whether any / all of the elements match a predicate
 any, all :: (* -> bool) -> [*] -> bool
-any p = foldr ((\/) . p) False
-all p = foldr ((&) . p) True
+any p = foldr (p .> (\/)) False
+all p = foldr (p .> (&))  True
 
 allEqual :: ordI * -> [*] -> bool
 allEqual cmp []       = True
@@ -239,7 +239,7 @@ count p = foldl (\n x -> if' (p x) (n + 1) n) 0
 || return the index of the first element matching predicate, or return Nothing
 elemIndex :: (* -> bool) -> [*] -> maybe int
 elemIndex p
-    = mb_fmap fst . find (p . snd) . enumerate
+    = enumerate .> find (snd .> p) .> mb_fmap fst
 
 enumerate :: [*] -> [(int, *)]
 enumerate = zip2 [0 ..]
@@ -252,7 +252,7 @@ isPrefixOf cmp p
         go (x : xs) []       = False
         go (x : xs) (y : ys) = _eq cmp x y & go xs ys
 
-isInfixOf cmp p = any (isPrefixOf cmp p) . tails
+isInfixOf cmp p = tails .> any (isPrefixOf cmp p)
 
 stripPrefix :: ordI * -> [*] -> [*] -> maybe [*]
 stripPrefix cmp
@@ -279,7 +279,7 @@ singleton :: * -> [*]
 singleton a = [a]
 
 replicate :: int -> * -> [*]
-replicate n = take n . repeat
+replicate n = repeat .> take n
 
 delete :: ordI * -> * -> [*] -> [*]
 delete cmp x
@@ -362,7 +362,7 @@ scanr f z
 inits, tails :: [*] -> [[*]]
 || return all of the initial lists of a list, e.g.
 || inits "hello" = ["", "h", "he", "hel", "hell", "hello"]
-inits xs = (map reverse . scanl (converse (:)) []) xs
+inits xs = (scanl (converse (:)) [] .> map reverse) xs
 
 || return all of the tail lists of a list, e.g.
 || tails "hello" = ["hello", "ello", "llo", "lo", "o", ""]
@@ -439,7 +439,7 @@ span p
                 finish = ([], xs)
 
 || find a span of elements that don't match a predicate, breaking the span upon the first match
-break p = span (not . p)
+break p = span (p .> not)
 
 || safe examination of the left end of a list (head, tail)
 viewL :: [*] -> maybe (*, [*])
@@ -549,7 +549,7 @@ intersperse x (y : ys)
 || place a common list in between lists, e.g.
 || intercalate ", " ["this", "is", "a", "test"] = "this, is, a, test"
 intercalate :: [*] -> [[*]] -> [*]
-intercalate xs = concat . intersperse xs
+intercalate xs = intersperse xs .> concat
 
 || combinations of N items taken from a list (no repetitions, ordering doesn't matter)
 || e.g. combinations 2 "abc" = ["ab", "ac", "bc"]
@@ -588,7 +588,7 @@ permutationsWithRep xs
 || once to each element, as it could be expensive
 minBy :: ordI ** -> (* -> **) -> [*] -> *
 minBy cmp f
-    = snd . foldl1 selMin . map addOrder
+    = map addOrder .> foldl1 selMin .> snd
       where
         addOrder x = case f x of y -> (y, x)
         selMin a b
@@ -599,7 +599,7 @@ minBy cmp f
 || once to each element, as it could be expensive
 maxBy :: ordI ** -> (* -> **) -> [*] -> *
 maxBy cmp f
-    = snd . foldl1 selMax . map addOrder
+    = map addOrder .> foldl1 selMax .> snd
       where
         addOrder x = case f x of y -> (y, x)
         selMax a b
@@ -608,7 +608,7 @@ maxBy cmp f
 
 sortBy :: ordI * -> [*] -> [*]
 sortBy cmp
-    = mergeAll . sequences
+    = sequences .> mergeAll
       where
         sequences (a : b : xs)
             = descending b [a]   xs, if _gt cmp a b
@@ -643,7 +643,7 @@ sortBy cmp
 || once to each element, as it could be expensive
 sortOn :: ordI ** -> (* -> **) -> [*] -> [*]
 sortOn cmp f
-    = map snd . sortBy (comparing cmp fst) . map addOrder
+    = map addOrder .> sortBy (comparing cmp fst) .> map snd
       where
         addOrder x = case f x of y -> (y, x)
 

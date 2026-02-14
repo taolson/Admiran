@@ -81,10 +81,10 @@ rws_kbind :: (**** -> rws * ** *** *****) -> (***** -> rws * ** *** ******) -> *
 rws_kbind f g = \x -> f x $rws_bind g
 
 rws_mapM :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** [*****]
-rws_mapM f xs = foldr (rws_liftA2 (:) . f) (rws_pure []) xs
+rws_mapM f xs = foldr (f .> rws_liftA2 (:)) (rws_pure []) xs
 
 rws_mapM_ :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ()
-rws_mapM_ f xs = foldr (rws_right . f) (rws_pure ()) xs
+rws_mapM_ f xs = foldr (f .> rws_right) (rws_pure ()) xs
 
 rws_forM :: [****] -> (**** -> rws * ** *** *****) -> rws * ** *** ()
 rws_forM xs f = rws_mapM_ f xs
@@ -109,7 +109,7 @@ rws_sequence xs = foldr (rws_liftA2 (:)) (rws_pure []) xs
 
 || functor interface
 rws_fmap :: (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
-rws_fmap f m = m $rws_bind (rws_pure . f)
+rws_fmap f m = m $rws_bind (f .> rws_pure)
 
 
 || applicative interface

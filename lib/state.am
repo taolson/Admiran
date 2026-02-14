@@ -45,10 +45,10 @@ st_kbind :: (** -> state * ***) -> (*** -> state * ****) -> ** -> state * ****
 st_kbind f g = \x -> f x $st_bind g
 
 st_mapM :: (** -> state * ***) -> [**] -> state * [***]
-st_mapM f xs = foldr (st_liftA2 (:) . f) (st_pure []) xs
+st_mapM f xs = foldr (f .> st_liftA2 (:)) (st_pure []) xs
 
 st_mapM_ :: (** -> state * ***) -> [**] -> state * ()
-st_mapM_ f xs = foldr (st_right . f) (st_pure ()) xs
+st_mapM_ f xs = foldr (f .> st_right) (st_pure ()) xs
 
 st_forM :: [**] -> (** -> state * ***) -> state * ()
 st_forM xs f = st_mapM_ f xs
@@ -75,7 +75,7 @@ st_sequence_ xs = foldr st_right (st_pure ()) xs
 
 || functor interface
 st_fmap :: (** -> ***) -> state * ** -> state * ***
-st_fmap f m = m $st_bind (st_pure . f)
+st_fmap f m = m $st_bind (f .> st_pure)
 
 
 || applicative interface
