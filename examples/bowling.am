@@ -1,0 +1,37 @@
+|| bowling.am -- demonstration of "tying the knot" using lazy evaluation, performing computations on data from
+||               prior and subsequent frames, and simultaneously passing new information forward and backward
+||               to the prior and subsequent frames.
+
+%import <io>
+
+frame ::=
+    Strike       |      || strike: single roll knocks down all pins; score = 10 + score of next two rolls
+    Spare int    |      || spare: first roll; second roll knocks down remaining pins; score = 10 + score of next roll
+    Roll int int |      || first roll, second roll, with some pins remaining; score = sum of both rolls
+    Extra int           || extra roll(s) in 10th frame due to strike/spare in 10th frame
+
+game == [frame]
+
+|| tally a game's score and return the running score for each frame
+tally :: game -> [int]
+tally fs
+    = go 0 fs |> \(ts, _ , _) -> ts
+      where
+        || "go" is a function which can be thought of as running simultaneously both backwards and forwards
+        || along the list of frames. At each frame, it receives the current correct score total (t) from the
+        || previous frame, and receives the list of final frame scores (ts) and last two rolls from the subsequent
+        || frames.  It then computes the correct score total (t') for this frame from the prior frame's score
+        || total (t), the type of frame (Strike, Spare, etc.) and the values of the subsequent rolls, and passes
+        || the information both forwards to the next frame and backwards to prior frame.
+        go t []              = ([], 0, 0)
+        go t (Strike   : fs) = (t' : ts, 10, a)      where (ts, a, b) = go t' fs; t' = t + 10 + a + b
+        go t (Spare x  : fs) = (t' : ts, x,  10 - x) where (ts, a, _) = go t' fs; t' = t + 10 + a
+        go t (Roll a b : fs) = (t' : ts, a,  b)      where (ts, _, _) = go t' fs; t' = t + a + b
+        go t (Extra b  : fs) = (ts, b, a)            where (ts, a, _) = go t' fs; t' = t + b
+
+main :: io ()
+main = tally game |> showlist showint |> putStrLn
+       where
+         game    = [Roll 1 4, Roll 4 5, Spare 6, Spare 5, Strike, Roll 0 1, Spare 7, Spare 6, Strike, Spare 2, Extra 6]
+         perfect = rep 10 Strike ++ rep 2 (Extra 10)    || perfect game; score = 300
+
