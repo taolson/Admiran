@@ -27,7 +27,7 @@ tally fs
         go t (Strike   : fs) = (t' : ts, 10, a)      where (ts, a, b) = go t' fs; t' = t + 10 + a + b
         go t (Spare x  : fs) = (t' : ts, x,  10 - x) where (ts, a, _) = go t' fs; t' = t + 10 + a
         go t (Roll a b : fs) = (t' : ts, a,  b)      where (ts, _, _) = go t' fs; t' = t + a + b
-        go t (Extra b  : fs) = (ts, b, a)            where (ts, a, _) = go t' fs; t' = t + b
+        go t (Extra x  : fs) = (ts, x, a)            where (ts, a, _) = go t' fs; t' = t + x
 
 main :: io ()
 main = tally game |> showlist showint |> putStrLn
