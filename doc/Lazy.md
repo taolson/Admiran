@@ -65,20 +65,36 @@ the `OpenFrame` to the current tally `t` from the prior frame and recursively ca
 of the frame list, getting back a list of running frame tallies to which we append our computed tally `t'`
 and return it, plus the two ball counts `a` and `b`:
 
-    computeFrame t (OpenFrame a b : fs) = (t' : ts, a, b) where t' = t + a + b; (ts, _, _) = computeFrame t' fs
+    computeFrame t (OpenFrame a b : fs)
+        = (t' : ts, a, b)
+          where
+            t'         = t + a + b
+            (ts, _, _) = computeFrame t' fs
 
 A `Spare` is computed similarly, but needs the next roll value from the subsequent frame:
 
-    computeFrame t (Spare a : fs) = (t' : ts, a, 10 - a) where t' = t + 10 + b; (ts, b, _) = computeFrame t' fs
+    computeFrame t (Spare a : fs)
+        = (t' : ts, a, 10 - a)
+          where
+            t'         = t + 10 + b
+            (ts, b, _) = computeFrame t' fs
 
 and a `Strike` needs the next two roll values from the subsequent frame(s):
 
-    computeFrame t (Strike : fs)  = (t' : ts, 10, a) where t' = t + 10 + a + b; (ts, a, b) = computeFrame t' fs
+    computeFrame t (Strike : fs)
+        = (t' : ts, 10, a)
+          where
+            t'         = t + 10 + a + b
+            (ts, a, b) = computeFrame t' fs
 
 Finally, to handle `Extra` rolls during the 10th frame, we tally them similarly to an `OpenFrame`, but don't append
 the computed tally to the tally list (as they are implicitly an extension of the 10th frame):
 
-    computeFrame t (Extra a : fs) = (ts, a, b) where t' = t + a; (ts, b, _) = computeFrame t' fs
+    computeFrame t (Extra a : fs)
+        = (ts, a, b)
+          where
+            t'         = t + a
+            (ts, b, _) = computeFrame t' fs
 
 Now all we need to do is "prime the pump" with an initial 0 tally and extract the final running tally list from the
 result:
