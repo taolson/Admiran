@@ -32,6 +32,10 @@ imperative language, this would normally involve some form of explicit look-ahea
 but with lazy evaluation by default, like in Haskell, Miranda, and Admiran, the problem can be written with
 implicit bidirectional information transfer.
 
+In Haskell, this form of bidirectional "time-travelling" computation has been abstracted into the
+[Tardis Monad](https://hackage.haskell.org/package/tardis-0.4.1.0/docs/Control-Monad-Tardis.html).
+However, here we'll write a solution from scratch in Admiran.
+
 ### Writing a solution in Admiran
 
 First, we define an Algebraic Data Type to hold information about each frame:
@@ -118,6 +122,24 @@ We can try it out on a "perfect game" of 10 `Strike`s (and two subsequent `Strik
 
 Which results in `[30, 60, 90, 120, 150, 180, 210, 240, 270, 300]`.
 
+### Wait, how does this actually work?
 
-In Haskell, this form of bidirectional "time-travelling" computation has been abstracted into the
-[Tardis Monad](https://hackage.haskell.org/package/tardis-0.4.1.0/docs/Control-Monad-Tardis.html).
+In Lazy (call-by-need) languages, computations are bundled up into `thunks`: functions with no arguments
+that perform the computation when demanded, and then memoize it so that it simply returns the computed
+value is evaluated again.  Computation is performed only when it is required, either through destructuring
+a value, performing a conditional test, or printing a result.  Since all computations are lazy by default,
+we can build up the bidirectional structure of the computation without initially computing any actual values
+until we finally start printing the result.  This is also referred to as "tying the knot".
+
+If we follow through the first few steps of running the initial game, the order of computations is:
+
+* `putStrLn`, which then demands the string to print from
+* `showlist showint`, which then demands the list of ints from
+* `tally game`, which calls `tally` with `game`, when then calls
+* `computeFrame 0 (game)`, which then destructures `game` to
+* `computeFrame 0 (OpenFrame 1 4 : fs)`, which returns `(t' : ts, 1, 4) to `tally`
+* back in `tally` we extract the first component `(t' : ts)` and return it
+* back in `showlist showint`, we extract the first element of the list `t'` and compute it
+* back in `computeFrame`, the `t'` thunk is now computed (0 + 1 + 4 = 5) and returned
+* back in `showint`, we convert 5 to "5" and print it, then continue with the rest of the list `ts`.
+* back in `computeFrame`, the `ts` thunk is demanded, requiring evaluation of the recursive call to `computeFrame`
