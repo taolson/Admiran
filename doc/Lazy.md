@@ -91,7 +91,7 @@ and a `Strike` needs the next two roll values from the subsequent frame(s):
             t'         = t + 10 + a + b
             (ts, a, b) = computeFrame t' fs
 
-Finally, to handle `Extra` rolls during the 10th frame, we tally them similarly to an `OpenFrame`, but don't append
+Finally, to handle `Extra` rolls during the 10th frame, we tally them similarly to a `Spare`, but don't append
 the computed tally to the tally list (as they are implicitly an extension of the 10th frame):
 
     computeFrame t (Extra a : fs)
