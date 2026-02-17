@@ -137,7 +137,7 @@ If we follow through the first few steps of running the initial game, the order 
 * `showlist showint`, which then demands the list of ints from
 * `tally game`, which calls `tally` with `game`, when then calls
 * `computeFrame 0 (game)`, which then destructures `game` to
-* `computeFrame 0 (OpenFrame 1 4 : fs)`, which returns `(t' : ts, 1, 4) to `tally`
+* `computeFrame 0 (OpenFrame 1 4 : fs)`, which returns `(t' : ts, 1, 4)` to `tally`
 * back in `tally` we extract the first component `(t' : ts)` and return it
 * back in `showlist showint`, we extract the first element of the list `t'` and compute it
 * back in `computeFrame`, the `t'` thunk is now computed (0 + 1 + 4 = 5) and returned
