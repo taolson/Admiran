@@ -3,7 +3,7 @@
 ## Introduction
 
 I recently came across the "bowling score programming problem" that I thought would be a great
-demonstration of using lazy evaluation to perform bidirectional compuation -- receiving information
+demonstration of using lazy evaluation to perform bidirectional computation -- receiving information
 from both the past and the future, and sending results back in both directions as well.
 
 ### The Problem
