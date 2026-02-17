@@ -126,7 +126,7 @@ Which results in `[30, 60, 90, 120, 150, 180, 210, 240, 270, 300]`.
 
 In Lazy (call-by-need) languages, computations are bundled up into `thunks`: functions with no arguments
 that perform the computation when demanded, and then memoize it so that it simply returns the computed
-value is evaluated again.  Computation is performed only when it is required, either through destructuring
+value when evaluated again. Computation is performed only when it is required, either through destructuring
 a value, performing a conditional test, or printing a result.  Since all computations are lazy by default,
 we can build up the bidirectional structure of the computation without initially computing any actual values
 until we finally start printing the result.  This is also referred to as "tying the knot".
