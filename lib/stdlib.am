@@ -19,8 +19,8 @@
 
 || Typeclasses
 || Miranda has a "magic" polymorphic implementation of comparison operators and the "show" function, and
-|| its implementation uses runtime tags to determine the actual comparison operation.  Admiran does not use
-|| runtime tags, so an ord instance must be explicitly passed in to any function performing comparisons.  Currently
+|| its implementation uses runtime type info to determine the actual comparison operation. Admiran does not use runtime
+|| type info, so an ord instance must be explicitly passed in to any function performing comparisons. Currently
 || Admiran does not implement true typeclasses, so this is handled manually.  Types defined with ::= or == have
 || ord and show instances automatically derived by the compiler, but can be overriden with explicit definitions.
 
