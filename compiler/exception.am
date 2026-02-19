@@ -202,7 +202,7 @@ ex_return x warns = Right (x, warns)
 
 || return a group of errors
 ex_errs :: [exception] -> excpt *
-ex_errs = Left
+ex_errs es = Left es
 
 ex_kbind :: (* -> excpt **) -> (** -> excpt ***) -> * -> excpt ***
 ex_kbind f g = \x -> f x $ex_bind g
