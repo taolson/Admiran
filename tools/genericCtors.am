@@ -30,30 +30,27 @@ setArgs args (Pseudo op _) = Pseudo op args
 setArgs _    insn          = insn
 
 
-|| a code or data basic block of insns, or an assembler directive
+|| a code or data basic block of insns, or an assembler segment directive
 block ::= Block [insn] string [insn] |  || comment/globl header associated with block, label, instructions
-          Directive string              || stand-alone directive
+          Directive insn                || stand-alone segment directive
 
 showblock :: block -> string
 showblock (Block hdr lbl insns) = concatMap showinsn hdr ++ lbl ++ ":\n" ++ concatMap showinsn insns
-showblock (Directive s)         = "\t." ++ s ++ "\n"
+showblock (Directive i)         = showinsn i
 
 
 || parsing asm file
 
-isGlobl, notGlobl :: string -> bool
-isGlobl s = s ==$ "globl"
+anyPrefix :: [string] -> string -> bool
+anyPrefix ps s = any (\p -> isPrefixOf cmpchar p s) ps
 
-notGlobl s = ~isGlobl s
+isHeader, isDirective, isData :: string -> bool
+isHeader  s   = anyPrefix ["globl"] s
+isDirective s = anyPrefix ["text", "data", "p2align"] s
+isData    s   = anyPrefix ["quad", "ascii", "byte"] s
 
 p_nl :: parser char
 p_nl = p_char '\n'
-
-p_discardLine :: parser ()
-p_discardLine = p_skipUntil p_any p_nl >> p_pure ()
-
-p_restOfLine :: parser string
-p_restOfLine = p_manyUntil p_any p_nl
 
 p_space' :: parser char
 p_space'
@@ -64,6 +61,12 @@ p_space'
 
 p_spaces' :: parser string
 p_spaces' = p_some p_space'
+
+p_discardLine :: parser ()
+p_discardLine = p_skipUntil p_any p_nl >> p_pure ()
+
+p_restOfLine :: parser string
+p_restOfLine = p_many p_space' >> p_manyUntil p_any p_nl
 
 p_identChar :: parser char
 p_identChar
@@ -82,13 +85,6 @@ p_pseudo tst
         check s = p_pure s, if tst s
                 = p_fail,   otherwise
 
-p_directive :: parser string
-p_directive
-    = p_char '.' >> p_ident >>= check
-      where
-        check s = p_discardLine >> p_pure s, if member cmpstring ["text", "data"] s
-                = p_fail,                  otherwise
-
 p_lbl :: parser string
 p_lbl = p_ident << p_char ':' << p_discardLine
 
@@ -96,28 +92,31 @@ p_localLbl :: parser string
 p_localLbl = (p_some p_digit) << p_char ':' << p_discardLine
 
 p_comment :: parser string
-p_comment = p_char '#' >> (p_spaces' >> p_restOfLine)
+p_comment = p_char '#' >> p_restOfLine
 
 p_insn :: parser insn
 p_insn
-    = p_liftA2 Insn   (p_spaces' >> p_ident)           (p_spaces' >> p_restOfLine) <|>
-      p_liftA2 Pseudo (p_spaces' >> p_pseudo notGlobl) (p_spaces' >> p_restOfLine) <|>
-      LocalLbl <$> p_localLbl                                                      <|>
+    = p_liftA2 Insn   (p_spaces' >> p_ident)         p_restOfLine <|>
+      p_liftA2 Pseudo (p_spaces' >> p_pseudo isData) p_restOfLine <|>
+      LocalLbl <$> p_localLbl                                     <|>
       Comment  <$> p_comment
 
 p_headerInsn :: parser insn
 p_headerInsn
     = (Comment <$> p_comment) <|>
-      (p_liftA2 Pseudo (p_spaces' >> p_pseudo isGlobl) (p_spaces' >> p_restOfLine))
+      (p_liftA2 Pseudo (p_spaces' >> p_pseudo isHeader) p_restOfLine)
 
 p_header :: parser [insn]
 p_header = p_many (p_many p_nl >> p_headerInsn)
+
+p_directive :: parser insn
+p_directive = p_liftA2 Pseudo (p_spaces' >> p_pseudo isDirective) p_restOfLine
 
 p_block :: parser block
 p_block
     = p_many p_nl >>
       ( p_liftA3 Block p_header p_lbl (p_many p_insn) <|>
-        Directive <$> (p_spaces' >> p_directive)
+        Directive <$> p_directive
       )
 
 
@@ -149,7 +148,7 @@ installOrReplace (Block hdr lbl insns) ta
                 install      = mst_put (cm', jm' lbl) >> mst_pure (Block hdr' lbl insns)
                 replace lbl' = mst_put (cm, jm' lbl') >> mst_fail
 
-installOrReplace _ _ = undef    || added to remove compiler warning
+installOrReplace _ _ = unreachable      || added to remove compiler warning
 
 || update the labels in the insns if they are found in the jmp map
 || also perform inlining of a generic ctor in a tail-call position
