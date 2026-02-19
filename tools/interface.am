@@ -15,9 +15,7 @@
 || located in the compiler directory; we explicitly import them here, because
 || the build system currently doesn't have a way of specifying a library directory
 || for module lookup other than the current directory or the system directory
-%import "../compiler/ast"
 %import "../compiler/config"
-%import "../compiler/dependency"
 %import "../compiler/exception"
 %import "../compiler/grammar"
 %import "../compiler/name"
@@ -25,8 +23,11 @@
 %import "../compiler/predef"
 %import "../compiler/tokenizer"
 
-printSpecs :: (string, module) -> io ()
-printSpecs (comment, m)
+indent :: int -> string -> string
+indent n s = rep n ' ' ++ s
+
+printSpecs :: string -> module -> io ()
+printSpecs comment m
     = putStrLn ("### " ++ mn)     >>
       putStrLn (comment  ++ "\n") >>
       io_forM defStrings putStrLn >>
@@ -37,7 +38,7 @@ printSpecs (comment, m)
         defs       = view modDefns m |> m_elems
         dataDefs   = filter isDefData defs
         synDefs    = filter isDefSyn  defs
-        defStrings = concatMap (map showdefn .> sortBy cmpstring .> map ("    " ++)) [dataDefs, synDefs, specs]
+        defStrings = concatMap (map showdefn .> sortBy cmpstring .> map (indent 4)) [dataDefs, synDefs, specs]
 
 process :: string -> io ()
 process s
@@ -47,7 +48,7 @@ process s
         fn         = fullFileName fs |> withSuffix "am"
         initModule = emptyModule fs m_empty
 
-        doParse s = extractComment s |> mapSnd (parse initModule .> check) |> printSpecs
+        doParse s = extractComment s |> mapSnd (parse initModule .> check) |> uncurry printSpecs
 
         extractComment ('|' : '|' : ' ' : xs) = break (==. '\n') xs
         extractComment xs               = ([], xs)
