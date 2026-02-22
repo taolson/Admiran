@@ -36,6 +36,8 @@ In Haskell, this form of bidirectional "time-travelling" computation has been ab
 [Tardis Monad](https://hackage.haskell.org/package/tardis-0.4.1.0/docs/Control-Monad-Tardis.html).
 However, here we'll write a solution from scratch in Admiran.
 
+To see how this solution would look using the lib/tardis module, see examples/bowling.am
+
 ### Writing a solution in Admiran
 
 First, we define an Algebraic Data Type to hold information about each frame:
