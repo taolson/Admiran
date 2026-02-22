@@ -6,6 +6,7 @@
 
 %export +
 
+%import <base>
 
 state * ** == (* -> (**, *))
 
@@ -36,7 +37,7 @@ st_bind :: state * ** -> (** -> state * ***) -> state * ***
 st_bind m f = \s -> case st_runState m s of (a, s') -> st_runState (f a) s'
 
 st_join :: state * (state * **) -> state * **
-st_join ma = \s -> case st_runState ma s of (mb, s') -> st_runState mb s'
+st_join ma = \s -> st_runState ma s |> uncurry st_runState
 
 st_pure :: ** -> state * **
 st_pure a = \s -> (a, s)
