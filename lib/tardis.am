@@ -1,6 +1,9 @@
 || tardis.am -- lazy bidirectional state monad
 
+
 %export +
+
+%import <base>
 
 || a tardis is a pair of states, one that travels backwards and one that travels forwards
 || *   is the backwards travelling state
@@ -21,37 +24,40 @@ td_execState m s = td_runState m s |> snd
 
 || state access
 td_getPast :: tardis * ** **
-td_getPast = \(bw, fw) -> (fw, (bw, fw))
+td_getPast = \s -> (snd s, s)
 
 td_getFuture :: tardis * ** *
-td_getFuture = \(bw, fw) -> (bw, (bw, fw))
+td_getFuture = \s -> (fst s, s)
 
 td_sendPast :: * -> tardis * ** ()
-td_sendPast bw = \(_, fw) -> ((), (bw, fw))
+td_sendPast bw = \s -> ((), setFst bw s)
 
 td_sendFuture :: ** -> tardis * ** ()
-td_sendFuture fw = \(bw, _) -> ((), (bw, fw))
+td_sendFuture fw = \s -> ((), setSnd fw s)
 
 modifyForwards :: (** -> **) -> tardis * ** ()
-modifyForwards f = td_getPast $td_bind (f .> td_sendFuture)
+modifyForwards f = \s -> ((), mapSnd f s)
 
 modifyBackwards :: (* -> *) -> tardis * ** ()
-modifyBackwards f = td_getFuture $td_bind (f .> td_sendPast)
+modifyBackwards f = \s -> ((), mapFst f s)
 
 
 || monad interface
+
 td_bind :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
 td_bind m f
     = go
       where
-        go (bw, fw)
-            = (x2, (bw2, fw2))
-              where
-                (x1, (bw2, fw1)) = td_runState m (bw1, fw)
-                (x2, (bw1, fw2)) = td_runState (f x1) (bw, fw1)
+        go s = (x2, (bw1, fw2))
+               where
+                 (bw,  fw)  = s
+                 (bw1, fw1) = s1
+                 (bw2, fw2) = s2
+                 (x1, s1)   = m (bw2, fw)
+                 (x2, s2)   = (f x1) (bw, fw1)
 
 td_join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
-td_join ma = \s -> case td_runState ma s of (mb, s') -> td_runState mb s'
+td_join ma = \s -> td_runState ma s |> uncurry td_runState
 
 td_pure :: *** -> tardis * ** ***
 td_pure x = \s -> (x, s)
