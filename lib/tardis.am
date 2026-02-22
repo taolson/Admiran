@@ -1,5 +1,3 @@
-%import <io>
-
 || tardis.am -- lazy bidirectional state monad
 
 %export +

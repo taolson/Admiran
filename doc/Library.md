@@ -872,6 +872,38 @@ stdlib.am -- standard environment
     stream.zipWithS :: (* -> ** -> ***) -> stream * **** -> stream ** ***** -> stream *** ((****, *****, smaybe *))
     stream.zipWith_ :: (* -> ** -> ***) -> [*] -> [**] -> [***]
 
+### tardis
+tardis.am -- lazy bidirectional state monad
+
+    tardis.tardis * ** *** == (*, **) -> (***, (*, **))
+    tardis.modifyBackwards :: (* -> *) -> tardis * ** builtin.unit
+    tardis.modifyForwards :: (** -> **) -> tardis * ** builtin.unit
+    tardis.td_apply :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+    tardis.td_bind :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
+    tardis.td_bind2 :: tardis * ** *** -> tardis * ** **** -> (*** -> **** -> tardis * ** *****) -> tardis * ** *****
+    tardis.td_bind3 :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> (*** -> **** -> ***** -> tardis * ** *7) -> tardis * ** *7
+    tardis.td_evalState :: tardis * ** *** -> (*, **) -> ***
+    tardis.td_execState :: tardis * ** *** -> (*, **) -> (*, **)
+    tardis.td_filterM :: (*** -> tardis * ** bool) -> [***] -> tardis * ** ([***])
+    tardis.td_fmap :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+    tardis.td_foldM :: (**** -> *** -> tardis * ** ****) -> **** -> [***] -> tardis * ** ****
+    tardis.td_forM :: [***] -> (*** -> tardis * ** ****) -> tardis * ** builtin.unit
+    tardis.td_getFuture :: tardis * ** *
+    tardis.td_getPast :: tardis * ** **
+    tardis.td_join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
+    tardis.td_kbind :: (*** -> tardis * ** ****) -> (**** -> tardis * ** *****) -> *** -> tardis * ** *****
+    tardis.td_left :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***
+    tardis.td_liftA2 :: (*** -> **** -> *****) -> tardis * ** *** -> tardis * ** **** -> tardis * ** *****
+    tardis.td_liftA3 :: (*** -> **** -> ***** -> *6) -> tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> tardis * ** *6
+    tardis.td_mapM :: (*** -> tardis * ** ****) -> [***] -> tardis * ** ([****])
+    tardis.td_mapM_ :: (*** -> tardis * ** ****) -> [***] -> tardis * ** builtin.unit
+    tardis.td_pure :: *** -> tardis * ** ***
+    tardis.td_right :: tardis * ** *** -> tardis * ** **** -> tardis * ** ****
+    tardis.td_runState :: tardis * ** *** -> (*, **) -> (***, (*, **))
+    tardis.td_sendFuture :: ** -> tardis * ** builtin.unit
+    tardis.td_sendPast :: * -> tardis * ** builtin.unit
+    tardis.td_sequence_ :: [tardis * ** ***] -> tardis * ** builtin.unit
+
 ### trieMap
 trieMap.am -- strict map from a key to a value, where the key is a list of elements
 
