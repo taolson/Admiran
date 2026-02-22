@@ -1,8 +1,10 @@
 || bowling.am -- demonstration of "tying the knot" using lazy evaluation, performing computations on data from
 ||               prior and subsequent frames, and simultaneously passing new information forward and backward
-||               to the prior and subsequent frames.
+||               to the prior and subsequent frames using the tardis monad
 
+%import <base>
 %import <io>
+%import <tardis>        (>>=)/td_bind (>>)/td_right
 
 frame ::=
     OpenFrame int int | || first roll, second roll, with some pins remaining; score = sum of both rolls
@@ -10,26 +12,32 @@ frame ::=
     Strike            | || strike: single roll knocks down all pins; score = 10 + pins of next two rolls
     Extra int           || extra roll(s) in 10th frame due to strike/spare in 10th frame
 
+|| score a frame, given the pin counts of the next two rolls, and
+|| return a score and the pin counts for the current two rolls
+scoreFrame :: int -> int -> frame -> (int, int, int)
+scoreFrame fa fb (OpenFrame a b) = (a + b, a, b)
+scoreFrame fa fb (Spare a)       = (10 + fa, a, 10 - a)
+scoreFrame fa fb Strike          = (10 + fa + fb, 10, fa)
+scoreFrame fa fb (Extra a)       = (0, a, fa)
+
 || tally a frame list's score and return the running score for each frame
-tally :: [frame] -> [int]
-tally fs
-    = go 0 fs |> \(ts, _ , _) -> ts
-      where
-        || "go" is a function which can be thought of as running simultaneously both backwards and forwards
-        || along the list of frames. At each frame, it receives the current correct score total (t) from the
-        || previous frame, and receives the list of final frame scores (ts) and last two rolls from the subsequent
-        || frames.  It then computes the correct score total (t') for this frame from the prior frame's score
-        || total (t), the type of frame (Strike, Spare, etc.) and the values of the subsequent rolls, and passes
-        || the information both forwards to the next frame and backwards to prior frame.
-        go t []                   = ([], 0, 0)
-        go t (OpenFrame a b : fs) = (t' : ts, a,  b)      where (ts, _, _) = go t' fs; t' = t + a + b
-        go t (Spare a       : fs) = (t' : ts, a,  10 - a) where (ts, b, _) = go t' fs; t' = t + 10 + b
-        go t (Strike        : fs) = (t' : ts, 10, a)      where (ts, a, b) = go t' fs; t' = t + 10 + a + b
-        go t (Extra a       : fs) = (ts, a, b)            where (ts, b, _) = go t' fs; t' = t + a
+|| the tardis state consists of a backward-traveling pair of the next two roll's pin counts,
+|| and a forward-traveling running frame score
+tally :: frame -> tardis (int, int) int int
+tally f
+    = td_bind2 td_getPast td_getFuture go       || get the running frame score from the past and the
+      where                                     || next two roll's pin counts from the future
+        go t (fa, fb)
+            = td_sendPast (a, b) >>     || send the current two roll's pin counts to the past
+              td_sendFuture t'   >>     || send the new running frame score to the future
+              td_pure t'                || and return the current running frame score
+              where
+                (s, a, b) = scoreFrame fa fb f
+                t'        = t + s
+
+game133, game300 :: [frame]
+game133 = [OpenFrame 1 4, OpenFrame 4 5, Spare 6, Spare 5, Strike, OpenFrame 0 1, Spare 7, Spare 6, Strike, Spare 2, Extra 6]
+game300 = rep 10 Strike ++ rep 2 (Extra 10)
 
 main :: io ()
-main = tally game |> showlist showint |> putStrLn
-       where
-         game    = [OpenFrame 1 4, OpenFrame 4 5, Spare 6, Spare 5, Strike, OpenFrame 0 1, Spare 7, Spare 6, Strike, Spare 2, Extra 6]
-         perfect = rep 10 Strike ++ rep 2 (Extra 10)    || perfect game; score = 300
-
+main = td_evalState (td_mapM tally game133) ((0, 0), 0) |> take 10 |> showlist showint |> putStrLn

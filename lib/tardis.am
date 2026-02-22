@@ -1,0 +1,118 @@
+%import <io>
+
+|| tardis.am -- lazy bidirectional state monad
+
+%export +
+
+|| a tardis is a pair of states, one that travels backwards and one that travels forwards
+|| *   is the backwards travelling state
+|| **  is the forwards travelling state
+|| *** is the return value of the tardis
+tardis * ** *** == (*, **) -> (***, (*, **))
+
+|| running
+td_runState :: tardis * ** *** -> (*, **) -> (***, (*, **))
+td_runState m s = m s
+
+td_evalState :: tardis * ** *** -> (*, **) -> ***
+td_evalState m s = td_runState m s |> fst
+
+td_execState :: tardis * ** *** -> (*, **) -> (*, **)
+td_execState m s = td_runState m s |> snd
+
+
+|| state access
+td_getPast :: tardis * ** **
+td_getPast = \(bw, fw) -> (fw, (bw, fw))
+
+td_getFuture :: tardis * ** *
+td_getFuture = \(bw, fw) -> (bw, (bw, fw))
+
+td_sendPast :: * -> tardis * ** ()
+td_sendPast bw = \(_, fw) -> ((), (bw, fw))
+
+td_sendFuture :: ** -> tardis * ** ()
+td_sendFuture fw = \(bw, _) -> ((), (bw, fw))
+
+modifyForwards :: (** -> **) -> tardis * ** ()
+modifyForwards f = td_getPast $td_bind (f .> td_sendFuture)
+
+modifyBackwards :: (* -> *) -> tardis * ** ()
+modifyBackwards f = td_getFuture $td_bind (f .> td_sendPast)
+
+
+|| monad interface
+td_bind :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
+td_bind m f
+    = go
+      where
+        go (bw, fw)
+            = (x2, (bw2, fw2))
+              where
+                (x1, (bw2, fw1)) = td_runState m (bw1, fw)
+                (x2, (bw1, fw2)) = td_runState (f x1) (bw, fw1)
+
+td_join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
+td_join ma = \s -> case td_runState ma s of (mb, s') -> td_runState mb s'
+
+td_pure :: *** -> tardis * ** ***
+td_pure x = \s -> (x, s)
+
+td_kbind :: (*** -> tardis * ** ****) -> (**** -> tardis * ** *****) -> *** -> tardis * ** *****
+td_kbind f g = \x -> f x $td_bind g
+
+
+td_mapM :: (*** -> tardis * ** ****) -> [***] -> tardis * ** [****]
+td_mapM f xs = foldr (f .> td_liftA2 (:)) (td_pure []) xs
+
+td_mapM_ :: (*** -> tardis * ** ****) -> [***] -> tardis * ** ()
+td_mapM_ f xs = foldr (f .> td_right) (td_pure ()) xs
+
+td_forM :: [***] -> (*** -> tardis * ** ****) -> tardis * ** ()
+td_forM xs f = td_mapM_ f xs
+
+td_filterM :: (*** -> tardis * ** bool) -> [***] -> tardis * ** [***]
+td_filterM p xs
+    = foldr check (td_pure []) xs
+      where
+        check x       = td_liftA2 (cond x) (p x)
+        cond  x False = id
+        cond  x True  = (x :)
+
+td_foldM :: (**** -> *** -> tardis * ** ****) -> **** -> [***] -> tardis * ** ****
+td_foldM f z0 xs
+    = foldr c td_pure xs z0
+      where
+        c x k z = f z x $td_bind k
+
+td_sequence_ :: [tardis * ** ***] -> tardis * ** ()
+td_sequence_ xs = foldr td_right (td_pure ()) xs
+
+
+|| functor interface
+td_fmap :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+td_fmap f m = m $td_bind (f .> td_pure)
+
+
+|| applicative interface
+td_apply :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+td_apply mf ma = mf $td_bind ($td_fmap ma)
+
+td_liftA2 :: (*** -> **** -> *****) -> tardis * ** *** -> tardis * ** **** -> tardis * ** *****
+td_liftA2 f ma mb = (f $td_fmap ma) $td_apply mb
+
+td_liftA3 :: (*** -> **** -> ***** -> ******) -> tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> tardis * ** ******
+td_liftA3 f ma mb mc = td_liftA2 f ma mb $td_apply mc
+
+td_left :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***
+td_left ma mb = td_liftA2 const ma mb
+
+td_right :: tardis * ** *** -> tardis * ** **** -> tardis * ** ****
+td_right ma mb = td_liftA2 (converse const) ma mb
+
+|| lift multiple independent state actions and bind them to an N-ary function
+td_bind2 :: tardis * ** *** -> tardis * ** **** -> (*** -> **** -> tardis * ** *****) -> tardis * ** *****
+td_bind2 ma mb f = td_join (td_liftA2 f ma mb)
+
+td_bind3 :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> (*** -> **** -> ***** -> tardis * ** *******) -> tardis * ** *******
+td_bind3 ma mb mc f = td_join (td_liftA3 f ma mb mc)
