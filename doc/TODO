@@ -1,3 +1,27 @@
+--- AoC performance regressions ---
+
+Advent 2024 day06 found a case where the inliner inlined an Evar that was supposedly a singleCpx, but turned out to be
+used as an argument to a function call that was in a recursive function, resulting in a big performance regression
+compared to not allowing complex Evars to be inlined:
+
+=== 06 ===                          === 06 ===
+part 1: 4883                        part 1: 4883
+part 2: 1655                        part 2: 1655
+
+real    0m0.842s                    real    0m2.702s
+user    0m0.802s                    user    0m2.632s
+sys     0m0.030s                    sys     0m0.042s
+
+    jm      = makeJumpMap path
+    part2   = count (makesLoop gi jm) upos' |> showint
+
+We want to test that we aren't migrating the expr into an Elet {rec}?
+
+Much worse performance bug in advent 2019 day16 (phase2); with aggressive inlining takes > 20 min; conservative is 21 seconds
+
+Problem is that if we compile the compiler with aggressive inlining, it is much smaller than if we use conservative inlining.
+
+
 --- Need to look at RetArg implementation and how word# values should be returned from functions ---
 The RetArg mechanism currently returns the particular Arg register value in R0, but subsequent code usually
 assumes that:
@@ -18,36 +42,14 @@ fact (I# n)
                    _  -> k 1#
 
 
---- Mixing code built with useSel = True vs useSel = False ---
-For some reason, code built with useSel = False and used with library code that was built with useSel = True
-does not work correctly; a SIGSEGV occurs in the common SelApply routine due to a null value in RAX.  Need to
-investigate, as that is unexpected.
-
-The problem is that when we get to stg and codegen, code has already been generated to either use builtinSel or not
-based upon the useSel config value, but support for useSel is conditionally included in codegen based upon the current
-compiler config status.  If they are different, we end up falling through to generating a call to the bogus SelApply
-code pointer co5, which was only there for early emulation and doesn't work for real code passed in x86 registers.  So
-we can't really support a mix of the two.  This should probably be noted somewhere.
-
-
---- Out of memory exception in Advent 2024, day22 when built with amc-noopt ---
-Code starts getting gcMajors and growHeap in tallySequences.tally.  Need to check root cause, and whether it is due
-to useSel = False or useInline = False
-
-Debugging with trace, it appears that the code is running correctly, but still growing. Tracked down to space leak
-somewhere in lib/state.am when compiled with noinlining.
-
-Looks like this is simply due to a lot of thunks created in the non-inlined version of state.am, which relies heavily upon
-inlining to drastically simplify (and make mostly strict) code like st_right and st_liftA2.  In the day22 test case, we
-are calling very long chains of st_bind (>>=) and st_right (>>)
-
 --- Importing and Exporting Names ---
 Haskell allows Unqualified names in the environment to map to multiple Qualified names, and only reports an error
 if the unqualified name is used.  Possibly implement this with a special environment nameMap that maps from an
 unqualified name to a list of qualified names, and only allow singletons to be accessed without a qualifier, or report
 a new "ambiguous name" error.
 
-modEnv is an envMap with both Unqualified and Unresolved (with possible alias name) keys to a list of Qualified values
+modEnv is an envMap with both Unqualified and Unresolved keys (qualified with possible alias name)
+to a list of Qualified values
 
 modExportMap is a nameMap with only Unqualified keys to a Qualified value
 
@@ -57,17 +59,19 @@ when importing a modExportMap:
     2) merge the modified map entries into the env
 
 when creating a modExportMap:
-    1) for export module "M":
-       only entries with Unqualified identifier keys imported from module "M" are exported.  To determine these:
-       filter all entries in envMap with Unresolved "M" key (which should have a singleton value), then look up a possible
-       Unqualified key with that name, and if its value list contains the same value as the Unresolved key, install the Unqualified name
-       with the singleton value. (i.e. only install the Unqualified version of entries from M that have both Unresolved and Unqualified keys)
-       e.g. any module imported as qualified will have no exports
-
-    2) for export "+", do the same as above with the current module name (same as export "name")
+    1) for export module "M" or export "+":
+       only entries with Unqualified identifier keys imported from the specified module are exported.  This is done in
+       module.definedInModule, which should be modified to filter all the env keys for those (Unresolved <modname>), then
+       lookup the corresponding (Unqualified name); if it is present and contains a matching mapping, include it.
 
     3) for export id, look up the id; if it is a singleton, export it (as an Unqualified key), if not, report approprate error
+       id can be either Unqualified (written without a module qualifier) or Unresolved (written with a module qualifier)
 
+Also consider the idea of the proposed Haskell language extension "Import Shadowing", where top-level names in a module are divided
+into those imported from other modules, and those defined in the current module. Top-level names defined in the current module have
+priority over name resolution and "shadow" any names from imports, so qualified names don't have to be used for local module versions.
+Ambiguous error reporting would still occur for unqualified names that aren't defined in the current module but have multiple definitions
+in imports.
 
 steps:
 
@@ -153,26 +157,6 @@ compiler options:
     -streamFusion <TF>
     -useSel <TF>
     -eagerCtors <TF>
-
-
---- advent 2024 bugs and performance regressions ---
-
-advent 2024 day06 found a case where the inliner inlined an Evar that was supposedly a singleCpx, but turned out to be
-used as an argument to a function call that was in a recursive function, resulting in a big performance regression
-compared to not allowing complex Evars to be inlined:
-
-=== 06 ===                          === 06 ===
-part 1: 4883                        part 1: 4883
-part 2: 1655                        part 2: 1655
-
-real    0m0.842s                    real    0m2.702s
-user    0m0.802s                    user    0m2.632s
-sys     0m0.030s                    sys     0m0.042s
-
-    jm      = makeJumpMap path
-    part2   = count (makesLoop gi jm) upos' |> showint
-
-We want to test that we aren't migrating the expr into an Elet {rec}?
 
 
 --- possibly use an RWS monad instead of just State / MaybeState ---
@@ -321,8 +305,6 @@ even though, which causes a lot of push/pop insn generation in codegen.  Look at
 only push/pop the deltas and try to maintain the rest of the saved stack as much as possible (e.g. sorting the refs so the deepest
 ref [longest used] gets pushed first, keep refs on stack in-place if they are used subsequently and only load from the stack to the
 env for those values, etc.)
-
-many replications of the same code for different ctors; look into making a cache for already built versions of (tag, arity) -> codePtr
 
 
 --- Pattern Matching Optimizations --
