@@ -310,17 +310,13 @@ inlineAst k (Ecase b (Evar n) alts) st
     = k (Ecase b (Evar n) alts') st3, if isInternal n   || bind the name to the individual caseAlt patterns
     = k (Ecase b (Evar n) alts)  st,  otherwise         || don't do anything if the name is a top-level pat
       where
-        || Aggressive inlining allowing single-use complex vars; best overall perf, but has some regressions (see doc/TODO)
         || note: restriction on Internal only gives best overall results
-        inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
-
-        || Conservative inlining doesn't inline complex vars
-||        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & isSimple e & cpx <= inlineMaxFnComplexity
+        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)     = lookupEnv n st
         d            = fromJust md
         uses         = view defnAnUses d
         cpx          = view defnAnCpx d
-        singleCpx    = uses == 1 & ~cf
+        singleCpx    = if' useAggressiveInlining (uses == 1 & ~cf) False
         e            = fnExpr d
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
@@ -364,17 +360,13 @@ inlineAst k (Evar n) st
     = (e', st2),    if inlinable
     = (Evar n, st), otherwise
       where
-        || Aggressive inlining allowing single-use complex vars; best overall perf, but has some regressions (see doc/TODO)
         || note: allowing non-Internals gives best overall results
         inlinable     = canInline n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
-
-        || Conservative inlining doesn't inline complex vars
-||      inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & isSimple e & cpx <= inlineMaxFnComplexity
         (md, cf)      = lookupEnv n st
         d             = fromJust md
         uses          = view defnAnUses d
         cpx           = view defnAnCpx d
-        singleCpx     = uses == 1 & ~cf
+        singleCpx     = if' useAggressiveInlining (uses == 1 & ~cf) False
         DefPat _ e _  = d
         (e', st1)     = betaReduce d [] st
         note          = "inlined expr " ++ showName n

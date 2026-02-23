@@ -314,7 +314,7 @@ mkTypeMap ps ts
 || if no spec is found, return new Tvars for the pats
 typesFromSpec :: name -> [pat] -> tcState [texpr]
 typesFromSpec n vars
-    = (tc_view tcGenv >>= getSpec) <|> tc_mapM (const newTvar) vars 
+    = (tc_view tcGenv >>= getSpec) <|> tc_mapM (const newTvar) vars
       where
         nvars        = #vars
         getSpec genv = lookupSpec genv n |> fromMaybef tc_fail genScm   || find the typeSpec for a name

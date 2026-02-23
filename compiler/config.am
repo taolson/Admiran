@@ -29,6 +29,7 @@ cCompilerName         = "cc"
 
 || enable/disable features
 useInlining           = True
+useAggressiveInlining = True    || better / smaller for almost all code, but has a couple of performance regressions
 useSel                = True
 useDemandAnalysis     = False   || experimental; may not work
 useEagerCtors         = False   || experimental; may not work
