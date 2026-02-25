@@ -79,6 +79,11 @@ astAccumList t = converse (foldr t)
 astAccumMap :: astAccum * -> m_map ** ast -> * -> *
 astAccumMap t = converse (m_foldr t)
 
+|| universe returns the root ast and all its children flattened into a list
+|| to allow a list comprehension to be used to collect a list of matching items
+universe :: ast -> [ast]
+universe a = astAccumTD (:) a []
+
 
 || AST traversal with rewriting
 
