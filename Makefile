@@ -1,8 +1,11 @@
-#pick which bootstrap compiler source and compiler options to use
+# NOTE: the file compiler/config.am must first be modified to configure the compiler target:
+#       modify the values for hostOS and admiranLibPath to match your system
+
+# pick which bootstrap compiler source and compiler options to use
 OS := $(shell uname -s)
 ifeq ($(OS), Darwin)
 AMC_BOOT := amcMacOS.s
-CCOPTS := -arch x86_64 -O2 -Wl,-no_pie	#force x86_64 compile to allow Apple Silicon Macs to run under Parallels
+CCOPTS := -arch x86_64 -O2 -Wl,-no_pie	#force x86_64 compile to allow Apple Silicon Macs to run under Rosetta 2
 endif
 ifeq ($(OS), Linux)
 AMC_BOOT := amcLinux.s
