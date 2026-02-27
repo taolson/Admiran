@@ -6,9 +6,9 @@
 %import <base>
 
 || a tardis is a pair of states, one that travels backwards and one that travels forwards
-|| *   is the backwards travelling state
-|| **  is the forwards travelling state
-|| *** is the return value of the tardis
+|| *   is the backwards travelling state type
+|| **  is the forwards travelling state type
+|| *** is the result value type
 tardis * ** *** == (*, **) -> (***, (*, **))
 
 || running
@@ -50,11 +50,13 @@ td_bind m f
       where
         go s = (x2, (bw1, fw2))
                where
+                 || written for maximal laziness, by not pattern matching
+                 || further than required for each step
+                 (x1, s1)   = m (bw2, fw)
+                 (x2, s2)   = (f x1) (bw, fw1)
                  (bw,  fw)  = s
                  (bw1, fw1) = s1
                  (bw2, fw2) = s2
-                 (x1, s1)   = m (bw2, fw)
-                 (x2, s2)   = (f x1) (bw, fw1)
 
 td_join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
 td_join ma = \s -> td_runState ma s |> uncurry td_runState
