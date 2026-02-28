@@ -19,6 +19,7 @@
 %export token cmptoken showtoken tokloc cmptokloc showtokloc tokenize isTerror isTend
 
 %import <base>
+%import "config"
 %import "name"
 
 
@@ -70,7 +71,7 @@ tokenizePos il ic [] = [(Tend, il, ic)]
 tokenizePos il ic cs
     = tokenizePos                     il  ic1 cs1, if c ==. ' '
     = tokenizePos                     il1 1   cs1, if c ==. '\n'
-    = tokenizePos                     il  ict cs1, if c ==. '\t'  || account for tab's effect on column number by assuming tab stops every 8 chars
+    = tokenizePos                     il  ict cs1, if c ==. '\t'
     = tokenizeComment                 il  ic2 cs2, if c ==. '|' & ~null cs1 & c1 ==. '|'
     = tokenizeBlock tokenizePos       il  ic2 cs2, if c ==. '{' & ~null cs1 & c1 ==. '|' 
     = tokenizeIdent                   il  ic  cs,  if letter c \/ c ==. '_'
@@ -85,7 +86,7 @@ tokenizePos il ic cs
         c1 : cs2  = cs1
         ic1       = ic + 1
         ic2       = ic + 2
-        ict       = (ic $quot 8 + 1) * 8
+        ict       = (ic $quot tabWidth + 1) * tabWidth  || account for tab's spacing effect on column number
         il1       = il + 1
 
 isIdent, isSymbol :: char -> bool
@@ -113,7 +114,7 @@ tokenizeBlock k il ic cs
         c1 : cs2 = cs1
         ic1      = ic + 1
         ic2      = ic + 2
-        ict      = (ic $quot 8 + 1) * 8
+        ict      = (ic $quot tabWidth + 1) * tabWidth
         il1      = il + 1
         k'       = tokenizeBlock k
 

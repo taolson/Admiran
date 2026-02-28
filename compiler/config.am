@@ -22,6 +22,7 @@ admiranLibPath        = "../lib"        || set to absolute path of Admiran lib d
 
 || shouldn't have to be touched, but configurable
 filePathSeparator     = "/"
+tabWidth              = 8       || tab column width used in tokenizer for tracking column number
 stdlibModuleName      = "stdlib"
 streamModuleName      = "stream"
 runtimeName           = "runtime.c"
