@@ -68,23 +68,25 @@ tokenizer == int -> int -> string -> [tokloc]  || line#, col#, input
 tokenizePos :: tokenizer
 tokenizePos il ic [] = [(Tend, il, ic)]
 tokenizePos il ic cs
-    = tokenizePos                     il  ict cs', if c ==. '\t'  || account for tab's effect on column number by assuming tab stops every 8 chars
-    = tokenizePos                     il  ic' cs', if c ==. ' '
-    = tokenizePos                     il' 1   cs', if c ==. '\n'
-    = tokenizeComment                 il  ic' cs', if c ==. '|' & ~null cs' & c' ==. '|'
+    = tokenizePos                     il  ic1 cs1, if c ==. ' '
+    = tokenizePos                     il1 1   cs1, if c ==. '\n'
+    = tokenizePos                     il  ict cs1, if c ==. '\t'  || account for tab's effect on column number by assuming tab stops every 8 chars
+    = tokenizeComment                 il  ic2 cs2, if c ==. '|' & ~null cs1 & c1 ==. '|'
+    = tokenizeBlock tokenizePos       il  ic2 cs2, if c ==. '{' & ~null cs1 & c1 ==. '|' 
     = tokenizeIdent                   il  ic  cs,  if letter c \/ c ==. '_'
-    = tokenizeInfixIdent              il  ic' cs', if c ==. '$' & ~null cs' & letter c'
+    = tokenizeInfixIdent              il  ic1 cs1, if c ==. '$' & ~null cs1 & letter c1
     = tokenizeInfixSymbol             il  ic  cs,  if isSymbol c
     = tokenizeLitInt                  il  ic  cs,  if digit c
     = tokenizeLitChar                 il  ic  cs,  if c ==. '\''
     = tokenizeLitString               il  ic  cs,  if c ==. '\"'
-    = (Tchar c, il, ic) : tokenizePos il  ic' cs', otherwise
+    = (Tchar c, il, ic) : tokenizePos il  ic1 cs1, otherwise
       where
-        c  : cs'  = cs
-        c'        = hd cs'
-        ic'       = ic + 1
+        c  : cs1  = cs
+        c1 : cs2  = cs1
+        ic1       = ic + 1
+        ic2       = ic + 2
         ict       = (ic $quot 8 + 1) * 8
-        il'       = il + 1
+        il1       = il + 1
 
 isIdent, isSymbol :: char -> bool
 isIdent  c = letter c \/ digit c \/ c ==. '_' \/ c ==. '\''
@@ -96,6 +98,24 @@ tokenizeComment il ic cs
       where
         (is, cs') = span (~=. '\n') cs
         ic'       = ic + #is
+
+|| block comment {| ... |} -- supports recursive block comments
+tokenizeBlock :: tokenizer -> tokenizer
+tokenizeBlock k il ic [] = tokError "expected '|}'" il ic
+tokenizeBlock k il ic cs
+    = k il ic2 cs2,                 if c ==. '|' & ~null cs1 & c1 ==. '}'
+    = tokenizeBlock k' il  ic2 cs2, if c ==. '{' & ~null cs1 & c1 ==. '|'
+    = tokenizeBlock k  il  ict cs1, if c ==. '\t'
+    = tokenizeBlock k  il1 1   cs1, if c ==. '\n'
+    = tokenizeBlock k  il  ic1 cs1, otherwise
+      where
+        c  : cs1 = cs
+        c1 : cs2 = cs1
+        ic1      = ic + 1
+        ic2      = ic + 2
+        ict      = (ic $quot 8 + 1) * 8
+        il1      = il + 1
+        k'       = tokenizeBlock k
 
 tokenizeIdent :: tokenizer
 tokenizeIdent
