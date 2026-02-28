@@ -108,9 +108,14 @@ Whitespace (spaces, tabs, newlines, and comments) is ignored, except for contrib
 
 ### Comments
 
-Comments in Admiran begin with a token starting with two consecutive vertical bars (i.e. `||`) and
-extend to the end of the line. Note that `|||` parses as as a comment and not a symbolic operator, so comments
-effectively prevent defining symbolic operators that begin with `||`.
+Admiran supports *line comments* and *block comments*.  A line comment begins with a token starting with two
+consecutive vertical bars (i.e. `||`) and extend to the end of the line. Note that `|||` parses as as a
+comment and not a symbolic operator, so comments effectively prevent defining symbolic operators that begin with `||`.
+
+A block comment begins with a token starting with `{|`, and extends to the corresponding closing token `|}`.  Block
+comments are recursive, so code with an existing block comment can itself be commented out with an enclosing block
+comment.
+
 
 ### Identifiers and Operators
 
