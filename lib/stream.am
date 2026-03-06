@@ -75,6 +75,14 @@ readByteStreamS p#
                             1# -> Done
                             _  -> Yield (C# c#) p#
 
+repS :: int -> * -> stream * word#
+repS (I# n) x
+    = Stream next n
+      where
+        next n = case n $cmp# 0# of
+                   2# -> case n -# 1# of n' -> Yield x n'
+                   _  -> Done
+
 rangeByS :: int -> int -> int -> stream int word#
 rangeByS (I# step) (I# lo) (I# hi)
     = case step $cmp# 0# of
@@ -279,6 +287,15 @@ enumerateS (Stream next s)
                 Done       -> Done
                 Skip s'    -> Skip (i, s')
                 Yield x s' -> Yield (i, x) (i + 1, s')
+
+cycleS :: stream * ** -> stream * **
+cycleS (Stream next sInit)
+    = Stream next' sInit
+      where
+        next' s = case next s of
+                    Done       -> Skip sInit
+                    Skip s'    -> Skip s'
+                    Yield x s' -> Yield x s'
 
 interleaveS :: stream * ** -> stream * *** -> stream * (bool, **, ***)
 interleaveS (Stream nexta sa) (Stream nextb sb)
