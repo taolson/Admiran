@@ -14,6 +14,7 @@
 ||    decimal, octal (leading 0), hexadecimal (0x) or binary (0b) supported for ints
 ||    underscores (_) can be used when writing integers as grouping separators, e.g. 123_456_789 or 0x1234_abcd
 ||    $ is tokenized as an operator if it is not immediately followed by a letter ($ident is the infix form of ident)
+||    multi-line, nested block comments beginning with {| and ending with |}
 
 
 %export token cmptoken showtoken tokloc cmptokloc showtokloc tokenize isTerror isTend

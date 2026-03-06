@@ -113,7 +113,7 @@ consecutive vertical bars (i.e. `||`) and extend to the end of the line. Note th
 comment and not a symbolic operator, so comments effectively prevent defining symbolic operators that begin with `||`.
 
 A block comment begins with a token starting with `{|`, and extends to the corresponding closing token `|}`.  Block
-comments are recursive, so code with an existing block comment can itself be commented out with an enclosing block
+comments can be nested, so code with an existing block comment can itself be commented out with an enclosing block
 comment.
 
 
