@@ -75,6 +75,12 @@ readByteStreamS p#
                             1# -> Done
                             _  -> Yield (C# c#) p#
 
+repeatS :: * -> stream * ()
+repeatS x
+    = Stream next ()
+      where
+        next _ = Yield x ()
+
 repS :: int -> * -> stream * word#
 repS (I# n) x
     = Stream next n
