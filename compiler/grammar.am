@@ -717,21 +717,47 @@ assoc ::= AssocLeft | AssocRight | AssocPrefix | AssocCompare
 || Compact representation of operator precedence and associativity: each line represents
 || operators of equal precendence, with lines ordered from lowest to highest precedence.
 || Operators on a line are space-separated, and begin with a 'R', 'L', 'C', or 'P' to specify
-|| associativity.
+|| associativity of all operators on the line.
+|| Binary operators that are non-strict in their right operand should be right-associative.
 opPrecRepr
-    = [ "R$ R$!"
-      , "L|> L!> L>>= R>=> L>> L<< R: R++ R--"
-      , "R\\/"
-      , "R& L<|>"
-      , "P~ L<$> L<*> L<* L*>"
-      , "C== C~= C< C> C<= C>= C==. C~=. C<. C>. C<=. C>=. C==$ C~=$ C<$ C>$ C<=$ C>=$ L.&. L.|. L.^."
-      , "L.<<. L.>>. L+ L-"
-      , "Pneg"
-      , "L* Lquotrem Ldivmod Lquot Lrem Ldiv Lmod L/"
-      , "R^"
-      , "R. L.>"
-      , "P#"
-      , "L! L!!"
+    = [ || application, alternative
+        "R $ $! <|>"
+
+      || reverse application, functor / applicative / monad operators
+      , "L |> !> >>= >> << <$> <*>"
+
+        || booleans
+      , "R \\/"
+      , "R &"
+      , "P ~"
+
+        || comparisons
+      , "C == ~= < > <= >= ==. ~=. <. >. <=. >=. ==$ ~=$ <$ >$ <=$ >=$"
+
+        || list operations
+      , "R : ++ --"
+
+        || bit-wise
+      , "L .|."
+      , "L .^."
+      , "L .&."
+      , "L .<<. .>>."
+
+        || arithmetic
+      , "L + -"
+      , "P neg"
+      , "L * quotrem divmod quot rem div mod /"
+      , "R ^"
+
+        || function composition
+      , "R ."
+      , "L .>"
+
+        || list length
+      , "P #"
+
+        || list and array indexing
+      , "L! !!"
       ]
 
 || dynamically-built precAssocTable and value for application precedence, built from
@@ -739,10 +765,10 @@ opPrecRepr
 (precAssocTable, apPrec)
     = foldl insLevel (m_empty, 0) opPrecRepr
       where
-        insLevel (m, prec) s = (words s |> foldl (ins prec) m, prec + 1)
+        insLevel (m, prec) (a : s) = (words s |> foldl (ins prec (toAssoc a)) m, prec + 1)
+        insLevel _         _       = unreachable
 
-        ins prec m (a : op) = m_insert cmpstring op (prec, toAssoc a) m
-        ins prec _ _        = unreachable
+        ins prec a m op = m_insert cmpstring op (prec, a) m
 
         toAssoc 'L' = AssocLeft
         toAssoc 'R' = AssocRight
