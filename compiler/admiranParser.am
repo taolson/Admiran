@@ -117,7 +117,7 @@ p_recurrence = p_liftA3 Qrecur p_pat (p_lArrow >> p_expr) (p_comma >> p_rangePar
 
 || generator or qualifying guard, e.g. x < 10
 p_qualifier :: parser qual
-p_qualifier = p_recurrence <|> p_generator <|> (Qguard <$> p_expr)
+p_qualifier = p_recurrence <|> p_generator <|> Qguard <$> p_expr
 
 p_comprehension :: parser expr
 p_comprehension
@@ -174,15 +174,15 @@ p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
 || parse an expression term
 p_term :: parser expr
 p_term
-    = (Evar <$> p_varOrConstructor) <|>
-      p_literal                     <|>
-      p_parenExpr p_expr            <|>
-      p_caseExpr                    <|>
-      p_lambdaExpr                  <|>
-      p_comprehension               <|>
-      p_listExpr  p_expr            <|>
-      p_postSection                 <|>
-      p_preSection                  <|>
+    = Evar <$> p_varOrConstructor <|>
+      p_literal                   <|>
+      p_parenExpr p_expr          <|>
+      p_caseExpr                  <|>
+      p_lambdaExpr                <|>
+      p_comprehension             <|>
+      p_listExpr  p_expr          <|>
+      p_postSection               <|>
+      p_preSection                <|>
       p_rangeExpr
 
 
@@ -216,7 +216,7 @@ exprOrNegLit e = e
 || and pass that instead of the individual functions
 p_exp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
 p_exp pPre pInf pTerm es ops
-    = (pPre >>= fpre) <|> (pTerm >>= fterm)
+    = pPre >>= fpre <|> pTerm >>= fterm
       where
         fpre op = p_exp   pPre pInf pTerm es (op : ops)
         fterm e = p_expOp pPre pInf pTerm (e : es) ops
@@ -224,7 +224,7 @@ p_exp pPre pInf pTerm es ops
 || parse a possible pOpr and push it on the opr stack
 p_expOp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
 p_expOp pPre pInf pTerm es ops
-    = (pInf >>= fbinop) <|> p_expAp pPre pInf pTerm es ops
+    = pInf >>= fbinop <|> p_expAp pPre pInf pTerm es ops
       where
         fbinop op = p_expReduce pPre pInf pTerm es (op : ops)
 
@@ -232,7 +232,7 @@ p_expOp pPre pInf pTerm es ops
 || check first for termination of expression
 p_expAp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
 p_expAp pPre pInf pTerm es ops
-    = (pTerm >>= fexpr es) <|> p_expFinal es ops
+    = pTerm >>= fexpr es <|> p_expFinal es ops
       where
         fexpr (e1 : es') e2 = p_expOp pPre pInf pTerm (Eap e1 e2 : es') ops
         fexpr _          _  = unreachable
@@ -335,7 +335,7 @@ p_cond e
 || parse conditional expressions for the given expr
 p_conds :: parser token -> expr -> parser expr
 p_conds p_sep e
-    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent >> p_sep >> p_indent >> ((p_expr >>= p_cond) <|> p_expected "a conditional expression")))
+    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent >> p_sep >> p_indent >> (p_expr >>= p_cond <|> p_expected "a conditional expression")))
       where
         mkCond c cs = Econd (c : cs)
 
@@ -415,9 +415,9 @@ p_patPrefix = p_prefix $p_satisfy (_eq cmpname stdNegName)
 
 p_formal :: parser expr
 p_formal
-    = (Pvar <$> p_varOrConstructor) <|>
-      (Plit <$> p_literal)          <|>
-      p_parenExpr p_patExpr         <|>
+    = Pvar <$> p_varOrConstructor <|>
+      Plit <$> p_literal          <|>
+      p_parenExpr p_patExpr       <|>
       p_listExpr  p_patExpr
 
 || parse an expr restricted to pat forms
@@ -487,9 +487,9 @@ p_listTexpr = Tlist <$> p_inBrackets p_type
 || parse a type term
 p_tTerm :: parser texpr
 p_tTerm
-    = ((converse Tname []) <$> p_tname) <|>
-      p_tvar                            <|>
-      p_parenTexpr                      <|>
+    = converse Tname [] <$> p_tname <|>
+      p_tvar                        <|>
+      p_parenTexpr                  <|>
       p_listTexpr
 
 || parse a type term with optional strictness ("!")
@@ -510,14 +510,14 @@ p_tExpr es ops
 || parse a possible type operator and push it on the opr stack
 p_tOp :: [texpr] -> [name] -> parser texpr
 p_tOp es ops
-    = (p_tinfix >>= finfix) <|> p_tAp es ops
+    = p_tinfix >>= finfix <|> p_tAp es ops
       where
         finfix s = p_tExpr es (s : ops)
 
 || parse a possible type application (polymorphic type) and push it on the expr stack
 p_tAp :: [texpr] -> [name] -> parser texpr
 p_tAp es ops
-    = (p_tTerm >>= fap e) <|> p_tFinal es ops
+    = p_tTerm >>= fap e <|> p_tFinal es ops
       where
         e : es'              = es
         fap (Tname n vars) t = p_tOp (Tname n (vars ++ [t]) : es') ops
@@ -570,7 +570,7 @@ p_getLoc ps
 || used at both top-level and by a signature at top level, so
 || return both the DefSpec defn as well as the module inserter function to insert it into a module
 p_spec :: parser [(defn, modInserter)]
-p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var) (p_colons >> (p_inLayout p_type)) <|>
+p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var) (p_colons >> p_inLayout p_type) <|>
          p_liftA2 mkType p_getLoc (p_listSomeOf p_tform) << p_colons << p_ident "type"
          where
            mkVars  loc vs t = map (mkVar loc t) vs
@@ -611,7 +611,7 @@ p_def
 
 p_fileSpec :: parser fileSpec
 p_fileSpec
-    = (mkStd <$> p_inAngles p_identifier) <|> (p_any >>=? fid)
+    = mkStd <$> p_inAngles p_identifier <|> p_any >>=? fid
       where
         mkStd n            = FileSpec stdlibPath (getName n)
         fid (TlitString s) = p_pure (fileSpecFromString s), if #s > 0   || fileSpec cannot be the null string
@@ -645,7 +645,7 @@ p_alias :: parser libAlias
 p_alias
     = p_alias' p_var         <|>                || note: separate p_var and p_constructor here to ensure
       p_alias' p_constructor <|>                || the alias is the same (var or ctor) as the sym
-      (AliasRemove <$> (p_minus >> p_var))
+      AliasRemove <$> (p_minus >> p_var)
       where
         p_alias' p = p_liftA2 Alias p (p_sym "/" >> p)
 
