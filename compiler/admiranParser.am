@@ -22,7 +22,7 @@
 %import "grammar"
 %import "module"
 %import "name"
-%import "parser"                (>>=)/p_bind (<$>)/p_fmap (<*>)/p_apply (<*)/p_left (*>)/p_right (<|>)/p_alt (>>=?)/p_guard
+%import "parser"                (>>=)/p_bind (<$>)/p_fmap (<*>)/p_apply (<<)/p_left (>>)/p_right (<|>)/p_alt (>>=?)/p_guard
 %import "predef"
 %import "tokenizer"
 
@@ -109,11 +109,11 @@ p_listExpr pElt = p_inBrackets (makeList <$> p_listManyOf pElt)
 
 || parser for first form of generator, e.g. x <- [1 .. 10]
 p_generator :: parser qual
-p_generator = p_liftA2 Qgen (p_listSomeOf p_pat <* p_lArrow) p_expr
+p_generator = p_liftA2 Qgen (p_listSomeOf p_pat) (p_lArrow >> p_expr)
 
 || parser for second form of generator, e.g. x <- 1, 2 * x ...
 p_recurrence :: parser qual
-p_recurrence = p_liftA3 Qrecur (p_pat <* p_lArrow) (p_expr <* p_comma) p_rangePart
+p_recurrence = p_liftA3 Qrecur p_pat (p_lArrow >> p_expr) (p_comma >> p_rangePart)
 
 || generator or qualifying guard, e.g. x < 10
 p_qualifier :: parser qual
@@ -121,7 +121,7 @@ p_qualifier = p_recurrence <|> p_generator <|> (Qguard <$> p_expr)
 
 p_comprehension :: parser expr
 p_comprehension
-    = p_inBrackets (p_liftA3 mkCompr p_getLoc (p_expr <* p_vBar) (p_someSepBy p_semi p_qualifier))
+    = p_inBrackets (p_liftA3 mkCompr p_getLoc p_expr (p_vBar >> (p_someSepBy p_semi p_qualifier)))
       where
         mkCompr loc e quals = ElistComp e quals (locAnno loc)
 
@@ -143,7 +143,7 @@ p_postSection
         mkPostSection op e = ap2 stdConverse (Evar op) e
 
 p_rangePart :: parser expr
-p_rangePart = p_expr <* p_sym ".."
+p_rangePart = p_expr << p_sym ".."
 
 || parse range expressions e.g. [0 .. 9] or [0 ..]
 p_range :: parser expr
@@ -156,7 +156,7 @@ p_range
 || parse rangeBy expressions e. g. [0, 2 .. 8], or [0, 2 ..]
 p_rangeBy :: parser expr
 p_rangeBy
-    = p_liftA3 mkRangeBy (p_expr <* p_comma) p_rangePart (p_optional p_expr)
+    = p_liftA3 mkRangeBy p_expr (p_comma >> p_rangePart) (p_optional p_expr)
       where
         mkRangeBy start next mstop
             = ap2 stdRangeByFrom step start,        if isNothing mstop
@@ -307,15 +307,15 @@ p_casePat
         isCasePat _              = False
 
 p_caseAlt :: parser caseAlt
-p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs p_rArrow)
+p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow >> p_rhs p_rArrow)
 
 p_caseExpr :: parser expr
-p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_expr) (p_ident "of" *> p_inLayout (p_some p_caseAlt))
+p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" >> p_expr) (p_ident "of" >> p_inLayout (p_some p_caseAlt))
 
 || parse an anonymous lambda expr by converting it to an Elet of a new function definition with a unique name
 p_lambdaExpr :: parser expr
 p_lambdaExpr
-    = p_liftA3 mkLambda p_getLoc (p_sym "\\" *> p_some p_patFormal) (p_rArrow *> p_expr)
+    = p_liftA3 mkLambda p_getLoc (p_sym "\\" >> p_some p_patFormal) (p_rArrow >> p_expr)
       where
         mkLambda loc vars e
             = (Elet False (m_singleton ln dm) [] (Evar ln))
@@ -327,21 +327,21 @@ p_lambdaExpr
 || parse a conditional expression for the given expr
 p_cond :: expr -> parser cond
 p_cond e
-    = p_comma *> (p_if <|> p_ow <|> p_expected "a conditional expression")
+    = p_comma >> (p_if <|> p_ow <|> p_expected "a conditional expression")
       where
-        p_if = p_ident "if"        *> (($Cif e) <$> p_expr)
-        p_ow = p_ident "otherwise" *> p_pure (Cdefault e)
+        p_if = p_ident "if"        >> (($Cif e) <$> p_expr)
+        p_ow = p_ident "otherwise" >> p_pure (Cdefault e)
 
 || parse conditional expressions for the given expr
 p_conds :: parser token -> expr -> parser expr
 p_conds p_sep e
-    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_sep *> p_indent *> ((p_expr >>= p_cond) <|> p_expected "a conditional expression")))
+    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent >> p_sep >> p_indent >> ((p_expr >>= p_cond) <|> p_expected "a conditional expression")))
       where
         mkCond c cs = Econd (c : cs)
 
 || parse "where ..." definitions
 p_whdefs :: parser [defn]
-p_whdefs = map fst <$> (p_ident "where" *> (p_some p_def <|> p_expected "'where' definitions"))
+p_whdefs = map fst <$> (p_ident "where" >> (p_some p_def <|> p_expected "'where' definitions"))
 
 || parse right hand side of an expression in a layout block
 || note: this used to try parsing a condExpr, and if that failed parse an expr.  However, because a condExpr begins with an expr,
@@ -570,8 +570,8 @@ p_getLoc ps
 || used at both top-level and by a signature at top level, so
 || return both the DefSpec defn as well as the module inserter function to insert it into a module
 p_spec :: parser [(defn, modInserter)]
-p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var <* p_colons) (p_inLayout p_type) <|>
-         p_liftA2 mkType p_getLoc (p_listSomeOf p_tform <* p_colons <* p_ident "type")
+p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var) (p_colons >> (p_inLayout p_type)) <|>
+         p_liftA2 mkType p_getLoc (p_listSomeOf p_tform) << p_colons << p_ident "type"
          where
            mkVars  loc vs t = map (mkVar loc t) vs
            mkType  loc vs   = map (mkTyp loc) vs
@@ -590,9 +590,9 @@ p_sig = (map fst . concat) <$> (p_some p_spec)
 ||       (e.g. in typecheck)
 p_tdef :: parser modInserter
 p_tdef
-    = p_liftA3 mkSyn  p_getLoc (p_tform <* p_eqeq)      (p_inLayout p_type <|> p_expected "a type synonym")          <|>
-      p_liftA3 mkData p_getLoc (p_tform <* p_sym "::=") (p_inLayout p_constructs <|> p_expected "a data definition") <|>
-      p_liftA3 mkAbs  p_getLoc (p_ident "abstype" *> p_tform) (p_ident "with" *> p_inLayout p_sig)
+    = p_liftA3 mkSyn  p_getLoc p_tform  (p_eqeq      >> (p_inLayout p_type       <|> p_expected "a type synonym"))    <|>
+      p_liftA3 mkData p_getLoc p_tform  (p_sym "::=" >> (p_inLayout p_constructs <|> p_expected "a data definition")) <|>
+      p_liftA3 mkAbs  p_getLoc (p_ident "abstype" >> p_tform) (p_ident "with" >> p_inLayout p_sig)
       where
         mkSyn  loc tf  t    = modInsDef  (DefSyn  tf  t                  (locAnno loc))
         mkData loc tf ctors = modInsData (DefData tf  ctors              (locAnno loc))
@@ -601,7 +601,7 @@ p_tdef
 || parse a definition
 p_def :: parser (defn, modInserter)
 p_def
-    = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal *> p_rhs p_equal)
+    = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal >> p_rhs p_equal)
       where
         mkDef loc (Left p)  rhs         = (d, modInsPat d) where d = DefPat  p    rhs (locAnno loc)
         mkDef loc (Right (n, vars)) rhs = (d, modInsDef d) where d = DefFn n vars rhs (locAnno loc)
@@ -622,10 +622,10 @@ p_libPart
     = p_getLoc >>= floc
       where
         floc loc
-            = (p_pure (LibAll loc) <* p_sym "+")                      <|>
-               (($LibIdent loc)  <$> p_varOrConstructor)              <|>
-               (($LibRemove loc) <$> (p_minus *> p_varOrConstructor)) <|>
-               (($LibFile loc)   <$> p_fileSpec)
+            = p_sym "+" >> p_pure (LibAll loc)                     <|>
+              ($LibIdent loc)  <$> p_varOrConstructor              <|>
+              ($LibRemove loc) <$> (p_minus >> p_varOrConstructor) <|>
+              ($LibFile loc)   <$> p_fileSpec
 
 p_libQual :: parser libQual
 p_libQual
@@ -636,7 +636,7 @@ p_libQual
 
 p_libAs :: parser libAs
 p_libAs
-    = mkAs <$> p_optional (p_ident "as" *> p_identifier)
+    = mkAs <$> p_optional (p_ident "as" >> p_identifier)
       where
         mkAs Nothing  = LibNoAs
         mkAs (Just s) = LibAs (getName s)
@@ -645,13 +645,13 @@ p_alias :: parser libAlias
 p_alias
     = p_alias' p_var         <|>                || note: separate p_var and p_constructor here to ensure
       p_alias' p_constructor <|>                || the alias is the same (var or ctor) as the sym
-      (AliasRemove <$> (p_minus *> p_var))
+      (AliasRemove <$> (p_minus >> p_var))
       where
-        p_alias' p = p_liftA2 Alias (p <* p_sym "/") p
+        p_alias' p = p_liftA2 Alias p (p_sym "/" >> p)
 
 p_binding :: parser libBinding
-p_binding = p_liftA2 BindVar  (p_var <* p_equal) (p_inLayout p_expr) <|>
-            p_liftA2 BindType (p_var <* p_eqeq)  (p_inLayout p_type)
+p_binding = p_liftA2 BindVar  p_var (p_equal >> (p_inLayout p_expr)) <|>
+            p_liftA2 BindType p_var (p_eqeq  >> (p_inLayout p_type))
 
 p_binder :: parser [libBinding]
 p_binder = p_inBraces (p_some p_binding)
@@ -664,10 +664,10 @@ p_env
 
 p_libDir :: parser modInserter
 p_libDir
-    = p_percent *>
-        ((modInsImp <$> (p_ident "import" *> p_inLayout p_env))              <|>
-         (modInsExp <$> (p_ident "export" *> p_inLayout (p_some p_libPart))) <|>
-         (modInsFre <$> (p_ident "free"   *> p_inBraces p_sig))              <|>
+    = p_percent >>
+        ((modInsImp <$> (p_ident "import" >> p_inLayout p_env))              <|>
+         (modInsExp <$> (p_ident "export" >> p_inLayout (p_some p_libPart))) <|>
+         (modInsFre <$> (p_ident "free"   >> p_inBraces p_sig))              <|>
          p_expected "a library directive")
 
 
@@ -681,7 +681,7 @@ p_decl
       (singleton         <$> p_libDir)
 
 p_decls :: parser [modInserter]
-p_decls = concat <$> (p_some p_decl) <* p_end
+p_decls = concat <$> (p_some p_decl) << p_end
 
 || parse a top-level Library (Module)
 || takes an inital module with the name and builtin environment initialized
