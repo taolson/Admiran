@@ -326,7 +326,9 @@ qualify the definition, e.g.:
       = "greater", otherwise
 
 These are handled by the parsers `p_cond` and `p_conds`, which use the `p_indent` and `p_outdent` parsers from
-the `parser` module to control the layout formatting.
+the `parser` module to control the layout formatting.  Note that `p_rhs` and `p_conds` are passed a token
+parser to match during parsing, matching either an `=` if used in an enclosing defintion, or an `->` if used
+in an enclosing case alternate.
 
 #### Parsing infix expressions
 

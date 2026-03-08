@@ -400,8 +400,8 @@ words, and are evaluated strictly. They can also be used to evaluate an expressi
 conditional switch on the resulting constructor. A case expression has the general form:
 
     case expS of
-        pat1 -> exp1
-        pat2 -> exp2
+        pat1 -> rhs1    || case alternate 1
+        pat2 -> rhs2    || case alternate 2
         .
         .
 
@@ -409,7 +409,9 @@ where expS (the *scrutinee* expression) is evaluated strictly, and must evaluate
 * an unboxed `word#` value (for results of built-in functions)
 * a saturated constructor value
 
-and the patterns on the left-hand side of the case alternatives are either
+and the case alternates consist of a pattern on the left-hand-side and a *right-hand side*
+expression (rhs, discussed in detail later), separated by a `->`. The patterns on the
+left-hand side of the case alternatives are either
 * a variable to be bound to the evaluated result
 * a literal unboxed `word#` to match with the result to select between alternatives
 * a wildcard pattern (`_`), which ignores the corresponding value
@@ -612,6 +614,12 @@ previously. It is also possible to give several alternative expressions, disting
 
 ### Conditional Expressions and Guards
 
+A *conditional expression* is of the form *bind-tok* *exp* `,` *guard*, where *bind-tok* is
+either a `=` when used in an enclosing definition, or a `->` when used in an enclosing case
+alternate. Multiple conditional expressions can be on the right-hand side of a definition,
+using different guards, and are evaluated from top to bottom until a matching guard condition
+is found. 
+
 A *guard* consists of the keyword `if` followed by a boolean expression. An example
 of a right-hand side expression with several alternatives is the gcd function:
 
@@ -622,15 +630,21 @@ of a right-hand side expression with several alternatives is the gcd function:
 Note that the guards are written on the right, following a comma. The layout is significant,
 as the offside rule is used to resolve any ambiguities during parsing.
 
+An example of a case alternate using a conditional expression in the right-hand size is:
+
+    case mx of
+      Just x  -> "positive", if x > 0
+              -> "negative", if x < 0
+              -> "zero",     otherwise
+      Nothing -> "nothing"
+
 The last guard can be written as `otherwise`, to indicate that this is the case which applies
 if all other guards are false. If the last guard is not an `otherwise`, then the entire
 expression is refutable, and will fall through to try a following definition (in the case of a 
 function with multiple sequential definitions), or cause a runtime error.
 
-A *conditional expression* is of the form `=` *exp* `,` *guard*. Multiple conditional expressions
-can be on the right-hand side of a definition, using different guards, and are evaluated from
-top to bottom until a matching guard condition is found. Each of the conditional expressions
-in a definition must have the same result expression type.
+Each of the conditional expressions in a definition must have the same result expression
+type.
 
 ### Nested `where` Definitions
 

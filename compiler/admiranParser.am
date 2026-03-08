@@ -307,7 +307,7 @@ p_casePat
         isCasePat _              = False
 
 p_caseAlt :: parser caseAlt
-p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs)
+p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow *> p_rhs p_rArrow)
 
 p_caseExpr :: parser expr
 p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" *> p_expr) (p_ident "of" *> p_inLayout (p_some p_caseAlt))
@@ -333,9 +333,9 @@ p_cond e
         p_ow = p_ident "otherwise" *> p_pure (Cdefault e)
 
 || parse conditional expressions for the given expr
-p_conds :: expr -> parser expr
-p_conds e
-    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_equal *> p_indent *> ((p_expr >>= p_cond) <|> p_expected "a conditional expression")))
+p_conds :: parser token -> expr -> parser expr
+p_conds p_sep e
+    = p_liftA2 mkCond (p_cond e) (p_many (p_outdent *> p_sep *> p_indent *> ((p_expr >>= p_cond) <|> p_expected "a conditional expression")))
       where
         mkCond c cs = Econd (c : cs)
 
@@ -347,12 +347,12 @@ p_whdefs = map fst <$> (p_ident "where" *> (p_some p_def <|> p_expected "'where'
 || note: this used to try parsing a condExpr, and if that failed parse an expr.  However, because a condExpr begins with an expr,
 || this sets up an O(n^2) backtracking parse for nested exprs (like a case tree).  Instead, we parse an initial expr, then check to
 ||  see if we should continue with a condExpr or not.
-p_rhs :: parser expr
-p_rhs
+p_rhs :: parser token -> parser expr
+p_rhs p_sep
     = p_inLayout (p_bind2 (p_expr >>= tryCond) (p_optional p_whdefs) mkRhs)
       where
         || try to parse a condExpr with the given expr, or return expr
-        tryCond e = p_conds e <|> p_pure e
+        tryCond e = p_conds p_sep e <|> p_pure e
 
         mkRhs e Nothing = p_pure e
         mkRhs e (Just defs)
@@ -601,7 +601,7 @@ p_tdef
 || parse a definition
 p_def :: parser (defn, modInserter)
 p_def
-    = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal *> p_rhs)
+    = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal *> p_rhs p_equal)
       where
         mkDef loc (Left p)  rhs         = (d, modInsPat d) where d = DefPat  p    rhs (locAnno loc)
         mkDef loc (Right (n, vars)) rhs = (d, modInsDef d) where d = DefFn n vars rhs (locAnno loc)
