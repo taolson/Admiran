@@ -50,6 +50,10 @@ the C runtime library. This is automatically done when compiling an Admiran sour
 * Compiles to x86-64 assembly language
 * Runs under MacOS or Linux
 * Whole program compilation with inter-module inlining and optimizations
+  - compile-time evaluation of builtin functions and case selection for known constant operands
+  - dead-code elimination
+  - let floating and case expression floating
+
 * Hindley-Milner type inference and checking
 * Library of useful functional polymorphic data structures, including
   - lists and tuples (built-in)
