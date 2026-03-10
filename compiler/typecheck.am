@@ -310,17 +310,18 @@ mkTypeMap ps ts
 
 || extract the types of the pats from the defn's DefSpec, if available
 || this allows a form of bidirectional type checking where the user-defined top-level DefSpec
-|| is preferred to the typechecker's inferred type, which makes error reporting more precise
-|| if no spec is found, return new Tvars for the pats
+|| is preferred to the typechecker's inferred type, which makes error reporting more precise.
+|| If no spec is found, or has fewer types than the number of vars, return new Tvars for the
+|| vars without types.
 typesFromSpec :: name -> [pat] -> tcState [texpr]
 typesFromSpec n vars
-    = (tc_view tcGenv >>= getSpec) <|> tc_mapM (const newTvar) vars
+    = (tc_view tcGenv >>= getSpec <|> tc_pure []) >>= addMissing
       where
-        nvars        = #vars
-        getSpec genv = lookupSpec genv n |> fromMaybef tc_fail genScm   || find the typeSpec for a name
-        genScm s     = mkScheme s |> instantiate >>= genTs              || generate a new scheme from the spec
-        genTs (s, _) = typeList s |> fst |> take nvars |> check         || collect the individual var types
-        check ts     = if' (null ts) tc_fail (tc_pure ts)               || return them if we have enough
+        nvars         = #vars
+        getSpec genv  = lookupSpec genv n |> fromMaybef tc_fail genScm          || find the typeSpec for a name
+        genScm s      = mkScheme s |> instantiate >>= genTs                     || generate a new scheme from the spec
+        genTs (s, _)  = typeList s |> fst |> take nvars |> tc_pure              || collect the individual var types
+        addMissing ts = (ts ++) <$> tc_mapM (const newTvar) [1 .. nvars - #ts]  || if spec is missing or has fewer types, pad with newTvars
 
 || report extra info when an error is encountered in mutual recursive definitions
 mutRecErr :: [name] -> tcState *
@@ -408,7 +409,7 @@ infer (Ecase _ e alts)
         f2 tv sm = tc_pure (t_subst sm tv, sm)
 
 infer (CaseAlt (Pctor n vars) e)
-    = (infer (Evar n)) >>= f1      || infer the type of the constructor
+    = infer (Evar n) >>= f1     || infer the type of the constructor
       where
         f1 (spec, sm)
             = tc_error (CtorArity n),              if #vars ~= #ts || ctor patterns must be saturated
