@@ -51,7 +51,7 @@ the C runtime library. This is automatically done when compiling an Admiran sour
 * Runs under MacOS or Linux
 * Whole program compilation with inter-module inlining and optimizations
   - compile-time evaluation of builtin functions and case selection for known constant operands
-  - dead-code elimination
+  - dead-code elimination, including tree-shaking to remove unused functions
   - let floating and case expression floating
 
 * Hindley-Milner type inference and checking
