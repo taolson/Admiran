@@ -597,9 +597,9 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = go t2 t2 << tc_note (TypeHole nt2), if isTWild t1
-                                       = go t1 t1 << tc_note (TypeHole nt1), if isTWild t2
-                                       = tc_error $ Unify nt1 nt2,           otherwise
+        go t1            t2            = tc_note (TypeHole nt2) >> tc_pure sm, if isTWild t1
+                                       = tc_note (TypeHole nt1) >> tc_pure sm, if isTWild t2
+                                       = tc_error $ Unify nt1 nt2,             otherwise
                                          where
                                            nt1 = normalize t1
                                            nt2 = normalize t2
