@@ -52,7 +52,7 @@ fix16val xs
         || parse and convert integer part
         goInt n (x : xs)
             = goInt (n * 10 + code x - code0) xs, if '0' <=. x <=. '9'
-            = n .<<. 16 + goFrac 0 10 xs,         if x ==. '.'
+            = (n .<<. 16) + goFrac 0 10 xs,       if x ==. '.'
             = n .<<. 16,                          otherwise
 
         goInt n _ = n .<<. 16

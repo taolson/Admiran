@@ -31,7 +31,7 @@ percent :: int -> int -> fix16
 percent n m = toFix16Int 100 *. toFix16Int n /. toFix16Int m
 
 rotate :: int -> [*] -> [*]
-rotate n xs = drop n xs ++ take n xs
+rotate n xs = case splitAt n xs of (ys, zs) -> zs ++ ys
 
 || generate a frequency-of-occurrence table for a string
 freqs :: string -> [fix16]
