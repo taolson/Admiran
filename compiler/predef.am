@@ -193,6 +193,8 @@ builtinSel  n i    = Tname builtinSelName  [Tname n [], EprimInt i]             
 || named Fail and Fatbar pseudo-functions; name will be uniquified lexically during rewrite
 || to tie Fails to their corresponding Fatbar and tracked through free vars analysis
 || to allow the Fail to reference the dynamically-generated thunk (and stack) for the alt leg
+|| builtinFail is also used internally as a default expr type when an expr is required but a valid
+|| one cannot be formed (error condition, which will be reported later)
 builtinFail :: expr
 builtinFail   = Efail . Evar . Unqualified $ "`fail"
 

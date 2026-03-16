@@ -34,7 +34,7 @@ deriveShow d
         defSpec     = DefSpec (Tname fn []) spec an
         defFn       = DefFn fn (map (Pvar . snd) instNames) e an
 
-        showForType (Tvar n)       = fromMaybef undef Evar . findInstName . Tvar $ n
+        showForType (Tvar n)       = fromMaybef builtinFail Evar . findInstName . Tvar $ n
         showForType (Ttuple ts)    = foldl Eap (makeTupleShow $ #ts) $ map showForType ts
         showForType (Tlist t)      = Eap stdShowList $ showForType t
         showForType (Tarr t1 t2)   = stdShowFn
@@ -96,7 +96,7 @@ deriveOrd d
 
         cmpSpec t  = t $Tarr t $Tarr stdOrdering
 
-        cmpForType (Tvar n)       = fromMaybef undef Evar . findInstName . Tvar $ n
+        cmpForType (Tvar n)       = fromMaybef builtinFail Evar . findInstName . Tvar $ n
         cmpForType (Ttuple ts)    = foldl Eap (makeTupleCmp $ #ts) $ map cmpForType ts
         cmpForType (Tlist t)      = Eap stdCmpList $ cmpForType t
         cmpForType (Tarr t1 t2)   = stdCmpFn
