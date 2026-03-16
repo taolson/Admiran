@@ -18,7 +18,7 @@ An overview of Miranda can be found here: [An Overview of Miranda](https://www.c
 
 The following reference is based upon the structure and information of the Haskell 2010 Language Reference.
 
-### Program Structure
+## Program Structure
 
 An Admiran program consists of a collection of *modules*. Modules provide a way to control namespaces and re-use
 software in large programs. The top level of a module consists of a collection of *declarations*. Declarations
@@ -115,7 +115,6 @@ comment and not a symbolic operator, so comments effectively prevent defining sy
 A block comment begins with a token starting with `{|`, and extends to the corresponding closing token `|}`.  Block
 comments can be nested, so code with an existing block comment can itself be commented out with an enclosing block
 comment.
-
 
 ### Identifiers and Operators
 
@@ -593,7 +592,6 @@ multiple definition function is matching on the two list constructors`[]` and `:
     length []       = 0
     length (_ : xs) = 1 + length xs
 
-
 ## Pattern Definitions
 
 A pattern definition defines one or more pattern variables by destructuring the right-hand side
@@ -1010,7 +1008,6 @@ The library module `stdlib` provides a number of standard types, functions, and 
 programs, and used internally in the compiler. It is implicitly imported in any module that doesn't
 explicitly import it.  If it is explicitly imported, the import can be used to qualify the import or
 remove or rename names.
-
 
 ### Export Directives
 
