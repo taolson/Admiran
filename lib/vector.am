@@ -119,17 +119,17 @@ v_foldl :: (** -> * -> **) -> ** -> vector * -> **
 v_foldl f z (Vector n p#)
     = foldlS go z (rangeS 0 (n - 1))
       where
-        go z (I# i) = case (readArray# p# i) of x -> f z x
+        go z (I# i) = case readArray# p# i of x -> f z x
 
 v_append :: vector * -> vector * -> vector *
 v_append va vb
-    = v_fromStream n (appendS (v_toStream va) (v_toStream vb))
+    = appendS (v_toStream va) (v_toStream vb) |> v_fromStream n
       where
         n = v_length va + v_length vb
 
 v_zipWith :: (* -> ** -> ***) -> vector * -> vector ** -> vector ***
 v_zipWith f va vb
-    = v_fromStream n (zipWithS f (v_toStream va) (v_toStream vb))
+    = zipWithS f (v_toStream va) (v_toStream vb) |> v_fromStream n
       where
         n = min2 cmpint (v_length va) (v_length vb)
 
