@@ -67,7 +67,7 @@ v_index, (!!) :: vector * -> int -> *
 v_index (Vector n p#) i
     = case safeIndex n i of I# i# -> case readArray# p# i# of e -> e
 
-v !! i  = v_index v i
+v !! i = v_index v i
 
 v_first :: vector * -> *
 v_first v = v !! 0
@@ -109,27 +109,17 @@ v_filter f = v_toList .> filter f .> v_fromList || list used so we can get lengt
 
 || lazy right-fold, to allow early-out of folding function
 v_foldr :: (* -> ** -> **) -> ** -> vector * -> **
-v_foldr f z v
-    = go 0
+v_foldr f z (Vector n p#)
+    = foldrS go z (rangeS 0 (n - 1))
       where
-        n = v_length v
-
-        go i
-            = z,                                  if i == n
-            = f (v_unsafeIndex v i) (go (i + 1)), otherwise
+        go (I# i) z = case readArray# p# i of x -> f x z
 
 || strict left fold
 v_foldl :: (** -> * -> **) -> ** -> vector * -> **
-v_foldl f z v
-    = go z 0
+v_foldl f z (Vector n p#)
+    = foldlS go z (rangeS 0 (n - 1))
       where
-        n = v_length v
-
-        go r i
-            = r,                     if i == n
-            = r' $seq go r' (i + 1), otherwise
-              where
-                r' = f r (v_unsafeIndex v i)
+        go z (I# i) = case (readArray# p# i) of x -> f z x
 
 v_append :: vector * -> vector * -> vector *
 v_append va vb
@@ -138,13 +128,10 @@ v_append va vb
         n = v_length va + v_length vb
 
 v_zipWith :: (* -> ** -> ***) -> vector * -> vector ** -> vector ***
-v_zipWith f v1 v2
-    = st_evalState (doZip mv >> v_unsafeFreeze mv) ()
+v_zipWith f va vb
+    = v_fromStream n (zipWithS f (v_toStream va) (v_toStream vb))
       where
-        n  = min2 cmpint (v_length v1) (v_length v2)
-        mv = v_unsafeThaw $ v_rep n undef
-
-        doZip mv = st_forM [0 .. n - 1] (\i -> v_unsafeWrite mv i (f (v_unsafeIndex v1 i) (v_unsafeIndex v2 i)))
+        n = min2 cmpint (v_length va) (v_length vb)
 
 v_min, v_max :: ordI * -> vector * -> *
 v_min cmp v = v_foldl (min2 cmp) (v_first v) v

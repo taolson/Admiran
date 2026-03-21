@@ -79,3 +79,7 @@ v3_product a = v3_foldl (*) 1 a
 || manhattan distance
 v3_dist :: v3 int -> v3 int -> int
 v3_dist a b = v3_sub a b |> v3_abs |> v3_sum
+
+|| cross-product
+v3_cross :: v3 int -> v3 int -> v3 int
+v3_cross (V3 x1 y1 z1) (V3 x2 y2 z2) = V3 (y1 * z2 - z1 * y2) (z1 * x2 - x1 * z2) (x1 * y2 - y1 * x2)
