@@ -36,7 +36,7 @@ useStreamFusion       = False   || experimental; currently doesn't work; use str
 || verbose output configuration
 demandVerbose         = False   || report information during demand pass
 inlineVerbose         = False   || report information during inlining pass
-annoVerbose           = True    || display a detailed anno field when pretty-printing an AST
+annoVerbose           = False   || display a detailed anno field when pretty-printing an AST
 noteLengthLimit       = 100
 
 || code generator resource sizes (NOTE: must match the sizes defined in runtime.c)

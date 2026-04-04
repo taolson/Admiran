@@ -9,7 +9,6 @@
 
 %import <base>
 %import <bitSet>
-%import <config>
 %import <lens>
 %import <map>
 %import <maybe>
