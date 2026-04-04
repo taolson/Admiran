@@ -686,9 +686,9 @@ words :: string -> [string]
 words s = splitWhen isSpace s
 
 || left-pad or right-pad a string with spaces in a field width of n
-padl, padr :: int -> string -> string
-padl n s = s ++ rep (n - #s) ' '
-padr n s = rep (n - #s) ' ' ++ s
+padL, padR :: int -> string -> string
+padL n s = rep (n - #s) ' ' ++ s
+padR n s = s ++ rep (n - #s) ' '
 
 || add a suffix to a string if it isn't already present
 withSuffix :: string -> string -> string

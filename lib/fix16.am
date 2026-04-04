@@ -3,17 +3,18 @@
 %export +
 
 abstype fix16 with
-    (+.)        :: fix16 -> fix16 -> fix16
-    (-.)        :: fix16 -> fix16 -> fix16
-    (*.)        :: fix16 -> fix16 -> fix16
-    (/.)        :: fix16 -> fix16 -> fix16
-    toFix16Int  :: int -> fix16
-    toFix16Frac :: int -> fix16
-    fix16Int    :: fix16 -> int
-    fix16Frac   :: fix16 -> int
-    fix16val    :: string -> fix16
-    showfix16   :: fix16 -> string
-    cmpfix16    :: fix16 -> fix16 -> ordering
+    (+.)            :: fix16 -> fix16 -> fix16
+    (-.)            :: fix16 -> fix16 -> fix16
+    (*.)            :: fix16 -> fix16 -> fix16
+    (/.)            :: fix16 -> fix16 -> fix16
+    toFix16Int      :: int -> fix16
+    toFix16Frac     :: int -> fix16
+    fix16Int        :: fix16 -> int
+    fix16Frac       :: fix16 -> int
+    fix16val        :: string -> fix16
+    showfix16       :: fix16 -> string
+    showfix16Digits :: int -> fix16 -> string
+    cmpfix16        :: fix16 -> fix16 -> ordering
 
 
 || implementation uses int, scaling multiplication and division appropriately
@@ -65,24 +66,30 @@ fix16val xs
 
         goFrac n _ _ = n .>>. 16
 
-showfix16 n
-    = '-' : showfix16 (-n), if n < 0
-    = si ++ "." ++ sf,      otherwise
+showfix16Digits d n
+    = '-' : showfix16Digits d (-n), if n < 0
+    = si ++ "." ++ sf,              otherwise
       where
-        (c, sf) = showfrac 5 (fix16Frac n)
+        (c, sf) = showFracDigits d (fix16Frac n)
         ni      = fix16Int n + c
         si      = showint ni
 
-        showdigit d = decode (d + code '0')
-
-        showfrac 0 n = (n .>>. 15, [])  || round the next digit up, if remaining frac is > 0.5
-        showfrac i n
-            = (c', showdigit d' : s)
-              where
-                n'       = n * 10
-                d        = fix16Int n'
-                r        = fix16Frac n'
-                (c, s)   = showfrac (i - 1) r
-                (c', d') = (d + c) $quotrem 10
+showfix16 n = showfix16Digits 5 n
 
 cmpfix16 = cmpint
+
+|| show the fix16 fractional value in a field of d digits,
+|| returning the string and a potential carry bit into the integer part
+|| due to rounding
+showFracDigits :: int -> fix16 -> (int, string)
+showFracDigits 0 n = (n .>>. 15, [])  || round the next digit up, if remaining frac is > 0.5
+showFracDigits i n
+    = (c', showdigit d' : s)
+      where
+        n'       = n * 10
+        d        = fix16Int n'
+        r        = fix16Frac n'
+        (c, s)   = showFracDigits (i - 1) r
+        (c', d') = (d + c) $quotrem 10
+
+        showdigit d = decode (d + code '0')

@@ -184,6 +184,20 @@ deserialMultSel
         ctor 1 = Mpat
         ctor _ = unreachable
 
+serialUseInfo :: serializer useInfo
+serialUseInfo Uzero = serialCtor 0
+serialUseInfo Uone  = serialCtor 1
+serialUseInfo Umany = serialCtor 2
+
+deserialUseInfo :: deserializer useInfo
+deserialUseInfo
+    = ctor <$> deserialCtor
+      where
+        ctor 0 = Uzero
+        ctor 1 = Uone
+        ctor 2 = Umany
+        ctor _ = unreachable
+
 
 serialLoc :: serializer location
 serialLoc = serialTup3 serialString serialPosInt serialPosInt
@@ -192,10 +206,10 @@ deserialLoc :: deserializer location
 deserialLoc = deserialTup3 deserialString deserialPosInt deserialPosInt
 
 serialAnno :: serializer anno
-serialAnno = serialTup6 serialLoc serialBool serialPosInt serialPosInt (serialSet serialName) serialBitSet
+serialAnno = serialTup6 serialLoc serialBool serialPosInt serialUseInfo (serialSet serialName) serialBitSet
 
 deserialAnno :: deserializer anno
-deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialPosInt (deserialSet cmpname deserialName) deserialBitSet
+deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialUseInfo (deserialSet cmpname deserialName) deserialBitSet
 
 serialName :: serializer name
 serialName (Unqualified n)  = serialCtor 0 . serialString n
@@ -203,7 +217,7 @@ serialName (Unresolved m n) = serialCtor 1 . serialString m . serialString n
 serialName (Qualified m n)  = serialCtor 2 . serialString m . serialString n
 serialName (Private m n)    = serialCtor 3 . serialString m . serialString n
 serialName (Builtin n)      = serialCtor 4 . serialString n
-serialName (Internal n d)   = serialCtor 5 . serialString n  . serialPosInt d
+serialName (Internal n d)   = serialCtor 5 . serialString n . serialPosInt d
 
 deserialName :: deserializer name
 deserialName

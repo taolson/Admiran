@@ -4,9 +4,12 @@
 || in the compiler (e.g. inlining st_runState, st_bind, etc.) If this is compiled with inlining
 || disabled, then extra thunks are created which may cause space leaks
 
+
 %export +
 
 %import <base>
+%import <lens>
+
 
 state * ** == (* -> (**, *))
 
@@ -30,6 +33,17 @@ st_put s' = const ((), s')
 
 st_modify :: (* -> *) -> state * ()
 st_modify f = \s -> case f s of s' -> ((), s')
+
+
+|| lift lens operations into state
+st_view :: lens * ** -> state * **
+st_view lns = view lns $st_fmap st_get
+
+st_over :: lens * ** -> (** -> **) -> state * ()
+st_over lns f = st_modify (over lns f)
+
+st_set :: lens * ** -> ** -> state * ()
+st_set lns x = st_modify (set lns x)
 
 
 || monad interface

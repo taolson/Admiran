@@ -144,7 +144,7 @@ normalizeAst k a st
                 isEager e                     = False
 
                 wrapLet a (DefPat p e an)
-                    = Ecase Csingle e [CaseAlt p a], if ~bs_null (view anStrict an) \/ useEagerCtors & isEager e
+                    = Ecase Csingle e [CaseAlt p a], if useEagerCtors & isEager e
 
                 wrapLet a d = Elet False (m_singleton (defnName d) d) [] a
 

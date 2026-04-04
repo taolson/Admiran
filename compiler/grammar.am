@@ -27,6 +27,10 @@ texpr   == ast
 tform   == ast
 defn    == ast
 
+nameMap == m_map name name              || map for renaming a name
+defnMap == m_map name defn              || map from Qualified name to top-level definition in module
+envMap  == m_map name (s_set name)      || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
+
 ast ::=
         || expr
         Evar        name                       |
@@ -111,7 +115,6 @@ cmptexpr (Tarr ta tb)  (Tarr tc td)    = cmptexpr ta tc $thenCmp cmptexpr tb td
 cmptexpr (Tstrict te)  (Tstrict te')   = cmptexpr te te'
 cmptexpr a             b               = cmpTags  a  b
 
-
 || case selection type
 || generated during desugaring to qualify an Ecase and its CaseAlts
 caseSel ::=
@@ -128,23 +131,39 @@ multSel ::=
     Mfun        |       || mult for DefFn
     Mpat                || mult for DefPat (and its accessor functions)
 
+|| defn use info, for informing free-variable collection, dead-code elimination and no-update thunk optimizations
+useInfo ::=
+    Uzero |     || defn unused in enclosing Elet scope
+    Uone  |     || defn has single use in enclosing Elet scope
+    Umany       || defn has more than one (or unknown number) of uses
+
+usedZero, usedAffine :: useInfo -> bool
+usedZero Uzero   = True
+usedZero _       = False
+
+usedAffine Umany = False
+usedAffine _     = True
+
 || annotation for definitions
-anno == (location, bool, int, int, s_set name, bitSet)         || loc, recursive, complexity, use count, free vars, strictness info
+anno == (location, bool, int, useInfo, s_set name, bitSet)      || loc, recursive, complexity, useInfo, free vars, affine use info
+
+|| don't auto-derive showI and ordI for anno
+showanno = undef
+cmpanno  = undef
 
 || lenses for annotation fields
 anLoc    = lensTup6_0
 anRec    = lensTup6_1
-anCpx    = lensTup6_2
-anUses   = lensTup6_3
-anFree   = lensTup6_4
-anStrict = lensTup6_5
+anCpx    = lensTup6_2   || defn complexity
+anUse    = lensTup6_3   || defn useInfo
+anFree   = lensTup6_4   || defn free vars
+anAffine = lensTup6_5   || fn vars usedAffine, as a bitSet
 
 emptyAnno :: anno
-emptyAnno = (emptyLocation, False, 0, 0, s_empty, bs_empty)
+emptyAnno = (emptyLocation, False, 0, Uzero, s_empty, bs_empty)
 
 locAnno :: location -> anno
 locAnno loc = set anLoc loc emptyAnno
-
 
 || module name, line no for error reporting
 location == (string, int, int)
@@ -180,14 +199,16 @@ showsName :: name -> showS
 showsName n = showsInParensIf (isSymbol n) . shows . showName $ n
 
 showsAnno :: anno -> showS
-showsAnno (loc, rec, cpx, uses, free, strict)
-    = shows "{" . showsRec . showsint cpx . shows " " . showsint uses .
-      showsInBrackets (showsListMapped ", " showsName (s_toList free)) .
-      showsInBrackets (showsListMapped ", " showsint  (bs_toList strict)), if annoVerbose
-    = id,                                                                  otherwise
+showsAnno (loc, rec, cpx, use, free, affine)
+    = shows "{" . showsRec . showsint cpx . shows " " . showsUse use . shows " " .
+      showsInBrackets (showsListMapped ", " showsName (s_toList free))           .
+      showsInBrackets (showsListMapped ", " showsint  (bs_toList affine)) . shows "}", if annoVerbose
+    = id,                                                                              otherwise
       where
-        showsRec = shows "Rec ", if rec
-                 = shows "",     otherwise
+        showsUse u = (showuseInfo u ++)
+        showsRec   = shows "Rec ", if rec
+                   = shows "",     otherwise
+
 
 showsLocation :: location -> showS
 showsLocation (mn, el, ec)
@@ -306,7 +327,7 @@ showsAstPrec d a
         go (DefFn n vars rhs an) = showsName n . showsAnno an . shows " " . showsAstList vars . shows " = " . showsAstPrec 0 rhs
         go (DefPat p rhs an)     = showsAstPrec 0 p . showsAnno an . shows " = "  . showsAstPrec 0 rhs
         go (DefSpec tf te an)    = showsAstPrec 0 tf . shows " :: " . showsAstPrec 0 te
-        go (DefSyn tf te an)     = showsAstPrec 0 tf . shows " == " . showsAstPrec 0 te
+        go (DefSyn tf te an)     = showsAstPrec 0 tf . showsAnno an . shows " == " . showsAstPrec 0 te
         go (DefData tf [] an)    = showsAstPrec 0 tf . shows " :: type"
         go (DefData tf ctors an) = showsAstPrec 0 tf . shows " ::= " . showsListMapped " | " (showsAstPrec 0) ctors
         go (DefAbs tf ds te an)  = shows "abstype " . showsAstPrec 0 tf . shows " == " . showsAstPrec 0 te
@@ -568,8 +589,9 @@ isSyn a = isDefSyn a \/ isDefAbs a
 defnName :: ast -> name
 defnName (DefFn n vars e an)    = n
 defnName (DefMult m (d : ds))   = defnName d
-defnName (DefPat p e an)        = unPvar p,   if isPvar p
-                                = ctorName p, if isPctor p
+defnName (DefPat p e an)        = unPvar p,    if isPvar p
+                                = ctorName p,  if isPctor p
+                                = Builtin "_", if isPwildcard p
 defnName (DefSyn tf te an)      = tformName tf
 defnName (DefData tf ctors an)  = tformName tf
 defnName (DefSpec tf te an)     = tformName tf
@@ -604,9 +626,9 @@ lensAnno
 defnAnLoc    = composeLens lensAnno anLoc
 defnAnRec    = composeLens lensAnno anRec
 defnAnCpx    = composeLens lensAnno anCpx
-defnAnUses   = composeLens lensAnno anUses
+defnAnUse    = composeLens lensAnno anUse
 defnAnFree   = composeLens lensAnno anFree
-defnAnStrict = composeLens lensAnno anStrict
+defnAnAffine = composeLens lensAnno anAffine
 
 || lens for accessing a definition's tform and type
 defnTform :: lens defn tform
@@ -698,11 +720,6 @@ qualifyDefn modName (DefAbs tf ds t an)    = DefAbs  (qualifyTform modName tf) d
 qualifyDefn modName d                      = d
 
 
-|| common environment definitions
-nameMap == m_map name name          || map for renaming a name
-envMap  == m_map name (s_set name)  || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
-defnMap == m_map name defn          || map from Qualified name to top-level definition in module
-
 || operator precedence and associativity
 || note: this sets up a fixed precedence and associativity for common operators; all others
 || are treated as the default of highest precedence (apPrec) and AssocRight
@@ -757,7 +774,7 @@ opPrecRepr
       , "P #"
 
         || list and array indexing
-      , "L! !!"
+      , "L ! !!"
       ]
 
 || dynamically-built precAssocTable and value for application precedence, built from

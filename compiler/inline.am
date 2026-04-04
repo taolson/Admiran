@@ -147,7 +147,7 @@ wrapInLet :: location -> expr -> [(name, expr)] -> expr
 wrapInLet loc e bdgs
     = foldr wrap e bdgs
       where
-        an = set anUses 1 $ locAnno loc
+        an = set anUse Umany $ locAnno loc
 
         wrap (n, e') e
             = Elet False (m_singleton n d) [] e
@@ -160,7 +160,7 @@ createBinding :: location -> expr -> [pat] -> [expr] -> expr
 createBinding loc e vars args
     = wrapInLet loc (replace e smp) cpx
       where
-        (smp, cpx) = partition (isSimpleExpr . snd) . map (mapFst unPvar) . filter (isPvar . fst) . zip2 vars $ args
+        (smp, cpx) = partition (isSimple . snd) . map (mapFst unPvar) . filter (isPvar . fst) . zip2 vars $ args
 
 || perform beta-reduction on a defn with arguments, renaming all the Pvars in the defn first
 || to prevent name capture
@@ -302,21 +302,18 @@ inlineAst k (Ecall (Evar n) args) st
 || if scrutinee is not a known let-bound var, bind its name to each alt pattern type in the alts (to specialize its value in each alt)
 || Note that in some cases, the binding of a var to an alt pattern will cause extra work of building a new ctor, instead of using the
 || exisiting var.  However, it overall is a performance improvement, due to the subsequent optimizations the specialization provides.
-|| Note: this used to allow inlining of singleCpx values, since theoretically they are only used once here (in the case scrutinee), but
-|| a case was found where an expensive fn call was inlined twice during expansion of stdlib.(!).  Need to figure out why uses count
-|| was one, in that case, but for now we only inline simple exprs.
 inlineAst k (Ecase b (Evar n) alts) st
     = k (Ecase b e'       alts)  st2, if inlinable      || inline the case scrutinee
     = k (Ecase b (Evar n) alts') st3, if isInternal n   || bind the name to the individual caseAlt patterns
     = k (Ecase b (Evar n) alts)  st,  otherwise         || don't do anything if the name is a top-level pat
       where
         || note: restriction on Internal only gives best overall results
-        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
+        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)     = lookupEnv n st
         d            = fromJust md
-        uses         = view defnAnUses d
+        useInfo      = view defnAnUse d
         cpx          = view defnAnCpx d
-        singleCpx    = if' useAggressiveInlining (uses == 1 & ~cf) False
+        affineCpx    = usedAffine useInfo & ~cf
         e            = fnExpr d
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
@@ -335,38 +332,32 @@ inlineAst k (Ecase b (Evar n) alts) st
                 mkExpr alt                        = Nothing
 
 || do inlining of an expr as a caseAlt value
-|| Note: since we are strictly evaluating the expr, we can inline complex exprs that have a single use, since we know
-|| it won't be passed to some other function which might replicate its use
 inlineAst k (CaseAlt p (Evar n)) st
     = k (CaseAlt p e') st2, if inlinable
       where
-        inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
+        inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)      = lookupEnv n st
         d             = fromJust md
-        uses          = view defnAnUses d
+        useInfo       = view defnAnUse d
         cpx           = view defnAnCpx d
-        singleCpx     = uses == 1 & ~cf
+        affineCpx     = usedAffine useInfo & ~cf
         e             = fnExpr d
         (e', st1)     = betaReduce d [] st
         note          = "inlined caseAlt expr " ++ showName n
         st2           = addInfo note . over inFuel (subtract cpx) . set inSimplified True $ st1
 
 || do inlining of a simple expr
-|| Note: this used to also include cases of single-use complex exprs, but it turns out that the use count from analyze isn't
-|| enough to determine dynamic uses at runtime: a case happened where it statically looked like a single-use case, but in reality
-|| was passed to a function which replicated it many times, resulting in an O(n^2) performance problem for an expensive thunk.
-|| now we only inline simpleExprs
 inlineAst k (Evar n) st
     = (e', st2),    if inlinable
     = (Evar n, st), otherwise
       where
         || note: allowing non-Internals gives best overall results
-        inlinable     = canInline n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ singleCpx) & cpx <= inlineMaxFnComplexity
+        inlinable     = canInline n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)      = lookupEnv n st
         d             = fromJust md
-        uses          = view defnAnUses d
+        useInfo       = view defnAnUse d
         cpx           = view defnAnCpx d
-        singleCpx     = if' useAggressiveInlining (uses == 1 & ~cf) False
+        affineCpx     = usedAffine useInfo & ~cf
         DefPat _ e _  = d
         (e', st1)     = betaReduce d [] st
         note          = "inlined expr " ++ showName n
@@ -430,20 +421,13 @@ simplifyAst k (Elet b defs ps e) st
             = (e, st'),                     if null ds
             = (Elet rec defs' pats e, st'), otherwise
               where
-                (ds, dead) = partition (isUsed . snd) (m_toList defs)
+                (dead, ds) = partition (notUsed . snd) (m_toList defs)
                 fuel'      = sum (map (view defnAnCpx . snd) dead)
                 defs'      = m_fromList cmpname ds
                 notes      = ("increased fuel by " ++ showint fuel') : map (("eliminated " ++) .  showName . defnName . snd) dead
                 st'        = st,                                                                       if null dead
                            = over inFuel (fuel' +) . set inSimplified True . foldr addInfo st $ notes, otherwise
-                isUsed d   = view defnAnUses d - selfRefUse d > 0
-
-                || does a recursive defn still use itself, or has that been eliminated?
-                || note: this is conservative: a recursive function could reference itself multiple times, but we will
-                || return only 0 or 1 here, since we only know it is referenced via the defnAnFree set, rather than its count.
-                selfRefUse d
-                    = 1, if view defnAnRec d & s_member cmpname (defnName d) (view defnAnFree d)
-                    = 0, otherwise
+                notUsed d  = view defnAnUse d |> usedZero
 
          f _ _ = unreachable
 

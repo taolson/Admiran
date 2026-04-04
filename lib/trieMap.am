@@ -189,15 +189,6 @@ t_union cmp t1 t2
       where
         ins t (k, v) = t_insert cmp k v t
 
-||    = go [] t1 t2
-||      where
-        go p1 t1 (Trie bs mv)
-            = foldl (goNext p1) (fromMaybef t1 ins mv) bs
-              where
-                ins v = t_insert cmp p1 v t1
-
-                goNext p1 t1 (p2, t2) = go (p1 ++ p2) t1 t2
-
 t_toList :: trie * ** -> [([*], **)]
 t_toList t
     = go [] t

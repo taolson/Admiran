@@ -12,7 +12,6 @@ os ::= MacOS | Linux
 || these parameters must be set when installing the compiler
 hostOS                = Linux           || set to Linux or MacOS
 admiranLibPath        = "../lib"        || set to absolute path of Admiran lib directory
-                                        || e.g. "/home/tim/Programming/Admiran/lib"
 
 || os-dependant configuration parameters
 (codegenCsymbolPrefix, ccOpts)
@@ -29,17 +28,15 @@ runtimeName           = "runtime.c"
 cCompilerName         = "cc"
 
 || enable/disable features
-useInlining           = True
-useAggressiveInlining = True    || better / smaller for almost all code, but has a couple of performance regressions
-useSel                = True
-useDemandAnalysis     = False   || experimental; may not work
+useInlining           = True    || inline functions and single-use values
+useSel                = True    || use builtinSel to select fields from a data defn or tuple, instead of deconstructing it
 useEagerCtors         = False   || experimental; may not work
 useStreamFusion       = False   || experimental; currently doesn't work; use stream functions explicitly in code, instead
 
 || verbose output configuration
 demandVerbose         = False   || report information during demand pass
 inlineVerbose         = False   || report information during inlining pass
-annoVerbose           = False   || display a detailed anno field when pretty-printing an AST
+annoVerbose           = True    || display a detailed anno field when pretty-printing an AST
 noteLengthLimit       = 100
 
 || code generator resource sizes (NOTE: must match the sizes defined in runtime.c)

@@ -206,9 +206,10 @@ v_search cmp v
 
 v_fromStream :: int -> stream * ** -> vector *
 v_fromStream n (Stream next s)
-    = case n of
-        I# n# -> case allocArray# n# of
-                   p# -> doWrites p# n# 0# s
+    = case n of I# n#               ->
+      case allocArray# n# of p#     ->
+      case fillArray# p# undef of _ ->
+      doWrites p# n# 0# s
       where
         doWrites p# n# i# s
             = go i# s

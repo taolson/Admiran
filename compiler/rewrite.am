@@ -153,11 +153,10 @@ rewriteAst k (Elet _ defs _ e) st
 
         || make a let with a single defn, discovering and marking its recursive status
         mkLet [n] e
-            = Elet isRec (m_singleton n d') [] e
+            = Elet rec (m_singleton n d) [] e
               where
-                d     = fromJust $ m_lookup cmpname n defs'
-                isRec = s_member cmpname n $ view defnAnFree d
-                d'    = set defnAnRec isRec d
+                d   = fromJust $ m_lookup cmpname n defs'
+                rec = view defnAnRec d
 
         || make a let with multiple, mutually-recursive defns
         mkLet ns e

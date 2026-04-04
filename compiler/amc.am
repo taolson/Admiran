@@ -12,7 +12,6 @@
 %import "analyze"
 %import "codegen"
 %import "config"
-%import "demand"
 %import "dependency"
 %import "derive"
 %import "desugar"
@@ -100,7 +99,7 @@ buildModule mm n
                                           || otherwise the requirement that new free vars cannot conflict with any existing ones during type checking
                                           || can be violated
         || for bootstrap build, comment out:
-        ||     analyzeWarn, typecheck, streamSubst, inline, demand
+        ||     analyzeWarn, typecheck, streamSubst, inline
         || note that this must be done by commenting out the functions, here, rather than relying upon a
         || config parameter for bootstrapBuild, because runtime-qualification of a call will not be dead-code
         || eliminated in the final bootstrapBuild, because inlining is disabled.
@@ -120,7 +119,6 @@ buildModule mm n
             , streamSubst                 || do stream-based substitution of standard list-based functions
             , inline                      || do inlining of small, non-recursive functions, ast simplification
             , normalize                   || rewrite to A-Normal Form and saturate calls to known functions
-            , demand                      || demand analysis to discover strictness and rewrite strict-use thunks to Ecase exprs
             , analyze                     || final free var analysis for STG (normalization may have created new thunks)
             , reifyDefAbs                 || hide abstype implementations
             , reifyExports                || process export libParts and create export nameMap

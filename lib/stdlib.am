@@ -397,6 +397,7 @@ showoct n = showintBase 8  "0"  n
 showbin n = showintBase 2  "0b" n
 
 intval :: string -> int
+intval []         = 0
 intval ('-' : xs) = - intval xs
 intval xs
     = go 0 xs
@@ -430,13 +431,26 @@ showchar :: showI char
 showchar c = "'" ++ showCharUnquoted c ++ "'"
 
 || convert a character to a string without any quotes, used by showchar and showstring
-showCharUnquoted, showCharEscaped :: char -> string
+showCharUnquoted :: char -> string
 showCharUnquoted c
-    = '\\' : showCharEscaped c, if c <. ' ' \/ c ==. '\\' \/ c ==. '\"' \/ c ==. '\''
+    = '\\' : showCharEscaped c, if c <. ' '
     = '\\' : showint (code c),  if c >. '~'
-    = [c],                      otherwise
+    = checkSpecial c,           otherwise
+      where
+       checkSpecial '\\' = "\\"
+       checkSpecial '\"' = "\""
+       checkSpecial '\'' = "\'"
+       checkSpecial c    = [c]
 
-showCharEscaped c
+       showCharEscaped c
+           = go "\n\t\r\a\b\f\v" "ntrabfv"
+             where
+               go (e : es) (r : rs)
+                   = [r],      if c ==. e
+                   = go es rs, otherwise
+
+               go _ _ = showint $ code c
+{|
     = "n",            if c ==. '\n'     || ordered by most to least frequent to minimize testing
     = "t",            if c ==. '\t'
     = "r",            if c ==. '\r'
@@ -448,6 +462,7 @@ showCharEscaped c
     = "f",            if c ==. '\f'
     = "v",            if c ==. '\v'
     = showint (code c), otherwise
+|}
 
 || define some comparison operators for char
 (C# a#) ==. (C# b#) = case a# $cmp# b# of 0# -> True;  _ -> False

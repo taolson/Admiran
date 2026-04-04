@@ -325,12 +325,12 @@ p_lambdaExpr
                 dm = DefMult Mfun [d]                   || insert the defn into a DefMult so that the desugaring pass will desugar complex pats
 
 || parse a conditional expression for the given expr
-p_cond :: expr -> parser cond
-p_cond e
-    = p_comma >> (p_if <|> p_ow <|> p_expected "a conditional expression")
-      where
-        p_if = p_ident "if"        >> (($Cif e) <$> p_expr)
-        p_ow = p_ident "otherwise" >> p_pure (Cdefault e)
+p_condIf, p_condOtherwise, p_cond :: expr -> parser cond
+p_condIf e = p_ident "if" >> (($Cif e) <$> p_expr)
+
+p_condOtherwise e = p_ident "otherwise" >> p_pure (Cdefault e)
+
+p_cond e = p_comma >> (p_condIf e <|> p_condOtherwise e <|> p_expected "a conditional expression")
 
 || parse conditional expressions for the given expr
 p_conds :: parser token -> expr -> parser expr

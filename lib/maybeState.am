@@ -8,7 +8,9 @@
 %export + mst_runState mst_evalState mst_execState
 
 %import <maybe>
+%import <lens>
 %import <state>                 mst_runState/st_runState mst_evalState/st_evalState mst_execState/st_execState
+
 
 maybeState * ** == state * (maybe **)
 
@@ -33,6 +35,16 @@ mst_maybe m = st_pure m
 
 mst_lift :: state * ** -> maybeState * **
 mst_lift m = mb_pure $st_fmap m
+
+|| lift lens operations into state
+mst_view :: lens * ** -> maybeState * **
+mst_view lns = view lns $mst_fmap mst_get
+
+mst_over :: lens * ** -> (** -> **) -> maybeState * ()
+mst_over lns f = mst_modify (over lns f)
+
+mst_set :: lens * ** -> ** -> maybeState * ()
+mst_set lns x = mst_modify (set lns x)
 
 
 || monad interface

@@ -492,14 +492,17 @@ desugarLit k e st
 || make a common definition for a literal expression
 mkLit :: string -> (expr, name) -> defn
 mkLit mn (l, v)
-    = DefPat (Pvar v) (Eap ctor l') an
+    = DefPat (Pvar v) l' an
       where
-        an             = locAnno $ initLocation mn
-        (ctor, l')     = go l
-        go (Eint n)    = (stdIntCtor, EprimInt n)
-        go (Echar c)   = (stdCharCtor, EprimChar c)
-        go (Estring s) = (stdReadByteStream, EprimString s)
-        go _           = error "mkLit: non literal pattern"
+        an         = locAnno $ initLocation mn
+        (ctor, ml) = go l
+        l'         = fromMaybef ctor (Eap ctor) ml
+
+        go (Eint n)     = (stdIntCtor, Just $ EprimInt n)
+        go (Echar c)    = (stdCharCtor, Just $ EprimChar c)
+        go (Estring []) = (builtinNil, Nothing)
+        go (Estring s)  = (stdReadByteStream, Just $ EprimString s)
+        go _            = unreachable
 
 
 || desugar the complex patterns, list comprehensions, and conditionals in a module to simpler AST forms,

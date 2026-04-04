@@ -67,4 +67,4 @@ main = io_mapM_ print [("plain", id), ("encoded", caesar), ("cracked", uncaesar 
        where
          s = "Admiran is a lazy functional language"
 
-         print (lbl, f) = putStrLn $ padl 10 (lbl ++ ":") ++ f s
+         print (lbl, f) = putStrLn $ padR 10 (lbl ++ ":") ++ f s

@@ -74,7 +74,7 @@ tokenizePos il ic cs
     = tokenizePos                     il1 1   cs1, if c ==. '\n'
     = tokenizePos                     il  ict cs1, if c ==. '\t'
     = tokenizeComment                 il  ic2 cs2, if c ==. '|' & ~null cs1 & c1 ==. '|'
-    = tokenizeBlock tokenizePos       il  ic2 cs2, if c ==. '{' & ~null cs1 & c1 ==. '|' 
+    = tokenizeBlock tokenizePos       il  ic2 cs2, if c ==. '{' & ~null cs1 & c1 ==. '|'
     = tokenizeIdent                   il  ic  cs,  if letter c \/ c ==. '_'
     = tokenizeInfixIdent              il  ic1 cs1, if c ==. '$' & ~null cs1 & letter c1
     = tokenizeInfixSymbol             il  ic  cs,  if isSymbol c
