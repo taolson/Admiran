@@ -5,7 +5,6 @@
 
 %import <base>
 %import <bitSet>
-%import <bag>
 %import <either>
 %import <map>
 %import <set>
@@ -129,12 +128,6 @@ serialSet ss = serialList ss . s_toList
 
 deserialSet :: ordI * -> deserializer * -> deserializer (s_set *)
 deserialSet cmp ds = deserialList ds >>= (st_pure . s_fromList cmp)
-
-serialBag :: serializer * -> serializer (b_bag *)
-serialBag ss = serialList (serialTup2 ss serialPosInt) . b_toList
-
-deserialBag :: ordI * -> deserializer * -> deserializer (b_bag *)
-deserialBag cmp ds = deserialList (deserialTup2 ds deserialPosInt) >>= (st_pure . b_fromCountList cmp)
 
 serialEither :: serializer * -> serializer ** -> serializer (either * **)
 serialEither sl sr (Left x)  = serialCtor 0 . sl x

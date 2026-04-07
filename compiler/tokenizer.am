@@ -60,7 +60,7 @@ showtoken (Terror s)     = "ERROR " ++ s
 tokloc == (token, int, int)                   || token, line#, col#
 
 tokenize :: string -> [tokloc]
-tokenize = tokenizePos 1 1
+tokenize s = tokenizePos 1 1 s
 
 tokError :: string -> int -> int -> [tokloc]
 tokError err il ic = [(Terror err, il, ic), (Tend, il, ic)]

@@ -167,7 +167,7 @@ modImports
         overf fn (Module fs bs exs ins defs pats specs env) = Module fs bs exs (fn ins) defs pats specs env
 
 modImportFiles :: module -> [fileSpec]
-modImportFiles = map (view libEnvFile) . view modImports
+modImportFiles m = map (view libEnvFile) . view modImports $ m
 
 modDefns :: lens module defnMap
 modDefns
@@ -453,7 +453,7 @@ lookupArity genv n
 
 || create an anno for top-level defns from genv
 genvAnno :: globalEnv -> anno
-genvAnno = locAnno . initLocation . view modName . view genvMod
+genvAnno genv = locAnno . initLocation . view modName . view genvMod $ genv
 
 
 || nameMap operations
