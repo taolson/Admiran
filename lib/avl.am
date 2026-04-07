@@ -30,23 +30,20 @@ delta (AVLNode _ l r _) = height l - height r
 
 rotL :: avlTree * -> avlTree *
 rotL (AVLNode v l (AVLNode vr lr rr hr) h)
-    = case a_balance $ AVLNode v l lr h of
-        lr' -> a_balance $ AVLNode vr lr' rr hr
+    = case a_balance $ AVLNode v l lr h of lr' -> a_balance $ AVLNode vr lr' rr hr
 
 rotL n = n
 
 rotR :: avlTree * -> avlTree *
 rotR (AVLNode v (AVLNode vl ll rl hl) r h)
-    = case a_balance $ AVLNode v rl r h of
-        rl' -> a_balance $ AVLNode vl ll rl' hl
+    = case a_balance $ AVLNode v rl r h of rl' -> a_balance $ AVLNode vl ll rl' hl
 
 rotR n = n
 
 a_moveR :: avlTree * -> avlTree * -> avlTree *
 a_moveR (AVLLeaf)         rn = rn
 a_moveR (AVLNode v l r h) rn
-    = case a_moveR r rn of
-        r' -> a_balance $ AVLNode v l r' h
+    = case a_moveR r rn of r' -> a_balance $ AVLNode v l r' h
 
 a_balance :: avlTree * -> avlTree *
 a_balance AVLLeaf = AVLLeaf

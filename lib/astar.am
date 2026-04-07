@@ -107,8 +107,7 @@ solve rs ms
                 ms' = set ms_os os' ms
 
         expand ms n
-            = case xf (n, view ms_xs ms) of
-                (adj, xs') -> addMoves rs (set ms_xs xs' ms) n adj
+            = case xf (n, view ms_xs ms) of (adj, xs') -> addMoves rs (set ms_xs xs' ms) n adj
 
 aStarSolve :: ordI * -> * -> (* -> bool) -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> ([*], **)
 aStarSolve cmp start gf xf xs cf ef

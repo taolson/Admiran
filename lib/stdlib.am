@@ -75,14 +75,14 @@ getTag c = case c of _ -> case getTag# c of t -> I# t
 || don't need the whole closure value, just the tag part
 cmpTags :: * -> * -> ordering
 cmpTags c1 c2
-    = case c1 of
-        _ -> case getTag# c1 of
-                 t1 -> case c2 of
-                         _ -> case getTag# c2 of
-                                  t2 -> case t1 $cmp# t2 of
-                                          0# -> EQ
-                                          1# -> LT
-                                          2# -> GT
+    = case c1 of          _ ->
+      case getTag# c1 of t1 ->
+      case c2 of          _ ->
+      case getTag# c2 of t2 ->
+      case t1 $cmp# t2 of
+        0# -> EQ
+        1# -> LT
+        2# -> GT
 
 || ord instance for word#
 cmpword# :: ordI word#
@@ -170,10 +170,10 @@ trace s e = case unsafeWriteStdErr (s ++ "\n") of _ -> e
 || readByteStream# returns (-1)# at end of stream
 readByteStream :: word# -> string
 readByteStream s#
-    = case readByteStream# s# of
-        c# -> case c# $cmp# 0# of
-                1# -> []        || less than 0, end of stream
-                _  -> C# c# : readByteStream s#
+    = case readByteStream# s# of c# ->
+      case c# $cmp# 0# of
+        1# -> []        || less than 0, end of stream
+        _  -> C# c# : readByteStream s#
 
 || strict write of a string to a byteStream, returning any unwritten portion of the string if the byteStream becomes full
 writeByteStream :: word# -> string -> string

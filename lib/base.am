@@ -242,7 +242,7 @@ elemIndex p
     = enumerate .> find (snd .> p) .> mb_fmap fst
 
 enumerate :: [*] -> [(int, *)]
-enumerate = zip2 [0 ..]
+enumerate xs = zip2 [0 ..] xs
 
 isPrefixOf, isInfixOf :: ordI * -> [*] -> [*] -> bool
 isPrefixOf cmp p
@@ -448,8 +448,8 @@ viewL (x : xs) = Just (x, xs)
 
 || safe examination of the right end of a list (init, last)
 viewR :: [*] -> maybe ([*], *)
-viewR
-    = foldr go Nothing
+viewR xs
+    = foldr go Nothing xs
       where
         go x Nothing         = Just ([], x)
         go x (Just (xs, x')) = Just (x : xs, x')
@@ -520,10 +520,10 @@ chunk n xs
     = error ("chunk: bad chunk size: " ++ showint n), if n < 1
     = go xs,                                          otherwise
       where
-        go xs = case splitAt n xs of
-                  (ys, zs) -> case zs of
-                                [] -> [ys]
-                                _  -> ys : go zs
+        go xs = case splitAt n xs of (ys, zs) ->
+                case zs of
+                  [] -> [ys]
+                  _  -> ys : go zs
 
 || remove duplicate elements from a list
 nub :: ordI * -> [*] -> [*]

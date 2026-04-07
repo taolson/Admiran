@@ -29,11 +29,11 @@ m_insert cmp k v
       where
         go AVLLeaf = m_singleton k v
         go (AVLNode p l r h)
-            = case fst p of
-                k' -> case cmp k k' of
-                        EQ -> case v of v' -> AVLNode (k, v') l r h       || strict value
-                        LT -> case go l of l' -> a_balance $ AVLNode p l' r h
-                        GT -> case go r of r' -> a_balance $ AVLNode p l r' h
+            = case fst p of k' ->
+              case cmp k k' of
+                EQ -> case v of v' -> AVLNode (k, v') l r h       || strict value
+                LT -> case go l of l' -> a_balance $ AVLNode p l' r h
+                GT -> case go r of r' -> a_balance $ AVLNode p l r' h
 
 || combination of insertWith / adjust / delete, depending upon result of f:
 || f Nothing  = Nothing -> no modification (i.e. delete absent key)
@@ -46,16 +46,16 @@ m_alter cmp f k
       where
         go AVLLeaf = m_singleton k <$>? f Nothing
         go (AVLNode p l r h)
-            = case p of
-                (k', v') -> case cmp k k' of
-                              EQ -> case f (Just v') of
-                                      Nothing -> Just $ a_moveR l r     || delete the node
-                                      Just v  -> Just $ AVLNode (k, v) l r h
-                              LT -> insL <$>? go l
-                              GT -> insR <$>? go r
-                            where
-                              insL l' = a_balance $ AVLNode p l' r h
-                              insR r' = a_balance $ AVLNode p l r' h
+            = case p of (k', v') ->
+                  case cmp k k' of
+                    EQ -> case f (Just v') of
+                            Nothing -> Just $ a_moveR l r     || delete the node
+                            Just v  -> Just $ AVLNode (k, v) l r h
+                    LT -> insL <$>? go l
+                    GT -> insR <$>? go r
+              where
+                insL l' = a_balance $ AVLNode p l' r h
+                insR r' = a_balance $ AVLNode p l r' h
 
 || insert v if k not found in the map, otherwise insert the result of applying
 || f to the existing value and v
@@ -110,9 +110,9 @@ m_keys (AVLNode (k, v) l r h)
 m_keysSet :: m_map * ** -> avlTree *
 m_keysSet AVLLeaf = AVLLeaf
 m_keysSet (AVLNode (k, v) l r h)
-    = case m_keysSet l of
-        ls -> case m_keysSet r of
-                rs -> AVLNode k ls rs h
+    = case m_keysSet l of ls ->
+      case m_keysSet r of rs ->
+      AVLNode k ls rs h
 
 m_union :: ordI * -> m_map * ** -> m_map * ** -> m_map * **
 m_union cmp m1 m2
@@ -137,7 +137,8 @@ m_mapAccumL f s
         go (AVLNode (k, v) l r h)
              = case go l   of (s1, l') ->
                case f s1 v of (s2, v') ->
-               case go r   of (s3, r') -> (s3, AVLNode (k, v') l' r' h)
+               case go r   of (s3, r') ->
+               (s3, AVLNode (k, v') l' r' h)
 
 || functor interface
 || note: lazy operation here, because some computations

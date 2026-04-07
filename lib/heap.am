@@ -79,10 +79,10 @@ viewMin cmp (t : ts)
       where
         go t1 [] = (t1, [])
         go t1 (t2 : ts)
-            = case go t2 ts of
-                (mt, ts') -> case cmp (root t1) (root mt) of
-                               GT -> (mt, t1 : ts')
-                               _  -> (t1, t2 : ts)
+            = case go t2 ts of (mt, ts') ->
+              case cmp (root t1) (root mt) of
+                GT -> (mt, t1 : ts')
+                _  -> (t1, t2 : ts)
 
 splitForest :: int -> hforest * -> hforest * -> hforest * -> (hforest *, hforest *, hforest *)
 splitForest 0 xs ys ts = (xs, ys, ts)
@@ -157,10 +157,10 @@ h_viewMin cmp (Heap s (HTnode r x ts))
         Just r  -> case go r of (x', ts') -> Just (x, Heap (s - 1) (HTnode 0 x' ts'))
       where
         go (HTnode r x ts, ts')
-            = case splitForest r [] [] ts of
-                (xs, ys, zs) -> case skewMeld cmp (skewMeld cmp ys ts') zs of
-                                  ts2 -> case foldr (skewInsert cmp) ts2 xs of
-                                           ts3 -> (x, ts3)
+            = case splitForest r [] [] ts of (xs, ys, zs)       ->
+              case skewMeld cmp (skewMeld cmp ys ts') zs of ts2 ->
+              case foldr (skewInsert cmp) ts2 xs of ts3         ->
+              (x, ts3)
 
 h_fromList :: ordI * -> [*] -> heap *
 h_fromList cmp = foldr (h_insert cmp) h_empty
