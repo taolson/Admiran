@@ -203,7 +203,7 @@ definitions for the corresponding operators, and is replicated here:
 | $    |  0   | Right   | application                             |
 | $!   |      |         | strict application                      |
 | \|>  |  1   | Left    | reverse application                     |
-| !\|> |      |         | strict reverse application              |
+| !>   |      |         | strict reverse application              |
 | <\|> |      |         | alternative                             |
 | >>=  |      |         | generic monad bind                      |
 | >>   |      |         | generic monad right                     |
