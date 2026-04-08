@@ -1,25 +1,30 @@
---- AoC performance regressions ---
+--- memostring, memopair not memoizing in memoTrie ---
+some simple tests of memoization on strings or pairs of ints show that the memoization isn't
+happening -- need to track down root cause.  Doesn't appear to be due to recent noUpdate optimization
+in stg, as commenting that out still is failing.
 
-Advent 2024 day06 found a case where the inliner inlined an Evar that was supposedly a singleCpx, but turned out to be
-used as an argument to a function call that was in a recursive function, resulting in a big performance regression
-compared to not allowing complex Evars to be inlined:
+*** The problem isn't in the memoTrie code; it happens when code that uses MemoTrie creates a thunk from memo
+and that thunk is used multiple times in other code, and is inlined.  The problem is in inlining (Ecall (Evar n) args),
+where n is a DefPat that returns a function, rather than a function, and there is no check for Umany.  However, if we
+try to qualify that with not inlining DefPats that are Umany, then code size and runtime blows up on a lot of tests.
+Need to find a way to allow most of those cases to be inlined without causing memoization problems.
 
-=== 06 ===                          === 06 ===
-part 1: 4883                        part 1: 4883
-part 2: 1655                        part 2: 1655
+*** looking at a simple test case, where we create a memoized function "foo", then use it to map over a list, we expect the
+single memoized function to be used over and over, but instead we:
+    1) inline "map foo" to \xs -> go ... go (x : xs) = foo x, so foo is now used in a loop
+    2) inline "foo" to memopair ..., so a new foo function is created each time
 
-real    0m0.842s                    real    0m2.702s
-user    0m0.802s                    user    0m2.632s
-sys     0m0.030s                    sys     0m0.042s
+--- Default of Umany in inline:wrapInLet causes a few performance regressions ---
+2015
+   16          0.005          0.007  (+40.1%) -- inlining on day16.day16 was dropped
+   18          2.549          4.403  (+72.7%) -- inlining on getLight was dropped due to maxComplexity (Umany as default for WrapInLet)
+2017
+   15          5.969          7.511  (+25.8%) -- inlining on day15.day15 was dropped
+2024
+    6          0.465          0.628  (+35.1%) -- ""
 
-    jm      = makeJumpMap path
-    part2   = count (makesLoop gi jm) upos' |> showint
-
-We want to test that we aren't migrating the expr into an Elet {rec}?
-
-Much worse performance bug in advent 2019 day16 (phase2); with aggressive inlining takes > 20 min; conservative is 21 seconds
-
-Problem is that if we compile the compiler with aggressive inlining, it is much smaller than if we use conservative inlining.
+Currently Umany is used, as it is the safe default, but we could pass the defn's anAffine bitSet into createBinding and
+wrapInLet, and if the var's corresponding usedAffine bit is set, we can set initial use to Uone instead of Umany.
 
 
 --- Need to look at RetArg implementation and how word# values should be returned from functions ---
@@ -117,30 +122,6 @@ steps:
      key.
 
 
---- Strictness / Escape analysis for thunks ---
-Extraneous updates for thunks that don't require one cause a lot of memory pressure in iterative loops, since the
-update isn't performed until the entire loop is finished.  Need to perform a strictness / escape analysis on thunks
-to mark them as NoUpdate if they aren't shared and don't escape the loop.
-
-Demand analysis to determine if "single-use" thunks are demanded fails when the single use
-is to pass the thunk to a recursive function, e.g.:
-
-|| arg x is demanded, since it is passed as an argument to "go", where it
-|| is in the demand set
-foo x
-    = go 0 x
-      where
-        || both args n and m are demanded, because they are tested for equality in the condition
-        go n m = n, if n == m
-               = go (n + 1) m, otherwise
-
-|| thunk n here is "single-use" to foo, and is in the demandSet for foo
-bar = foo n where n = sum [1 .. 1_000]
-
-instead, the demand set for a function's args should qualify that it is both demanded and
-single-use inside the function, where single-use can't be to a recursive function?
-
-
 --- add command-line options for both compiler and runtime ---
 first, change config.m to export a Config data type, with lenses for the individual fields
 then add config to globalEnv, with a lens
@@ -192,11 +173,11 @@ A rewrite of codegen to use the rws monad could add the label generation state, 
 
 
 --- GC roots ---
-Currently we are tracing all of Args, Regs, and Env as roots, even though only some of them are actually live.  This could be
-a problem, because if some are stale and point to a stale heap location that has been overwritten, we could get a bogus heap
-tag and panic.  To fix this, either the current (statically-known) live ranges of Args/Heaps/Env should be transmitted to the
-GC in an info word, or, perhaps the live values should be pushed onto the stack and the gc only traces from the stack (then
-those values must be popped from the stack after GC, to propagate any changes to them back to the args/regs/env)
+Currently we are tracing all of Args, Regs, and Env as roots, even though only some of them are actually live. Tracing through
+dead root references will cause the values they point to to remain in the heap, causing a space leak. To fix this, either the
+current (statically-known) live ranges of Args/Heaps/Env should be transmitted to the GC in an info word, or, perhaps the live
+values should be pushed onto the stack and the gc only traces from the stack (thenthose values must be popped from the stack
+after GC, to propagate any changes to them back to the args/regs/env).
 
 
 --- unify lexical environment implementations? ---
@@ -533,7 +514,29 @@ add desugaring of explicit case expressions to use the match pattern compiler:
 
         -> match [expr] [equations]
 
-If not, need to add restrictions to admiranParser to prevent general patterns from being used in case expressions.
+This can be done fairly easily modifying desugar and rewrite:
+
+|| need to specially handle alts that are (Plit (EprimInt x))
+desugarAst k (Ecase Cnone e alts) st
+    = k (builtinFatbar (Ecase Csingle e [CaseAlt (Pvar varName) caseTree]) (Eap stdCaseFail (genLoc loc))) st2
+      where
+        loc  = fromJust . snd . view dsLoc $ st
+        pats = map caseAltPats alts
+        rhss = map caseAltExpr alts
+        gen  = view dsGen st
+        (gen', varName) = genName "var" gen
+        st1 = set dsGen gen' st
+        (caseTree, st2) = match [varName] (zip3 pats rhss (repeat m_empty)) st1
+
+rewriteAst k (Efatbar p e1 e2) st
+    = (e1', st1w),               if fc1 == 0 & normE2           || replace with e1' and mark e2' as unreachable
+    = (optim e1', st1'),               if fc1 == 0                    || replace with e1' and ignore e2'
+      ...
+      where
+        optim (Ecase _ e [CaseAlt (Pvar v1) (Ecase sel (Evar v2) alts)]) = Ecase sel e alts
+        optim _ = e1'
+
+also remove test for simpleExpr in admiranParser
 
 
 --- Using more Applicative style in desugar, rewrite, module ---
