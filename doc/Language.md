@@ -200,65 +200,79 @@ definitions for the corresponding operators, and is replicated here:
 
 | op   | prec | assoc   | operation meaning
 | -----|------|---------|-----------------------------------------|
-| $    |  0   | Right   | function application                    |
-| $!   |  0   | Right   | strict function application             |
-| \|>  |  1   | Left    | reverse function application / chaining |
-| >>=  |  1   | Left    | generic monad bind                      |
-| >=>  |  1   | Right   | generic monad Kleisli composition arrow |
-| >>   |  1   | Left    | generic monad right                     |
-| <<   |  1   | Left    | generic monad left                      |
-| :    |  1   | Right   | list constructor                        |
-| ++   |  1   | Right   | list append                             |
-| --   |  1   | Right   | list difference                         |
+|                       | function application and monadic ops    |
+| $    |  0   | Right   | application                             |
+| $!   |      |         | strict application                      |
+| \|>  |  1   | Left    | reverse application                     |
+| !\|> |      |         | strict reverse application              |
+| <\|> |      |         | alternative                             |
+| >>=  |      |         | generic monad bind                      |
+| >>   |      |         | generic monad right                     |
+| <<   |      |         | generic monad left                      |
+| <$>  |      |         | generic functor fmap                    |
+| <*>  |      |         | generic applicative apply               |
+|                       | boolean ops                             |
 | \/   |  2   | Right   | boolean OR                              |
 | &    |  3   | Right   | boolean AND                             |
 | ~    |  4   | Prefix  | boolean NOT                             |
-| <$>  |  4   | Left    | generic functor fmap                    |
-| <*>  |  4   | Left    | generic applicative apply               |
-| <*   |  4   | Left    | generic applicative left                |
-| *>   |  4   | Left    | generic applicative right               |
-|      |      |         |                                         |
+| -----|------|---------|-----------------------------------------|
+|                       | comparison ops                          |
+| -----|------|---------|-----------------------------------------|
 | >    |  5   | Compare | comparisons for int type                |
-| >=   |  5   | Compare |                                         |
-| ==   |  5   | Compare |                                         |
-| ~=   |  5   | Compare |                                         |
-| <=   |  5   | Compare |                                         |
-| <    |  5   | Compare |                                         |
-|      |      |         |                                         |
-| >.   |  5   | Compare | comparisons for char type               |
-| >=.  |  5   | Compare |                                         |
-| ==.  |  5   | Compare |                                         |
-| ~=.  |  5   | Compare |                                         |
-| <=.  |  5   | Compare |                                         |
-| <.   |  5   | Compare |                                         |
-|      |      |         |                                         |
-| >$   |  5   | Compare | comparisons for string type             |
-| >=$  |  5   | Compare |                                         |
-| ==$  |  5   | Compare |                                         |
-| ~=$  |  5   | Compare |                                         |
-| <=$  |  5   | Compare |                                         |
-| <$   |  5   | Compare |                                         |
-|      |      |         |                                         |
-| .&.  |  5   | Left    | bitwise boolean AND                     |
-| .\|. |  5   | Left    | bitwise boolean OR                      |
-| .^.  |  5   | Left    | bitwise boolean XOR                     |
-| .<<. |  6   | Left    | bit shift left                          |
-| .>>. |  6   | Left    | arithmetic bit shift right              |
-|      |      |         |                                         |
-| +    |  6   | Left    | arithmetic on int type                  |
-| -    |  6   | Left    |                                         |
-| neg  |  7   | Prefix  |                                         |
-| *    |  8   | Left    |                                         |
-| div  |  8   | Left    |                                         |
-| mod  |  8   | Left    |                                         |
-| /    |  8   | Left    |                                         |
-| ^    |  9   | Right   |                                         |
-|      |      |         |                                         |
-| .    | 10   | Right   | function composition                    |
-| .>   | 10   | Left    | reverse function composition            |
-| #    | 11   | Prefix  | list length                             |
-| !    | 12   | Left    | list indexing                           |
-| !!   | 12   | Left    | vector indexing                         |
+| >=   |      |         |                                         |
+| ==   |      |         |                                         |
+| ~=   |      |         |                                         |
+| <=   |      |         |                                         |
+| <    |      |         |                                         |
+| >.   |      |         | comparisons for char type               |
+| >=.  |      |         |                                         |
+| ==.  |      |         |                                         |
+| ~=.  |      |         |                                         |
+| <=.  |      |         |                                         |
+| <.   |      |         |                                         |
+| >$   |      |         | comparisons for string type             |
+| >=$  |      |         |                                         |
+| ==$  |      |         |                                         |
+| ~=$  |      |         |                                         |
+| <=$  |      |         |                                         |
+| <$   |      |         |                                         |
+| -----|------|---------|-----------------------------------------|
+|                       | list ops                                |
+| -----|------|---------|-----------------------------------------|
+| :    |  6   | Right   | list constructor                        |
+| ++   |      |         | list append                             |
+| -----|------|---------|-----------------------------------------|
+|                       | bitwise ops                             |
+| -----|------|---------|-----------------------------------------|
+| .\|. |  7   | Left    | bitwise boolean OR                      |
+| .^.  |  8   | Left    | bitwise boolean XOR                     |
+| .&.  |  9   | Left    | bitwise boolean AND                     |
+| .<<. | 10   | Left    | bit shift left                          |
+| .>>. |      |         | arithmetic bit shift right              |
+| -----|------|---------|-----------------------------------------|
+|                       | integer arithmetic ops                  |
+| -----|------|---------|-----------------------------------------|
+| +    | 11   | Left    |                                         |
+| -    |      |         |                                         |
+| neg  | 12   | Prefix  |                                         |
+| *    | 13   | Left    |                                         |
+| quot |      |         | also quotrem, which returns a tuple     |
+| rem  |      |         |                                         |
+| div  |      |         | also divmod, which returns a tuple      |
+| mod  |      |         |                                         |
+| /    |      |         |                                         |
+| ^    | 14   | Right   |                                         |
+| -----|------|---------|-----------------------------------------|
+|                       | function composition ops                |
+| -----|------|---------|-----------------------------------------|
+| .    | 15   | Right   | function composition                    |
+| .>   | 16   | Left    | reverse function composition            |
+| -----|------|---------|-----------------------------------------|
+|                       | list length, list & vector indexing     |
+| -----|------|---------|-----------------------------------------|
+| #    | 17   | Prefix  | list length                             |
+| !    | 18   | Left    | list indexing                           |
+| !!   |      |         | vector indexing                         |
 
 Comparison operators (shown with `Compare` associativity) allow chaining:
 `0 <= n < 10` is equivalent to `0 <= n & n < 10`
