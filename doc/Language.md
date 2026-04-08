@@ -200,8 +200,6 @@ definitions for the corresponding operators, and is replicated here:
 
 | op   | prec | assoc   | operation meaning
 | -----|------|---------|-----------------------------------------|
-|      |      |         | function application and monadic ops    |
-| -----|------|---------|-----------------------------------------|
 | $    |  0   | Right   | application                             |
 | $!   |      |         | strict application                      |
 | \|>  |  1   | Left    | reverse application                     |
@@ -212,15 +210,11 @@ definitions for the corresponding operators, and is replicated here:
 | <<   |      |         | generic monad left                      |
 | <$>  |      |         | generic functor fmap                    |
 | <*>  |      |         | generic applicative apply               |
-| -----|------|---------|-----------------------------------------|
 |      |      |         | boolean ops                             |
-| -----|------|---------|-----------------------------------------|
 | \/   |  2   | Right   | boolean OR                              |
 | &    |  3   | Right   | boolean AND                             |
 | ~    |  4   | Prefix  | boolean NOT                             |
-| -----|------|---------|-----------------------------------------|
 |      |      |         | comparison ops                          |
-| -----|------|---------|-----------------------------------------|
 | >    |  5   | Compare | comparisons for int type                |
 | >=   |      |         |                                         |
 | ==   |      |         |                                         |
@@ -239,22 +233,14 @@ definitions for the corresponding operators, and is replicated here:
 | ~=$  |      |         |                                         |
 | <=$  |      |         |                                         |
 | <$   |      |         |                                         |
-| -----|------|---------|-----------------------------------------|
-|      |      |         | list ops                                |
-| -----|------|---------|-----------------------------------------|
 | :    |  6   | Right   | list constructor                        |
 | ++   |      |         | list append                             |
-| -----|------|---------|-----------------------------------------|
-|      |      |         | bitwise ops                             |
-| -----|------|---------|-----------------------------------------|
 | .\|. |  7   | Left    | bitwise boolean OR                      |
 | .^.  |  8   | Left    | bitwise boolean XOR                     |
 | .&.  |  9   | Left    | bitwise boolean AND                     |
 | .<<. | 10   | Left    | bit shift left                          |
 | .>>. |      |         | arithmetic bit shift right              |
-| -----|------|---------|-----------------------------------------|
 |      |      |         | integer arithmetic ops                  |
-| -----|------|---------|-----------------------------------------|
 | +    | 11   | Left    |                                         |
 | -    |      |         |                                         |
 | neg  | 12   | Prefix  |                                         |
@@ -265,14 +251,9 @@ definitions for the corresponding operators, and is replicated here:
 | mod  |      |         |                                         |
 | /    |      |         |                                         |
 | ^    | 14   | Right   |                                         |
-| -----|------|---------|-----------------------------------------|
-|      |      |         | function composition ops                |
-| -----|------|---------|-----------------------------------------|
 | .    | 15   | Right   | function composition                    |
 | .>   | 16   | Left    | reverse function composition            |
-| -----|------|---------|-----------------------------------------|
 |      |      |         | list length, list & vector indexing     |
-| -----|------|---------|-----------------------------------------|
 | #    | 17   | Prefix  | list length                             |
 | !    | 18   | Left    | list indexing                           |
 | !!   |      |         | vector indexing                         |
