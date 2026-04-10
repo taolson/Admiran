@@ -83,7 +83,7 @@ bs_toList s
     = go 0 s
       where
         go i 0 = []
-        go i n
+        go i s
             = case i + 1 of    i' ->
               case s .>>. 1 of s' ->
               case s .&. 1 == 0 of
