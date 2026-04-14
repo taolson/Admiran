@@ -129,7 +129,7 @@ tlS (Stream next s)
       where
         next' (False, s)
             = case next s of
-                Done       -> error "tlS of empty stream"
+                Done       -> error "tlS: empty stream"
                 Skip s'    -> Skip (False, s')
                 Yield _ s' -> Skip (True, s')
         next' (True, s)
@@ -145,7 +145,7 @@ lastS (Stream next s)
         go mx s
             = case next s of
                 Done       -> case mx of
-                                 Snothing -> error "lastS of empty stream"
+                                 Snothing -> error "lastS: empty stream"
                                  Sjust x  -> x
                 Skip s'    -> go mx s'
                 Yield x s' -> go (Sjust x) s'
@@ -179,6 +179,20 @@ foldrS f z (Stream next s)
                  Skip s'    -> go s'
                  Yield x s' -> f x (go s')
 
+foldr1S :: (* -> * -> *) -> stream * ** -> *
+foldr1S f (Stream next s)
+    = go Snothing s
+      where
+        go mx s
+            = case next s of
+                Done       -> case mx of
+                                Snothing -> error "foldr1S: empty stream"
+                                Sjust x  -> x
+                Skip s'    -> go mx s'
+                Yield x s' -> case mx of
+                                Snothing -> go (Sjust x) s'
+                                Sjust x0 -> f x0 (go (Sjust x) s')
+
 foldlS :: (* -> *** -> *) -> * -> stream *** ** -> *
 foldlS f z (Stream next s)
     = go z s
@@ -187,6 +201,15 @@ foldlS f z (Stream next s)
                    Done       -> z
                    Skip s'    -> go z s'
                    Yield x s' -> case f z x of z' -> (go z' s')
+
+foldl1S :: (* -> * -> *) -> stream * ** -> *
+foldl1S f (Stream next s)
+    = go s
+      where
+        go s = case next s of
+                 Done       -> error "foldl1S: empty stream"
+                 Skip s'    -> go s'
+                 Yield x s' -> foldlS f x (Stream next s')
 
 lengthS :: stream * ** -> int
 lengthS s = foldlS inc 0 s where inc n _ = n + 1
@@ -355,6 +378,15 @@ wordsS (Stream next s)
 anyS, allS :: (* -> bool) -> stream * ** -> bool
 anyS p = foldrS (p .> (\/)) False
 allS p = foldrS (p .> (&)) True
+
+
+sumS, productS :: stream int * -> int
+sumS s     = foldlS (+) 0 s
+productS s = foldlS (*) 1 s
+
+maxS, minS :: ordI * -> stream * ** -> *
+maxS cmp s = foldl1S (max2 cmp) s
+minS cmp s = foldl1S (min2 cmp) s
 
 
 || backwards-compatible re-implementations of <stdlib> and <base> list functions,
