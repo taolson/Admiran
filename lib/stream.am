@@ -187,7 +187,7 @@ foldr1S f (Stream next s)
             = case next s of
                 Done       -> case mx of
                                 Snothing -> error "foldr1S: empty stream"
-                                Sjust x  -> x
+                                Sjust z  -> z
                 Skip s'    -> go mx s'
                 Yield x s' -> case mx of
                                 Snothing -> go (Sjust x) s'
@@ -204,12 +204,18 @@ foldlS f z (Stream next s)
 
 foldl1S :: (* -> * -> *) -> stream * ** -> *
 foldl1S f (Stream next s)
-    = go s
+    = go Snothing s
       where
-        go s = case next s of
-                 Done       -> error "foldl1S: empty stream"
-                 Skip s'    -> go s'
-                 Yield x s' -> foldlS f x (Stream next s')
+        go mx s
+            = case next s of
+                Done       -> case mx of
+                                Snothing -> error "foldr1S: empty stream"
+                                Sjust x  -> x
+                Skip s'    -> go mx s'
+                Yield x s' -> case mx of
+                                Snothing -> go (Sjust x) s'
+                                Sjust z  -> go (Sjust (f z x)) s'
+                
 
 lengthS :: stream * ** -> int
 lengthS s = foldlS inc 0 s where inc n _ = n + 1
