@@ -73,7 +73,7 @@ libEnvAlias = lensTup6_5
 
 || build status, used to differentiate modules that have only been parsed
 || with ones that are fully built (e.g. read in from a serialized version)
-buildStatus ::= Unbuilt | Built | Serialized
+buildStatus ::= Unbuilt | Built | Rebuild
 
 || Admiran top-level Library (Module) definition
 module ::=

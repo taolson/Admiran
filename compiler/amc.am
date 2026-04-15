@@ -37,46 +37,48 @@ io_excpt (Left errs)        = io_mapM_ (errStrLn . showexception) errs  >> exit 
 io_excpt (Right (r, warns)) = io_mapM_ (errStrLn . showexception) warns >> io_pure r    || print the warnings and continue with the result
 
 || serialize a module to an ".x2" file
-serialize :: globalEnv -> io globalEnv
+serialize :: globalEnv -> io moduleMap
 serialize genv
-    = writeFile fx (serialModule m []) >> io_pure genv'
+    = serialModule m [] |> writeFile fx >> io_pure mm
       where
-        m     = view genvMod genv
-        fs    = view modFile m
-        fx    = withSuffix "x2" (fullFileName fs)
-        genv' = over genvMod (set modBuildStatus Serialized) genv
+        m  = view genvMod genv
+        mm = view genvModMap genv
+        fs = view modFile m
+        fx = fullFileName fs |> withSuffix "x2"
 
 || either parse the .am file or deserialize the .x2 file of a fileSpec, depending
-|| upon their relative modification times
-parseOrDeserial :: fileSpec -> io module
-parseOrDeserial f
+|| upon their relative modification times, forcing a parse if force is True
+parseOrDeserial :: bool -> fileSpec -> io module
+parseOrDeserial force f
     = mtimeFile fm >>= exists
       where
         fn         = fullFileName f
         fm         = withSuffix "am" fn
         fx         = withSuffix "x2" fn
         initModule = emptyModule f builtinEnv
-        doDeserial = io_pure . fst . deserialModule
-        doParse    = io_excpt . parse initModule
+        doDeserial = readFile fx >>= deserialModule .> fst .> io_pure
+        doParse    = putStrLn ("parsing  " ++ fn) >> readFile fm >>= parse initModule .> io_excpt
 
         exists tsm
             = io_excpt (ex_error err emptyLocInfo), if tsm < 0
+            = doParse,                              if force
             = mtimeFile fx >>= x2exists tsm,        otherwise
               where
                 err = Info $ fm ++ " required, but not found"
 
         x2exists tsm tsx
-            = readFile fx >>= doDeserial,                              if tsx >= tsm
-            = putStrLn ("parsing  " ++ fn) >> readFile fm >>= doParse, otherwise
+            = doDeserial, if tsx >= tsm
+            = doParse,    otherwise
 
-parseFiles :: [fileSpec] -> io moduleMap
-parseFiles files
+|| parse or deserialize the modules from a list of file specs
+readModules :: [fileSpec] -> io moduleMap
+readModules files
     = go m_empty files
       where
         go modules [] = io_pure modules
         go modules (f : fs)
-            = go modules fs,                    if m_member cmpstring mn modules    || already parsed
-            = parseOrDeserial f >>= addImports, otherwise
+            = go modules fs,                          if m_member cmpstring mn modules    || already parsed
+            = parseOrDeserial False f >>= addImports, otherwise
               where
                 mn = fileSpecName f
                 addImports mdl
@@ -89,12 +91,12 @@ parseFiles files
 || and passing that through a sequence of compilation passes
 buildModule :: moduleMap -> string -> io moduleMap
 buildModule mm n
-    = updateModMap <$> (io_foldM doPass genv passes >>= serialize)
+    = putStrLn ("building " ++ n) >> io_foldM doPass genv passes >>= setBuilt .> serialize
       where
         Just m        = m_lookup cmpstring n mm
-        updateModMap  = view genvModMap . updateEnv . over genvMod (set modBuildStatus Built)
         notData d     = ~isDefData d & ~isConstructor (defnName d)
         doPass genv p = io_excpt (p genv)
+        setBuilt      = over genvMod (set modBuildStatus Built) .> updateEnv
         genv          = (m, mm, 20)       || the gen value must be larger than the largest number of free variables in the type signature for any function,
                                           || otherwise the requirement that new free vars cannot conflict with any existing ones during type checking
                                           || can be violated
@@ -124,31 +126,48 @@ buildModule mm n
             , reifyExports                || process export libParts and create export nameMap
             ]
 
-|| build the modules in dependency order
-build :: [string] -> moduleMap -> io moduleMap
-build stdMods mm
-    = io_excpt (ex_error (DepCycle (showCycles cyc)) emptyLocInfo), if isLeft morder
-    = io_foldM bm mm order',                                        otherwise
+|| build the modules in dependency order, forcing rebuilds on any module which has
+|| one of its dependencies built
+build :: moduleMap -> io moduleMap
+build mm
+    = eitherf cycleErr (io_foldM checkBuild mm) morder
       where
-        morder      = dependencyOrder cmpstring . makeDependencyGraph cmpstring . m_toList . m_fmap (map fileSpecName . modImportFiles) $ mm
-        Left cyc    = morder
-        Right order = morder
-        order'      = stdMods ++ order       || force stdMods to be built first, as there are implicit dependencies on them
+        depGraph = m_fmap (modImportFiles .> map fileSpecName) mm |> m_toList |> makeDependencyGraph cmpstring
+        morder   = dependencyOrder cmpstring depGraph
+
+        cycleErr cyc = showCycles cyc |> DepCycle |> ($ex_error emptyLocInfo) |> io_excpt
 
         showCycles cs
             = shows "module imports: " . showsCommaList showsCycle cs $ ""
               where
                 showsCycle ns = showsInParens $ showsCommaList shows ns
 
-        bm mm mn
-            = putStrLn ("building " ++ mn) >> buildModule mm mn, if _eq cmpbuildStatus bs Unbuilt
-            = io_pure mm,                                        otherwise
+        getComponent lns mm mn
+            = m_lookup cmpstring mn mm |> fromJust |> view lns
+
+        || force a rebuild of the modules directly dependent upon mn
+        forceDepBuilds mn mm
+            = foldl forceBuild mm deps
               where
-                bs = view modBuildStatus . fromJust . m_lookup cmpstring mn $ mm
+                deps = edges cmpstring rev mn depGraph
+
+                forceBuild mm n = m_adjust cmpstring (over modBuildStatus clrBuilt) n mm
+
+                clrBuilt Built = Rebuild
+                clrBuilt bs    = bs
+
+        || check the buildStatus of mn and build or reparse and build, if required
+        checkBuild mm mn
+            = case getComponent modBuildStatus mm mn of
+                Unbuilt -> forceDepBuilds mn mm |> ($buildModule mn)
+                Rebuild -> getComponent modFile mm mn |> parseOrDeserial True >>= ins .> ($checkBuild mn)
+                _       -> io_pure mm
+              where
+                ins m = m_insert cmpstring (view modName m) m mm
 
 compile :: [string] -> io moduleMap
 compile files
-    = parseFiles (map mkStd stdMods ++ map fileSpecFromString files) >>= build stdMods
+    = readModules (map mkStd stdMods ++ map fileSpecFromString files) >>= build
       where
         stdMods  = [stdlibModuleName, streamModuleName], if useStreamFusion
                  = [stdlibModuleName],                   otherwise
