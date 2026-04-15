@@ -88,7 +88,7 @@ renameAst k (Elet rec defs ps e) st
         (defs', st1)   = foldl renameEntry (m_empty, st) ddefs'         || install non-renamePat defns in the rename map first
         st2            = foldl renamePat st1 (fromEither [] morder)     || add renamePat defns as entries in the rename map
 
-        isRenamePat (n, (DefPat (Pvar n1) (Evar n2) an)) = True
+        isRenamePat (n, (DefPat (Pvar n1) (Evar n2) an)) = ~(isQualified n2 \/ isUnresolved n2)
         isRenamePat _                                    = False
 
         mkDep (n, (DefPat (Pvar n1) (Evar n2) an)) = (n1, [n2])
