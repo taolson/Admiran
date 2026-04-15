@@ -201,7 +201,7 @@ updateDefn inCpx inUses d
                 fvu = map (\n -> m_findWithDefault cmpname Uzero n uses) fvn
                 aff = enumerate fvu |> filter (snd .> usedAffine) |> map fst |> bs_fromList
                 rec = m_member cmpname n free
-                d'  = set lensAnno (view defnAnLoc d, rec \/ view defnAnRec d, cpx, Umany, m_keysSet free', aff) d 
+                d'  = set lensAnno (view defnAnLoc d, rec \/ view defnAnRec d, cpx, Umany, m_keysSet free', aff) d
 
                 free' = m_delete cmpname (defnName d) free,       if isDefType d        || remove self-reference for tforms
                       = m_fmap (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars

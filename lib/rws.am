@@ -8,7 +8,7 @@
 %export +
 
 %import <base>
-
+%import <lens>
 
 || *    is reader (environment) type
 || **   is writer (logging) type
@@ -55,6 +55,17 @@ rws_put s = \_ _ w -> ((), s, w)
 
 rws_modify :: (*** -> ***) -> rws * ** *** ()
 rws_modify f = \_ s w -> case f s of s' -> ((), s', w)
+
+
+|| lift lens operations into rws
+rws_view :: lens *** **** -> rws * ** *** ****
+rws_view lns = view lns $rws_fmap rws_get
+
+rws_over :: lens *** **** -> (**** -> ****) -> rws * ** *** ()
+rws_over lns f = rws_modify (over lns f)
+
+rws_set :: lens *** **** -> **** -> rws * ** *** ()
+rws_set lns x = rws_modify (set lns x)
 
 
 || monad interface

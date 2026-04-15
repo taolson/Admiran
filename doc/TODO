@@ -1,3 +1,26 @@
+--- Stack and Tail-Call handling ---
+Rewrite Env handling for continuations: instead of temporarly pushing live vars to the stack, then popping them into the Env array
+at the beginning of a continuation, use the stack itself as the Env.  To minimize pushing/popping, keep all Stk vars up to the highest
+Stk var ref in the union of CaseAlt free vars when processing an Ecase, and add new Alt/Reg refs after that.  Only perform a PopEnv
+of the total stack amount just before the last insn of of a CaseAlt expr, as long as it isn't an Ecase expr that does a PushCont.
+
+Steps:
+
+Need to re-study BuildCodeAlts / BuildCodeAltsTally nbuildCodeAltsCont etc. to fully understand them again, and maybe simplify.
+
+
+1) Done: add a new Stk refSpace to signify that the var index is to be a negative offset from the Env ptr (stack grows down)
+2) Done: Add stackSize to the LexSt tuple to track the current continuation stack frame size
+3) Done: Add new SetEnv insn to set the Env ptr to the current SP plus the stackSize
+4) Done: Add an caseAlt bool to LexSt to qualify PopEnv insertion during generation of BuildCodeCall
+5) Done: In buildCodeAltsCont, replace (PopEnv #fns) with SetEnv (stack size value)
+4) Done: in buildCodeCall, add a PopEnv <stack size> before the call, if not inCaseScrutinee
+5) in inLexEnv, add a new stkname field for stack-bound free vars, and update the stkSize state based upon how many were added
+6) in codegen, add Stk to the cvtRef code (using the offset as a negative index from x86Env)
+7) in codegen, add new SetEnv insn
+8) in codegen, change PopEnv to just add N*8 to the SP
+
+
 --- memostring, memopair not memoizing in memoTrie ---
 some simple tests of memoization on strings or pairs of ints show that the memoization isn't
 happening -- need to track down root cause.  Doesn't appear to be due to recent noUpdate optimization
@@ -25,6 +48,12 @@ single memoized function to be used over and over, but instead we:
 
 Currently Umany is used, as it is the safe default, but we could pass the defn's anAffine bitSet into createBinding and
 wrapInLet, and if the var's corresponding usedAffine bit is set, we can set initial use to Uone instead of Umany.
+
+
+--- STG ---
+It looks like the stack pointer handling in Sclosure and Fail isn't required; the stack always is in the same position during calls
+to Fail as it was during the Sclosure.  Might be able to be replaced with an easier mechanism; need to check against the join-point
+idea to see if it requires stack manipulation at all, and if it can be merged with the Fatbar/fail mechanism.
 
 
 --- Need to look at RetArg implementation and how word# values should be returned from functions ---
@@ -274,18 +303,6 @@ that acts like Internal, but can be used to distinguish compiler-generated or in
 
 work: adding new ctor and accessing functions; changing renameExpr to use the new ctor instead of a prefix, adding
 new ctor  to serialize
-
-
---- stg ---
-It looks like the stack pointer handling in Sclosure and Fail isn't required; the stack always is in the same position during calls
-to Fail as it was during the Sclosure.  Might be able to be replaced with an easier mechanism; need to check against the join-point
-idea to see if it requires stack manipulation at all, and if it can be merged with the Fatbar/fail mechanism.
-
-code that has a lot of env vars passed down through a chain of thunks pushes and pops the entire list each thunk it goes through,
-even though, which causes a lot of push/pop insn generation in codegen.  Look at optimizing the stack for env save restores so we
-only push/pop the deltas and try to maintain the rest of the saved stack as much as possible (e.g. sorting the refs so the deepest
-ref [longest used] gets pushed first, keep refs on stack in-place if they are used subsequently and only load from the stack to the
-env for those values, etc.)
 
 
 --- Pattern Matching Optimizations --

@@ -450,19 +450,6 @@ showCharUnquoted c
                    = go es rs, otherwise
 
                go _ _ = showint $ code c
-{|
-    = "n",            if c ==. '\n'     || ordered by most to least frequent to minimize testing
-    = "t",            if c ==. '\t'
-    = "r",            if c ==. '\r'
-    = "\\",           if c ==. '\\'
-    = "\"",           if c ==. '\"'
-    = "\'",           if c ==. '\''
-    = "a",            if c ==. '\a'
-    = "b",            if c ==. '\b'
-    = "f",            if c ==. '\f'
-    = "v",            if c ==. '\v'
-    = showint (code c), otherwise
-|}
 
 || define some comparison operators for char
 (C# a#) ==. (C# b#) = case a# $cmp# b# of 0# -> True;  _ -> False

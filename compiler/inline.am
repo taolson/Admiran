@@ -25,7 +25,7 @@
 || functions which don't return (call error and terminate)
 noReturnNames = map makeStdlibName ["exit", "error#", "error", "blackHole", "undef", "unreachable", "caseFail", "matchFail", "cmpFn"]
 
-|| functions we shouldn't inline
+|| don't inline io functions, since there is no performance or space benefit
 isIOfn :: name -> bool
 isIOfn n = getModName n ==$ "io"
 

@@ -210,20 +210,17 @@ v_fromStream n (Stream next s)
     = case n of I# n#               ->
       case allocArray# n# of p#     ->
       case fillArray# p# undef of _ ->
-      doWrites p# n# 0# s
+      go 0# s
       where
-        doWrites p# n# i# s
-            = go i# s
-              where
-                go i# s
-                    = case i# $cmp# n# of
-                        1# -> case next s of
-                                Done       -> Vector n p#
-                                Skip s'    -> go i# s'
-                                Yield x s' -> case writeArray# p# i# x of _ ->
-                                              case i# +# 1# of i'# ->
-                                              go i'# s'
-                        _  -> Vector n p#
+        go i# s
+            = case i# $cmp# n# of
+                1# -> case next s of
+                        Done       -> Vector n p#
+                        Skip s'    -> go i# s'
+                        Yield x s' -> case writeArray# p# i# x of _ ->
+                                      case i# +# 1# of i'# ->
+                                      go i'# s'
+                _  -> Vector n p#
 
 v_toStream :: vector * -> stream * int
 v_toStream v

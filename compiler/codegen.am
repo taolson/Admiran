@@ -380,8 +380,8 @@ genMove d a
 || generate a series of instructions to move a list of operands to Args registers
 || relocate any Arg about to be overwritten to the ArgState area, if it is still needed for subsequent moves
 genMoveToArgs :: [opr] -> showS
-genMoveToArgs
-    = genMoves m_empty . enumerate
+genMoveToArgs oprs
+    = genMoves m_empty . enumerate $ oprs
       where
         genMoves alts [] = id
         genMoves alts ((i, v) : vs)
