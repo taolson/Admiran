@@ -210,6 +210,42 @@ xs |*| ys = [(x, y) | x <- xs; y <- ys]
 
 || list functions
 
+|| total variants of list functions
+safeHd :: [*] -> maybe *
+safeHd []      = Nothing
+safeHd (x : _) = Just x
+
+safeTl :: [*] -> maybe [*]
+safeTl []       = Nothing
+safeTl (_ : xs) = Just xs
+
+safeLast :: [*] -> maybe *
+safeLast [] = Nothing
+safeLast (x : xs)
+    = go x xs
+      where
+        go x []       = Just x
+        go x (y : ys) = go y ys
+
+safeInit :: [*] -> maybe [*]
+safeInit [] = Nothing
+safeInit (x : xs)
+    = Just $ go x xs
+      where
+        go x []       = []
+        go x (y : ys) = x : go y ys
+
+(!?) :: [*] -> int -> maybe *
+xs !? n
+    = Nothing, if n < 0
+    = go xs n, otherwise
+      where
+        go [] _ = Nothing
+        go (x : xs) n
+            = Just x,        if n == 0
+            = go xs (n - 1), otherwise
+
+
 || return whether any / all of the elements match a predicate
 any, all :: (* -> bool) -> [*] -> bool
 any p = foldr (p .> (\/)) False
@@ -366,8 +402,7 @@ inits xs = (scanl (converse (:)) [] .> map reverse) xs
 
 || return all of the tail lists of a list, e.g.
 || tails "hello" = ["hello", "ello", "llo", "lo", "o", ""]
-tails [] = [[]]
-tails xs = xs : tails (tl xs)
+tails xs = xs : fromMaybef [] tails (safeTl xs)
 
 || map a function with an accumulator across a list left-to-right,
 || returning the final accmulator value and the mapped list
@@ -399,17 +434,21 @@ takeWhile :: (* -> bool) -> [*] -> [*]
 takeWhile f
     = go
       where
-        go [] = []
-        go (x : xs) = x : go xs, if f x
-                    = [],        otherwise
+        go xs = case xs of
+                  []      -> []
+                  x : xs' -> case f x of
+                               False -> []
+                               True  -> x : go xs'
 
 dropWhile :: (* -> bool) -> [*] -> [*]
 dropWhile f
     = go
       where
-        go [] = []
-        go xs = go (tl xs), if f (hd xs)
-              = xs,         otherwise
+        go xs = case xs of
+                  []      -> []
+                  x : xs' -> case f x of
+                               False -> xs
+                               True  -> go xs'
 
 || partition a list into two sublists depending upon if the element matches a predicate or not
 partition :: (* -> bool) -> [*] -> ([*], [*])
@@ -692,18 +731,20 @@ padR n s = s ++ rep (n - #s) ' '
 
 || add a suffix to a string if it isn't already present
 withSuffix :: string -> string -> string
-withSuffix suf str
-    = str,                              if str ==$ dotSuf
-    = str ++ suf,                       if str ==$ "."
-    = str ++ dotSuf,                    if #str <= 2
-    = hd str : withSuffix suf (tl str), otherwise
+withSuffix suf
+    = go
       where
         dotSuf = '.' : suf
 
+        go []         = dotSuf
+        go ('.' : xs) = dotSuf, if null xs \/ xs ==$ suf
+        go (x   : xs) = x : go xs
+
 || remove a suffix from a string, if it is present
 withoutSuffix :: string -> string -> string
-withoutSuffix suf str
-    = [],                                 if null str \/ str ==$ dotSuf
-    = hd str : withoutSuffix suf (tl str), otherwise
+withoutSuffix suf
+    = go
       where
-        dotSuf = '.' : suf
+        go []         = []
+        go ('.' : xs) = [], if xs ==$ suf
+        go (x   : xs) = x : go xs
