@@ -44,7 +44,7 @@ process :: string -> io ()
 process s
     = readFile fn >>= doParse
       where
-        fs         = fileSpecFromString s
+        fs         = fileSpecFromString s |> fromMaybe (error $ "bad file name: " ++ s)
         fn         = fullFileName fs |> withSuffix "am"
         initModule = emptyModule fs m_empty
 
