@@ -498,7 +498,7 @@ tformVars _              = unreachable
 
 qualifyTform :: string -> ast -> ast
 qualifyTform modName (Tname n vars) = Tname (qualifyName modName n) vars
-qualifyTform modName a              = error $ "qualifyTform on non-tform: " ++ showast a
+qualifyTform modName a              = unreachable
 
 typeName :: texpr -> name
 typeName (Tname n vars) = n

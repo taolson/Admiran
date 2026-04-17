@@ -25,11 +25,12 @@ fileSpecPath (FileSpec ps n) = intercalate filePathSeparator ps
 fileSpecName (FileSpec ps n) = n
 fullFileName (FileSpec ps n) = intercalate filePathSeparator $ ps ++ [n]
 
-fileSpecFromString :: string -> fileSpec
+fileSpecFromString :: string -> maybe fileSpec
 fileSpecFromString s
-    = FileSpec ps $ withoutSuffix "am" n
+    = safeHd filePathSeparator >>= splitPath >>= mkSpec
       where
-        Just (ps, n) = viewR . split (hd filePathSeparator) $ s
+        splitPath c    = split c s |> viewR
+        mkSpec (ps, n) = withoutSuffix "am" n |> FileSpec ps |> Just
 
 || %export directive
 libPart ::=
@@ -221,16 +222,16 @@ insDefMult d m
     = ex_pure (m_insertWith cmpname addMult n dm m), if isNothing md' \/ isDefMult d'
     = ex_error (NameClash n') (defnLocInfo d),       otherwise
       where
-        n              = defnName d
-        md'            = m_lookup cmpname n m
-        d'             = fromJust md'
-        n'             = defnName d'
-        dm             = DefMult Mfun [d]
+        n   = defnName d
+        md' = m_lookup cmpname n m
+        d'  = fromJust md'
+        n'  = defnName d'
+        dm  = DefMult Mfun [d]
 
-        addMult (DefMult x1 defs') (DefMult x2 defs)
-            = DefMult Mfun (defs ++ defs') || add new def after any existing defs to maintain pattern order
+        addMult (DefMult _ defs2) (DefMult _ defs1)
+            = DefMult Mfun (defs1 ++ defs2) || add new def after any existing defs to maintain pattern order
 
-        addMult _  _ = error "insDefMult: not a DefMult"
+        addMult _  _ = unreachable
 
 || insert a Qualified name -> defn into a defnMap, merging DefFns with a DefMult,
 || and merging abstract and implementation types
@@ -320,18 +321,18 @@ makeStrictCtor n tag cts an
 || insert a function for each constructor which is an alias to builtinPack
 modInsData :: defn -> modInserter
 modInsData d m
-    = ex_foldM insFn m (enumerate ctors) >>=? modInsDef d
+    = case d of
+        DefData dt ctors an -> ex_foldM (insFn dt an) m (enumerate ctors) >>=? modInsDef d
+        _                   -> ex_pure m
       where
-        DefData dt ctors an = d
-
-        insFn m (tag, (Tname n cts))
+        insFn dt an m (tag, (Tname n cts))
             = modInsSpec spec m >>=? modInsDef fn
               where
                 t      = foldr Tarr dt $ map unStrict cts
                 spec   = DefSpec (Tname n []) t an
                 fn     = makeStrictCtor n tag cts an,              if any isStrict cts
                        = DefFn n [] (builtinPack n tag (#cts)) an, otherwise    || note: nullary DefFn instead of DefPat; arity from builtinPack
-        insFn m _      = unreachable
+        insFn _ _ _ _  = unreachable
 
 || insert a type specification
 modInsSpec :: defn -> modInserter
@@ -344,10 +345,9 @@ modInsSpec d m
 || insert an abstract type definition and its signature specs
 modInsAbs :: defn -> modInserter
 modInsAbs d m
-    = ex_foldM (converse modInsSpec) m ds >>=? modInsDef d
-      where
-        DefAbs _ ds _ _ = d
-
+    = case d of
+        DefAbs _ ds _ _ -> ex_foldM (converse modInsSpec) m ds >>=? modInsDef d
+        _               -> ex_pure m
 
 || make a module from an initial module and a sequence of modInserter functions
 makeModule :: module -> [modInserter] -> excpt module

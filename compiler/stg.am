@@ -11,9 +11,9 @@
 %import <bitSet>
 %import <lens>
 %import <map>
-%import <maybe>
+%import <maybe>         (>>=?)/mb_bind
 %import <set>
-%import <state>                 (>>=)/st_bind (<$>)/st_fmap (<<)/st_left (>>)/st_right
+%import <state>         (>>=)/st_bind (<$>)/st_fmap (<<)/st_left (>>)/st_right
 %import "analyze"
 %import "dependency"
 %import "exception"
@@ -337,7 +337,11 @@ makeOpr (EprimString s)
       where
         mkByteStream hp = updateHeap hp (Hstream s, []) >> (st_pure . Imm . Haddr) hp
 
-makeOpr e = error ("makeOpr: unhandled expr: " ++ showast e)
+makeOpr _ = unreachable
+
+unPrimInt :: expr -> maybe int
+unPrimInt (EprimInt n) = Just n
+unPrimInt _            = Nothing
 
 || allocate a reg
 allocReg :: state bdSt ref
@@ -355,7 +359,7 @@ makeRef p
       where
         checkPat Pwildcard r = st_pure r
         checkPat (Pvar n)  r = st_pure r << st_over bdLenv (m_insert cmpname n (Ref r))
-        checkPat _         _ = error "makeRef: non-PvarOrWild"
+        checkPat _         _ = unreachable
 
 || run a build function in a new lexical environment of Arg and Env refs,
 || restoring the environment afterwards. The first argument specifies the
@@ -455,7 +459,6 @@ buildCodeAltsTally alts
 || note that the alts all share a common context with the same env (union of all free vars)
 buildCodeAlts :: caseSel -> opr -> [caseAlt] -> state bdSt [stgInsn]
 
-buildCodeAlts Cnone  topr alts  = error "buildCodeAlts: caseSel type is unspecified"
 buildCodeAlts Csingle topr alts = buildCodeAlt $ hd alts
 
 buildCodeAlts Cvectored topr alts
@@ -482,6 +485,8 @@ buildCodeAlts Cpriority topr alts
                 mkTagOpr (Plit (EprimChar c)) = makeImmOpr (code c)
                 mkTagOpr (Pctor cn vars)      = makeImmOpr . fromMaybe 0 . elemIndex (==$ getName cn) . map getName . fromMaybe [] . lookupCtorNames genv $ cn
                 mkTagOpr p                    = topr
+
+buildCodeAlts _ _ _ = unreachable
 
 || build the alts and the code to select from them in the context of a new
 || continuation closure, then return a union of all the free vars and a new
@@ -519,7 +524,7 @@ buildCodeAltsNoCont sel topr alts
 
                         || lookup n in localEnv, returning the opr and name if it is an Frm ref
                         getFrmRef n
-                            = m_lookup cmpname n lenv $mb_bind check
+                            = m_lookup cmpname n lenv >>=? check
                               where
                                 isFrm (Ref (Frm, x)) = True
                                 isFrm o              = False
@@ -609,7 +614,7 @@ buildCodeCallBuiltin n args dsts
         go "systemCmd#"      = opDS  (SystemOp 9)
         go "clock#"          = opDS  (SystemOp 10)
 
-        go s = error ("buildCodeCallBuiltin: missing definition for builtin " ++ s)
+        go _ = unreachable
 
 
 || build code for an Ecall (function) or an Evar (thunk), based upon info from the call fopr and any closureInfo
@@ -757,10 +762,9 @@ buildCode (Ecase sel e alts)
 || array.  Actual packing of these in a new Hthunk heapObj is left to the Update instruction,
 || which allows thunks that don't require updates to leave it out.
 buildCode (Tname f as)
-    = st_pure [Ret (makeImmOpr tag) (makeImmOpr arity)], if _eq cmpname f builtinPackName
+    = st_pure [Ret (cvtArg 1) (cvtArg 2)], if _eq cmpname f builtinPackName
       where
-        EprimInt tag   = as ! 1
-        EprimInt arity = as ! 2
+        cvtArg i = (as !? i) >>=? unPrimInt |> fromMaybe 0 |> makeImmOpr
 
 || handle polymorphic pseudo-function <sel>, by pushing a sel continuation with the index
 || NOTE: if the inliner is allowed to inline constructors, the <pack> will get inlined to
@@ -769,9 +773,9 @@ buildCode (Ecall (Tname f as) args)
     = st_liftA2 mkSel (st_view bdGenv) (buildCode e), if _eq cmpname f builtinSelName
     = buildCodeCall (Evar cn) args,                   otherwise
       where
-        e          = args ! 0
-        cn         = tformName (as ! 0)
-        EprimInt i = as ! 1
+        e  = args !? 0 |> fromMaybe builtinFail
+        cn = as   !? 0 |> fromMaybe builtinFail |> tformName
+        i  = (as !? 1) >>=? unPrimInt |> fromMaybe 0
 
         mkSel genv eis
             = PushCont selPtr [makeImmOpr i] : eis
@@ -820,8 +824,7 @@ buildCode (Efail e)
         mkFail fopr = [Fail fopr]
 
 buildCode d
-    = buildCodeDef d,                                       if isDefn d
-    = error ("unhandled expr in buildCode: " ++ showast d), otherwise
+    = buildCodeDef d
       where
         loc = defnLocInfo d
 
@@ -833,9 +836,11 @@ buildCode d
         || DefPats are thunks which may need to be updated after their evaluation.  The code first updates the thunk to point to
         || the blackhole trampoline code, so that recursive evaluation reports a blackHole immediately.  Then, an update continuation
         || is pushed, so that when the evaluation returns, it first returns to the generic update code (Caddr 1) which performs
-        || the update, capturing the returned value and changing the code pointer to point to the standard unpack code (Caddr 0)
-        || An update analysis pass could provide more info on whether an update is required for a thunk or not, but a simple
-        || optimization here is that no update is required for any pat returning a constructor, since it is already WHNF
+        || the update, capturing the returned value and changing the code pointer to point to the standard unpack code (Caddr 0).
+        || The update continuation isn't required for thunks which are usedAffine (used zero or one time), as determined during
+        || use analysis, and for any DefPat returning a constructor application, since that is already WHNF.  This applies to
+        || constructors that have strict fields, as well, but that shouldn't be a big issue, since re-evaluating the strict field
+        || should itself have been turned into a simple unpack of a thunk.
         buildCodeDef (DefPat p e an)
             = mkCode <$> inDefEnv loc [] fns (buildCode e)
               where
@@ -881,7 +886,7 @@ buildGroup genv ns
                       where
                         mkInfo (DefFn n args e an) = Hfun cp (fromJust (lookupArity genv n))    || not #args, because ctors have empty arg fields
                         mkInfo (DefPat p e an)     = Hthunk cp
-                        mkInfo d                   = error "buildGroup: bad defn in mkObj"
+                        mkInfo _                   = unreachable
 
                 insObj (n, cp, hp, d)
                     = st_pure (cp, v, d) << st_over bdLenv (m_insert cmpname n (Imm v))

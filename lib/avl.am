@@ -58,23 +58,25 @@ balanceR :: avlTree * -> avlTree *
 balanceR n
     = go n
       where
-        go AVLLeaf = error "balanceR AVLLeaf"
         go (AVLNode v l r h)
             = rotL n', if delta r > 0
             = rotL n,  otherwise
               where
                 n' = case rotR r of r' -> AVLNode v l r' h
 
+        go AVLLeaf = unreachable
+
 balanceL :: avlTree * -> avlTree *
 balanceL n
     = go n
       where
-        go AVLLeaf = error "balanceL AVLLeaf"
         go (AVLNode v l r h)
             = rotR n', if delta l < 0
             = rotR n,  otherwise
               where
                 n' = case rotL l of l' -> AVLNode v l' r h
+
+        go AVLLeaf = unreachable
 
 a_empty :: avlTree *
 a_empty = AVLLeaf
@@ -108,7 +110,7 @@ a_first (AVLNode v l r h)
     = a_first l, otherwise
 
 a_last :: avlTree * -> *
-a_last AVLLeaf           = error "a_last: null tree"
+a_last AVLLeaf = error "a_last: null tree"
 a_last (AVLNode v l r h)
     = v,        if a_null r
     = a_last r, otherwise

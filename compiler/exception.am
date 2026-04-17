@@ -179,13 +179,11 @@ isNote e = _eq cmpexceptionType Note $ view excptType e
 
 || monad interface
 ex_bind :: excpt * -> (* -> excpt **) -> excpt **
-ex_bind (Left errs)        f = Left errs
-ex_bind (Right (x, warns)) f
-    = r, if isLeft r
-    = Right (x', warns ++ warns'), otherwise
+ex_bind e f
+    = e |> eitherf (|> Left) bind
       where
-        r                  = f x
-        Right (x', warns') = r
+        bind (x, warns) = f x |> eitherf (|> Left) (mapSnd (warns ++) .> Right)
+
 
 ex_pure :: * -> excpt *
 ex_pure x = Right (x, [])

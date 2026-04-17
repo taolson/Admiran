@@ -15,7 +15,7 @@
 
 
 stdlibPath :: [string]
-stdlibPath =  split (hd filePathSeparator) admiranLibPath
+stdlibPath = safeHd filePathSeparator |> fromMaybef [admiranLibPath] ($split admiranLibPath)
 
 makeBuiltinName :: string -> name
 makeBuiltinName s = Builtin s
@@ -105,6 +105,7 @@ stdAndName       = makeStdlibName "&"
 stdNegName       = makeStdlibName "neg"
 stdIntCtorName   = makeStdlibName "I#"
 stdCharCtorName  = makeStdlibName "C#"
+stdErrorName     = makeStdlibName "error"
 stdCaseFailName  = makeStdlibName "caseFail"
 stdMatchFailName = makeStdlibName "matchFail"
 stdBlackHoleName = makeStdlibName "blackHole"
@@ -179,7 +180,7 @@ builtinTupleName n = makeBuiltinName ("Tuple" ++ showint n)
 
 builtinTupleArity :: name -> int
 builtinTupleArity (Builtin n) = intval ns where Just ns = stripPrefix cmpchar "Tuple" n
-builtinTupleArity _           = error "builtinTupleArity: non-tuple name"
+builtinTupleArity _           = 0
 
 || builtin pseudo-functions
 || these functions are polymorphic, so to be able to typecheck them, the constructor name
@@ -319,10 +320,9 @@ builtinSpecs
 || simple form of the version in admiranParser to handle just the builtin specs above
 p_spec :: string -> defn
 p_spec s
-    = error ("error parsing '" ++ s ++ "' " ++ view psErrStr ps), if isNothing mspec
-    = fromJust mspec,                                             otherwise
+    = spec
       where
-        (mspec, ps)                       = parse ("builtin", emptyError, [], tokenize s)
+        (Just spec, _)                    = parse ("builtin", emptyError, [], tokenize s)
         parse                             = p_liftA2 mkSpec (p_tname $p_left p_colons) p_type
         p_type                            = p_liftA2 mkType p_term (p_optional (p_sym "->" $p_right p_type))
         p_term                            = p_tvar $p_alt p_tname $p_alt p_tlist $p_alt p_ttup

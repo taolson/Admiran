@@ -614,7 +614,7 @@ p_fileSpec
     = mkStd <$> p_inAngles p_identifier <|> p_any >>=? fid
       where
         mkStd n            = FileSpec stdlibPath (getName n)
-        fid (TlitString s) = p_pure (fileSpecFromString s), if #s > 0   || fileSpec cannot be the null string
+        fid (TlitString s) = fromMaybef p_fail p_pure (fileSpecFromString s)
         fid _              = p_fail
 
 p_libPart :: parser libPart

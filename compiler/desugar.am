@@ -70,7 +70,7 @@ match :: [name] -> [equation] -> state dsSt expr
 match [] eqns st
     = (builtinFail, addDsErr Arity st),           if any (not . null . equationPats) eqns
     = (hd rhss, st),                              if #rhss == 1         || optimization for common case to remove extraneous fatbars
-    = (foldr builtinFatbar builtinFail rhss, st), otherwise             || can there ever be more than one eqn?
+    = (foldr builtinFatbar builtinFail rhss, st), otherwise
       where
         loc                    = fromMaybe emptyLocation . view dsLocation $ st
         rhss                   = map addRenames eqns

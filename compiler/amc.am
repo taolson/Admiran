@@ -126,8 +126,8 @@ buildModule mm n
             , reifyExports                || process export libParts and create export nameMap
             ]
 
-|| build the modules in dependency order, forcing rebuilds on any module which has
-|| one of its dependencies built
+|| build the modules in dependency order, transitively forcing rebuilds on any deserialized module which had
+|| any of its import dependencies rebuilt
 build :: moduleMap -> io moduleMap
 build mm
     = eitherf cycleErr (io_foldM checkBuild mm) morder
@@ -167,7 +167,7 @@ build mm
 
 compile :: [string] -> io moduleMap
 compile files
-    = readModules (map mkStd stdMods ++ map fileSpecFromString files) >>= build
+    = map fileSpecFromString files |> catMaybes |> (map mkStd stdMods ++) |> readModules >>= build
       where
         stdMods  = [stdlibModuleName, streamModuleName], if useStreamFusion
                  = [stdlibModuleName],                   otherwise
@@ -175,11 +175,10 @@ compile files
 
 || generate an asm file for the module specified by "s" with entry function name "entry"
 || then compile and link it with the runtime code
-gen :: string -> string -> io ()
-gen s entry
+gen :: fileSpec -> string -> io ()
+gen fs entry
     = compile [fn] >>= genStg >>= reportInsns >>= genCode >> link >> io_pure ()
       where
-        fs     = fileSpecFromString s
         fn     = fullFileName fs
         mn     = fileSpecName fs
         qentry = Qualified mn entry
@@ -212,6 +211,11 @@ main :: io ()
 main
     = getArgs >>= go
       where
-        go [fn]        = gen fn "main"
-        go [fn, start] = gen fn start
-        go _           = error "usage: amc <file name> {entry name}"
+        go []          = err
+        go (fn : args) = fileSpecFromString fn |> fromMaybef err (check args)
+
+        check []      fs = gen fs "main"
+        check [start] fs = gen fs start
+        check _       fs = err
+
+        err  = error "usage: amc <file name> {entry name}"
