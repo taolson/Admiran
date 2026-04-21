@@ -187,10 +187,10 @@ analyzeAst k a
         analyzeDefn = st_bind3 (st_view azCpx) (st_view azUses) (clrCpxUses >> checkTdef k a) updateDefn
 
 || type defns should not have their defn Tforms analyzed, as we can't tell defining Tnames vs used Tnames as with Pvar vs Evar
-checkTdef k (DefSyn  tf te an)    = st_liftA2 (DefSyn  tf)    (analyzeAst k te)           (st_pure an)
-checkTdef k (DefData tf ts an)    = st_liftA2 (DefData tf)    (st_mapM (analyzeAst k) ts) (st_pure an)
-checkTdef k (DefSpec tf te an)    = st_liftA2 (DefSpec tf)    (analyzeAst k te)           (st_pure an)
-checkTdef k (DefAbs  tf ds te an) = st_liftA2 (DefAbs  tf ds) (analyzeAst k te)           (st_pure an)
+checkTdef k (DefSyn  tf te an)    = st_liftA2 (DefSyn  tf)    (astRewriteLex analyzeAst te)           (st_pure an)
+checkTdef k (DefData tf ts an)    = st_liftA2 (DefData tf)    (st_mapM (astRewriteLex analyzeAst) ts) (st_pure an)
+checkTdef k (DefSpec tf te an)    = st_liftA2 (DefSpec tf)    (astRewriteLex analyzeAst te)           (st_pure an)
+checkTdef k (DefAbs  tf ds te an) = st_liftA2 (DefAbs  tf ds) (astRewriteLex analyzeAst te)           (st_pure an)
 checkTdef k a                     = k a || analyze full defn for non-type defns
 
 || update rec, cpx, free, and affineUse fields in defnAnno, and merge inCpx and inUses
