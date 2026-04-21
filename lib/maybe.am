@@ -73,7 +73,7 @@ mb_fmap f ma = ma $mb_bind (f .> mb_pure)
 
 || applicative interface
 mb_apply :: maybe (* -> **) -> maybe * -> maybe **
-mb_apply mf ma = mf $mb_bind converse mb_fmap ma
+mb_apply mf ma = mf $mb_bind ($mb_fmap ma)
 
 mb_liftA2 :: (* -> ** -> ***) -> maybe * -> maybe ** -> maybe ***
 mb_liftA2 f ma mb = mb_fmap f ma $mb_apply mb

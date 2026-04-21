@@ -3,18 +3,18 @@
 %export +
 
 abstype fix16 with
-    (+.)            :: fix16 -> fix16 -> fix16
-    (-.)            :: fix16 -> fix16 -> fix16
-    (*.)            :: fix16 -> fix16 -> fix16
-    (/.)            :: fix16 -> fix16 -> fix16
-    toFix16Int      :: int -> fix16
-    toFix16Frac     :: int -> fix16
-    fix16Int        :: fix16 -> int
-    fix16Frac       :: fix16 -> int
+    (+.)            :: fix16  -> fix16 -> fix16
+    (-.)            :: fix16  -> fix16 -> fix16
+    (*.)            :: fix16  -> fix16 -> fix16
+    (/.)            :: fix16  -> fix16 -> fix16
+    toFix16Int      :: int    -> fix16
+    toFix16Frac     :: int    -> fix16
+    fix16Int        :: fix16  -> int
+    fix16Frac       :: fix16  -> int
     fix16val        :: string -> fix16
-    showfix16       :: fix16 -> string
-    showfix16Digits :: int -> fix16 -> string
-    cmpfix16        :: fix16 -> fix16 -> ordering
+    showfix16       :: fix16  -> string
+    showfix16Digits :: int    -> fix16 -> string
+    cmpfix16        :: fix16  -> fix16 -> ordering
 
 
 || implementation uses int, scaling multiplication and division appropriately

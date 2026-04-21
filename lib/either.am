@@ -63,7 +63,13 @@ e_fmap f ma = ma $e_bind (f .> e_pure)
 
 || applicative interface
 e_apply :: either * (** -> ***) -> either * ** -> either * ***
-e_apply mf ma = mf $e_bind converse e_fmap ma
+e_apply mf ma = mf $e_bind ($e_fmap ma)
 
 e_liftA2 :: (** -> *** -> ****) -> either * ** -> either * *** -> either * ****
 e_liftA2 f ma mb = e_fmap f ma $e_apply mb
+
+e_left :: either * ** -> either * *** -> either * **
+e_left ma mb = e_liftA2 const ma mb
+
+e_right :: either * ** -> either * *** -> either * ***
+e_right ma mb = e_liftA2 (converse const) ma mb
