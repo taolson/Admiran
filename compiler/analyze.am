@@ -184,7 +184,14 @@ analyzeAst k a
       where
         || capture incoming cpx and uses to pass to updateDefn, then clearCpxUses and analyze def
         setLexInfo  = st_set azDefName (Just $ defnName a) >> st_set azLoc (defnLocInfo a)
-        analyzeDefn = st_bind3 (st_view azCpx) (st_view azUses) (clrCpxUses >> k a) updateDefn
+        analyzeDefn = st_bind3 (st_view azCpx) (st_view azUses) (clrCpxUses >> checkTdef k a) updateDefn
+
+|| type defns should not have their defn Tforms analyzed, as we can't tell defining Tnames vs used Tnames as with Pvar vs Evar
+checkTdef k (DefSyn  tf te an)    = st_liftA2 (DefSyn  tf)    (analyzeAst k te)           (st_pure an)
+checkTdef k (DefData tf ts an)    = st_liftA2 (DefData tf)    (st_mapM (analyzeAst k) ts) (st_pure an)
+checkTdef k (DefSpec tf te an)    = st_liftA2 (DefSpec tf)    (analyzeAst k te)           (st_pure an)
+checkTdef k (DefAbs  tf ds te an) = st_liftA2 (DefAbs  tf ds) (analyzeAst k te)           (st_pure an)
+checkTdef k a                     = k a || analyze full defn for non-type defns
 
 || update rec, cpx, free, and affineUse fields in defnAnno, and merge inCpx and inUses
 updateDefn :: int -> useInfoMap -> defn -> state azSt defn
@@ -203,8 +210,7 @@ updateDefn inCpx inUses d
                 rec = m_member cmpname n free
                 d'  = set lensAnno (view defnAnLoc d, rec \/ view defnAnRec d, cpx, Umany, m_keysSet free', aff) d
 
-                free' = m_delete cmpname (defnName d) free,       if isDefType d        || remove self-reference for tforms
-                      = m_fmap (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
+                free' = m_fmap (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
                       = free,                                     otherwise
 
                 adjustForFn = m_insert cmpname n Uzero, if isDefFn d    || count defn as Uzero for use in DefFn
