@@ -139,13 +139,6 @@ normalizeAst k a st
         wrapLets a st
             = (foldl wrapLet a (view nmThunks st), set nmThunks inThunks st)
               where
-
-                isEager (Ecall (Evar c) args) = isConstructor c
-                isEager e                     = False
-
-                wrapLet a (DefPat p e an)
-                    = Ecase Csingle e [CaseAlt p a], if useEagerCtors & isEager e
-
                 wrapLet a d = Elet False (m_singleton (defnName d) d) [] a
 
 
