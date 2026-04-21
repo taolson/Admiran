@@ -226,7 +226,6 @@ updateCall (Ecall f args)
 
 updateCall _ = unreachable
 
-
 || update the defnAnno useInfo field for each of the defns in the Elet's defnMap
 || if the expression e is an Evar, mark all the names that can escape as Umany
 updateLet :: expr -> state azSt expr
@@ -235,7 +234,8 @@ updateLet (Elet rec defs pats e)
       astRewriteMap (checkUpdate ui) defs >>= \defs' ->
       st_set azUses ui >> delNames azUses ns >> delNames azAffine ns >> incCpx >> st_pure (Elet rec defs' pats e)
       where
-        ns  = m_keys defs
+        ns     = m_keys defs
+        single = m_isSingleton defs    || multiple defs in a Let are mutually-recursive
 
         addEscapes m   = computeEscapes defs e |> foldl setUseMany m
         setUseMany m n = m_insert cmpname n Umany m
@@ -251,7 +251,7 @@ updateLet (Elet rec defs pats e)
             = update,                         otherwise
               where
                 n      = defnName d
-                u      = m_findWithDefault cmpname Uzero n ui
+                u      = if' single (m_findWithDefault cmpname Uzero n ui) Umany
                 update = set defnAnUse u d |> st_pure
 
 updateLet _ = unreachable
