@@ -1,7 +1,7 @@
 || ioStream.am -- io with streams
 ||
 || This currently only implements "streamFile", which is a readFile replacement
-|| that returns a stream of char rather than a list of char, which can prevent
+|| that returns a stream of char rather than a list of char, and can prevent
 || space leaks on large files when the entire list is retained. It may be expanded
 || with more stream versions of io functions if they are useful.
 
@@ -12,10 +12,10 @@
 
 streamFile :: string -> io (stream char word#)
 streamFile fn world
-    = case allocByteStream# 256# of
-        s# -> case writeByteStream s# fn of
-                _ -> case openFileRead# s# of
-                       fs# -> (Stream next fs#, world)
+    = case allocByteStream# 256# of s# ->
+      case writeByteStream s# fn of  _ ->
+      case openFileRead# s# of     fs# ->
+      (Stream next fs#, world)
       where
         next fs#
             = case readByteStream# fs# of

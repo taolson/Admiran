@@ -1,9 +1,9 @@
 || set.am -- implementation of a strict set using AVL trees
 
 
-%export + s_empty s_null s_singleton s_size s_member s_first s_last s_delete s_toList s_foldr s_foldl
+%export + s_empty s_null s_singleton s_isSingleton s_size s_member s_first s_last s_delete s_toList s_foldr s_foldl
 
-%import <avl>   s_empty/a_empty s_null/a_null s_singleton/a_singleton s_size/a_size s_member/a_member
+%import <avl>   s_empty/a_empty s_null/a_null s_singleton/a_singleton s_isSingleton/a_isSingleton s_size/a_size s_member/a_member
                 s_first/a_first s_last/a_last s_delete/a_delete s_toList/a_toList s_foldr/a_foldr s_foldl/a_foldl
 %import <maybe> (<$>?)/mb_fmap
 

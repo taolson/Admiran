@@ -88,6 +88,10 @@ a_null _       = False
 a_singleton :: * -> avlTree *
 a_singleton v = AVLNode v AVLLeaf AVLLeaf 1
 
+a_isSingleton :: avlTree * -> bool
+a_isSingleton (AVLNode _ AVLLeaf AVLLeaf _) = True
+a_isSingleton _                             = False
+
 a_size :: avlTree * -> int
 a_size AVLLeaf           = 0
 a_size (AVLNode v l r h) = a_size l + a_size r + 1

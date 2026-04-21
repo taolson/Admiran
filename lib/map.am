@@ -1,9 +1,9 @@
 || map.am -- implementation of a strict map from key to value, using AVL trees
 
 
-%export + m_empty m_null m_size m_first m_last m_toList
+%export + m_empty m_null m_isSingleton m_size m_first m_last m_toList
 
-%import <avl>   m_empty/a_empty m_null/a_null m_size/a_size m_first/a_first m_last/a_last m_toList/a_toList
+%import <avl>   m_empty/a_empty m_null/a_null m_size/a_size m_isSingleton/a_isSingleton m_first/a_first m_last/a_last m_toList/a_toList
 %import <maybe> (<$>?)/mb_fmap
 
 
