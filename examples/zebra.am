@@ -3,7 +3,7 @@
 
 %import <base>
 %import <bitSet>
-%import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
+%import <maybe>                 (<&>)/mb_rfmap (<|>)/mb_alt
 %import <io>
 %import <vector>
 
@@ -48,7 +48,7 @@ findCatValue s
         err = error ("could not find the category and value indices for '" ++ s ++ "'")
 
         checkCat (i, (_, ns)) k
-             = (pair i <$>? elemIndex (==$ s) ns) <|>? k
+             = elemIndex (==$ s) ns <&> pair i <|> k
 
 loc      == vector bitSet
 solution == vector loc
