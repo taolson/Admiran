@@ -92,6 +92,8 @@ st_sequence_ xs = foldr st_right (st_pure ()) xs
 st_fmap :: (** -> ***) -> state * ** -> state * ***
 st_fmap f m = m $st_bind (f .> st_pure)
 
+st_rfmap :: state * ** -> (** -> ***) -> state * ***
+st_rfmap m f = st_fmap f m
 
 || applicative interface
 st_apply :: state * (** -> ***) -> state * ** -> state * ***

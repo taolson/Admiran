@@ -91,6 +91,8 @@ mst_sequence_ xs = foldr mst_right (mst_pure ()) xs
 mst_fmap :: (** -> ***) -> maybeState * ** -> maybeState * ***
 mst_fmap f m = m $mst_bind (f .> mst_pure)
 
+mst_rfmap :: maybeState * ** -> (** -> ***) -> maybeState * ***
+mst_rfmap m f = mst_fmap f m
 
 || applicative interface
 mst_apply :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***

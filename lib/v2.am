@@ -35,6 +35,9 @@ v2_sequence xs = foldr (v2_liftA2 (:)) (v2_pure []) xs
 v2_fmap :: (* -> **) -> v2 * -> v2 **
 v2_fmap f (V2 a b) = V2 (f a) (f b)
 
+v2_rfmap :: v2 * -> (* -> **) -> v2 **
+v2_rfmap v f = v2_fmap f v
+
 
 || applicative interface
 v2_apply :: v2 (* -> **) -> v2 * -> v2 **

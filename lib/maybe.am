@@ -70,6 +70,9 @@ mb_sequence xs = foldr (mb_liftA2 (:)) (mb_pure []) xs
 mb_fmap :: (* -> **) -> maybe * -> maybe **
 mb_fmap f ma = ma $mb_bind (f .> mb_pure)
 
+mb_rfmap :: maybe * -> (* -> **) -> maybe **
+mb_rfmap ma f = mb_fmap f ma
+
 
 || applicative interface
 mb_apply :: maybe (* -> **) -> maybe * -> maybe **

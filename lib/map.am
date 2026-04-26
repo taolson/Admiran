@@ -155,6 +155,9 @@ m_fmap f
                 l' = go l
                 r' = go r
 
+m_rfmap :: m_map * ** -> (** -> ***) -> m_map * ***
+m_rfmap m f = m_fmap f m
+
 m_fmapWithKey :: (* -> ** -> ***) -> m_map * ** -> m_map * ***
 m_fmapWithKey f
     = go

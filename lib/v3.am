@@ -37,6 +37,9 @@ v3_sequence xs = foldr (v3_liftA2 (:)) (v3_pure []) xs
 v3_fmap :: (* -> **) -> v3 * -> v3 **
 v3_fmap f (V3 a b c) = V3 (f a) (f b) (f c)
 
+v3_rfmap :: v3 * -> (* -> **) -> v3 **
+v3_rfmap v f = v3_fmap f v
+
 
 || applicative interface
 v3_apply :: v3 (* -> **) -> v3 * -> v3 **

@@ -122,6 +122,9 @@ rws_sequence xs = foldr (rws_liftA2 (:)) (rws_pure []) xs
 rws_fmap :: (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
 rws_fmap f m = m $rws_bind (f .> rws_pure)
 
+rws_rfmap :: rws * ** *** **** -> (**** -> *****) -> rws * ** *** *****
+rws_rfmap m f = rws_fmap f m
+
 
 || applicative interface
 rws_apply :: rws * ** *** (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****

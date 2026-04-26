@@ -9,7 +9,7 @@
 
 %import <base>
 %import <maybe>
-%import <state>                 (>>=)/st_bind (<$>)/st_fmap (>>)/st_right
+%import <state>                 (>>=)/st_bind (>>)/st_right
 %import <stream>
 
 
@@ -95,6 +95,9 @@ v_fmap f v
         n     = v_length v
         mv    = v_unsafeThaw $ v_rep n undef
         go mv = st_forM [0 .. n - 1] (\i -> v_unsafeIndex v i |> f |> v_unsafeWrite mv i)
+
+v_rfmap :: vector * -> (* -> **) -> vector **
+v_rfmap v f = v_fmap f v
 
 v_fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
 v_fmapWithIndex f v

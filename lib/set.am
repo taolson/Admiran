@@ -110,3 +110,6 @@ s_filter cmp p = s_toList .> filter p .> s_fromList cmp
 || way to do it is to serialize to a list, map, then deserialize to the new set
 s_fmap :: ordI ** -> (* -> **) -> s_set * -> s_set **
 s_fmap cmp f = s_toList .> map f .> s_fromList cmp
+
+s_rfmap :: ordI ** -> s_set * -> (* -> **) -> s_set **
+s_rfmap cmp m f = s_fmap cmp f m

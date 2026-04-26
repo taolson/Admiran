@@ -60,6 +60,8 @@ e_sequence xs = foldr (e_liftA2 (:)) (e_pure []) xs
 e_fmap :: (** -> ***) -> either * ** -> either * ***
 e_fmap f ma = ma $e_bind (f .> e_pure)
 
+e_rfmap :: either * ** -> (** -> ***) -> either * ***
+e_rfmap ma f = e_fmap f ma
 
 || applicative interface
 e_apply :: either * (** -> ***) -> either * ** -> either * ***

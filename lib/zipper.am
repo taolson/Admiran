@@ -73,6 +73,10 @@ z_modify f z                    = error "z_modify: empty zipper"
 z_fmap :: (* -> **) -> zipper * -> zipper **
 z_fmap f (Zipper ls rs) = Zipper (map f ls) (map f rs)
 
+z_rfmap :: zipper * -> (* -> **) -> zipper **
+z_rfmap z f = z_fmap f z
+
+
 || fold instance for zipper
 z_fold :: (** -> * -> **) -> ** -> zipper * -> **
 z_fold f z (Zipper ls rs) = foldl f (foldl f z ls) rs

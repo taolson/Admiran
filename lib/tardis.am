@@ -99,6 +99,9 @@ td_sequence_ xs = foldr td_right (td_pure ()) xs
 td_fmap :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
 td_fmap f m = m $td_bind (f .> td_pure)
 
+td_rfmap :: tardis * ** *** -> (*** -> ****) -> tardis * ** ****
+td_rfmap m f = td_fmap f m
+
 
 || applicative interface
 td_apply :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****

@@ -223,6 +223,9 @@ t_fmap f t
         go (Trie bs mv) = case map goNext bs of bs' -> case f <$>? mv of mv' -> Trie bs' mv'
         goNext (p, t)   = case go t of t' -> (p, t')
 
+t_rfmap :: trie * ** -> (** -> ***) -> trie * ***
+t_rfmap t f = t_fmap f t
+
 
 || foldable interace
 t_foldr :: (** -> *** -> ***) -> *** -> trie * ** -> ***
