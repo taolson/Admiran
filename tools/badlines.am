@@ -2,10 +2,8 @@
 
 
 %import <base>
-%import <io>                    (>>=)/io_bind
+%import <io>            (>>=)/io_bind (<&>)/io_rfmap
 
-
-(<&>) = converse io_fmap
 
 result == (string, [num])
 
