@@ -7,7 +7,7 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>                 (>>=)/mb_bind  (<$>)/mb_fmap
+%import <maybe>                 (>>=)/mb_bind  (<&>)/mb_rfmap
 %import <set>
 %import "config"
 %import "exception"             (>>=?)/ex_bind
@@ -448,8 +448,8 @@ lookupCtorNames genv n
 || so the arity for them is determined from their specs
 lookupArity :: globalEnv -> name -> maybe int
 lookupArity genv n
-    = fnArity <$> lookupSpec genv n, if isConstructor n \/ isBuiltin n
-    = fnArity <$> lookupDefn genv n, otherwise
+    = lookupSpec genv n <&> fnArity, if isConstructor n \/ isBuiltin n
+    = lookupDefn genv n <&> fnArity, otherwise
 
 || create an anno for top-level defns from genv
 genvAnno :: globalEnv -> anno

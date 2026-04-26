@@ -10,7 +10,7 @@
 %import <maybe>
 %import "ast"
 %import "dependency"
-%import "exception"             (>>=)/ex_bind (<$>)/ex_fmap
+%import "exception"             (>>=)/ex_bind (<&>)/ex_rfmap
 %import "grammar"
 %import "module"
 %import "name"
@@ -19,15 +19,15 @@
 || add imported environments to the top-level environment, processing aliases and removes
 reifyImports :: globalEnv -> excpt globalEnv
 reifyImports genv
-    = updateGenv <$> ex_foldM reifyImport m (view modImports m)
+    = ex_foldM reifyImport m (view modImports m) <&> updateGenv
       where
-        m   = view genvMod genv
+        m = view genvMod genv
 
         updateGenv m = set genvMod m genv
 
         reifyImport m (fs, loc, qual, as, binds, aliases)
-            = updateModEnv <$> (getExports >>= doAliases >>= doMerge), if null binds
-            = ex_error (Unsupported "bindings in %import") loci,       otherwise
+            = getExports >>= doAliases >>= doMerge <&> updateModEnv, if null binds
+            = ex_error (Unsupported "bindings in %import") loci,     otherwise
               where
                 loci = locOnlyInfo loc
                 env  = view modEnv m
@@ -48,7 +48,7 @@ reifyImports genv
 || reify module definitions that match a qualifying function
 reifyDefns :: (defn -> bool) -> globalEnv -> excpt globalEnv
 reifyDefns defType genv
-    = updateGenv <$> ex_foldM ins env defLst
+    = ex_foldM ins env defLst <&> updateGenv
       where
         m      = view genvMod genv
         env    = view modEnv m
@@ -60,7 +60,7 @@ reifyDefns defType genv
 || convert unreified list of export directive parts to a reified export environment
 reifyExports :: globalEnv -> excpt globalEnv
 reifyExports genv
-    = updateGenv <$> doExports exps
+    = doExports exps <&> updateGenv
       where
         m    = view genvMod genv
         mn   = view modName m
@@ -71,7 +71,7 @@ reifyExports genv
         updateExportMap nm = setModExportMap nm m
 
         doExports []   = doExports [LibAll (initLocation mn)]           || default is to export everything
-        doExports exps = updateExportMap <$> ex_foldM doPart m_empty exps
+        doExports exps = ex_foldM doPart m_empty exps <&> updateExportMap
 
         doPart e (LibAll loc)    = doMerge loc e (definedInModule mn env)
         doPart e (LibFile f loc) = doMerge loc e (definedInModule mn env) where mn = fileSpecName f

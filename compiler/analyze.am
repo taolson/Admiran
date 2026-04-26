@@ -16,7 +16,7 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>         (<$>?)/mb_fmap (<|>?)/mb_alt
+%import <maybe>         (<&>)/mb_rfmap (<|>)/mb_alt
 %import <set>
 %import <state>         (>>=)/st_bind (<<)/st_left (>>)/st_right
 %import "ast"
@@ -135,8 +135,8 @@ lookupAffineInfo (Evar n)
                       = checkBuiltin,   if isBuiltin n
                       = checkAffineMap, otherwise
 
-                checkAffineMap = m_lookup cmpname n am <|>? view defnAnAffine <$>? lookupDefn genv n
-                checkBuiltin   = (checkOp $ getName n) <$>? lookupArity genv n
+                checkAffineMap = m_lookup cmpname n am <|> lookupDefn genv n <&> view defnAnAffine
+                checkBuiltin   = lookupArity genv n <&> checkOp (getName n)
 
                 || builtins are Uone in all arguments except for array write operations,
                 || which are Umany in their last argument

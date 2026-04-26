@@ -214,7 +214,10 @@ ex_foldM f z0 xs
 
 || functor interface
 ex_fmap :: (* -> **) -> excpt * -> excpt **
-ex_fmap f ma = ma $ex_bind (ex_pure . f)
+ex_fmap f m = m $ex_bind (ex_pure . f)
+
+ex_rfmap :: excpt * -> (* -> **) -> excpt **
+ex_rfmap m f = ex_fmap f m
 
 
 || applicative interface

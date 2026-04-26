@@ -17,7 +17,7 @@
 %import <lens>
 %import <map>
 %import <maybe>
-%import <maybeState>            (>>=)/mst_bind (<$>)/mst_fmap (<<)/mst_left (>>)/mst_right
+%import <maybeState>            (>>=)/mst_bind (<&>)/mst_rfmap (<<)/mst_left (>>)/mst_right
 %import <set>
 %import <state>
 %import "ast"
@@ -232,7 +232,7 @@ lookupScheme n st
 
 || generate a new Tvar number from the state
 newTvar :: tcState texpr
-newTvar = Tvar <$> (mst_view tcGen) << mst_over tcGen (+ 1)
+newTvar = mst_view tcGen <&> Tvar << mst_over tcGen (+ 1)
 
 || create a new instance of a type scheme by creating new Tvars for the schematic vars
 instantiate :: scheme -> tcState (texpr, substMap)
@@ -285,7 +285,7 @@ lexPoly tmap inf e
 || generate a typeMap of new Tvars from a defnMap
 genTypeMap :: defnMap -> tcState typeMap
 genTypeMap dm
-    = mkMap <$> mst_mapM (const newTvar) ds
+    = mst_mapM (const newTvar) ds <&> mkMap
       where
         (ks, ds) = unzip2 $ m_toList dm
         mkMap    = m_fromList cmpname . zip2 ks
@@ -309,7 +309,7 @@ typesFromSpec n vars
         getSpec genv  = lookupSpec genv n |> fromMaybef mst_fail genScm         || find the typeSpec for a name
         genScm s      = mkScheme s |> instantiate >>= genTs                     || generate a new scheme from the spec
         genTs (s, _)  = typeList s |> fst |> take nvars |> mst_pure             || collect the individual var types
-        addMissing ts = (ts ++) <$> mst_mapM (const newTvar) [1 .. nvars - #ts] || if spec is missing or has fewer types, pad with newTvars
+        addMissing ts = mst_mapM (const newTvar) [1 .. nvars - #ts] <&> (ts ++) ||  if spec is missing or has fewer types, pad with newTvars
 
 || report extra info when an error is encountered in mutual recursive definitions
 mutRecErr :: [name] -> tcState *
@@ -372,7 +372,7 @@ infer (Eap e1 e2)
 infer (Ecall e args)
     = mst_bind2 newTvar (inferList (e : args)) f1
       where
-        f1 tv ((t : ts), sm) = (f2 tv) <$> (unify t (foldr Tarr tv ts) sm) <|> err      || te = (t0 -> ... tn -> tv)
+        f1 tv ((t : ts), sm) = (unify t (foldr Tarr tv ts) sm) <&> f2 tv  <|> err       || te = (t0 -> ... tn -> tv)
         f1 _  _              = unreachable
 
         f2 tv sm             = (t_subst sm tv, sm)

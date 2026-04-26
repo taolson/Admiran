@@ -11,7 +11,7 @@
 %import <bitSet>
 %import <lens>
 %import <map>
-%import <maybe>                 (<$>?)/mb_fmap (<|>?)/mb_alt
+%import <maybe>                 (<&>)/mb_rfmap (<|>)/mb_alt
 %import <set>
 %import <state>                 (>>=)/st_bind
 %import "ast"
@@ -63,7 +63,7 @@ getArity (Evar n) st
     = foldr lookFrame lookGenv $ view nmLenv st
       where
         lookGenv      = lookupArity (view nmGenv st) n
-        lookFrame f k = (fnArity <$>? m_lookup cmpname n f) <|>? k
+        lookFrame f k = m_lookup cmpname n f <&> fnArity <|> k
 
 || handle polymorphic pseudo-functions pack and sel
 getArity (Tname n as) st

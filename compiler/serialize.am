@@ -8,7 +8,7 @@
 %import <either>
 %import <map>
 %import <set>
-%import <state>                 (>>=)/st_bind (<$>)/st_fmap (<*>)/st_apply
+%import <state>                 (>>=)/st_bind (<$>)/st_fmap (<&>)/st_rfmap (<*>)/st_apply
 %import "grammar"
 %import "module"
 %import "name"
@@ -75,7 +75,7 @@ serialBool True  = serialCtor 1
 
 deserialBool :: deserializer bool
 deserialBool
-    = encBool <$> deserialCtor
+    = deserialCtor <&> encBool
       where
         encBool 0 = False
         encBool 1 = True
@@ -137,8 +137,8 @@ deserialEither :: deserializer * -> deserializer ** -> deserializer (either * **
 deserialEither dl dr
     = deserialCtor >>= dse
       where
-        dse 0 = Left  <$> dl
-        dse 1 = Right <$> dr
+        dse 0 = dl <&> Left
+        dse 1 = dr <&> Right
         dse _ = unreachable
 
 serialBitSet :: serializer bitSet
@@ -157,7 +157,7 @@ serialCaseSel Cvectored = serialCtor 3
 
 deserialCaseSel :: deserializer caseSel
 deserialCaseSel
-    = ctor <$> deserialCtor
+    = deserialCtor <&> ctor
       where
         ctor 0 = Cnone
         ctor 1 = Csingle
@@ -171,7 +171,7 @@ serialMultSel Mpat = serialCtor 1
 
 deserialMultSel :: deserializer multSel
 deserialMultSel
-    = ctor <$> deserialCtor
+    = deserialCtor <&> ctor
       where
         ctor 0 = Mfun
         ctor 1 = Mpat
@@ -184,7 +184,7 @@ serialUseInfo Umany = serialCtor 2
 
 deserialUseInfo :: deserializer useInfo
 deserialUseInfo
-    = ctor <$> deserialCtor
+    = deserialCtor <&> ctor
       where
         ctor 0 = Uzero
         ctor 1 = Uone
@@ -217,30 +217,30 @@ deserialName
     = deserialCtor >>= ctor
       where
         ctor 0 =           Unqualified <$> deserialString
-        ctor 1 = st_liftA2 Unresolved  deserialString deserialString
-        ctor 2 = st_liftA2 Qualified   deserialString deserialString
-        ctor 3 = st_liftA2 Private     deserialString deserialString
-        ctor 4 =           Builtin <$> deserialString
-        ctor 5 = st_liftA2 Internal    deserialString deserialPosInt
+        ctor 1 = st_liftA2 Unresolved      deserialString deserialString
+        ctor 2 = st_liftA2 Qualified       deserialString deserialString
+        ctor 3 = st_liftA2 Private         deserialString deserialString
+        ctor 4 =           Builtin     <$> deserialString
+        ctor 5 = st_liftA2 Internal        deserialString deserialPosInt
         ctor _ = unreachable
 
 serialDefnMap :: serializer defnMap
 serialDefnMap = serialList (serialTup2 serialName serialAst) . m_toList
 
 deserialDefnMap :: deserializer defnMap
-deserialDefnMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName deserialAst)
+deserialDefnMap = deserialList (deserialTup2 deserialName deserialAst) <&> m_fromList cmpname
 
 serialNameMap :: serializer nameMap
 serialNameMap = serialList (serialTup2 serialName serialName) . m_toList
 
 deserialNameMap :: deserializer nameMap
-deserialNameMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName deserialName)
+deserialNameMap = deserialList (deserialTup2 deserialName deserialName) <&> m_fromList cmpname
 
 serialEnvMap :: serializer envMap
 serialEnvMap = serialList (serialTup2 serialName (serialSet serialName)) . m_toList
 
 deserialEnvMap :: deserializer envMap
-deserialEnvMap = m_fromList cmpname <$> deserialList (deserialTup2 deserialName (deserialSet cmpname deserialName))
+deserialEnvMap = deserialList (deserialTup2 deserialName (deserialSet cmpname deserialName)) <&> m_fromList cmpname
 
 serialAst :: serializer ast
 serialAst (Evar n)            = serialCtor  0 . serialName n
@@ -358,7 +358,7 @@ deserialLibAs
     = deserialCtor >>= ctor
       where
         ctor 0 = st_pure LibNoAs
-        ctor 1 = LibAs <$> deserialString
+        ctor 1 = deserialString <&> LibAs
         ctor _ = unreachable
 
 serialLibPart :: serializer libPart
@@ -386,7 +386,7 @@ deserialLibAlias
     = deserialCtor >>= dla
       where
         dla 0 = st_liftA2 Alias deserialName deserialName
-        dla 1 = AliasRemove <$> deserialName
+        dla 1 =           AliasRemove <$>    deserialName
         dla _ = unreachable
 
 serialLibBinding :: serializer libBinding
@@ -414,7 +414,7 @@ serialBuildStatus Rebuild    = serialCtor 2
 
 deserialBuildStatus :: deserializer buildStatus
 deserialBuildStatus
-    = mkbs <$> deserialCtor
+    = deserialCtor <&> mkbs
       where
         mkbs 0 = Unbuilt
         mkbs 1 = Built

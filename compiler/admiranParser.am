@@ -22,7 +22,7 @@
 %import "grammar"
 %import "module"
 %import "name"
-%import "parser"                (>>=)/p_bind (<$>)/p_fmap (<*>)/p_apply (<<)/p_left (>>)/p_right (<|>)/p_alt (>>=?)/p_guard
+%import "parser"                (>>=)/p_bind (<&>)/p_rfmap (<*>)/p_apply (<<)/p_left (>>)/p_right (<|>)/p_alt (>>=?)/p_guard
 %import "predef"
 %import "tokenizer"
 
@@ -94,7 +94,7 @@ p_listSomeOf p = p_someSepBy p_comma p
 || parse a parenthesized expression, either Unit (), a single expression (x), or a tuple (x, y, ..)
 p_parenExpr :: parser expr -> parser expr
 p_parenExpr pElt
-    = mkParen <$> p_inParens (p_listManyOf pElt)
+    = p_inParens (p_listManyOf pElt) <&> mkParen
       where
         mkParen []  = builtinUnit      || ()
         mkParen [e] = e                || (expr)
@@ -102,7 +102,7 @@ p_parenExpr pElt
 
 || parse an explicit list of expressions
 p_listExpr :: parser expr -> parser expr
-p_listExpr pElt = p_inBrackets (makeList <$> p_listManyOf pElt)
+p_listExpr pElt = p_inBrackets $ p_listManyOf pElt <&> makeList
 
 
 || list comprehension
@@ -117,7 +117,7 @@ p_recurrence = p_liftA3 Qrecur p_pat (p_lArrow >> p_expr) (p_comma >> p_rangePar
 
 || generator or qualifying guard, e.g. x < 10
 p_qualifier :: parser qual
-p_qualifier = p_recurrence <|> p_generator <|> Qguard <$> p_expr
+p_qualifier = p_recurrence <|> p_generator <|> p_expr <&> Qguard
 
 p_comprehension :: parser expr
 p_comprehension
@@ -174,7 +174,7 @@ p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
 || parse an expression term
 p_term :: parser expr
 p_term
-    = Evar <$> p_varOrConstructor <|>
+    = p_varOrConstructor <&> Evar <|>
       p_literal                   <|>
       p_parenExpr p_expr          <|>
       p_caseExpr                  <|>
@@ -326,7 +326,7 @@ p_lambdaExpr
 
 || parse a conditional expression for the given expr
 p_condIf, p_condOtherwise, p_cond :: expr -> parser cond
-p_condIf e = p_ident "if" >> (($Cif e) <$> p_expr)
+p_condIf e = p_ident "if" >> p_expr <&> ($Cif e)
 
 p_condOtherwise e = p_ident "otherwise" >> p_pure (Cdefault e)
 
@@ -341,7 +341,7 @@ p_conds p_sep e
 
 || parse "where ..." definitions
 p_whdefs :: parser [defn]
-p_whdefs = map fst <$> (p_ident "where" >> (p_some p_def <|> p_expected "'where' definitions"))
+p_whdefs = p_ident "where" >> p_some p_def <&> map fst <|> p_expected "'where' definitions"
 
 || parse right hand side of an expression in a layout block
 || note: this used to try parsing a condExpr, and if that failed parse an expr.  However, because a condExpr begins with an expr,
@@ -415,8 +415,8 @@ p_patPrefix = p_prefix $p_satisfy (_eq cmpname stdNegName)
 
 p_formal :: parser expr
 p_formal
-    = Pvar <$> p_varOrConstructor <|>
-      Plit <$> p_literal          <|>
+    = p_varOrConstructor <&> Pvar <|>
+      p_literal          <&> Plit <|>
       p_parenExpr p_patExpr       <|>
       p_listExpr  p_patExpr
 
@@ -474,7 +474,7 @@ p_tform
 || used for parsing both expressions and patterns
 p_parenTexpr :: parser texpr
 p_parenTexpr
-    = mkParen <$> p_inParens (p_listManyOf p_type)
+    = p_inParens (p_listManyOf p_type) <&> mkParen
       where
         mkParen []  = builtinTypeUnit || ()
         mkParen [t] = t               || (expr)
@@ -482,12 +482,12 @@ p_parenTexpr
 
 || parse a list type
 p_listTexpr :: parser texpr
-p_listTexpr = Tlist <$> p_inBrackets p_type
+p_listTexpr = p_inBrackets p_type <&> Tlist
 
 || parse a type term
 p_tTerm :: parser texpr
 p_tTerm
-    = converse Tname [] <$> p_tname <|>
+    = p_tname <&> converse Tname [] <|>
       p_tvar                        <|>
       p_parenTexpr                  <|>
       p_listTexpr
@@ -579,7 +579,7 @@ p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var) (p_colons >> p_inLayout p
            mkTyp   loc    v = (d, modInsDef d)  where d = DefData v [] (locAnno loc)
 
 p_sig :: parser [defn]
-p_sig = (map fst . concat) <$> (p_some p_spec)
+p_sig = p_some p_spec <&> map fst . concat
 
 || parse a type definition
 || only used at the top-level, so only return the module insertion function
@@ -611,7 +611,7 @@ p_def
 
 p_fileSpec :: parser fileSpec
 p_fileSpec
-    = mkStd <$> p_inAngles p_identifier <|> p_any >>=? fid
+    = p_inAngles p_identifier <&> mkStd <|> p_any >>=? fid
       where
         mkStd n            = FileSpec stdlibPath (getName n)
         fid (TlitString s) = fromMaybef p_fail p_pure (fileSpecFromString s)
@@ -622,21 +622,21 @@ p_libPart
     = p_getLoc >>= floc
       where
         floc loc
-            = p_sym "+" >> p_pure (LibAll loc)                     <|>
-              ($LibIdent loc)  <$> p_varOrConstructor              <|>
-              ($LibRemove loc) <$> (p_minus >> p_varOrConstructor) <|>
-              ($LibFile loc)   <$> p_fileSpec
+            = p_sym "+" >>               p_pure (LibAll loc)     <|>
+              p_varOrConstructor            <&> ($LibIdent loc)  <|>
+              p_minus >> p_varOrConstructor <&> ($LibRemove loc) <|>
+              p_fileSpec                    <&> ($LibFile loc)
 
 p_libQual :: parser libQual
 p_libQual
-    = mkQual <$> p_optional (p_ident "qualified")
+    = p_optional (p_ident "qualified") <&> mkQual
       where
         mkQual Nothing  = LibUnqualified
         mkQual (Just _) = LibQualified
 
 p_libAs :: parser libAs
 p_libAs
-    = mkAs <$> p_optional (p_ident "as" >> p_identifier)
+    = p_optional (p_ident "as" >> p_identifier) <&> mkAs
       where
         mkAs Nothing  = LibNoAs
         mkAs (Just s) = LibAs (getName s)
@@ -645,7 +645,7 @@ p_alias :: parser libAlias
 p_alias
     = p_alias' p_var         <|>                || note: separate p_var and p_constructor here to ensure
       p_alias' p_constructor <|>                || the alias is the same (var or ctor) as the sym
-      AliasRemove <$> (p_minus >> p_var)
+      p_minus >> p_var <&> AliasRemove
       where
         p_alias' p = p_liftA2 Alias p (p_sym "/" >> p)
 
@@ -665,9 +665,9 @@ p_env
 p_libDir :: parser modInserter
 p_libDir
     = p_percent >>
-        ((modInsImp <$> (p_ident "import" >> p_inLayout p_env))              <|>
-         (modInsExp <$> (p_ident "export" >> p_inLayout (p_some p_libPart))) <|>
-         (modInsFre <$> (p_ident "free"   >> p_inBraces p_sig))              <|>
+        (p_ident "import" >> p_inLayout p_env              <&> modInsImp <|>
+         p_ident "export" >> p_inLayout (p_some p_libPart) <&> modInsExp <|>
+         p_ident "free"   >> p_inBraces p_sig              <&> modInsFre <|>
          p_expected "a library directive")
 
 
@@ -675,13 +675,13 @@ p_libDir
 
 p_decl :: parser [modInserter]
 p_decl
-    = (singleton         <$> p_tdef)   <|>      || try parsing a tdef before trying a def, so that a type synonym isn't incorrectly parsed as an inline fn def
-      ((singleton . snd) <$> p_def)    <|>
-      (map snd           <$> p_spec)   <|>
-      (singleton         <$> p_libDir)
+    = p_tdef   <&> singleton        <|> || try parsing a tdef before trying a def, so that a type synonym isn't incorrectly parsed as an inline fn def
+      p_def    <&> snd .> singleton <|>
+      p_spec   <&> map snd          <|>
+      p_libDir <&> singleton
 
 p_decls :: parser [modInserter]
-p_decls = concat <$> (p_some p_decl) << p_end
+p_decls = p_some p_decl << p_end <&> concat
 
 || parse a top-level Library (Module)
 || takes an inital module with the name and builtin environment initialized

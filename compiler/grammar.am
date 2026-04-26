@@ -741,7 +741,7 @@ opPrecRepr
         "R $ $! <|>"
 
       || reverse application, functor / applicative / monad operators
-      , "L |> !> >>= >> << <$> <*>"
+      , "L |> !> >>= >> << <$> <&> <*>"
 
         || booleans
       , "R \\/"
