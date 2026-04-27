@@ -341,7 +341,7 @@ p_conds p_sep e
 
 || parse "where ..." definitions
 p_whdefs :: parser [defn]
-p_whdefs = p_ident "where" >> p_some p_def <&> map fst <|> p_expected "'where' definitions"
+p_whdefs = p_ident "where" >> (p_some p_def <&> map fst <|> p_expected "'where' definitions")
 
 || parse right hand side of an expression in a layout block
 || note: this used to try parsing a condExpr, and if that failed parse an expr.  However, because a condExpr begins with an expr,
@@ -579,7 +579,7 @@ p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var) (p_colons >> p_inLayout p
            mkTyp   loc    v = (d, modInsDef d)  where d = DefData v [] (locAnno loc)
 
 p_sig :: parser [defn]
-p_sig = p_some p_spec <&> map fst . concat
+p_sig = p_some p_spec <&> concat .> map fst
 
 || parse a type definition
 || only used at the top-level, so only return the module insertion function
@@ -622,7 +622,7 @@ p_libPart
     = p_getLoc >>= floc
       where
         floc loc
-            = p_sym "+" >>               p_pure (LibAll loc)     <|>
+            = p_sym "+" >> p_pure (LibAll loc)                   <|>
               p_varOrConstructor            <&> ($LibIdent loc)  <|>
               p_minus >> p_varOrConstructor <&> ($LibRemove loc) <|>
               p_fileSpec                    <&> ($LibFile loc)
