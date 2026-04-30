@@ -50,7 +50,10 @@ freqs s
 || chi-squared test comparing two frequency-of-occurrence tables
 chisqr :: [fix16] -> [fix16] -> fix16
 chisqr xs ys
-    = zipWith (\x y -> ((x -% y) *% (x -% y)) /% y) xs ys |> foldl (+%) (toFix16Int 0)
+    = zipWith sqDiff xs ys |> fsum
+      where
+        sqDiff x y = (x -% y) *% (x -% y) /% y
+        fsum       = foldl (+%) (toFix16Int 0)
 
 || crack a Caesar-encoded string by finding the best chi-squared test match for all possible shift amounts,
 || then decode using the negative shift
