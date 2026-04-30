@@ -28,7 +28,7 @@ english = freqs |> split ',' |> map fix16val
             freqs = "8.2,1.5,2.8,4.3,12.7,2.2,2.0,6.1,7.0,0.2,0.8,4.0,2.4,6.7,7.5,1.9,0.1,6.0,6.3,9.1,2.8,1.0,2.4,0.2,2.0,0.1"
 
 percent :: int -> int -> fix16
-percent n m = toFix16Int 100 *. toFix16Int n /. toFix16Int m
+percent n m = toFix16Int 100 *% toFix16Int n /% toFix16Int m
 
 rotate :: int -> [*] -> [*]
 rotate n xs = case splitAt n xs of (ys, zs) -> zs ++ ys
@@ -50,7 +50,7 @@ freqs s
 || chi-squared test comparing two frequency-of-occurrence tables
 chisqr :: [fix16] -> [fix16] -> fix16
 chisqr xs ys
-    = zipWith (\x y -> ((x -. y) *. (x -. y)) /. y) xs ys |> foldl (+.) (toFix16Int 0)
+    = zipWith (\x y -> ((x -% y) *% (x -% y)) /% y) xs ys |> foldl (+%) (toFix16Int 0)
 
 || crack a Caesar-encoded string by finding the best chi-squared test match for all possible shift amounts,
 || then decode using the negative shift

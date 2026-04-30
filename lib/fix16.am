@@ -3,10 +3,16 @@
 %export +
 
 abstype fix16 with
-    (+.)            :: fix16  -> fix16 -> fix16
-    (-.)            :: fix16  -> fix16 -> fix16
-    (*.)            :: fix16  -> fix16 -> fix16
-    (/.)            :: fix16  -> fix16 -> fix16
+    (+%)            :: fix16  -> fix16 -> fix16
+    (-%)            :: fix16  -> fix16 -> fix16
+    (*%)            :: fix16  -> fix16 -> fix16
+    (/%)            :: fix16  -> fix16 -> fix16
+    (==%)           :: fix16  -> fix16 -> bool
+    (~=%)           :: fix16  -> fix16 -> bool
+    (<%)            :: fix16  -> fix16 -> bool
+    (<=%)           :: fix16  -> fix16 -> bool
+    (>%)            :: fix16  -> fix16 -> bool
+    (>=%)           :: fix16  -> fix16 -> bool
     toFix16Int      :: int    -> fix16
     toFix16Frac     :: int    -> fix16
     fix16Int        :: fix16  -> int
@@ -21,10 +27,17 @@ abstype fix16 with
 
 fix16 == int
 
-a +. b = a + b
-a -. b = a - b
-a *. b = a * b .>>. 16
-a /. b = (a .<<. 16) / b
+a +% b = a + b
+a -% b = a - b
+a *% b = a * b .>>. 16
+a /% b = (a .<<. 16) / b
+
+a ==% b = a == b
+a ~=% b = a ~= b
+a <% b  = a <  b
+a <=% b = a <= b
+a >% b  = a >  b
+a >=% b = a >= b
 
 toFix16Int x  = x .<<. 16
 toFix16Frac x = x
@@ -66,18 +79,6 @@ fix16val xs
 
         goFrac n _ _ = n .>>. 16
 
-showfix16Digits d n
-    = '-' : showfix16Digits d (-n), if n < 0
-    = si ++ "." ++ sf,              otherwise
-      where
-        (c, sf) = showFracDigits d (fix16Frac n)
-        ni      = fix16Int n + c
-        si      = showint ni
-
-showfix16 n = showfix16Digits 5 n
-
-cmpfix16 = cmpint
-
 || show the fix16 fractional value in a field of d digits,
 || returning the string and a potential carry bit into the integer part
 || due to rounding
@@ -93,3 +94,15 @@ showFracDigits i n
         (c', d') = (d + c) $quotrem 10
 
         showdigit d = decode (d + code '0')
+
+showfix16Digits d n
+    = '-' : showfix16Digits d (-n), if n < 0
+    = si ++ "." ++ sf,              otherwise
+      where
+        (c, sf) = showFracDigits d (fix16Frac n)
+        ni      = fix16Int n + c
+        si      = showint ni
+
+showfix16 n = showfix16Digits 5 n
+
+cmpfix16 a b = cmpint a b
