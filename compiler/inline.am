@@ -303,6 +303,7 @@ inlineAst k (Ecall (Evar n) args) st
 || Note that in some cases, the binding of a var to an alt pattern will cause extra work of building a new ctor, instead of using the
 || exisiting var.  However, it overall is a performance improvement, due to the subsequent optimizations the specialization provides.
 inlineAst k (Ecase b (Evar n) alts) st
+    = k e'                       st2, if inlinable & noReturn e st
     = k (Ecase b e'       alts)  st2, if inlinable      || inline the case scrutinee
     = k (Ecase b (Evar n) alts') st3, if isInternal n   || bind the name to the individual caseAlt patterns
     = k (Ecase b (Evar n) alts)  st,  otherwise         || don't do anything if the name is a top-level pat
