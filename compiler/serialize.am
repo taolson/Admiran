@@ -12,6 +12,7 @@
 %import "grammar"
 %import "module"
 %import "name"
+%import "pretty"
 
 
 || serializer and deserializer types
@@ -250,14 +251,14 @@ serialAst (Estring s)         = serialCtor  3 . serialString s
 serialAst (Eap e1 e2)         = serialCtor  4 . serialAst e1 . serialAst e2
 serialAst (Ecall e args)      = serialCtor  5 . serialAst e . serialList serialAst args
 serialAst (Econd conds)       = serialCtor  6 . serialList serialAst conds
-serialAst (Ecase s e alts)    = serialCtor  7 . serialCaseSel s . serialAst e . serialList serialAst alts
+serialAst (Ecase s e alts an) = serialCtor  7 . serialCaseSel s . serialAst e . serialList serialAst alts . serialAnno an
 serialAst (Efail e)           = serialCtor  8 . serialAst e
 serialAst (Efatbar e1 e2 e3)  = serialCtor  9 . serialAst e1 . serialAst e2 . serialAst e3
 serialAst (Elet r ds ps e)    = serialCtor 10 . serialBool r . serialDefnMap ds . serialList serialAst ps . serialAst e
 serialAst (ElistComp e qs an) = serialCtor 11 . serialAst e . serialList serialAst qs . serialAnno an
 serialAst (Cif e1 e2)         = serialCtor 12 . serialAst e1 . serialAst e2
 serialAst (Cdefault e)        = serialCtor 13 . serialAst e
-serialAst (CaseAlt p e)       = serialCtor 14 . serialAst p . serialAst e
+serialAst (CaseAlt p e an)    = serialCtor 14 . serialAst p . serialAst e . serialAnno an
 serialAst (Qgen ps e)         = serialCtor 15 . serialList serialAst ps . serialAst e
 serialAst (Qrecur p e1 e2)    = serialCtor 16 . serialAst p . serialAst e1 . serialAst e2
 serialAst (Qguard e)          = serialCtor 17 . serialAst e
@@ -295,14 +296,14 @@ deserialAst
         ctor  4 = st_liftA2 Eap             deserialAst         deserialAst
         ctor  5 = st_liftA2 Ecall           deserialAst         deserialAstList
         ctor  6 =           Econd       <$> deserialAstList
-        ctor  7 = st_liftA3 Ecase           deserialCaseSel     deserialAst        deserialAstList
+        ctor  7 = st_liftA4 Ecase           deserialCaseSel     deserialAst        deserialAstList    deserialAnno
         ctor  8 =           Efail       <$> deserialAst
         ctor  9 = st_liftA3 Efatbar         deserialAst         deserialAst        deserialAst
         ctor 10 = st_liftA4 Elet            deserialBool        deserialDefnMap    deserialAstList    deserialAst
         ctor 11 = st_liftA3 ElistComp       deserialAst         deserialAstList    deserialAnno
         ctor 12 = st_liftA2 Cif             deserialAst         deserialAst
         ctor 13 =           Cdefault    <$> deserialAst
-        ctor 14 = st_liftA2 CaseAlt         deserialAst         deserialAst
+        ctor 14 = st_liftA3 CaseAlt         deserialAst         deserialAst        deserialAnno
         ctor 15 = st_liftA2 Qgen            deserialAstList     deserialAst
         ctor 16 = st_liftA3 Qrecur          deserialAst         deserialAst        deserialAst
         ctor 17 =           Qguard      <$> deserialAst

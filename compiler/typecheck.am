@@ -27,6 +27,7 @@
 %import "module"
 %import "name"
 %import "predef"
+%import "pretty"
 
 
 || a substMap is a map from a Tvar number to a texpr which substitutes for it
@@ -376,9 +377,9 @@ infer (Ecall e args)
         f1 _  _              = unreachable
 
         f2 tv sm             = (t_subst sm tv, sm)
-        err                  = tc_errorNote $ Info ("in application of " ++ showast e)
+        err                  = tc_errorNote $ Info ("in application of " ++ showAst e)
 
-infer (Ecase _ e alts)
+infer (Ecase _ e alts an)
     = mst_bind2 newTvar (inferList (e : alts)) f1
       where
         f1 tv ((t : ts), sm)
@@ -396,7 +397,7 @@ infer (Ecase _ e alts)
 
         f2 tv sm = mst_pure (t_subst sm tv, sm)
 
-infer (CaseAlt (Pctor n vars) e)
+infer (CaseAlt (Pctor n vars) e an)
     = infer (Evar n) >>= f1     || infer the type of the constructor
       where
         f1 (spec, sm)
@@ -408,19 +409,19 @@ infer (CaseAlt (Pctor n vars) e)
 
         f2 bt sm (t, sm') = mst_pure (bt $Tarr t, subComp sm' sm)  || type of CaseAlt is base type of constructor -> te
 
-infer (CaseAlt (Pvar n) e)
+infer (CaseAlt (Pvar n) e an)
     = newTvar >>= f1
       where
         f1 tv         = lexMono (m_singleton n tv) infer e >>= f2 tv
         f2 tv (t, sm) = mst_pure (tv $Tarr t, sm)
 
-infer (CaseAlt (Plit e1) e2)
+infer (CaseAlt (Plit e1) e2 an)
     = inferList [e1, e2] >>= f1
       where
         f1 ([t1, t2], sm) = mst_pure (t1 $Tarr t2, sm)
         f1 _              = unreachable
 
-infer (CaseAlt Pwildcard e)
+infer (CaseAlt Pwildcard e an)
     = mst_bind2 newTvar (infer e) f
       where
          f tv (t, sm) = mst_pure (tv $Tarr t, sm)       || inferred type is * -> t
@@ -502,7 +503,7 @@ inferDefs defs
         ndefs = #defs
         ns    = map defnName defs
         def   = hd defs
-        rec   = view defnAnRec def
+        rec   = view astAnnoRec def
 
         || infer a single defn normally, if it isn't recursive or it has an existing spec
         || otherwise, infer the definition(s) monomorphically as a recursive group
@@ -674,4 +675,4 @@ typecheck genv
         (errs, warns)  = partition isError (view tcErrs st')
 
         noDef d        = ~m_member cmpname (defnName d) defs
-        addNoDefWarn d = addTcWarn (SpecNoDef (defnName d)) (locOnlyInfo (view defnAnLoc d))
+        addNoDefWarn d = addTcWarn (SpecNoDef (defnName d)) (locOnlyInfo (view astAnnoLoc d))

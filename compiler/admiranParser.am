@@ -24,6 +24,7 @@
 %import "name"
 %import "parser"                (>>=)/p_bind (<&>)/p_rfmap (<*>)/p_apply (<<)/p_left (>>)/p_right (<|>)/p_alt (>>=?)/p_guard
 %import "predef"
+%import "pretty"
 %import "tokenizer"
 
 
@@ -123,7 +124,7 @@ p_comprehension :: parser expr
 p_comprehension
     = p_inBrackets (p_liftA3 mkCompr p_getLoc p_expr (p_vBar >> (p_someSepBy p_semi p_qualifier)))
       where
-        mkCompr loc e quals = ElistComp e quals (locAnno loc)
+        mkCompr loc e quals = ElistComp e quals (emptyAnnoLoc loc)
 
 
 || parser for presections e.g. (1 +)
@@ -307,10 +308,14 @@ p_casePat
         isCasePat _              = False
 
 p_caseAlt :: parser caseAlt
-p_caseAlt = p_liftA2 CaseAlt p_casePat (p_rArrow >> p_rhs p_rArrow)
+p_caseAlt = p_liftA2 mkAlt p_casePat (p_rArrow >> p_rhs p_rArrow)
+            where
+              mkAlt p e = CaseAlt p e emptyAnno
 
 p_caseExpr :: parser expr
-p_caseExpr = p_liftA2 (Ecase Cnone) (p_ident "case" >> p_expr) (p_ident "of" >> p_inLayout (p_some p_caseAlt))
+p_caseExpr = p_liftA2 mkCase (p_ident "case" >> p_expr) (p_ident "of" >> p_inLayout (p_some p_caseAlt))
+             where
+               mkCase e alts = Ecase Cnone e alts emptyAnno
 
 || parse an anonymous lambda expr by converting it to an Elet of a new function definition with a unique name
 p_lambdaExpr :: parser expr
@@ -321,7 +326,7 @@ p_lambdaExpr
             = (Elet False (m_singleton ln dm) [] (Evar ln))
               where
                 ln = Internal "lam" 0
-                d  = DefFn ln vars e (locAnno loc)
+                d  = DefFn ln vars e (emptyAnnoLoc loc)
                 dm = DefMult Mfun [d]                   || insert the defn into a DefMult so that the desugaring pass will desugar complex pats
 
 || parse a conditional expression for the given expr
@@ -521,7 +526,7 @@ p_tAp es ops
       where
         e : es'              = es
         fap (Tname n vars) t = p_tOp (Tname n (vars ++ [t]) : es') ops
-        fap e              t = p_error 2 ("cannot apply " ++ showast e ++ " to " ++ showast t)
+        fap e              t = p_error 2 ("cannot apply " ++ showAst e ++ " to " ++ showAst t)
 
 || do a final reduce of the expr and opr stacks (all type infix ops are right-associative)
 p_tFinal :: [texpr] -> [name] -> parser texpr
@@ -575,8 +580,8 @@ p_spec = p_liftA3 mkVars p_getLoc (p_listSomeOf p_var) (p_colons >> p_inLayout p
          where
            mkVars  loc vs t = map (mkVar loc t) vs
            mkType  loc vs   = map (mkTyp loc) vs
-           mkVar   loc t  v = (d, modInsSpec d) where d = DefSpec (Tname v []) t (locAnno loc)
-           mkTyp   loc    v = (d, modInsDef d)  where d = DefData v [] (locAnno loc)
+           mkVar   loc t  v = (d, modInsSpec d) where d = DefSpec (Tname v []) t (emptyAnnoLoc loc)
+           mkTyp   loc    v = (d, modInsDef d)  where d = DefData v [] (emptyAnnoLoc loc)
 
 p_sig :: parser [defn]
 p_sig = p_some p_spec <&> concat .> map fst
@@ -594,17 +599,17 @@ p_tdef
       p_liftA3 mkData p_getLoc p_tform  (p_sym "::=" >> (p_inLayout p_constructs <|> p_expected "a data definition")) <|>
       p_liftA3 mkAbs  p_getLoc (p_ident "abstype" >> p_tform) (p_ident "with" >> p_inLayout p_sig)
       where
-        mkSyn  loc tf  t    = modInsDef  (DefSyn  tf  t                  (locAnno loc))
-        mkData loc tf ctors = modInsData (DefData tf  ctors              (locAnno loc))
-        mkAbs  loc tf ts    = modInsAbs  (DefAbs  tf  ts builtinTypeType (locAnno loc))
+        mkSyn  loc tf  t    = modInsDef  (DefSyn  tf  t                  (emptyAnnoLoc loc))
+        mkData loc tf ctors = modInsData (DefData tf  ctors              (emptyAnnoLoc loc))
+        mkAbs  loc tf ts    = modInsAbs  (DefAbs  tf  ts builtinTypeType (emptyAnnoLoc loc))
 
 || parse a definition
 p_def :: parser (defn, modInserter)
 p_def
     = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal >> p_rhs p_equal)
       where
-        mkDef loc (Left p)  rhs         = (d, modInsPat d) where d = DefPat  p    rhs (locAnno loc)
-        mkDef loc (Right (n, vars)) rhs = (d, modInsDef d) where d = DefFn n vars rhs (locAnno loc)
+        mkDef loc (Left p)  rhs         = (d, modInsPat d) where d = DefPat  p    rhs (emptyAnnoLoc loc)
+        mkDef loc (Right (n, vars)) rhs = (d, modInsDef d) where d = DefFn n vars rhs (emptyAnnoLoc loc)
 
 
 || Admiran library directive parsing

@@ -21,6 +21,7 @@
 %import "module"
 %import "name"
 %import "predef"
+%import "pretty"
 
 
 || a code object is a locInfo and a list of STG instructions
@@ -410,7 +411,7 @@ buildCodeAlt :: caseAlt -> state bdSt [stgInsn]
 || or a new reg operand for a Vclosure that captures the current r0, r1, and args and unpacks them when called
 || Note: this code uses the bdBuiltin state var to determine if we are currently working inside a builtin; this
 || must be set lexically whenever we enter a new Ecase
-buildCodeAlt (CaseAlt (Pvar n) e)
+buildCodeAlt (CaseAlt (Pvar n) e an)
     = st_pure [Ret r0Opr r1Opr],        if matchVar n e || just return existing r0/r1/args
     = st_view bdBuiltin >>= doAlt, otherwise
       where
@@ -426,10 +427,10 @@ buildCodeAlt (CaseAlt (Pvar n) e)
                     where
                       addClosure eins = Vclosure reg unpackPtr : eins
 
-buildCodeAlt (CaseAlt (Pctor cn vars) e)
+buildCodeAlt (CaseAlt (Pctor cn vars) e an)
     = inAltEnv vars (addVarArityInfo cn vars >> buildCode e)
 
-buildCodeAlt (CaseAlt p e)
+buildCodeAlt (CaseAlt p e an)
     = inAltEnv [] (buildCode e)
 
 buildCodeAlt _ = unreachable
@@ -478,8 +479,8 @@ buildCodeAlts Cpriority topr alts
                   = st_pure bb,          if isPvarOrWild p              || irrefutable (unconditional) case; early-outs
                   = st_liftA2 (:) tst k, otherwise                      || refutable (conditional) case; add Jeq of tag
                     where
-                      CaseAlt p _ = a
-                      tst         = makeCode bb <&> Jeq topr (mkTagOpr p)
+                      CaseAlt p _ _ = a
+                      tst           = makeCode bb <&> Jeq topr (mkTagOpr p)
 
                 mkTagOpr (Plit (EprimInt n))  = makeImmOpr n
                 mkTagOpr (Plit (EprimChar c)) = makeImmOpr (code c)
@@ -533,8 +534,8 @@ buildCodeAltsNoCont sel topr alts
                                     = Just (o, n), if isFrm o
                                     = Nothing,     otherwise
 
-                needsFrm (CaseAlt _ (Elet _ _ _ _))  = True        || caseAlt has an Elet, which allocs Frm slots
-                needsFrm _                           = False
+                needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
+                needsFrm _                            = False
 
         || build the alts in the existing Env, adding bindings for any moved Frm refs
         mkAlts binfo
@@ -687,7 +688,7 @@ buildCode (Elet _ defs _ e)
         allocObj (n, d)
             = st_bind2 (allocFrmSlots nslots) allocCode mkObj
               where
-                fns    = filter isInternal . s_toList . view defnAnFree $ d        || internal free var names of the defn
+                fns    = filter isInternal . s_toList . view astAnnoFree $ d    || internal free var names of the defn
                 nfns   = #fns
                 nslots = nfns,               if isDefFn d
                        = max2 cmpint nfns 1, otherwise  || always allocate at least 1 slot for use by Update
@@ -729,12 +730,12 @@ buildCode (Elet _ defs _ e)
 || operands that doesn't require a continuation to capture free vars. Also, builtin primitives
 || only return word# results (value, tag, or tuple of words), so a Csingle caseAlt with all Pvar vars
 || is optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
-buildCode (Ecase sel (Ecall (Evar fn) args) alts)
+buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
     = mkDsts sel alts >>= mkCode, if isBuiltin fn & ~isConstructor fn
       where
-        mkDsts Csingle [CaseAlt p e]            =         makeRef p  <&> singleton .> pair (Just e), if isPvarOrWild p
-        mkDsts Csingle [CaseAlt (Pctor c ps) e] = st_mapM makeRef ps <&>              pair (Just e), if isBuiltinTuple c & all isPvarOrWild ps
-        mkDsts _       _                        = st_pure [r0Ref]    <&>              pair Nothing
+        mkDsts Csingle [CaseAlt p e an]            =         makeRef p  <&> singleton .> pair (Just e), if isPvarOrWild p
+        mkDsts Csingle [CaseAlt (Pctor c ps) e an] = st_mapM makeRef ps <&>              pair (Just e), if isBuiltinTuple c & all isPvarOrWild ps
+        mkDsts _       _                           = st_pure [r0Ref]    <&>              pair Nothing
 
         mkCode (me, dsts)
             = st_liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
@@ -745,7 +746,7 @@ buildCode (Ecase sel (Ecall (Evar fn) args) alts)
         insMovs bi (movs, ais) = movs ++ (bi : ais)
 
 || general case evaluation
-buildCode (Ecase sel e alts)
+buildCode (Ecase sel e alts an)
     = st_bind2 (buildCode e) buildAlts mkCase
       where
         buildAlts = inLexEnv bdBuiltin [] [] (st_set bdBuiltin False >> buildCodeAltsCont sel alts)
@@ -831,7 +832,7 @@ buildCode d
         buildCodeDef (DefFn n vars e an)
             = inDefEnv loc vars fns (addVarArityInfo n vars >> buildCode e)
               where
-                fns = filter isInternal . s_toList . view anFree $ an   || names of internal free var references
+                fns = filter isInternal . s_toList . view annoFree $ an || names of internal free var references
 
         || DefPats are thunks which may need to be updated after their evaluation.  The code first updates the thunk to point to
         || the blackhole trampoline code, so that recursive evaluation reports a blackHole immediately.  Then, an update continuation
@@ -844,10 +845,10 @@ buildCode d
         buildCodeDef (DefPat p e an)
             = inDefEnv loc [] fns (buildCode e) <&> mkCode
               where
-                fns        = filter isInternal . s_toList . view anFree $ an    || names of free var references
+                fns        = filter isInternal . s_toList . view annoFree $ an  || names of free var references
                 bhInst     = Update r2Opr (Imm (Caddr blackHolePtr))            || update thunk to blackHole trampoline during evaluation
                 contInst   = PushCont updatePtr [r2Opr]                         || push a continuation to update thunk with result
-                noUpdate   = isCtorCall e \/ usedAffine (view anUse an)
+                noUpdate   = isCtorCall e \/ usedAffine (view annoUse an)
 
                 || don't perform updates on thunks that are simple constructor calls
                 || since constructors are WHNF already and don't evaluate their args
@@ -916,7 +917,7 @@ reachableFrom ns genv
               where
                 md            = lookupDefn genv n
                 d             = fromJust md
-                deps          = filter topLevel . s_toList . view defnAnFree $ d        || find all top-level and builtin constructor dependencies
+                deps          = filter topLevel . s_toList . view astAnnoFree $ d       || find all top-level and builtin constructor dependencies
                 deps'         = [],   if isBuiltin n                                    || no deps for builtin constructors
                               = deps, otherwise
                 seen'         = m_insert cmpname n deps' seen
@@ -935,11 +936,11 @@ makeStart n genv
         mspec      = lookupSpec genv n
         spec       = (view defnType . fromJust) mspec
         errNoSpec  = error ("entry function " ++ showName n ++ " not found")
-        errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showast spec ++ "'")
+        errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
         start      = Qualified (getModName n) "!start"
         fvs        = s_fromList cmpname [n, worldName, builtinExitName]
-        anno       = set anFree fvs (genvAnno genv)
-        startFn    = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0])]
+        anno       = set annoFree fvs (genvAnno genv)
+        startFn    = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0]) emptyAnno] emptyAnno
         def        = DefPat (Pvar start) startFn anno
         genv'      = over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
 

@@ -23,6 +23,7 @@
 %import "name"
 %import "normalize"
 %import "predef"
+%import "pretty"
 %import "reify"
 %import "rename"
 %import "rewrite"

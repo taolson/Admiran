@@ -1,0 +1,200 @@
+|| pretty.am -- showS difference list and pretty-printing for AST
+
+
+%export +
+
+%import <base>
+%import <bitSet>
+%import <map>
+%import <set>
+%import "config"
+%import "grammar"
+%import "name"
+
+
+|| showS is a difference list, which takes a string to append to the right to produce the final string.
+|| this allows the final stream to be built from function composes, which can be traversed faster than a chain of (++)
+|| which are left-associated
+showS == string -> string
+
+shows :: string -> showS
+shows s = (s ++)
+
+showsint :: int -> showS
+showsint n = shows $ showint n
+
+showschar :: char -> showS
+showschar c = shows $ showchar c
+
+showsstring :: string -> showS
+showsstring s = shows $ showstring s
+
+|| show a name as it would appear as a function name or value,
+|| with symbolic names in parentheses.  Names used as inline
+|| operators will be printed without parentheses in showsOpPrec
+showsName :: name -> showS
+showsName n = showsInParensIf (isSymbol n) $ shows $ showName n
+
+showsAnno :: anno -> showS
+showsAnno (loc, rec, cpx, use, free, affine)
+    = shows "{" . showsRec . showsint cpx . shows " " . showsUse use . shows " " .
+      showsInBrackets (showsListMapped ", " showsName (s_toList free))           .
+      showsInBrackets (showsListMapped ", " showsint  (bs_toList affine)) . shows "}", if annoVerbose
+    = id,                                                                              otherwise
+      where
+        showsUse u = (showuseInfo u ++)
+        showsRec   = shows "Rec ", if rec
+                   = shows "",     otherwise
+
+
+showsLocation :: location -> showS
+showsLocation (mn, el, ec)
+    = shows "in module " . shows mn . showsLineCol el ec
+      where
+        showsLineCol 0 0   = id         || don't show if from empty location
+        showsLineCol el ec = shows " near line " . showsint el . shows " col " . showsint ec
+
+showsInParens, showsInBrackets, showsInBraces  :: showS -> showS
+showsInParens   s = shows "(" . s . shows ")"
+showsInBrackets s = shows "[" . s . shows "]"
+showsInBraces   s = shows "{" . s . shows "}"
+
+|| wrap a showS in parens if the boolean guard is true
+showsInParensIf :: bool -> showS -> showS
+showsInParensIf guard s = if' guard (showsInParens s) s
+
+|| like intercalate, but for shows
+interShows :: string -> [showS] -> showS
+interShows s []         = id
+interShows s (sh : shs) = map (shows s .) shs |> foldl (.) sh
+
+|| show a list of elements mapped by a show function, separated by a string value
+showsListMapped :: string -> (* -> showS) -> [*] -> showS
+showsListMapped s f xs = map f xs |> interShows s
+
+|| show a list of elements mapped by a show function, separate by a comma
+showsCommaList :: (* -> showS) -> [*] -> showS
+showsCommaList f xs = showsListMapped ", " f xs
+
+|| show a list of ast variables in a sequence
+showsAstList :: [ast] -> showS
+showsAstList as = showsListMapped " " (showsAstPrec (apPrec + 1)) as
+
+|| show a list of alternate exprs
+showsExprList as = showsListMapped "; " (showsAstPrec 0) as
+
+|| show an optional list of arguments, separated by a space
+showsOptArgs []   = id
+showsOptArgs args = shows " " . showsAstList args
+
+|| show an ast in the context of outer precedence d
+showsAstPrec :: int -> ast -> showS
+
+|| atomic asts can ignore precedence
+showsAstPrec _ (Evar n)        = showsName n
+showsAstPrec _ (Eint n)        = showsint n
+showsAstPrec _ (Echar c)       = showschar c
+showsAstPrec _ (Estring s)     = showsstring s
+showsAstPrec _ (EprimInt n)    = showsint n . shows "#"
+showsAstPrec _ (EprimChar c)   = showschar c . shows "#"
+showsAstPrec _ (EprimString s) = showsstring s . shows "#"
+showsAstPrec _ (Pvar n)        = showsName n
+showsAstPrec _ Pwildcard       = shows "_"
+showsAstPrec _ (Tvar n)        = shows s
+                                 where
+                                   s = rep n '*',       if n < 6
+                                     = '*' : showint n, otherwise
+
+|| check to see if an ap2 is an in-line operator
+showsAstPrec d (Eap (Eap (Evar op) e1) e2)
+    = showsOpPrec d op e1 e2, if isSymbol op
+
+showsAstPrec d (Eap e1 e2)
+    = showsInParensIf (d > apPrec) $ showsAstPrec apPrec e1 . shows " " . showsAstPrec (apPrec + 1) e2
+
+showsAstPrec d (Ecall (Evar f) args)
+    = showsOpPrec d f (args ! 0) (args ! 1),                          if isSymbol f & #args == 2
+    = showsInParensIf (d > apPrec) $ showsName f . showsOptArgs args, otherwise
+
+showsAstPrec d (Ecall ef args)
+    = showsInParensIf (d > apPrec) $ showsAstPrec apPrec ef . showsOptArgs args
+
+showsAstPrec d (Efail e)
+    = showsInParensIf (d > apPrec) $ shows "FAIL " . showsAstPrec (apPrec + 1) e
+
+showsAstPrec d (Efatbar p e1 e2)
+    = showsInParensIf (d > apPrec) $ shows "FATBAR " . showsAstPrec apPrec' p . shows " " . showsAstPrec apPrec' e1 . shows " " . showsAstPrec apPrec' e2
+      where apPrec' = apPrec + 1
+
+showsAstPrec d (Tarr t1 t2)
+     = showsInParensIf (d > 0) $ showsAstPrec 1 t1 . shows " -> " . showsAstPrec 0 t2
+
+showsAstPrec d (Pctor n vars)
+    = showsOpPrec d n (vars ! 0) (vars ! 1), if isSymbol n & #vars == 2
+    = showsName n,                           if null vars
+    = showsInParensIf (d > apPrec) s,        otherwise
+      where
+        s = showsName n . shows " " . showsAstList vars
+
+showsAstPrec d (Tname n vars)
+    = showsOpPrec d n (vars ! 0) (vars ! 1), if isSymbol n & #vars == 2
+    = showsName n,                           if null vars
+    = showsInParensIf (d > apPrec) s,        otherwise
+      where
+        s  = showsName n . shows " " . showsAstList vars
+
+showsAstPrec d (Plit e)    = showsAstPrec d e
+showsAstPrec d (Tstrict t) = showsAstPrec d t . shows " !"
+
+|| asts with additional syntax that act at apPrec
+showsAstPrec d a
+    = showsInParensIf (d > apPrec) $ go a
+      where
+        go (Econd conds)         = showsInBraces $ showsListMapped "; = " (showsAstPrec apPrec) conds
+        go (ElistComp e qs an)   = showsInBrackets $ showsAstPrec 0 e . shows " | " . showsExprList qs
+        go (Cif tst e)           = showsAstPrec 0 e . shows ", if " . showsAstPrec 0 tst
+        go (Cdefault e)          = showsAstPrec 0 e . shows ", otherwise"
+        go (CaseAlt p e an)      = showsAstPrec 0 p . showsAnno an . shows " -> " . showsAstPrec 0 e
+        go (Qgen pats e)         = showsCommaList (showsAstPrec 0) pats . shows " <- " . showsAstPrec 0 e
+        go (Qrecur p e1 e2)      = showsAstPrec 0 p . shows " <- " . showsAstPrec 0 e1 . shows ", " . showsAstPrec 0 e2 . shows " .."
+        go (Qguard e)            = showsAstPrec 0 e
+        go (Ttuple elts)         = showsInParens $ showsCommaList (showsAstPrec 0) elts
+        go (Tlist t)             = showsInBrackets $ showsAstPrec 0 t
+        go (DefMult m ds)        = showsExprList ds
+        go (DefFn n vars rhs an) = showsName n . showsAnno an . shows " " . showsAstList vars . shows " = " . showsAstPrec 0 rhs
+        go (DefPat p rhs an)     = showsAstPrec 0 p . showsAnno an . shows " = "  . showsAstPrec 0 rhs
+        go (DefSpec tf te an)    = showsAstPrec 0 tf . shows " :: " . showsAstPrec 0 te
+        go (DefSyn tf te an)     = showsAstPrec 0 tf . showsAnno an . shows " == " . showsAstPrec 0 te
+        go (DefData tf [] an)    = showsAstPrec 0 tf . shows " :: type"
+        go (DefData tf ctors an) = showsAstPrec 0 tf . shows " ::= " . showsListMapped " | " (showsAstPrec 0) ctors
+        go (DefAbs tf ds te an)  = shows "abstype " . showsAstPrec 0 tf . shows " == " . showsAstPrec 0 te
+
+        go (Ecase sel e alts an)
+            = shows ("case" ++ sSel) . showsAnno an . showsAstPrec apPrec e . shows " of " . (showsInBraces $ showsExprList alts)
+              where
+                sSel = "Vec ",    if _eq cmpcaseSel sel Cvectored
+                     = " ",       otherwise
+
+        go (Elet b fns pats e)
+            = shows ("let" ++ sRec) . (showsInBraces $ showsExprList defs) . shows " in " . showsAstPrec 0 e
+              where
+                defs = m_elems fns ++ pats
+                sRec = "Rec ", if b
+                     = " ",    otherwise
+
+        go _ = unreachable
+
+showsOpPrec :: int -> name -> expr -> expr -> showS
+showsOpPrec d op e1 e2
+    = showsInParensIf (d > prec) s
+      where
+        s              = showsAstPrec precL e1 . shows (" " ++ showName op ++ " ") . showsAstPrec precR e2
+        (prec, assoc)  = opPrecAssoc op
+        (precL, precR) = (prec, prec + 1), if _eq cmpassoc assoc AssocLeft
+                       = (prec + 1, prec), otherwise
+
+showsAst :: ast -> showS
+showsAst a = showsAstPrec 0 a
+
+showAst :: ast -> string
+showAst a = showsAst a ""

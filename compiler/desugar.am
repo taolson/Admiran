@@ -58,6 +58,12 @@ equation == ([pat], expr, nameMap)
 equationPats :: equation -> [pat]
 equationPats (pats, e, m) = pats
 
+|| make an Ecase for a boolean expr
+makeBoolCase :: expr -> expr -> expr -> expr
+makeBoolCase tst ef et
+    = Ecase Cvectored tst [makeAlt stdFalseName ef, makeAlt stdTrueName et] emptyAnno
+      where
+        makeAlt n e = CaseAlt (Pctor n []) e emptyAnno
 
 || algorithm for desugaring function definitions with multiple (possibly complex) patterns:
 || convert a list of equations into a case tree with only simple patterns, performing them
@@ -76,7 +82,7 @@ match [] eqns st
         rhss                   = map addRenames eqns
         addRenames (x, rhs, m) = rhs,                                            if m_null m
                                = Elet True m_empty (map mkPat (m_toList m)) rhs, otherwise      || introduce a new Let binding to rename the vars
-        mkPat (k, v)           = DefPat (Pvar k) (Evar v) (locAnno loc)
+        mkPat (k, v)           = DefPat (Pvar k) (Evar v) (emptyAnnoLoc loc)
 
 match (var : vars) eqns st
     = (builtinFail, addDsErr Arity st),              if any (null . equationPats) eqns
@@ -126,12 +132,10 @@ matchVar var vars peqns
 || match a group on the same literal (refutable)
 matchLit :: name -> [name] -> [(pat, equation)] -> state dsSt expr
 matchLit var vars peqns st
-    = (Ecase Cvectored (tst (hd pats)) [falseCase, trueCase], st')
+    = (makeBoolCase (tst (hd pats)) builtinFail e', st')
       where
         (pats, eqns) = unzip2 peqns
         (e', st')    = match vars eqns st
-        falseCase    = CaseAlt (Pctor stdFalseName []) builtinFail
-        trueCase     = CaseAlt (Pctor stdTrueName  []) e'
 
         tst (Plit lit) = ap2 (eqOpForLit lit) (Evar var) lit
         tst _          = unreachable
@@ -141,7 +145,7 @@ matchLit var vars peqns st
 matchCtor :: name -> [name] -> [(pat, equation)] -> state dsSt expr
 matchCtor var vars peqns st
     = (builtinFail, addDsErr (Undefined ctor) st), if isNothing mcns \/ isNothing mspec
-    = (Ecase sel (Evar var) alts', st2),           otherwise
+    = (Ecase sel (Evar var) alts' emptyAnno, st2), otherwise
       where
         genv              = view dsGenv st
         ctor              = getCn (hd peqns)
@@ -154,12 +158,12 @@ matchCtor var vars peqns st
                           = Cpriority, otherwise
         (ctorGroups, st1) = partitionByCtorName sel cns peqns st
         (st2, alts)       = mapAccumL handleCtorGroup st1 ctorGroups
-        alts'             = alts,                                    if #alts == #cns
-                          = alts ++ [CaseAlt Pwildcard builtinFail], otherwise
+        failAlt           = CaseAlt Pwildcard builtinFail emptyAnno
+        alts'             = if' (#alts == #cns) alts (alts ++ [failAlt])
         getCn (p, e)      = ctorName p
 
         handleCtorGroup st (ctor, [])     || empty group is unhandled ctor; create dummy vars to match to pass typecheck
-            = (st', (CaseAlt (Pctor ctor vars) builtinFail))
+            = (st', (CaseAlt (Pctor ctor vars) builtinFail emptyAnno))
               where
                 arity      = fromMaybe 0 (lookupArity (view dsGenv st) ctor)
                 (gen', ns) = genNames "var" (view dsGen st) [1 .. arity]
@@ -174,7 +178,7 @@ matchCtor var vars peqns st
                 (gen', vars') = genNames "var" (view dsGen st) (hd cVars)
                 es'           = zipWith insertPats cVars es
                 (e', st')     = match (vars' ++ vars) es' (set dsGen gen' st)
-                alt           = CaseAlt (Pctor ctor (map Pvar vars')) e'
+                alt           = CaseAlt (Pctor ctor (map Pvar vars')) e' emptyAnno
 
         insertPats ps1 (ps2, e, m) = (ps1 ++ ps2, e, m)
 
@@ -202,17 +206,16 @@ patCaseTree [] mr st = ((makeTupleExpr . map Evar . m_elems $ mr, m_keys mr), st
 || build a case tree, converting ctorEqns to Ecase exprs
 || works bidirectionally, building the rename map going down, then building the case tree coming back up
 patCaseTree ((c, ps, rhs) : cs) mr st
-    = ((Ecase sel rhs alts, vns), st2)
+    = ((Ecase sel rhs alts emptyAnno, vns), st2)
       where
         mcns                = lookupCtorNames (view dsGenv st) c
         sel                 = Csingle,   if isJust mcns & #(fromJust mcns) == 1 || case is irrefutable if there is a single ctor
                             = Cpriority, otherwise
         (vs, cs', mr', st1) = foldr renameVar ([], [], mr, st) ps
         ((ct, vns), st2)    = patCaseTree (cs ++ cs') mr' st1
-        ctorAlt             = CaseAlt (Pctor c vs) ct
-        failAlt             = CaseAlt Pwildcard builtinFail
-        alts                = [ctorAlt],          if _eq cmpcaseSel sel Csingle
-                            = [ctorAlt, failAlt], otherwise
+        ctorAlt             = CaseAlt (Pctor c vs) ct emptyAnno
+        failAlt             = CaseAlt Pwildcard builtinFail emptyAnno
+        alts                = if' (_eq cmpcaseSel sel Csingle) [ctorAlt] [ctorAlt, failAlt]
         renameVar p rvs
             = go p
               where
@@ -285,10 +288,9 @@ desugarAst k (ElistComp e quals an) st
 
         || desugar a guard generator e.g. x > 10;
         dsGenGuard tst c st nextQual
-            = (Ecase Cvectored tst [mkCase stdFalseName [] c, mkCase stdTrueName [] e], st')
+            = (makeBoolCase tst c e, st')
               where
-                (e, st')        = nextQual c st
-                mkCase n vars e = CaseAlt (Pctor n vars) e
+                (e, st') = nextQual c st
 
         || desugar a recurrence pattern generator e.g. (a, b) <- (1, 2), (a + b, b * 2) ...
         dsGenRecur be fe p c st nextQual
@@ -342,12 +344,12 @@ desugarAst k (Econd conds) st
         caseTree = foldr mkCase builtinFail conds
 
         mkCase (Cdefault e) rest = e            || early-out on default
-        mkCase (Cif tst e)  rest = Ecase Cvectored tst [CaseAlt (Pctor stdFalseName []) rest, CaseAlt (Pctor stdTrueName []) e]
+        mkCase (Cif tst e)  rest = makeBoolCase tst rest e
         mkCase _            _    = unreachable
 
 || desugar explicit case exprs (set the caseSel flag correctly)
-desugarAst k (Ecase Cnone e alts) st
-    = k (builtinFatbar (Ecase sel e alts') (Eap stdCaseFail (genLoc loc))) st
+desugarAst k (Ecase Cnone e alts an) st
+    = k (builtinFatbar (Ecase sel e alts' an) (Eap stdCaseFail (genLoc loc))) st
       where
         genv                  = view dsGenv st
         loc                   = fromJust . snd . view dsLoc $ st
@@ -355,23 +357,23 @@ desugarAst k (Ecase Cnone e alts) st
         sequentialFromZero xs = and $ zipWith (==) [0 ..] xs
         sortedLitAlts         = sortOn cmpint getLit alts
         sortedCtorAlts        = sortOn cmpint getCtorTag alts
-        failAlt               = CaseAlt Pwildcard builtinFail
+        failAlt               = CaseAlt Pwildcard builtinFail emptyAnno
         allCtors              = fromMaybef [] (map getName) $ find isCtorAlt alts >>=? (getCtorName .> lookupCtorNames genv)
 
-        isCtorAlt (CaseAlt (Pctor _ _) _) = True
+        isCtorAlt (CaseAlt (Pctor _ _) _ _) = True
         isCtorAlt _                       = False
 
-        getPat (CaseAlt p e) = p
-        getPat _             = unreachable
+        getPat (CaseAlt p _ _) = p
+        getPat _               = unreachable
 
-        getLit (CaseAlt (Plit (EprimInt n)) e) = n
-        getLit _                               = unreachable
+        getLit (CaseAlt (Plit (EprimInt n)) _ _) = n
+        getLit _                                 = unreachable
 
-        getCtorName (CaseAlt (Pctor n vars) e) = n
-        getCtorName _                          = unreachable
+        getCtorName (CaseAlt (Pctor n _) _ _) = n
+        getCtorName _                         = unreachable
 
-        getCtorTag (CaseAlt (Pctor n vars) e) = fromMaybe 0 $ elemIndex (==$ getName n) allCtors
-        getCtorTag _                          = unreachable
+        getCtorTag (CaseAlt (Pctor n _) _ _) = fromMaybe 0 $ elemIndex (==$ getName n) allCtors
+        getCtorTag _                         = unreachable
 
         checkPats ps
             = (Csingle,   alts),              if #ps == 1 & irrefutable lastPat
@@ -406,46 +408,40 @@ desugarDef :: bool -> astRewriteTraverser dsSt
 desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
     = k (DefMult Mpat (caseDef ns : accs)) st2, if numPatVars > 0
       where
-        mn          = view dsModName st
-        gen         = view dsGen st
-        (gen1, ctn) = genPrivateName mn "patMatch" gen, if topLevel
-                    = genName "`patMatch" gen,          otherwise
-        st1         = set dsGen gen1 st
+        mn           = view dsModName st
+        gen          = view dsGen st
+        (gen1, ctn)  = if' topLevel (genPrivateName mn "patMatch" gen) (genName "`patMatch" gen)
+        st1          = set dsGen gen1 st
+        numPatVars   = #ns
+        singlePatVar = numPatVars == 1
+        singleCtor   = (== 1) . length . fromMaybe [] . lookupCtorNames (view dsGenv st)
+        simpleCtor   = singleCtor c & all isPvar pats
+        accs         = if' singlePatVar [] (map makeAccessor $ zip2 ns [0 ..])
+        cn           = if' simpleCtor c (builtinTupleName numPatVars)
 
-        ((caseTree, ns), st2) = ((rhs, map unPvar pats), st1),                                      if simpleCtor
-                              = patCaseTree [(c, pats, rhs)] m_empty st1,                           otherwise
+        ((caseTree, ns), st2)
+            = ((rhs, map unPvar pats), st1),            if simpleCtor
+            = patCaseTree [(c, pats, rhs)] m_empty st1, otherwise
 
-        numPatVars            = #ns
-        singlePatVar          = numPatVars == 1
+        patMatch = Eap (builtinSel c 0) caseTree,                                        if simpleCtor & singlePatVar & useSel
+                 = makeSel c 0 caseTree,                                                 if simpleCtor & singlePatVar
+                 = caseTree,                                                             if simpleCtor
+                 = builtinFatbar caseTree . Eap stdMatchFail . genLoc $ view annoLoc an, otherwise
 
-        cn                    = c,                                                                  if simpleCtor
-                              = builtinTupleName numPatVars,                                        otherwise
+        caseDef [n] = DefPat (Pvar n)   patMatch an  || single renamed variable
+        caseDef ns  = DefPat (Pvar ctn) patMatch an  || allocate var for tuple of renamed variables
 
-        patMatch              = Eap (builtinSel c 0) caseTree,                                      if simpleCtor & singlePatVar & useSel
-                              = makeSel c 0 caseTree,                                               if simpleCtor & singlePatVar
-                              = caseTree,                                                           if simpleCtor
-                              = builtinFatbar caseTree . Eap stdMatchFail . genLoc $ view anLoc an, otherwise
+        makeAccessor (n, i)
+            = DefPat (Pvar n) (Eap (builtinSel cn i) (Evar ctn)) an, if useSel
+            = DefPat (Pvar n) (makeSel cn i (Evar ctn)) an,          otherwise
 
-        caseDef [n]           = DefPat (Pvar n)   patMatch an  || single renamed variable
-        caseDef ns            = DefPat (Pvar ctn) patMatch an  || allocate var for tuple of renamed variables
+        makeSel c i e
+            = Ecase Csingle e [CaseAlt (Pctor c args) (Evar a) emptyAnno] emptyAnno
+              where
+                a    = Internal "a" 0
+                args = map mkVar [0 .. numPatVars - 1]
+                mkVar n = if' (n == i) (Pvar a) Pwildcard
 
-        accs                  = [],                                                                 if singlePatVar
-                              = map makeAccessor $ zip2 ns [0 ..],                                  otherwise
-
-        makeAccessor (n, i)   = DefPat (Pvar n) (Eap (builtinSel cn i) (Evar ctn)) an,              if useSel
-                              = DefPat (Pvar n) (makeSel cn i (Evar ctn)) an,                       otherwise
-
-        makeSel c i    e      = Ecase Csingle e [CaseAlt (Pctor c args) (Evar a)]
-                                where
-                                   a    = Internal "a" 0
-                                   args = map mkVar [0 .. numPatVars - 1]
-
-                                   mkVar n
-                                     = Pvar a, if n == i
-                                     = Pwildcard, otherwise
-
-        singleCtor            = (== 1) . length . fromMaybe [] . lookupCtorNames (view dsGenv st)
-        simpleCtor            = singleCtor c & all isPvar pats
 
 || report a BadPattern error if it isn't a Pvar, and wrap complex Pvar DefPats in
 || an Efatbar with stdMatchFail to handle possible failures in rhs
@@ -453,7 +449,7 @@ desugarDef topLevel k (DefPat p rhs an) st
     = (DefPat p rhs an, addDsErr (BadPattern p) st), if ~isPvar p
     = k (DefPat p rhs' an) st,                       if ~isSimpleExpr rhs
       where
-        rhs' = builtinFatbar rhs . Eap stdMatchFail . genLoc $ view anLoc an
+        rhs' = builtinFatbar rhs . Eap stdMatchFail . genLoc $ view annoLoc an
 
 || desugar patterns in a DefMult of function definitions, replacing it with a single DefFn
 || with an irrefutable pattern desugared using a case tree
@@ -466,11 +462,11 @@ desugarDef topLevel k (DefMult Mfun defs) st
         arity            = max cmpint (map length pats)        || use max pat as arity for all pats
         gen              = view dsGen st
         fname            = defnName d
-        an               = defnAnno d
+        an               = viewAnno d
         (gen', varNames) = genNames "var" gen [1 .. arity]
         st1              = set dsGen gen' st
         (caseTree, st2)  = match varNames (zip3 pats rhss (repeat m_empty)) st1
-        caseExpr         = builtinFatbar caseTree . Eap stdCaseFail . genLoc $ view anLoc an
+        caseExpr         = builtinFatbar caseTree . Eap stdCaseFail . genLoc $ view annoLoc an
 
 desugarDef topLevel k a st = k a st
 
@@ -494,7 +490,7 @@ mkLit :: string -> (expr, name) -> defn
 mkLit mn (l, v)
     = DefPat (Pvar v) l' an
       where
-        an         = locAnno $ initLocation mn
+        an         = emptyAnnoLoc $ initLocation mn
         (ctor, ml) = go l
         l'         = fromMaybef ctor (Eap ctor) ml
 

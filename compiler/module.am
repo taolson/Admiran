@@ -14,6 +14,7 @@
 %import "grammar"
 %import "name"
 %import "predef"
+%import "pretty"
 
 
 || fileSpec used in imports and exports
@@ -96,7 +97,7 @@ showmodule m
         specs          = view modSpecs m
         showDefn n     = mshow (m_lookup cmpname n specs) ++ mshow (m_lookup cmpname n defns)
         mshow Nothing  = ""
-        mshow (Just a) = showast a ++ "\n"
+        mshow (Just a) = showAst a ++ "\n"
 
 || don't derive ordI comparison for module, since we don't use it and it would be large
 cmpmodule = undef
@@ -258,7 +259,7 @@ insDefnMapMerge d m
 || make a list of dependencies of each defn on the others in a defnMap, based upon the annotation's freeVar info
 makeDefnDependencyList :: defnMap -> [(name, [name])]
 makeDefnDependencyList defs
-    = map (mapSnd (filter (converse (m_member cmpname) defs) . s_toList . view defnAnFree)) (m_toList defs)
+    = map (mapSnd (filter (converse (m_member cmpname) defs) . s_toList . view astAnnoFree)) (m_toList defs)
 
 
 || functions to insert a top-level declaration into the correct part of a module, or report an error
@@ -313,8 +314,8 @@ makeStrictCtor n tag cts an
         d         = DefFn sc [] (builtinPack n tag (#cts)) an  || note: nullary DefFn instead of DefPat; arity from builtinPack
 
         mkStrict (e, t) k
-            = (Ecase Csingle e [CaseAlt Pwildcard k]), if isStrict t
-            = k,                                       otherwise
+            = Ecase Csingle e [CaseAlt Pwildcard k an] an, if isStrict t
+            = k,                                           otherwise
 
 || insert a data definition:
 || insert a type specification for each constructor
@@ -453,7 +454,7 @@ lookupArity genv n
 
 || create an anno for top-level defns from genv
 genvAnno :: globalEnv -> anno
-genvAnno genv = locAnno . initLocation . view modName . view genvMod $ genv
+genvAnno genv = view genvMod genv |> view modName |> initLocation |> emptyAnnoLoc
 
 
 || nameMap operations

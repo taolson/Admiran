@@ -20,7 +20,7 @@ deriveShow d
     = (defSpec, defFn)
       where
         fn          = Unqualified $ "show" ++ getName (defnName d)
-        an          = defnAnno d
+        an          = viewAnno d
         tfd         = view defnTform d
         tvs         = tformVars tfd
         instNames   = zip2 tvs . map (Internal "showtv") $ [0 ..]
@@ -75,7 +75,7 @@ deriveOrd d
     = (defSpec, defFn)
       where
         fn         = Unqualified $ "cmp" ++ getName (defnName d)
-        an         = defnAnno d
+        an         = viewAnno d
         tfd        = view defnTform d
         tvs        = tformVars tfd
         instNames  = zip2 tvs . map (Internal "cmptv") $ [0 ..]

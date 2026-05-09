@@ -9,6 +9,7 @@
 %import <maybe>
 %import "grammar"
 %import "name"
+%import "pretty"
 
 
 || Notes  are informational messages
@@ -114,8 +115,8 @@ pathOnlyLocInfo n = ([n], Nothing)
 || create a locInfo from a defn
 defnLocInfo :: defn -> locInfo
 defnLocInfo d
-    = ([defnName d], Just (view defnAnLoc d)), if isDefn d
-    = emptyLocInfo,                            otherwise
+    = ([defnName d], Just (view astAnnoLoc d)), if isDefn d
+    = emptyLocInfo,                             otherwise
 
 || merge a locInfo into an existing one, ignoring any path with a name beginning with '`',
 || which is used to mark internally generated functions and thunks

@@ -125,13 +125,14 @@ renameAst k (Efatbar (Pvar n) e1 e2) st
 renameAst k a st
     = (go a >>= k) st
       where
-        go (CaseAlt p e)           = st_liftA2 CaseAlt    (renamePat p)    (st_pure e)
-        go (Qgen ps e)             = st_liftA2 Qgen       (renamePats ps)  (st_pure e)
-        go (Qrecur p e1 e2)        = st_liftA3 Qrecur     (renamePat p)    (st_pure e1)  (st_pure e2)
-        go (Evar n)                = st_fmap   Evar       (renameRef n)
-        go (Tname n tes)           = st_liftA2 Tname      (renameRef n)    (st_pure tes)
-        go a                       = goDefn a . over rnLoc (mergeLocInfo (defnLocInfo a)), if isDefn a
-                                   = st_pure a,                                            otherwise
+        go (CaseAlt p e an) = st_liftA2 update (renamePat p)   (st_pure e) where update p' e' = CaseAlt p' e' an
+        go (Qgen ps e)      = st_liftA2 Qgen   (renamePats ps) (st_pure e)
+        go (Qrecur p e1 e2) = st_liftA3 Qrecur (renamePat p)   (st_pure e1)  (st_pure e2)
+        go (Evar n)         = st_fmap   Evar   (renameRef n)
+        go (Tname n tes)    = st_liftA2 Tname  (renameRef n)   (st_pure tes)
+
+        go a = over rnLoc (mergeLocInfo (defnLocInfo a)) .> goDefn a, if isDefn a
+             = st_pure a,                                             otherwise
 
         || The enclosing Elet has added renames for the defn names to the env, so to rename the defn itself, it's name
         || component is renamed as a ref, while any arg patterns are renamed as defs
@@ -139,7 +140,7 @@ renameAst k a st
         goDefn (DefPat p e an)     = st_liftA3 DefPat  (renamePatRef p) (st_pure e)                   (renameAnno an)
         goDefn (DefSyn tf te an)   = st_liftA3 DefSyn  (tvarDefs tf)    (tvarRefs te)                 (renameAnno an)
         goDefn (DefData tf tes an) = st_liftA3 DefData (tvarDefs tf)    (st_mapM tvarRefs tes)        (renameAnno an)
-        goDefn d                   = st_fmap (converse (set lensAnno) d) (renameAnno (view lensAnno d))
+        goDefn d                   = st_fmap (converse (set astAnno) d) (renameAnno (view astAnno d))
 
         renamePat (Pvar n)         = st_fmap Pvar $ renameDef n
         renamePat (Pctor n vars)   = st_liftA2 Pctor (renameRef n) (renamePats vars)
@@ -157,9 +158,9 @@ renameAst k a st
         || rename the name references in the free set of an anno -- required because beta-reduction
         || during inlining calls renameExpr to rename the defn vars
         renameAnno an st
-            = (set anFree free' an, st')
+            = (set annoFree free' an, st')
               where
-                (free', st') = foldl renameEntry (s_empty, st) . s_toList $ view anFree an
+                (free', st') = foldl renameEntry (s_empty, st) . s_toList $ view annoFree an
 
                 renameEntry (b, st) n
                     = (s_insert cmpname n' b, st')

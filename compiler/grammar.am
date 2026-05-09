@@ -9,7 +9,6 @@
 %import <map>
 %import <maybe>
 %import <set>
-%import "config"
 %import "name"
 
 
@@ -32,66 +31,66 @@ defnMap == m_map name defn              || map from Qualified name to top-level 
 envMap  == m_map name (s_set name)      || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
 
 ast ::=
-        || expr
-        Evar        name                       |
-        Eint        int                        |
-        Echar       char                       |
-        Estring     string                     |
-        EprimInt    int                        |       || represents an unboxed Int#
-        EprimChar   char                       |       || represents an unboxed Char#
-        EprimString string                     |       || represents an unboxed Addr# for a primitive C String
-        Eap         expr expr                  |
-        Ecall       expr [expr]                |       || folded version of Eap e1 (Eap e2 ..) -- call a fn with arguments
-        Econd       [cond]                     |       || conditional expr
-        Ecase       caseSel expr [caseAlt]     |       || caseSel is case selection type for selecting a caseAlt
-        Efail       expr                       |       || non-local jump to expr of the enclosing Efatbar
-        Efatbar     pat  expr expr             |       || expr1, if not FAIL; expr2 otherwise
-        Elet        bool defnMap [defn] expr   |       || bool selects Elet or EletRec, defnMap for DefFns, [defn] for DefPats, initially
-        ElistComp   expr [qual] anno           |       || location used to report any errors encountered during desugaring
+    || expr
+    Evar        name                        |
+    Eint        int                         |
+    Echar       char                        |
+    Estring     string                      |
+    EprimInt    int                         |   || represents an unboxed Int#
+    EprimChar   char                        |   || represents an unboxed Char#
+    EprimString string                      |   || represents an unboxed Addr# for a primitive C String
+    Eap         expr expr                   |
+    Ecall       expr [expr]                 |   || folded version of Eap e1 (Eap e2 ..) -- call a fn with arguments
+    Econd       [cond]                      |   || conditional expr
+    Ecase       caseSel expr [caseAlt] anno |   || caseSel is case selection type for selecting a caseAlt
+    Efail       expr                        |   || non-local jump to expr of the enclosing Efatbar
+    Efatbar     pat  expr expr              |   || expr1, if not FAIL; expr2 otherwise
+    Elet        bool defnMap [defn] expr    |   || bool selects Elet or EletRec, defnMap for DefFns, [defn] for DefPats, initially
+    ElistComp   expr [qual] anno            |   || location used to report any errors encountered during desugaring
 
-        || cond
-        Cif         expr expr                  |
-        Cdefault    expr                       |
+    || cond
+    Cif         expr expr                   |
+    Cdefault    expr                        |
 
-        || caseAlt
-        CaseAlt     pat expr                   |
+    || caseAlt
+    CaseAlt     pat expr anno               |
 
-        || qual
-        Qgen        [pat] expr                 |       || list comprehension generator, e.g. x <- [1 .. 10]
-        Qrecur      pat   expr expr            |       || list comprehension recurrence, e.g. x <- 1, 2 * x ...
-        Qguard      expr                       |       || list comprehension guard, e.g. x > 5
+    || qual
+    Qgen        [pat] expr                  |   || list comprehension generator, e.g. x <- [1 .. 10]
+    Qrecur      pat   expr expr             |   || list comprehension recurrence, e.g. x <- 1, 2 * x ...
+    Qguard      expr                        |   || list comprehension guard, e.g. x > 5
 
-        || pat
-        Pvar        name                       |       || pattern is a variable to bind (irrefutable)
-        Plit        expr                       |       || pattern is a literal to match against
-        Pctor       name [pat]                 |       || pattern is a constructor to match against
-        Pwildcard                              |       || pattern is an ignored wildcard (irrefutable)
+    || pat
+    Pvar        name                        |   || pattern is a variable to bind (irrefutable)
+    Plit        expr                        |   || pattern is a literal to match against
+    Pctor       name [pat]                  |   || pattern is a constructor to match against
+    Pwildcard                               |   || pattern is an ignored wildcard (irrefutable)
 
-        || texpr, tform
-        Tname       name    [texpr]            |       || named constant type with optional list of Tvars (for defn tforms)
-                                                       || or a fully-saturated application of a higher-kinded type
+    || texpr, tform
+    Tname       name    [texpr]             |   || named constant type with optional list of Tvars (for defn tforms)
+                                                || or a fully-saturated application of a higher-kinded type
 
-        Tvar        int                        |       || type variable
-        Ttuple      [texpr]                    |       || n-tuple type
-        Tlist       texpr                      |       || list type
-        Tarr        texpr   texpr              |       || arrow (function type) e.g. int -> char
-        Tstrict     texpr                      |       || strict form, used in constructor arguments
+    Tvar        int                         |   || type variable
+    Ttuple      [texpr]                     |   || n-tuple type
+    Tlist       texpr                       |   || list type
+    Tarr        texpr   texpr               |   || arrow (function type) e.g. int -> char
+    Tstrict     texpr                       |   || strict form, used in constructor arguments
 
-        || defn
-        DefFn       name    [pat]  expr  anno  |       || name, vars, rhs
-        DefMult     multSel [defn]             |       || grouping for multiple DefFns of the same name or a DefPat and its accessors
-        DefPat      pat     expr         anno  |       || pattern to match, rhs
-        DefSyn      tform   texpr        anno  |       || type synonym e.g. tform == (string, [texpr])
-        DefData     tform   [tform]      anno  |       || constructor type
-        DefSpec     tform   texpr        anno  |       || type specification
-        DefAbs      tform   [defn] texpr anno          || abstract type definition, along with its implementation type
+    || defn
+    DefFn       name    [pat]  expr  anno   |   || name, vars, rhs
+    DefMult     multSel [defn]              |   || grouping for multiple DefFns of the same name or a DefPat and its accessors
+    DefPat      pat     expr         anno   |   || pattern to match, rhs
+    DefSyn      tform   texpr        anno   |   || type synonym e.g. tform == (string, [texpr])
+    DefData     tform   [tform]      anno   |   || constructor type
+    DefSpec     tform   texpr        anno   |   || type specification
+    DefAbs      tform   [defn] texpr anno       || abstract type definition, along with its implementation type
 
-|| don't auto-derive showI and ordI instances for ast, since they are very large. Instead, we use
-|| a custom instance for showast that pretty-prints the AST, and only write ordI instances for subsets
-|| of ASTs we are interested in.
+|| don't auto-derive showI and ordI instances for ast, since they are very large. Instead, use
+|| the functions in the pretty module for showing an ast, and the two specialized comparisons
+|| cmplit and cmptexpr.
 
 showast :: showI ast
-showast a = showsAstPrec 0 a ""
+showast a = undef
 
 cmpast :: ordI expr
 cmpast = undef
@@ -135,16 +134,19 @@ multSel ::=
 useInfo ::=
     Uzero |     || defn unused in enclosing Elet scope
     Uone  |     || defn has single use in enclosing Elet scope
-    Umany       || defn has more than one (or unknown number) of uses
+    Umany       || defn has more than one use, or escapes its Elet scope and has an unknown number of uses
 
 usedZero, usedAffine :: useInfo -> bool
 usedZero Uzero   = True
 usedZero _       = False
 
+|| usedAffine is used 0 or 1 times
 usedAffine Umany = False
 usedAffine _     = True
 
-|| annotation for definitions
+|| annotation added to certain asts (defns, case exprs and case alts)
+|| anno is a union of all the possible values used to annotate an ast; not all
+|| fields are relevant for all asts
 anno == (location, bool, int, useInfo, s_set name, bitSet)      || loc, recursive, complexity, useInfo, free vars, affine use info
 
 || don't auto-derive showI and ordI for anno
@@ -152,18 +154,19 @@ showanno = undef
 cmpanno  = undef
 
 || lenses for annotation fields
-anLoc    = lensTup6_0
-anRec    = lensTup6_1
-anCpx    = lensTup6_2   || defn complexity
-anUse    = lensTup6_3   || defn useInfo
-anFree   = lensTup6_4   || defn free vars
-anAffine = lensTup6_5   || fn vars usedAffine, as a bitSet
+annoLoc    = lensTup6_0
+annoRec    = lensTup6_1
+annoCpx    = lensTup6_2   || defn complexity
+annoUse    = lensTup6_3   || defn useInfo
+annoFree   = lensTup6_4   || defn free vars
+annoAffine = lensTup6_5   || fn vars usedAffine, as a bitSet
 
 emptyAnno :: anno
 emptyAnno = (emptyLocation, False, 0, Uzero, s_empty, bs_empty)
 
-locAnno :: location -> anno
-locAnno loc = set anLoc loc emptyAnno
+emptyAnnoLoc :: location -> anno
+emptyAnnoLoc loc = set annoLoc loc emptyAnno
+
 
 || module name, line no for error reporting
 location == (string, int, int)
@@ -174,196 +177,47 @@ emptyLocation = ("", 0, 0)
 initLocation :: string -> location
 initLocation mn = (mn, 0, 0)
 
+|| lenses for anno field, to allow view / set / over operations on annotation fields of an ast
+viewAnno :: ast -> anno
+viewAnno (Ecase   _ _ _ an)   = an
+viewAnno (CaseAlt _ _ an)     = an
+viewAnno (DefFn   _ _ _ an)   = an
+viewAnno (DefMult _ (d : ds)) = viewAnno d
+viewAnno (DefPat  _ _ an)     = an
+viewAnno (DefSyn  _ _ an)     = an
+viewAnno (DefData _ _ an)     = an
+viewAnno (DefSpec _ _ an)     = an
+viewAnno (DefAbs  _ _ _ an)   = an
+viewAnno _                    = unreachable
 
-|| showS is a difference list, which takes a string to append to the right to produce the final string.
-|| this allows the final stream to be built from function composes, which can be traversed faster than a chain of (++)
-|| which are left-associated
-showS == string -> string
+overAnno fn (Ecase sel e alts an)  = Ecase sel e alts (fn an)
+overAnno fn (CaseAlt p e an)       = CaseAlt p e (fn an)
+overAnno fn (DefFn n vars e an)    = DefFn n vars e (fn an)
+overAnno fn (DefMult m (d : ds))   = DefMult m (overAnno fn d : ds)
+overAnno fn (DefPat (Pvar n) e an) = DefPat (Pvar n) e (fn an)
+overAnno fn (DefSyn tf te an)      = DefSyn tf te (fn an)
+overAnno fn (DefData tf ctors an)  = DefData tf ctors (fn an)
+overAnno fn (DefSpec tf te an)     = DefSpec tf te (fn an)
+overAnno fn (DefAbs tf ds t an)    = DefAbs tf ds t (fn an)
+overAnno fn d                      = d
 
-shows :: string -> showS
-shows s = (s ++)
+astAnno :: lens ast anno
+astAnno = Lens viewAnno overAnno
 
-showsint :: int -> showS
-showsint n = shows . showint $ n
-
-showschar :: char -> showS
-showschar c = shows . showchar $ c
-
-showsstring :: string -> showS
-showsstring s = shows . showstring $ s
-
-|| show a name as it would appear as a function name or value,
-|| with symbolic names in parentheses.  Names used as inline
-|| operators will be printed without parentheses in showsOpPrec
-showsName :: name -> showS
-showsName n = showsInParensIf (isSymbol n) . shows . showName $ n
-
-showsAnno :: anno -> showS
-showsAnno (loc, rec, cpx, use, free, affine)
-    = shows "{" . showsRec . showsint cpx . shows " " . showsUse use . shows " " .
-      showsInBrackets (showsListMapped ", " showsName (s_toList free))           .
-      showsInBrackets (showsListMapped ", " showsint  (bs_toList affine)) . shows "}", if annoVerbose
-    = id,                                                                              otherwise
-      where
-        showsUse u = (showuseInfo u ++)
-        showsRec   = shows "Rec ", if rec
-                   = shows "",     otherwise
-
-
-showsLocation :: location -> showS
-showsLocation (mn, el, ec)
-    = shows "in module " . shows mn . showsLineCol el ec
-      where
-        showsLineCol 0 0   = id         || don't show if from empty location
-        showsLineCol el ec = shows " near line " . showsint el . shows " col " . showsint ec
-
-showsInParens, showsInBrackets, showsInBraces  :: showS -> showS
-showsInParens   s = shows "(" . s . shows ")"
-showsInBrackets s = shows "[" . s . shows "]"
-showsInBraces   s = shows "{" . s . shows "}"
-
-|| wrap a showS in parens if the boolean guard is true
-showsInParensIf :: bool -> showS -> showS
-showsInParensIf guard s = if' guard (showsInParens s) s
-
-|| like intercalate, but for shows
-interShows :: string -> [showS] -> showS
-interShows s []         = id
-interShows s (sh : shs) = foldl (.) sh . map (shows s .) $ shs
-
-|| show a list of elements mapped by a show function, separated by a string value
-showsListMapped :: string -> (* -> showS) -> [*] -> showS
-showsListMapped s f xs = interShows s . map f $ xs
-
-|| show a list of elements mapped by a show function, separate by a comma
-showsCommaList :: (* -> showS) -> [*] -> showS
-showsCommaList f xs = showsListMapped ", " f xs
-
-|| show a list of ast variables in a sequence
-showsAstList :: [ast] -> showS
-showsAstList as = showsListMapped " " (showsAstPrec (apPrec + 1)) as
-
-|| show a list of alternate exprs
-showsExprList as = showsListMapped "; " (showsAstPrec 0) as
-
-|| show an optional list of arguments, separated by a space
-showsOptArgs []   = id
-showsOptArgs args = shows " " . showsAstList args
-
-|| show an ast in the context of outer precedence d
-showsAstPrec :: int -> ast -> showS
-
-|| atomic asts can ignore precedence
-showsAstPrec _ (Evar n)        = showsName n
-showsAstPrec _ (Eint n)        = showsint n
-showsAstPrec _ (Echar c)       = showschar c
-showsAstPrec _ (Estring s)     = showsstring s
-showsAstPrec _ (EprimInt n)    = showsint n . shows "#"
-showsAstPrec _ (EprimChar c)   = showschar c . shows "#"
-showsAstPrec _ (EprimString s) = showsstring s . shows "#"
-showsAstPrec _ (Pvar n)        = showsName n
-showsAstPrec _ Pwildcard       = shows "_"
-showsAstPrec _ (Tvar n)        = shows s
-                                 where
-                                   s = rep n '*',       if n < 6
-                                     = '*' : showint n, otherwise
-
-|| check to see if an ap2 is an in-line operator
-showsAstPrec d (Eap (Eap (Evar op) e1) e2)
-    = showsOpPrec d op e1 e2, if isSymbol op
-
-showsAstPrec d (Eap e1 e2)
-    = showsInParensIf (d > apPrec) $ showsAstPrec apPrec e1 . shows " " . showsAstPrec (apPrec + 1) e2
-
-showsAstPrec d (Ecall (Evar f) args)
-    = showsOpPrec d f (args ! 0) (args ! 1),                          if isSymbol f & #args == 2
-    = showsInParensIf (d > apPrec) $ showsName f . showsOptArgs args, otherwise
-
-showsAstPrec d (Ecall ef args)
-    = showsInParensIf (d > apPrec) $ showsAstPrec apPrec ef . showsOptArgs args
-
-showsAstPrec d (Efail e)
-    = showsInParensIf (d > apPrec) $ shows "FAIL " . showsAstPrec (apPrec + 1) e
-
-showsAstPrec d (Efatbar p e1 e2)
-    = showsInParensIf (d > apPrec) $ shows "FATBAR " . showsAstPrec apPrec' p . shows " " . showsAstPrec apPrec' e1 . shows " " . showsAstPrec apPrec' e2
-      where apPrec' = apPrec + 1
-
-showsAstPrec d (Tarr t1 t2)
-     = showsInParensIf (d > 0) $ showsAstPrec 1 t1 . shows " -> " . showsAstPrec 0 t2
-
-showsAstPrec d (Pctor n vars)
-    = showsOpPrec d n (vars ! 0) (vars ! 1), if isSymbol n & #vars == 2
-    = showsName n,                           if null vars
-    = showsInParensIf (d > apPrec) s,        otherwise
-      where
-        s = showsName n . shows " " . showsAstList vars
-
-showsAstPrec d (Tname n vars)
-    = showsOpPrec d n (vars ! 0) (vars ! 1), if isSymbol n & #vars == 2
-    = showsName n,                           if null vars
-    = showsInParensIf (d > apPrec) s,        otherwise
-      where
-        s  = showsName n . shows " " . showsAstList vars
-
-showsAstPrec d (Plit e)    = showsAstPrec d e
-showsAstPrec d (Tstrict t) = showsAstPrec d t . shows " !"
-
-|| asts with additional syntax that act at apPrec
-showsAstPrec d a
-    = showsInParensIf (d > apPrec) $ go a
-      where
-        go (Econd conds)         = showsInBraces $ showsListMapped "; = " (showsAstPrec apPrec) conds
-        go (ElistComp e qs an)   = showsInBrackets $ showsAstPrec 0 e . shows " | " . showsExprList qs
-        go (Cif tst e)           = showsAstPrec 0 e . shows ", if " . showsAstPrec 0 tst
-        go (Cdefault e)          = showsAstPrec 0 e . shows ", otherwise"
-        go (CaseAlt p e)         = showsAstPrec 0 p . shows " -> " . showsAstPrec 0 e
-        go (Qgen pats e)         = showsCommaList (showsAstPrec 0) pats . shows " <- " . showsAstPrec 0 e
-        go (Qrecur p e1 e2)      = showsAstPrec 0 p . shows " <- " . showsAstPrec 0 e1 . shows ", " . showsAstPrec 0 e2 . shows " .."
-        go (Qguard e)            = showsAstPrec 0 e
-        go (Ttuple elts)         = showsInParens $ showsCommaList (showsAstPrec 0) elts
-        go (Tlist t)             = showsInBrackets $ showsAstPrec 0 t
-        go (DefMult m ds)        = showsExprList ds
-        go (DefFn n vars rhs an) = showsName n . showsAnno an . shows " " . showsAstList vars . shows " = " . showsAstPrec 0 rhs
-        go (DefPat p rhs an)     = showsAstPrec 0 p . showsAnno an . shows " = "  . showsAstPrec 0 rhs
-        go (DefSpec tf te an)    = showsAstPrec 0 tf . shows " :: " . showsAstPrec 0 te
-        go (DefSyn tf te an)     = showsAstPrec 0 tf . showsAnno an . shows " == " . showsAstPrec 0 te
-        go (DefData tf [] an)    = showsAstPrec 0 tf . shows " :: type"
-        go (DefData tf ctors an) = showsAstPrec 0 tf . shows " ::= " . showsListMapped " | " (showsAstPrec 0) ctors
-        go (DefAbs tf ds te an)  = shows "abstype " . showsAstPrec 0 tf . shows " == " . showsAstPrec 0 te
-
-        go (Ecase sel tst alts)
-            = shows ("case" ++ sSel) . showsAstPrec apPrec tst . shows " of " . (showsInBraces $ showsExprList alts)
-              where
-                sSel = "Vec ",    if _eq cmpcaseSel sel Cvectored
-                     = " ",       otherwise
-
-        go (Elet b fns pats e)
-            = shows ("let" ++ sRec) . (showsInBraces $ showsExprList defs) . shows " in " . showsAstPrec 0 e
-              where
-                defs = m_elems fns ++ pats
-                sRec = "Rec ", if b
-                     = " ",    otherwise
-
-        go _ = unreachable
-
-showsOpPrec :: int -> name -> expr -> expr -> showS
-showsOpPrec d op e1 e2
-    = showsInParensIf (d > prec) s
-      where
-        s              = showsAstPrec precL e1 . shows (" " ++ showName op ++ " ") . showsAstPrec precR e2
-        (prec, assoc)  = opPrecAssoc op
-        (precL, precR) = (prec, prec + 1), if _eq cmpassoc assoc AssocLeft
-                       = (prec + 1, prec), otherwise
-
-showsAst :: ast -> showS
-showsAst a = showsAstPrec 0 a
+astAnnoLoc    = composeLens astAnno annoLoc
+astAnnoRec    = composeLens astAnno annoRec
+astAnnoCpx    = composeLens astAnno annoCpx
+astAnnoUse    = composeLens astAnno annoUse
+astAnnoFree   = composeLens astAnno annoFree
+astAnnoAffine = composeLens astAnno annoAffine
 
 
 reservedNames :: s_set string
 reservedNames = s_fromList cmpstring ["if", "otherwise", "type", "where", "abstype", "with", "case", "of", "=", "::", "::=", "..", "|", "<-", "->"]
 
+
 || common name operations
+
 isConstructor, isWildcard, isPrefix, isVar, isTvarSymbol, isSymbol :: name -> bool
 isConstructor n = isUpper c \/ c ==. ':' where c = hd $ getName n
 isVar n         = ~isConstructor n
@@ -383,36 +237,36 @@ isSymbol n
 || common expr operations
 
 isEvar, isLit, isUnboxed, isCase, isFail, isCall, isLet, isCaseAlt, isSimpleExpr :: expr -> bool
-isEvar (Evar n)           = True
-isEvar e                  = False
+isEvar (Evar _) = True
+isEvar _        = False
 
-isLit (Eint n)            = True
-isLit (Echar c)           = True
-isLit (Estring s)         = True
-isLit (EprimInt n)        = True
-isLit (EprimChar c)       = True
-isLit (EprimString s)     = True
-isLit e                   = False
+isLit (Eint _)        = True
+isLit (Echar _)       = True
+isLit (Estring _)     = True
+isLit (EprimInt _)    = True
+isLit (EprimChar _)   = True
+isLit (EprimString _) = True
+isLit _               = False
 
-isUnboxed (EprimInt n)    = True
-isUnboxed (EprimChar n)   = True
-isUnboxed (EprimString s) = True
-isUnboxed e               = False
+isUnboxed (EprimInt _)    = True
+isUnboxed (EprimChar _)   = True
+isUnboxed (EprimString _) = True
+isUnboxed _               = False
 
-isCase (Ecase s tst alts) = True
-isCase e                  = False
+isCase (Ecase _ _ _ _) = True
+isCase _               = False
 
-isFail (Efail e)          = True
-isFail a                  = False
+isFail (Efail _) = True
+isFail _         = False
 
-isCall (Ecall e args)     = True
-isCall a                  = False
+isCall (Ecall _ _) = True
+isCall _           = False
 
-isLet (Elet b ds ps e)    = True
-isLet a                   = False
+isLet (Elet _ _ _ _) = True
+isLet _              = False
 
-isCaseAlt (CaseAlt p e)   = True
-isCaseAlt a               = False
+isCaseAlt (CaseAlt _ _ _) = True
+isCaseAlt _               = False
 
 isSimpleExpr a = isEvar a \/ isUnboxed a \/ isTname a \/ isFail a
 
@@ -424,44 +278,44 @@ ap2 f e1 e2 = Eap (Eap f e1) e2
 || common pat operations
 
 isPvar, isPlit, isPctor, isPwildcard, isPvarOrWild :: ast -> bool
-isPvar (Pvar _)         = True
-isPvar _                = False
+isPvar (Pvar _) = True
+isPvar _        = False
 
-isPlit (Plit _)         = True
-isPlit _                = False
+isPlit (Plit _) = True
+isPlit _        = False
 
-isPctor (Pctor n vars)  = True
-isPctor _               = False
+isPctor (Pctor _ _)  = True
+isPctor _            = False
 
-isPwildcard Pwildcard   = True
-isPwildcard _           = False
+isPwildcard Pwildcard = True
+isPwildcard _         = False
 
-isPvarOrWild (Pvar _)   = True
-isPvarOrWild Pwildcard  = True
-isPvarOrWild _          = False
+isPvarOrWild (Pvar _)  = True
+isPvarOrWild Pwildcard = True
+isPvarOrWild _         = False
 
 unPvar :: texpr -> name
-unPvar (Pvar n)         = n
-unPvar _                = unreachable
+unPvar (Pvar n) = n
+unPvar _        = unreachable
 
 unTvar :: texpr -> int
-unTvar (Tvar n)         = n
-unTvar _                = unreachable
+unTvar (Tvar n) = n
+unTvar _        = unreachable
 
 ctorName :: ast -> name
-ctorName (Pctor n vars) = n
-ctorName _              = unreachable
+ctorName (Pctor n _) = n
+ctorName _           = unreachable
 
 ctorVars :: ast -> [ast]
-ctorVars (Pctor n vars) = vars
+ctorVars (Pctor _ vars) = vars
 ctorVars _              = []
 
 samePatType :: ast -> ast -> bool
-samePatType (Pvar v1)     (Pvar v2)     = True
-samePatType (Pctor n1 a1) (Pctor n2 a2) = True
-samePatType (Plit l1)     (Plit l2)     = _eq cmplit l1 l2
-samePatType Pwildcard     Pwildcard     = True
-samePatType p1            p2            = False
+samePatType (Pvar _)    (Pvar _)    = True
+samePatType (Pctor _ _) (Pctor _ _) = True
+samePatType (Plit l1)   (Plit l2)   = _eq cmplit l1 l2
+samePatType Pwildcard   Pwildcard   = True
+samePatType p1          p2          = False
 
 qualifyPat :: string -> ast -> ast
 qualifyPat modName (Pvar n) = Pvar $ qualifyName modName n
@@ -470,30 +324,30 @@ qualifyPat modName p        = p
 || names used for lexical bindings
 patNames :: ast -> [name]
 patNames (Pvar n)       = [n]
-patNames (Pctor n vars) = concatMap patNames vars
+patNames (Pctor _ vars) = concatMap patNames vars
 patNames _              = []
 
 
 || common texpr and tform operations
 
 isTname :: ast -> bool
-isTname (Tname n vars)   = True
-isTname _                = False
+isTname (Tname _ _) = True
+isTname _           = False
 
 isTvar :: ast -> bool
-isTvar (Tvar n)         = True
-isTvar _                = False
+isTvar (Tvar _) = True
+isTvar _        = False
 
 isTarr :: ast -> bool
-isTarr (Tarr t1 t2)      = True
-isTarr _                 = False
+isTarr (Tarr _ _) = True
+isTarr _          = False
 
 tformName :: ast -> name
-tformName (Tname n vars) = n
-tformName _              = unreachable
+tformName (Tname n _) = n
+tformName _           = unreachable
 
 tformVars :: ast -> [ast]
-tformVars (Tname n vars) = vars
+tformVars (Tname _ vars) = vars
 tformVars _              = unreachable
 
 qualifyTform :: string -> ast -> ast
@@ -501,16 +355,16 @@ qualifyTform modName (Tname n vars) = Tname (qualifyName modName n) vars
 qualifyTform modName a              = unreachable
 
 typeName :: texpr -> name
-typeName (Tname n vars) = n
-typeName (Ttuple tes)   = Builtin $ "tuple" ++ showint (#tes)
-typeName (Tlist  te)    = Builtin $ "[" ++ getName (typeName te) ++ "]"
-typeName (Tarr t1 t2)   = Builtin $ "(" ++ getName (typeName t1) ++ " -> " ++ getName (typeName t2) ++ ")"
-typeName (Tstrict t)    = typeName t
-typeName (Tvar n)       = Builtin "type"
-typeName _              = unreachable
+typeName (Tname n _)  = n
+typeName (Ttuple tes) = Builtin $ "tuple" ++ showint (#tes)
+typeName (Tlist  te)  = Builtin $ "[" ++ getName (typeName te) ++ "]"
+typeName (Tarr t1 t2) = Builtin $ "(" ++ getName (typeName t1) ++ " -> " ++ getName (typeName t2) ++ ")"
+typeName (Tstrict t)  = typeName t
+typeName (Tvar n)     = Builtin "type"
+typeName _            = unreachable
 
 isStrict :: ast -> bool
-isStrict (Tstrict t) = True
+isStrict (Tstrict _) = True
 isStrict _           = False
 
 unStrict :: ast -> ast
@@ -528,7 +382,7 @@ typeList t = ([], t)
 
 || return the final type in a Tarr texpr
 baseType :: texpr -> texpr
-baseType t = snd . typeList $ t
+baseType t = snd $ typeList t
 
 || return the nth type in a Tarr texpr
 nthType :: int -> texpr -> texpr
@@ -538,108 +392,76 @@ nthType i t = fst (typeList t) ! i
 || common defn operations
 
 isDefn :: ast -> bool
-isDefn (DefFn n vars e an)     = True
-isDefn (DefMult m ds)          = True
-isDefn (DefPat p e an)         = True
-isDefn (DefSyn t ts an)        = True
-isDefn (DefData tf ctors an)   = True
-isDefn (DefSpec t1 t2 an)      = True
-isDefn (DefAbs tf ds t an)     = True
-isDefn _                       = False
+isDefn (DefFn   _ _ _ _) = True
+isDefn (DefMult _ _)     = True
+isDefn (DefPat  _ _ _)   = True
+isDefn (DefSyn  _ _ _)   = True
+isDefn (DefData _ _ _)   = True
+isDefn (DefSpec _ _ _)   = True
+isDefn (DefAbs  _ _ _ _) = True
+isDefn _                 = False
 
 || used to differentiate defn types
 isDefFn, isDefPat, isDefFnPat, isDefMult, isDefData, isDefSyn, isDefSpec, isDefAbs, isDefType, isSyn :: ast -> bool
 
-isDefFn (DefFn n vars e an)     = True
-isDefFn (DefMult m (d : ds))    = isDefFn d
-isDefFn _                       = False
+isDefFn (DefFn   _ _ _ _)     = True
+isDefFn (DefMult _ (d : ds))  = isDefFn d
+isDefFn _                     = False
 
-isDefPat (DefPat p e an)        = True
-isDefPat (DefMult m (d : ds))   = isDefPat d
-isDefPat _                      = False
+isDefPat (DefPat  _ _ _)      = True
+isDefPat (DefMult _ (d : ds)) = isDefPat d
+isDefPat _                    = False
 
-isDefFnPat (DefFn n vars e an)  = True
-isDefFnPat (DefPat p e an)      = True
-isDefFnPat (DefMult m ds)       = True
-isDefFnPat _                    = False
+isDefFnPat (DefFn   _ _ _ _)  = True
+isDefFnPat (DefPat  _ _ _)    = True
+isDefFnPat (DefMult _ _)      = True
+isDefFnPat _                  = False
 
-isDefMult (DefMult m ds)        = True
-isDefMult _                     = False
+isDefMult (DefMult _ _)       = True
+isDefMult _                   = False
 
-isDefData (DefData tf ctors an) = True
-isDefData _                     = False
+isDefData (DefData _ _ _)     = True
+isDefData _                   = False
 
-isDefSyn (DefSyn tf te an)      = True
-isDefSyn _                      = False
+isDefSyn (DefSyn _ _ _)       = True
+isDefSyn _                    = False
 
-isDefSpec (DefSpec tf te an)    = True
-isDefSpec _                     = False
+isDefSpec (DefSpec _ _ _)     = True
+isDefSpec _                   = False
 
-isDefAbs (DefAbs tf ds t an)    = True
-isDefAbs _                      = False
+isDefAbs (DefAbs _ _ _ _)     = True
+isDefAbs _                    = False
 
-isDefType (DefData tf ctors an) = True
-isDefType (DefSyn tf te an)     = True
-isDefType (DefAbs tf ds t an)   = True
-isDefType _                     = False
+isDefType (DefData _ _ _)     = True
+isDefType (DefSyn  _ _ _)     = True
+isDefType (DefAbs  _ _ _ _)   = True
+isDefType _                   = False
 
 || DefAbs act like DefSyns during synonym expansion
 isSyn a = isDefSyn a \/ isDefAbs a
 
 defnName :: ast -> name
-defnName (DefFn n vars e an)    = n
-defnName (DefMult m (d : ds))   = defnName d
-defnName (DefPat p e an)        = unPvar p,    if isPvar p
-                                = ctorName p,  if isPctor p
-                                = Builtin "_", if isPwildcard p
-defnName (DefSyn tf te an)      = tformName tf
-defnName (DefData tf ctors an)  = tformName tf
-defnName (DefSpec tf te an)     = tformName tf
-defnName (DefAbs tf ds t an)    = tformName tf
-defnName _                      = unreachable
-
-defnAnno :: ast -> anno
-defnAnno (DefFn n vars e an)    = an
-defnAnno (DefMult m (d : ds))   = defnAnno d
-defnAnno (DefPat p e an)        = an
-defnAnno (DefSyn tf te an)      = an
-defnAnno (DefData tf ctors an)  = an
-defnAnno (DefSpec tf te an)     = an
-defnAnno (DefAbs tf ds t an)    = an
-defnAnno _                      = unreachable
-
-
-|| lenses for anno field, to allow view / set / over operations on annotation fields of a definition
-lensAnno :: lens defn anno
-lensAnno
-    = Lens defnAnno overf
-      where
-        overf fn (DefFn n vars e an)    = DefFn n vars e (fn an)
-        overf fn (DefMult m (d : ds))   = DefMult m (overf fn d : ds)
-        overf fn (DefPat (Pvar n) e an) = DefPat (Pvar n) e (fn an)
-        overf fn (DefSyn tf te an)      = DefSyn tf te (fn an)
-        overf fn (DefData tf ctors an)  = DefData tf ctors (fn an)
-        overf fn (DefSpec tf te an)     = DefSpec tf te (fn an)
-        overf fn (DefAbs tf ds t an)    = DefAbs tf ds t (fn an)
-        overf fn d                      = d
-
-defnAnLoc    = composeLens lensAnno anLoc
-defnAnRec    = composeLens lensAnno anRec
-defnAnCpx    = composeLens lensAnno anCpx
-defnAnUse    = composeLens lensAnno anUse
-defnAnFree   = composeLens lensAnno anFree
-defnAnAffine = composeLens lensAnno anAffine
+defnName (DefFn   n _ _ _)    = n
+defnName (DefMult _ (d : ds)) = defnName d
+defnName (DefPat  p _ _)      = unPvar p,    if isPvar p
+                              = ctorName p,  if isPctor p
+                              = Builtin "_", if isPwildcard p
+defnName (DefSyn  tf _ _)     = tformName tf
+defnName (DefData tf _ _)     = tformName tf
+defnName (DefSpec tf _ _ )    = tformName tf
+defnName (DefAbs  tf _ _ _)   = tformName tf
+defnName _                    = unreachable
 
 || lens for accessing a definition's tform and type
 defnTform :: lens defn tform
 defnTform
     = Lens getf overf
       where
-        getf (DefSyn tf te an)         = tf
-        getf (DefData tf ctors an)     = tf
-        getf (DefSpec tf te an)        = tf
-        getf (DefAbs tf ds te an)      = tf
-        getf _                         = unreachable
+        getf (DefSyn tf  _ _)   = tf
+        getf (DefData tf _ _)   = tf
+        getf (DefSpec tf _ _)   = tf
+        getf (DefAbs tf  _ _ _) = tf
+        getf _                  = unreachable
 
         overf fn (DefSyn tf te an)     = DefSyn (fn tf) te an
         overf fn (DefData tf ctors an) = DefData (fn tf) ctors an
@@ -651,10 +473,10 @@ defnType :: lens defn texpr
 defnType
     = Lens getf overf
       where
-        getf (DefSyn tf te an)        = te
-        getf (DefSpec tf te an)       = te
-        getf (DefAbs tf ds te an)     = te
-        getf _                        = unreachable
+        getf (DefSyn  _ te _)   = te
+        getf (DefSpec _ te _)   = te
+        getf (DefAbs  _ _ te _) = te
+        getf _                  = unreachable
 
         overf fn (DefSyn tf te an)    = DefSyn tf (fn te) an
         overf fn (DefSpec tf te an)   = DefSpec tf (fn te) an
@@ -665,21 +487,21 @@ dataCtors :: lens defn [tform]
 dataCtors
     = Lens getf overf
       where
-        getf (DefData tf ctors an)     = ctors
-        getf _                         = unreachable
+        getf (DefData _ ctors _) = ctors
+        getf _                   = unreachable
 
         overf fn (DefData tf ctors an) = DefData tf (fn ctors) an
         overf fn d                     = d
 
 fnVars :: ast -> [ast]
-fnVars (DefFn n vars e an)  = vars
-fnVars (DefMult m (d : ds)) = fnVars d
+fnVars (DefFn   _ vars _ _) = vars
+fnVars (DefMult _ (d : ds)) = fnVars d
 fnVars d                    = []
 
 fnExpr :: ast -> ast
-fnExpr (DefFn n vars e an)  = e
-fnExpr (DefPat p e an)      = e
-fnExpr (DefMult m (d : ds)) = fnExpr d
+fnExpr (DefFn   _ _ e _)    = e
+fnExpr (DefPat  _ e _)      = e
+fnExpr (DefMult _ (d : ds)) = fnExpr d
 fnExpr _                    = unreachable
 
 || get the arity of a fn or spec defn -- special handling for constructors, where the arity is encoded in the builtinPack
@@ -697,7 +519,7 @@ fnArity (DefSpec tf te an)
         countArrs (Tarr t1 t2) n = countArrs t2 $! n + 1
         countArrs t            n = n
 
-fnArity (DefMult m (d : ds)) = fnArity d
+fnArity (DefMult _ (d : ds)) = fnArity d
 fnArity d                    = 0
 
 || flatten a list of definitions
@@ -749,7 +571,7 @@ opPrecRepr
       , "P ~"
 
         || comparisons
-      , "C == ~= < > <= >= ==. ~=. <. >. <=. >=. ==$ ~=$ <$ >$ <=$ >=$"
+      , "C == ~= < > <= >= ==. ~=. <. >. <=. >=. ==$ ~=$ <$ >$ <=$ >=$ ==% ~=% <% >% <=% >=%"
 
         || list operations
       , "R : ++ --"
@@ -761,9 +583,9 @@ opPrecRepr
       , "L .<<. .>>."
 
         || arithmetic
-      , "L + -"
+      , "L + - +% -%"
       , "P neg"
-      , "L * quotrem divmod quot rem div mod /"
+      , "L * quotrem divmod quot rem div mod / *% /%"
       , "R ^"
 
         || function composition

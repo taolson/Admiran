@@ -9,7 +9,7 @@
 || a let{rec} (i.e. defined in a where clause), because those assume that the value is boxed.
 
 || Note on functions written with partial application
-|| Many functions here are written with partial application -- fewer arguments than full saturation would dictate. Thes return
+|| Many functions here are written with partial application -- fewer arguments than full saturation would dictate. These return
 || a function to take the rest of the arguments.  This is done mostly to allow better inlining optimization with recursive functions,
 || since it splits the function into a non-recursive part, which can be inlined, and a recursive part, which cannot.  The non-recursive
 || part can be used during inlining and optimization to specialize the recursive loop.  In other cases, the function is written with

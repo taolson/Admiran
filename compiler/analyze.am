@@ -16,16 +16,17 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>         (<&>)/mb_rfmap (<|>)/mb_alt
+%import <maybe>                 (<|>)/mb_alt
+%import <maybe> qualified as mb (<&>)/mb_rfmap
 %import <set>
-%import <state>         (>>=)/st_bind (<<)/st_left (>>)/st_right
+%import <state>                 (>>=)/st_bind (<&>)/st_rfmap (<<)/st_left (>>)/st_right
 %import "ast"
 %import "exception"
 %import "grammar"
 %import "module"
 %import "name"
 %import "predef"
-
+%import "pretty"
 
 affineMap  == m_map name bitSet
 useInfoMap == m_map name useInfo
@@ -117,7 +118,7 @@ removeLocalUses a
     = getPatNames a |> delNames azUses
       where
         getPatNames (Efatbar p _ _)    = patNames p
-        getPatNames (CaseAlt p _)      = patNames p
+        getPatNames (CaseAlt p _ _)    = patNames p
         getPatNames (Qgen pats _)      = concatMap patNames pats
         getPatNames (Qrecur p _ _)     = patNames p
         getPatNames (Pctor _ pats)     = concatMap patNames pats
@@ -135,8 +136,8 @@ lookupAffineInfo (Evar n)
                       = checkBuiltin,   if isBuiltin n
                       = checkAffineMap, otherwise
 
-                checkAffineMap = m_lookup cmpname n am <|> lookupDefn genv n <&> view defnAnAffine
-                checkBuiltin   = lookupArity genv n <&> checkOp (getName n)
+                checkAffineMap = m_lookup cmpname n am <|> lookupDefn genv n mb.<&> view astAnnoAffine
+                checkBuiltin   = lookupArity genv n mb.<&> checkOp (getName n)
 
                 || builtins are Uone in all arguments except for array write operations,
                 || which are Umany in their last argument
@@ -164,17 +165,25 @@ analyzeAst k (Tname n args)
 
 || an Ecase strictly evaluates its scrutinee expr, but will only evaluate one of the alts. Compute useInfo
 || by analyzing alts separately, then merging to find max use
-analyzeAst k (Ecase cs e alts)
-    = st_liftA2 (Ecase cs) (astRewriteLex analyzeAst e) analyzeAlts << incCpx
+analyzeAst k (Ecase cs e alts an)
+    = st_bind4 (st_view azCpx) (st_view azUses) (analyzeSingle e) (st_mapM analyzeAlt alts) updateCase
       where
-        analyzeAlts  = st_bind2 (st_view azUses) (st_mapM analyzeAlt alts) merge
-        analyzeAlt a = st_liftA2 pair (clrUses >> astRewriteLex analyzeAst a) (st_view azUses)
+        analyzeSingle a = st_liftA3 triple (clrCpxUses >> astRewriteLex analyzeAst a) (st_view azCpx) (st_view azUses)
+        analyzeAlt    a = analyzeSingle a <&> updateAlt
 
-        merge inUses altUses
-            = unzip2 altUses |> \(alts, uses) ->
-              foldl1 (mergeUsesWith $ max2 cmpuseInfo) uses |>  || merge all caseAlt useInfo using max
-              mergeUsesWith appendUseInfo inUses            |>  || merge resulting uses with incoming uses
-              st_set azUses >> st_pure alts
+        updateAlt (a, c, u) = (set astAnnoCpx c a |> set astAnnoFree (m_keysSet u), c, u)
+
+        updateCase inCpx inUses (e', eCpx, eUse) altCpxUses
+            = st_set azCpx cpx >> st_set azUses uses >> st_pure (Ecase cs e' alts' an')
+              where
+                (alts', altCpxs, altUses) = unzip3 altCpxUses
+
+                maxUses  = foldl1 (mergeUsesWith (max2 cmpuseInfo)) altUses
+                caseCpx  = eCpx + sum altCpxs + 1
+                caseUses = mergeUsesWith appendUseInfo maxUses eUse
+                an'      = set annoCpx caseCpx an |> set annoFree (m_keysSet caseUses)
+                cpx      = inCpx + caseCpx
+                uses     = mergeUsesWith appendUseInfo inUses caseUses
 
 analyzeAst k a
     = setLexInfo >> analyzeDefn,          if isDefn a
@@ -187,13 +196,13 @@ analyzeAst k a
         analyzeDefn = st_bind3 (st_view azCpx) (st_view azUses) (clrCpxUses >> checkTdef k a) updateDefn
 
 || type defns should not have their defn Tforms analyzed, as we can't tell defining Tnames vs used Tnames as with Pvar vs Evar
-checkTdef k (DefSyn  tf te an)    = st_liftA2 (DefSyn  tf)    (astRewriteLex analyzeAst te)           (st_pure an)
-checkTdef k (DefData tf ts an)    = st_liftA2 (DefData tf)    (st_mapM (astRewriteLex analyzeAst) ts) (st_pure an)
-checkTdef k (DefSpec tf te an)    = st_liftA2 (DefSpec tf)    (astRewriteLex analyzeAst te)           (st_pure an)
-checkTdef k (DefAbs  tf ds te an) = st_liftA2 (DefAbs  tf ds) (astRewriteLex analyzeAst te)           (st_pure an)
+checkTdef k (DefSyn  tf te an)    = astRewriteLex analyzeAst te           <&> \te' -> DefSyn tf te' an
+checkTdef k (DefData tf ts an)    = st_mapM (astRewriteLex analyzeAst) ts <&> \ts' -> DefData tf ts' an
+checkTdef k (DefSpec tf te an)    = astRewriteLex analyzeAst te           <&> \te' -> DefSpec tf te' an
+checkTdef k (DefAbs  tf ds te an) = astRewriteLex analyzeAst te           <&> \te' -> DefAbs tf ds te' an
 checkTdef k a                     = k a || analyze full defn for non-type defns
 
-|| update rec, cpx, free, and affineUse fields in defnAnno, and merge inCpx and inUses
+|| update rec, cpx, free, and affineUse fields in astAnno, and merge inCpx and inUses
 updateDefn :: int -> useInfoMap -> defn -> state azSt defn
 updateDefn inCpx inUses d
     = st_bind3 (st_view azCpx) (st_view azUses) (removeLocalUses d >> st_view azUses) updateAnno
@@ -208,7 +217,7 @@ updateDefn inCpx inUses d
                 fvu = map (\n -> m_findWithDefault cmpname Uzero n uses) fvn
                 aff = enumerate fvu |> filter (snd .> usedAffine) |> map fst |> bs_fromList
                 rec = m_member cmpname n free
-                d'  = set lensAnno (view defnAnLoc d, rec \/ view defnAnRec d, cpx, Umany, m_keysSet free', aff) d
+                d'  = set astAnno (view astAnnoLoc d, rec \/ view astAnnoRec d, cpx, Umany, m_keysSet free', aff) d
 
                 free' = m_fmap (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
                       = free,                                     otherwise
@@ -232,7 +241,7 @@ updateCall (Ecall f args)
 
 updateCall _ = unreachable
 
-|| update the defnAnno useInfo field for each of the defns in the Elet's defnMap
+|| update the astAnno useInfo field for each of the defns in the Elet's defnMap
 || if the expression e is an Evar, mark all the names that can escape as Umany
 updateLet :: expr -> state azSt expr
 updateLet (Elet rec defs pats e)
@@ -249,7 +258,7 @@ updateLet (Elet rec defs pats e)
         computeEscapes defs (Evar n)
             = m_lookup cmpname n defs |> fromMaybef [] captured
               where
-                captured d = view defnAnFree d |> s_toList |> (n :)
+                captured d = view astAnnoFree d |> s_toList |> (n :)
         computeEscapes _ _ = []
 
         checkUpdate ui d
@@ -258,7 +267,7 @@ updateLet (Elet rec defs pats e)
               where
                 n      = defnName d
                 u      = if' single (m_findWithDefault cmpname Uzero n ui) Umany
-                update = set defnAnUse u d |> st_pure
+                update = set astAnnoUse u d |> st_pure
 
 updateLet _ = unreachable
 

@@ -21,6 +21,7 @@
 %import "../compiler/name"
 %import "../compiler/parser"
 %import "../compiler/predef"
+%import "../compiler/pretty"
 %import "../compiler/serialize"
 %import "../compiler/tokenizer"
 

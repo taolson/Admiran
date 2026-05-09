@@ -89,7 +89,7 @@ makeBuiltinCtorDef :: name -> defn
 makeBuiltinCtorDef n
     = DefFn n [] (builtinPack n tag aty) an
       where
-        an   = locAnno (initLocation "builtin")
+        an   = emptyAnnoLoc (initLocation "builtin")
 
         aty  = builtinTupleArity n, if isBuiltinTuple n
              = 2,                   if _eq cmpname n builtinConsName

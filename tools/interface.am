@@ -21,6 +21,7 @@
 %import "../compiler/name"
 %import "../compiler/parser"
 %import "../compiler/predef"
+%import "../compiler/pretty"
 %import "../compiler/tokenizer"
 
 indent :: int -> string -> string
@@ -38,7 +39,7 @@ printSpecs comment m
         defs       = view modDefns m |> m_elems
         dataDefs   = filter isDefData defs
         synDefs    = filter isDefSyn  defs
-        defStrings = concatMap (map showdefn .> sortBy cmpstring .> map (indent 4)) [dataDefs, synDefs, specs]
+        defStrings = concatMap (map showAst .> sortBy cmpstring .> map (indent 4)) [dataDefs, synDefs, specs]
 
 process :: string -> io ()
 process s

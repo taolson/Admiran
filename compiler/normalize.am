@@ -111,7 +111,7 @@ normalizeAst k (Ecall f args) st
                 d          = DefPat (Pvar tn) e' $ mkAnno st1
                 st2        = set nmGen gen' . over nmThunks (d :) $ st1
 
-        mkAnno st = locAnno . fromMaybe emptyLocation . view nmLocation $ st
+        mkAnno st = view nmLocation st |> fromMaybe emptyLocation |> emptyAnnoLoc
 
 || float any generated thunks out until reaching a Defn, Elet, or CaseAlt
 || then collect them into a nested sequence of Elets
@@ -133,7 +133,7 @@ normalizeAst k a st
         update (DefFn n vars e an)  st = case wrapLets e st of (e', st') -> (DefFn n vars e' an, st')
         update (DefPat p e an)      st = case wrapLets e st of (e', st') -> (DefPat p e' an, st')
         update (Elet rec defs ps e) st = case wrapLets e st of (e', st') -> (Elet rec defs ps e', st')
-        update (CaseAlt p e)        st = case wrapLets e st of (e', st') -> (CaseAlt p e', st')
+        update (CaseAlt p e an)     st = case wrapLets e st of (e', st') -> (CaseAlt p e' an, st')
         update a                    st = (a, set nmThunks inThunks st)
 
         wrapLets a st

@@ -85,10 +85,10 @@ rewriteAst k (Eap e1 e2) st
 || rewrite simple accessor Ecase patterns to a builtinSel: {case e of [(a, b, c) -> b]} => builtinSel (Tuple3, 1) e
 || Note: performance comparison shows that this rewrite actually degrades performance a slight amount (when inlining), due to
 || some inlining rewrites not being performed, so it is conditioned here upon the config parameter useSel.
-rewriteAst k (Ecase s e alts) st
-    = (k (Ecase s e alts) $st_bind mkSel) st, if useSel
+rewriteAst k (Ecase s e alts an) st
+    = (k (Ecase s e alts an) $st_bind mkSel) st, if useSel
       where
-        mkSel (Ecase s e [CaseAlt (Pctor c vars) (Evar n)]) st
+        mkSel (Ecase s e [CaseAlt (Pctor c vars) (Evar n) _] an) st
             = (Ecall (builtinSel c idx) [e], st), if isJust midx
               where
                 midx = elemIndex matchVar vars
@@ -156,7 +156,7 @@ rewriteAst k (Elet _ defs _ e) st
             = Elet rec (m_singleton n d) [] e
               where
                 d   = fromJust $ m_lookup cmpname n defs'
-                rec = view defnAnRec d
+                rec = view astAnnoRec d
 
         || make a let with multiple, mutually-recursive defns
         mkLet ns e
@@ -165,7 +165,7 @@ rewriteAst k (Elet _ defs _ e) st
                 addRecEntry m n
                     = m_insert cmpname n d' m
                       where
-                        d' = set defnAnRec True . fromJust . m_lookup cmpname n $ defs'
+                        d' = set astAnnoRec True . fromJust . m_lookup cmpname n $ defs'
 
 || handle extra info around rewriting defns
 rewriteAst k a st
@@ -181,7 +181,7 @@ rewriteAst k a st
         || since they themselves can have one of the fails appended before rewriting.  To prevent this, we remove the fail names from
         || the free vars discovered during the analyze pass prior to rewrite, breaking the false recursion.  A subsequent analyze pass
         || will recover any remaining dependencies on caseFail or matchFail.
-        fixup = over defnAnFree (s_delete cmpname stdCaseFailName . s_delete cmpname stdMatchFailName)
+        fixup = over astAnnoFree (s_delete cmpname stdCaseFailName . s_delete cmpname stdMatchFailName)
 
 
 || rewrite of desugared code:
@@ -208,8 +208,8 @@ rewrite genv
         markRec defs [n]
             = m_adjust cmpname setRec n defs
               where
-                setRec d = set defnAnRec (s_member cmpname n (view defnAnFree d)) d
+                setRec d = set astAnnoRec (s_member cmpname n (view astAnnoFree d)) d
 
         || mark mutally-recursive defns as recursive
         markRec defs ns
-            = foldr (m_adjust cmpname (set defnAnRec True)) defs ns
+            = foldr (m_adjust cmpname (set astAnnoRec True)) defs ns

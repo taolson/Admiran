@@ -3,13 +3,14 @@
 
 %export inline streamSubst
 
-%import <base>
+%import <base>                  -replace
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>
+%import <maybe>                 (>>=)/mb_bind (<&>)/mb_rfmap (<|>)/mb_alt
 %import <set>
-%import <state>                 (>>=)/st_bind
+%import <state>
+%import <state> qualified as st (>>=)/st_bind
 %import "analyze"
 %import "ast"
 %import "config"
@@ -19,6 +20,7 @@
 %import "module"
 %import "name"
 %import "predef"
+%import "pretty"
 %import "rename"
 
 
@@ -103,7 +105,6 @@ lookupEnv n st
     = lookFrame (view inLenv st) False, if m_null (view inSubst st)
     = lookStream,                       otherwise
       where
-
         lookFrame []             cf = (lookupDefn (view inGenv st) n, cf)       || name not found in Lenv, check globalEnv
         lookFrame (FnBound : fs) cf = lookFrame fs True                         || crossed a DefFn boundary
         lookFrame (Env e : fs)   cf
@@ -132,22 +133,22 @@ replace e bdgs
         replaceAst a        = st_pure a
 
 || rewrite only case scrutinees in an expr, replacing var references with the corresponding value of the binding
-replaceScrutinee :: expr -> [(name, expr)] -> expr
-replaceScrutinee e bdgs
+replaceScrutinee :: expr -> int -> [(name, expr)] -> expr
+replaceScrutinee e cpx bdgs
     = e,  if null bdgs
     = e', otherwise
       where
         e' = st_evalState (astRewriteTD replaceAst e) ()
 
-        replaceAst (Ecase b e alts) = st_pure $ Ecase b (replace e bdgs) alts
-        replaceAst a                = st_pure a
+        replaceAst (Ecase b e alts an) = st_pure $ Ecase b (replace e bdgs) alts (over annoCpx (+ cpx) an)
+        replaceAst a                   = st_pure a
 
 || wrap an expr in a sequence of individual let bindings created from a list of names and exprs
 wrapInLet :: location -> expr -> [(name, expr)] -> expr
 wrapInLet loc e bdgs
     = foldr wrap e bdgs
       where
-        an = set anUse Umany $ locAnno loc
+        an = set annoUse Umany $ emptyAnnoLoc loc
 
         wrap (n, e') e
             = Elet False (m_singleton n d) [] e
@@ -160,7 +161,7 @@ createBinding :: location -> expr -> [pat] -> [expr] -> expr
 createBinding loc e vars args
     = wrapInLet loc (replace e smp) cpx
       where
-        (smp, cpx) = partition (isSimple . snd) . map (mapFst unPvar) . filter (isPvar . fst) . zip2 vars $ args
+        (smp, cpx) = zip2 vars args |> filter (fst .> isPvar) |> map (mapFst unPvar) |> partition (snd .> isSimple)
 
 || perform beta-reduction on a defn with arguments, renaming all the Pvars in the defn first
 || to prevent name capture
@@ -220,7 +221,7 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecall (Evar c) a
     = k (args ! idx) st', if useSel & isConstructor c
       where
         note = "inlined builtinSel on constant ctor"
-        st' = addInfo note . set inSimplified True $ st
+        st'  = st |> set inSimplified True |> addInfo note
 
 || inline builtinSel on var which is bound to a ctor call
 || note: this could be a sel for a data item which should be returned, or it could be a sel on the first
@@ -228,11 +229,12 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecall (Evar c) a
 || prime example is Lens (getf/overf) functions
 inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) (Evar n : args)) st
     = k selArg              st', if useSel & inlinable & null args
-    = k (Ecall selArg args) st', if useSel & inlinable
+    = (selArg, st'), if useSel & inlinable & null args
+    = (Ecall selArg args, st'), if useSel & inlinable
       where
         inlinable     = isJust md & isDefPat d & isJust margs'
         note          = "inlined builtinSel on " ++ showName n
-        st'           = addInfo note . set inSimplified True $ st
+        st'           = st |> set inSimplified True |> addInfo note
         md            = fst $ lookupEnv n st
         d             = fromJust md
         DefPat _ e _  = d
@@ -249,7 +251,7 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) (Evar n : args)) 
 inlineAst k (Ecall (Evar (Builtin "cmp#")) [ea, eb]) st
     = handle ea eb
       where
-        st'  = addInfo "inlined builtin cmp#" . set inSimplified True $ st
+        st'  = st |> set inSimplified True |> addInfo "inlined builtin cmp#"
 
         handle (EprimInt  a) (EprimInt  b) = (gen cmpint  a b, st')             || rewrite as EprimInt  literal
         handle (EprimChar a) (EprimChar b) = (gen cmpchar a b, st')             || rewrite as EprimChar literal
@@ -268,9 +270,9 @@ inlineAst k (Ecall (Evar ts) [e]) st
         toStreamName   = Qualified streamModuleName "toStream"
         fromStreamName = Qualified streamModuleName "fromStream"
         note           = "collapsed toStream/fromStream"
-        st'            = addInfo note . set inSimplified True $ st
+        st'            = st |> set inSimplified True |> addInfo note
 
-        walkLets (Elet rec defs ps e)  = Elet rec defs ps $mb_fmap walkLets e
+        walkLets (Elet rec defs ps e)  = walkLets e <&> Elet rec defs ps
         walkLets (Ecall (Evar fs) [e]) = Just e, if _eq cmpname fs fromStreamName
         walkLets e                     = Nothing
 
@@ -281,7 +283,7 @@ inlineAst k (Ecall (Evar n) args) st
         mn'  = m_lookup cmpname n (view inSubst st)
         n'   = fromJust mn'
         note = "substituted stream version of " ++ showName n
-        st'  = addInfo note . set inSimplified True $ st
+        st'  = st |> set inSimplified True |> addInfo note
 
 || inline the function body of a call
 || NOTE: this will aggressively inline thunks, even if they are expensive, causing duplication of work (and
@@ -290,61 +292,65 @@ inlineAst k (Ecall (Evar n) args) st
 inlineAst k (Ecall (Evar n) args) st
     = k e st2, if inlinable
       where
-        inlinable = canInline n & isJust md & ~view defnAnRec d & fnArity d <= #args & cpx <= inlineMaxFnComplexity
+        inlinable = canInline n & isJust md & ~view astAnnoRec d & fnArity d <= #args & cpx <= inlineMaxFnComplexity
         (md, _)   = lookupEnv n st
         d         = fromJust md
-        cpx       = view defnAnCpx d
+        cpx       = view astAnnoCpx d
+        deltaCpx  = cpx - #args - 2
         (e, st1)  = betaReduce d args st
         note      = "inlined function " ++ showName n
-        st2       = addInfo note . over inFuel (subtract cpx) . set inSimplified True $ st1
+        st2       = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
 
 || do inlining of an Evar in a case scrutinee
 || if scrutinee is not a known let-bound var, bind its name to each alt pattern type in the alts (to specialize its value in each alt)
 || Note that in some cases, the binding of a var to an alt pattern will cause extra work of building a new ctor, instead of using the
 || exisiting var.  However, it overall is a performance improvement, due to the subsequent optimizations the specialization provides.
-inlineAst k (Ecase b (Evar n) alts) st
-    = k (Ecase b e'       alts)  st2, if inlinable      || inline the case scrutinee
-    = k (Ecase b (Evar n) alts') st3, if isInternal n   || bind the name to the individual caseAlt patterns
-    = k (Ecase b (Evar n) alts)  st,  otherwise         || don't do anything if the name is a top-level pat
+inlineAst k (Ecase b (Evar n) alts an) st
+    = k (Ecase b e'       alts  an') st2, if inlinable      || inline the case scrutinee
+    = k (Ecase b (Evar n) alts' an)  st3, if isInternal n   || bind the name to the individual caseAlt patterns
+    = k (Ecase b (Evar n) alts  an)  st,  otherwise         || don't do anything if the name is a top-level pat
       where
         || note: restriction on Internal only gives best overall results
-        inlinable    = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
+        inlinable    = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)     = lookupEnv n st
         d            = fromJust md
-        useInfo      = view defnAnUse d
-        cpx          = view defnAnCpx d
+        useInfo      = view astAnnoUse d
+        cpx          = view astAnnoCpx d
+        deltaCpx     = cpx - 2
+        an'          = over annoCpx (+ deltaCpx) an
         affineCpx    = usedAffine useInfo & ~cf
         e            = fnExpr d
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
-        st2          = addInfo note . over inFuel (subtract cpx) . set inSimplified True $ st1
+        st2          = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
         (alts', st3) = st_mapM bindInAlt alts st
 
         bindInAlt alt st
             = (alt, st),                                                      if isNothing me
-            = (replaceScrutinee alt [(n, e)], over inFuel (subtract cpx) st), otherwise
+            = (replaceScrutinee alt cpx [(n, e)], over inFuel (subtract cpx) st), otherwise
               where
                 me       = mkExpr alt
                 (e, cpx) = fromJust me
 
-                mkExpr (CaseAlt (Plit l) e)       = Just (l, 1)
-                mkExpr (CaseAlt (Pctor c vars) e) = Just (Ecall (Evar c) (map (Evar . unPvar) vars), 2 + #vars), if all isPvar vars
-                mkExpr alt                        = Nothing
+                mkExpr (CaseAlt (Plit l) e an)       = Just (l, 1)
+                mkExpr (CaseAlt (Pctor c vars) e an) = Just (Ecall (Evar c) (map (unPvar .> Evar) vars), 2 + #vars), if all isPvar vars
+                mkExpr alt                           = Nothing
 
 || do inlining of an expr as a caseAlt value
-inlineAst k (CaseAlt p (Evar n)) st
-    = k (CaseAlt p e') st2, if inlinable
+inlineAst k (CaseAlt p (Evar n) an) st
+    = k (CaseAlt p e' an) st2, if inlinable
       where
-        inlinable     = canInlineInternal n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
+        inlinable     = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)      = lookupEnv n st
         d             = fromJust md
-        useInfo       = view defnAnUse d
-        cpx           = view defnAnCpx d
+        useInfo       = view astAnnoUse d
+        cpx           = view astAnnoCpx d
+        deltaCpx      = cpx - 2
         affineCpx     = usedAffine useInfo & ~cf
         e             = fnExpr d
         (e', st1)     = betaReduce d [] st
         note          = "inlined caseAlt expr " ++ showName n
-        st2           = addInfo note . over inFuel (subtract cpx) . set inSimplified True $ st1
+        st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
 
 || do inlining of a simple expr
 inlineAst k (Evar n) st
@@ -352,16 +358,17 @@ inlineAst k (Evar n) st
     = (Evar n, st), otherwise
       where
         || note: allowing non-Internals gives best overall results
-        inlinable     = canInline n & isJust md & ~view defnAnRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
+        inlinable     = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
         (md, cf)      = lookupEnv n st
         d             = fromJust md
-        useInfo       = view defnAnUse d
-        cpx           = view defnAnCpx d
+        useInfo       = view astAnnoUse d
+        cpx           = view astAnnoCpx d
+        deltaCpx      = cpx - 2
         affineCpx     = usedAffine useInfo & ~cf
         DefPat _ e _  = d
         (e', st1)     = betaReduce d [] st
         note          = "inlined expr " ++ showName n
-        st2           = addInfo note . over inFuel (subtract cpx) . set inSimplified True $ st1
+        st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
 
 || add locInfo for defn, and a FnBound frame to the local env when entering a DefFn
 inlineAst k a st
@@ -386,27 +393,34 @@ simplifyAst k a st
 || float a let into caseAlts, if unused in the case scrutinee
 || this will cause the lets to be specialized in each alt, allowing unused lets to be removed
 || (fewer runtime bindings created)
-simplifyAst k (Elet rec defs ps (Ecase b e alts)) st
-    = k (Ecase b e alts') st', if ~used
+simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
+    = k (Ecase b e alts' an') st', if ~used
       where
-        cpx   = sum . map (view defnAnCpx) . m_elems $ defs
-        used  = astAccumTD tallyUses e False
-        alts' = map insLet alts
-        note  = "float let into case alts"
-        st'   = addInfo note . over inFuel (subtract (cpx * (#alts - 1))) . set inSimplified True $ st
+        cpx               = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
+        used              = astAccumTD tallyUses e False
+        (deltaCpx, alts') = mapAccumL insLet 0 alts
+        deltaFuel         = deltaCpx - cpx
+        note              = "float let into case alts"
+        an'               = over annoCpx (+ deltaCpx) an
+        st'               = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
         || handle the degenerate case where the CaseAlt is an Evar ref for a defn in the let, by replacing it directly
         || this gets rid of extraneous thunk creation / updates which couldn't be optimized away by the inlining of
         || a caseAlt value (introduced Let bindings cause that pattern to fail)
-        insLet (CaseAlt p (Evar n))
-            = CaseAlt p e', if isJust md & ~view defnAnRec d & isDefPat d
+        insLet dc (CaseAlt p (Evar n) an)
+            = (dc + deltaCpx', CaseAlt p e' an2), if isJust md & ~view astAnnoRec d & isDefPat d
               where
-                md = m_lookup cmpname n defs
-                d  = fromJust md
-                DefPat _ e' _ = d
+                md        = m_lookup cmpname n defs
+                d         = fromJust md
+                cpx'      = view annoCpx an1
+                deltaCpx' = cpx' - 2
 
-        insLet (CaseAlt p e) = CaseAlt p (Elet rec defs ps e)
-        insLet _             = unreachable
+                DefPat _ e' an1 = d
+
+                an2 = over annoCpx (+ deltaCpx') an
+
+        insLet dc (CaseAlt p e an) = (dc + cpx, CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an))
+        insLet _ _                 = unreachable
 
         tallyUses (Evar n) used = used \/ m_member cmpname n defs
         tallyUses a        used = used
@@ -415,32 +429,32 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts)) st
 || expr if all defns are removed.  Note: this pattern comes after the previous simplification to an Elet, because
 || this Elet pattern is more general, and would make the previous unreachable
 simplifyAst k (Elet b defs ps e) st
-    = (k (Elet b defs ps e) >>= f) (over inLenv (Env defs :) st)
+    = (k (Elet b defs ps e) st.>>= f) (over inLenv (Env defs :) st)
       where
         f (Elet rec defs pats e) st
             = (e, st'),                     if null ds
             = (Elet rec defs' pats e, st'), otherwise
               where
-                (dead, ds) = partition (notUsed . snd) (m_toList defs)
-                fuel'      = sum (map (view defnAnCpx . snd) dead)
+                (dead, ds) = m_toList defs |> partition (snd .> notUsed)
+                fuel'      = dead |> map (snd .> view astAnnoCpx) |> sum
                 defs'      = m_fromList cmpname ds
                 notes      = ("increased fuel by " ++ showint fuel') : map (("eliminated " ++) .  showName . defnName . snd) dead
                 st'        = st,                                                                       if null dead
-                           = over inFuel (fuel' +) . set inSimplified True . foldr addInfo st $ notes, otherwise
-                notUsed d  = view defnAnUse d |> usedZero
+                           = foldr addInfo st notes |> set inSimplified True |> over inFuel (fuel' +), otherwise
+                notUsed d  = view astAnnoUse d |> usedZero
 
          f _ _ = unreachable
 
 || simplify case exprs that don't return
-simplifyAst k (Ecase b e alts) st
+simplifyAst k (Ecase b e alts an) st
     = k e st', if noReturn e st
       where
-        st' = addInfo "simplified no-return scrutinee" . set inSimplified True $ st
+        st' = st |> set inSimplified True |> addInfo "simplified no-return scrutinee"
 
 || simplify operations on builtin functions with literal operands
 || note that this pattern match uses the more complex (Ecase (Ecall ..) [CaseAlt ..]) pattern, rather than
 || the simpler inner Ecall, to allow us to collapse the entire expr
-simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e]) st
+simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e an1] an2) st
     = checkAdd ea eb, if fn ==$ "+#"
     = checkSub ea eb, if fn ==$ "-#"
     = checkMul ea eb, if fn ==$ "*#"
@@ -449,8 +463,8 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
     = checkShl ea eb, if fn ==$ "bshl#"
     = checkShr ea eb, if fn ==$ "bshr#"
       where
-        st'     = addInfo ("inlined builtin " ++ fn) . set inSimplified True $ st
-        defl    = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e]) st
+        st'     = st |> set inSimplified True |> addInfo ("inlined builtin " ++ fn)
+        defl    = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e an1] an2) st
         repl e' = k (replace e [(v, e')]) st'
 
         checkAdd (EprimInt a) (EprimInt b) = repl . EprimInt $ a + b
@@ -493,54 +507,65 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
 || note: this duplicates alts1 #alts2 times. Since we are duplicating alts1, and there
 || is a chance that we might float a let defined in one outside of it, we could run into
 || name collision problems.  To solve this, we rename each duplicate.
-simplifyAst k (Ecase b1 (Ecase b2 tst alts2) alts1) st
-    = k (Ecase b2 tst alts2') st2, if #alts1 * #alts2 <= inlineMaxCaseDup
+simplifyAst k (Ecase b1 (Ecase b2 tst alts2 an2) alts1 an1) st
+    = k (Ecase b2 tst alts2' an2') st2, if #alts1 * #alts2 <= inlineMaxCaseDup
       where
-        cpx = analyzeExprCpx (Ecase b1 builtinFail alts1) (view inGenv st)    || template for added cost of pushing outer alts
+        cpx1          = view annoCpx an1
+        cpx2          = view annoCpx an2
+        cpx1'         = cpx1 - cpx2             || cpx of outer case without the inner-case scrutinee
+        deltaCpx      = #alts2 * cpx1'
+        deltaFuel     = deltaCpx - cpx1'
+        an2'          = over annoCpx (+ deltaCpx) an2
         (alts2', st1) = st_mapM pushAlt alts2 st
         note          = "swapped order of case (case)"
-        st2           = addInfo note . over inFuel (subtract (cpx * (#alts2 - 1))) . set inSimplified True $ st1
+        st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
         || push a duplicate of alts1 into an alt2
-        pushAlt (CaseAlt p e) st
-            = (CaseAlt p e, st),                   if noReturn e st     || e doesn't return, so don't replace it
-            = (CaseAlt p e', set inGenv genv' st), otherwise
+        pushAlt (CaseAlt p e an) st
+            = (CaseAlt p e an, st),                    if noReturn e st     || e doesn't return, so don't replace it
+            = (CaseAlt p e' an', set inGenv genv' st), otherwise
               where
-                (e', genv') = renameExpr "" (Ecase b1 e alts1) (view inGenv st)
+                (e', genv') = renameExpr "" (Ecase b1 e alts1 an') (view inGenv st)
+                an'         = over annoCpx (+ cpx1') an         || decrease by 2 to account for CaseAlt and min pattern p cpx
 
         pushAlt _ _ = unreachable
 
 || simplify an Ecase with a constant constructor scrutinee by replacing it with its corresponding caseAlt
 || this is the main simplification optimization which the others are trying to expose
-simplifyAst k (Ecase b e alts) st
+simplifyAst k (Ecase b e alts an) st
     = k e' st', if isJust ma
       where
-        genv = view inGenv st
-        loc  = fromMaybe emptyLocation (view inLocation st)
-        ma   = (extrCtorArgs e $mb_bind matchCtor) $mb_alt (extrLit e $mb_bind matchLit)
-        e'   = fromJust ma
-        cpx1 = analyzeExprCpx (Ecase b e alts) genv
-        cpx2 = analyzeExprCpx e' genv
-        note = "simplified constant ctor scrutinee " ++ showast e
-        st'  = addInfo note . over inFuel (+ (cpx1 - cpx2)) . set inSimplified True $ st
+        loc        = view inLocation st |> fromMaybe emptyLocation
+        ma         = extrCtorArgs e >>= matchCtor <|> extrLit e >>= matchLit
+        cpx        = view annoCpx an
+        (e', cpxa) = fromJust ma
+        deltaCpx   = cpx - cpxa
+
+        note = "simplified constant ctor scrutinee " ++ showAst e
+        st'  = st |> set inSimplified True |> over inFuel (+ deltaCpx) |> addInfo note
 
         extrCtorArgs (Evar c)              = Just (c, []),   if isConstructor c
         extrCtorArgs (Ecall (Evar c) args) = Just (c, args), if isConstructor c
         extrCtorArgs e                     = Nothing
 
+        || match a ctor to an alt, and return the matched alt expr with var/arg bindings
+        || along with the expr complexity value, or Nothing if not found
         matchCtor (c, args)
             = foldr matchAlt Nothing alts
               where
-                matchAlt (CaseAlt (Pctor c' vars) e) k
-                    = Just (createBinding loc e vars args), if _eq cmpname c' c
-
-                matchAlt (CaseAlt Pwildcard e) k = Just e
-
-                matchAlt (CaseAlt (Pvar n) e) k
-                    = Just (createBinding loc e [Pvar n] [ce])
+                matchAlt (CaseAlt (Pctor c' vars) e an) k
+                    = Just (createBinding loc e vars args, cpx), if _eq cmpname c' c
                       where
-                        ce = Evar c,                if null args
-                           = (Ecall (Evar c) args), otherwise
+                        cpx = view annoCpx an - #vars - 2       || cpx of e
+
+                matchAlt (CaseAlt Pwildcard e an) k
+                    = Just (e, view annoCpx an - 2)
+
+                matchAlt (CaseAlt (Pvar n) e an) k
+                    = Just (createBinding loc e [Pvar n] [ce], cpx)
+                      where
+                        cpx = view annoCpx an - 2               || cpx of e
+                        ce  = if' (null args) (Evar c) (Ecall (Evar c) args)
 
                 matchAlt a k = k
 
@@ -550,25 +575,27 @@ simplifyAst k (Ecase b e alts) st
         matchLit n
             = foldr matchAlt Nothing alts
               where
-                matchAlt (CaseAlt (Plit (EprimInt n')) e) k = Just e, if n' == n
-                matchAlt (CaseAlt Pwildcard e)            k = Just e
-                matchAlt (CaseAlt (Pvar v) e)             k = Just (createBinding loc e [Pvar v] [EprimInt n])
-                matchAlt a                                k = k
+                matchAlt (CaseAlt (Plit (EprimInt n')) e an) k = Just (e, view annoCpx an - 3), if n' == n
+                matchAlt (CaseAlt Pwildcard e an)            k = Just (e, view annoCpx an - 2)
+                matchAlt (CaseAlt (Pvar v) e an)             k = Just (createBinding loc e [Pvar v] [EprimInt n], view annoCpx an - 2)
+                matchAlt a                                   k = k
 
 || float a let outside of a case scrutinee
 || since the case evaluation is strict, the Elet bindings will always be evaluated, and this
 || exposes opportunities to match case evaluation of a constant or simple expr
-simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts) st
-    = k (Elet b2 defs ps (Ecase b1 e alts)) st'
+simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts an) st
+    = k (Elet b2 defs ps (Ecase b1 e alts an')) st'
       where
+        cpx  = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without e
+        an'  = over annoCpx (subtract cpx) an               || remove Elet cpx from scrutinee
         note = "float let out of case scrutinee"
-        st'  = addInfo note . set inSimplified True $ st
+        st'  = st |> set inSimplified True |> addInfo note
 
 || this is needed when a partially-applied Ecall gets inlined
 simplifyAst k (Ecall (Ecall f args2) args1) st
     = k (Ecall f (args2 ++ args1)) st'
       where
-        st' = addInfo "merged partially-applied call" . set inSimplified True $ st
+        st' = st |> set inSimplified True |> addInfo "merged partially-applied call"
 
 || simplify builtinSel on noReturn expr
 || important for div, mod, since divmod returns a tuple which is later selected from, and
@@ -576,30 +603,38 @@ simplifyAst k (Ecall (Ecall f args2) args1) st
 simplifyAst k (Ecall (Tname (Builtin "sel") _) [e]) st
     = k e st', if noReturn e st
       where
-        st' = addInfo "simplified no-return sel" . set inSimplified True $ st
+        st' = st |> set inSimplified True |> addInfo "simplified no-return sel"
 
 || swap order of a builtinSel where the scrutinee is an Ecase
-simplifyAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecase b tst alts]) st
-    = k (Ecase b tst (map pushSel alts)) st', if useSel
+simplifyAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecase b tst alts an]) st
+    = k (Ecase b tst alts' an') st', if useSel
       where
-        cpx  = analyzeExprCpx (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [builtinFail]) (view inGenv st) || template for added cost of pushing sel
-        note = "swapped order of sel (case)"
-        st'  = addInfo note . over inFuel (subtract (cpx * (#alts - 1))) . set inSimplified True $ st
+        callCpx   = 6                    || 6 is the cost of just the call of builtinSel; we duplicate this #alts times
+        deltaCpx  = callCpx * #alts
+        deltaFuel = deltaCpx - callCpx
+        alts'     = map pushSel alts
+        an'       = over annoCpx (+ deltaCpx) an
+        note      = "swapped order of sel (case)"
+        st'       = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
-        pushSel (CaseAlt p e) = (CaseAlt p (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [e]))
-        pushSel _             = unreachable
+        pushSel (CaseAlt p e an) = CaseAlt p (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [e] ) (over annoCpx (+ callCpx) an)
+        pushSel _                = unreachable
 
 || float a case outside of an Ecall fn
 || exposes opportunities to inline the called fn, as it becomes specialized in each alt
-simplifyAst k (Ecall (Ecase b e alts) args) st
-    = k (Ecase b e alts') st'
+simplifyAst k (Ecall (Ecase b e alts an) args) st
+    = k (Ecase b e alts' an') st'
       where
-        alts' = map insCall alts
-        note  = "float case out of call fn"
-        st'   = addInfo note . set inSimplified True $ st
+        alts'     = map insCall alts
+        callCpx   = #args + 1
+        deltaCpx  = callCpx * #alts
+        deltaFuel = deltaCpx - callCpx
+        note      = "float case out of call fn"
+        an'       = over annoCpx (+ deltaCpx) an
+        st'       = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
-        insCall (CaseAlt p e) = CaseAlt p (Ecall e args)
-        insCall _             = unreachable
+        insCall (CaseAlt p e an) = CaseAlt p (Ecall e args) (over annoCpx (+ callCpx) an)
+        insCall _                = unreachable
 
 || float let outside of an Ecall fn
 || exposes opportunities to inline the called fn
@@ -607,14 +642,14 @@ simplifyAst k (Ecall (Elet b defs ps f) args) st
     = k (Elet b defs ps (Ecall f args)) st'
       where
         note = "float let out of call fn"
-        st'  = addInfo note . set inSimplified True $ st
+        st'  = st |> set inSimplified True |> addInfo note
 
 || remove FATBARs that no longer have the possibility of failing
 simplifyAst k (Efatbar (Pvar fn) e1 e2) st
     = k e1 st', if fc == 0
       where
         fc  = astAccumTD countFails e1 0
-        st' = addInfo "removed FATBAR" . set inSimplified True $ st
+        st' = st |> set inSimplified True |> addInfo "removed FATBAR"
 
         countFails (Efail (Evar fn')) n = n + 1, if _eq cmpname fn' fn
         countFails e n                  = n
@@ -633,19 +668,19 @@ inlineGroup defs ns st
       where
         st1               = addNote (shows "--- " . showsListMapped " " showsName ns $ " ---") st
         ndefs1            = foldl addDef m_empty ns
-        st2               = set inLenv [Env defs] . set inFuel (inlineMaxComplexity * #ns) . set inSimplified True $ st1
-        (ndefs2, st3, ni) = hd . dropWhile canInlineMore . iterate inlineDefs $ (ndefs1, st2, 0)
+        st2               = st1 |> set inSimplified True |> set inLenv [Env defs] |> set inFuel (inlineMaxComplexity * #ns)
+        (ndefs2, st3, ni) = iterate inlineDefs (ndefs1, st2, 0) |> dropWhile canInlineMore |> hd
 
         addDef m n
             = m_insert cmpname n (fromJust md) m, if isJust md
             = m,                                  otherwise
               where
-                md = fst (lookupEnv n st1) $mb_alt lookupDefn (view inGenv st) n
+                md = fst (lookupEnv n st1) <|> lookupDefn (view inGenv st) n
 
         canInlineMore (d, st, i)
             = i < inlineMaxIterations & view inSimplified st & view inFuel st > 0
 
-        || note: instead of trying to track and adjust defnAnno values (cpx, free, uses) during
+        || note: instead of trying to track and adjust astAnnono values (cpx, free, uses) during
         || inlining and simplification, we just re-run analyze after inline and simplify, at least for now
         inlineDefs (ndefs, st, i)
             = (ndefs4, stLim, i),   if limited
@@ -657,8 +692,8 @@ inlineGroup defs ns st
                 ndefs4        = analyzeDefns ndefs3 (view inGenv st2)
                 st3           = addInfo ("iteration: " ++ showint i ++ " fuel: " ++ showint (view inFuel st2) ++ "\n") st2
                 limited       = i >= inlineMaxIterations \/ view inFuel st2 <= 0
-                stLim         = set inSimplified False . addInfo "*** inlineMaxIterations limit reached ***" $ st2,   if i >= inlineMaxIterations
-                              = set inSimplified False . addInfo "*** inlineMaxComplexity limit reached ***"   $ st2, otherwise
+                stLim         = st2 |> set inSimplified False |> addInfo "*** inlineMaxIterations limit reached ***", if i >= inlineMaxIterations
+                              = st2 |> set inSimplified False |> addInfo "*** inlineMaxComplexity limit reached ***", otherwise
 
 inline :: globalEnv -> excpt globalEnv
 inline genv
@@ -667,7 +702,7 @@ inline genv
     = ex_errs errs,          otherwise
       where
         m              = view genvMod genv
-        sccs           = findSCCs cmpname . makeDependencyGraph cmpname . makeDefnDependencyList . view modDefns $ m
+        sccs           = view modDefns m |> makeDefnDependencyList |> makeDependencyGraph cmpname |> findSCCs cmpname
         (defs', st)    = st_foldM inlineGroup m_empty sccs (initInSt genv m_empty)
         genv'          = over genvMod (set modDefns defs') (view inGenv st)
         (errs, warns)  = partition isError (view inErrs st)
@@ -680,10 +715,10 @@ mkStreamSubstMap genv
     = m_empty, if isNothing msubns
     = subMap,  otherwise
       where
-        msubns = (filter (isSubChar . last . getName) . m_keys . view modDefns) $mb_fmap lookupModule genv "stream"     || get the compatible substitution fns
+        msubns = lookupModule genv "stream" <&> view modDefns .> m_keys .> filter (getName .> last .> isSubChar)        || get the compatible substitution fns
         subns  = fromJust msubns
-        mns    = map (lookupName genv . Unqualified . init . getName) subns                                             || get the names they will replace
-        subMap = m_fromList cmpname . map (mapFst fromJust) . filter (isJust . fst) . zip2 mns $ subns                  || make the substitution name map
+        mns    = subns |> map (getName .> init .> Unqualified .> lookupName genv)                                       || get the names they will replace
+        subMap = subns |> zip2 mns |> filter (fst .> isJust) |> map (mapFst fromJust) |> m_fromList cmpname             || make the substitution name map
 
         isSubChar c = c ==. '_' \/ c ==. '@'
 
@@ -699,7 +734,7 @@ streamSubst genv
       where
         m             = view genvMod genv
         subst         = mkStreamSubstMap genv
-        sccs          = findSCCs cmpname . makeDependencyGraph cmpname . makeDefnDependencyList . view modDefns $ m
+        sccs          = view modDefns m |> makeDefnDependencyList |> makeDependencyGraph cmpname |> findSCCs cmpname
         (defs', st)   = st_foldM inlineGroup m_empty sccs (initInSt genv subst)
         genv'         = over genvMod (set modDefns defs') (view inGenv st)
         (errs, warns) = partition isError (view inErrs st)
