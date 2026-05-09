@@ -3,7 +3,7 @@
 
 %export inline streamSubst
 
-%import <base>                  -replace
+%import <base>
 %import <either>
 %import <lens>
 %import <map>
