@@ -15,6 +15,7 @@
 %import <set>
 %import <state>         (>>=)/st_bind (<$>)/st_fmap (<&>)/st_rfmap (<<)/st_left (>>)/st_right
 %import "analyze"
+%import "config"
 %import "dependency"
 %import "exception"
 %import "grammar"
@@ -856,7 +857,8 @@ buildCode d
                 isCtorCall e                     = False
 
                 mkCode eis = eis,                     if noUpdate
-                           = bhInst : contInst : eis, otherwise
+                           = bhInst : contInst : eis, if useBlackHole
+                           = contInst : eis,          otherwise
 
         buildCodeDef _ = st_pure []     || no other Defn types should exist, here, but added to remove compiler warning
 
