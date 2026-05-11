@@ -296,7 +296,7 @@ inlineAst k (Ecall (Evar n) args) st
         (md, _)   = lookupEnv n st
         d         = fromJust md
         cpx       = view astAnnoCpx d
-        deltaCpx  = cpx - #args - 2
+        deltaCpx  = cpx - #args - 3
         (e, st1)  = betaReduce d args st
         note      = "inlined function " ++ showName n
         st2       = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
@@ -396,31 +396,31 @@ simplifyAst k a st
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
     = k (Ecase b e alts' an') st', if ~used
       where
-        cpx               = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
-        used              = astAccumTD tallyUses e False
-        (deltaCpx, alts') = mapAccumL insLet 0 alts
-        deltaFuel         = deltaCpx - cpx
-        note              = "float let into case alts"
-        an'               = over annoCpx (+ deltaCpx) an
-        st'               = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
+        cpx       = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
+        used      = astAccumTD tallyUses e False
+        alts'     = map insLet alts
+        deltaCpx  = #alts * cpx
+        deltaFuel = deltaCpx - cpx
+        note      = "float let into case alts"
+        an'       = over annoCpx (+ deltaCpx) an
+        st'       = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
         || handle the degenerate case where the CaseAlt is an Evar ref for a defn in the let, by replacing it directly
         || this gets rid of extraneous thunk creation / updates which couldn't be optimized away by the inlining of
         || a caseAlt value (introduced Let bindings cause that pattern to fail)
-        insLet dc (CaseAlt p (Evar n) an)
-            = (dc + deltaCpx', CaseAlt p e' an2), if isJust md & ~view astAnnoRec d & isDefPat d
+        insLet (CaseAlt p (Evar n) an)
+            = CaseAlt p e' an', if isJust md & ~view astAnnoRec d & isDefPat d
               where
                 md        = m_lookup cmpname n defs
                 d         = fromJust md
-                cpx'      = view annoCpx an1
-                deltaCpx' = cpx' - 2
+                cpx       = view astAnnoCpx d
+                deltaCpx  = cpx - 2
+                an'       = over annoCpx (+ deltaCpx) an
 
-                DefPat _ e' an1 = d
+                DefPat _ e' _ = d
 
-                an2 = over annoCpx (+ deltaCpx') an
-
-        insLet dc (CaseAlt p e an) = (dc + cpx, CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an))
-        insLet _ _                 = unreachable
+        insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an)
+        insLet _                = unreachable
 
         tallyUses (Evar n) used = used \/ m_member cmpname n defs
         tallyUses a        used = used
@@ -440,7 +440,7 @@ simplifyAst k (Elet b defs ps e) st
                 defs'      = m_fromList cmpname ds
                 notes      = ("increased fuel by " ++ showint fuel') : map (("eliminated " ++) .  showName . defnName . snd) dead
                 st'        = st,                                                                       if null dead
-                           = foldr addInfo st notes |> set inSimplified True |> over inFuel (fuel' +), otherwise
+                           = foldr addInfo st notes |> set inSimplified True |> over inFuel (+ fuel'), otherwise
                 notUsed d  = view astAnnoUse d |> usedZero
 
          f _ _ = unreachable
@@ -463,9 +463,11 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
     = checkShl ea eb, if fn ==$ "bshl#"
     = checkShr ea eb, if fn ==$ "bshr#"
       where
-        st'     = st |> set inSimplified True |> addInfo ("inlined builtin " ++ fn)
-        defl    = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e an1] an2) st
-        repl e' = k (replace e [(v, e')]) st'
+        cpx      = view annoCpx an2
+        deltaCpx = cpx - 2
+        st'      = st |> set inSimplified True |> over inFuel (+ deltaCpx) |> addInfo ("inlined builtin " ++ fn)
+        defl     = k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) e an1] an2) st
+        repl e'  = k (replace e [(v, e')]) st'
 
         checkAdd (EprimInt a) (EprimInt b) = repl . EprimInt $ a + b
         checkAdd (EprimInt 0) eb           = repl eb
@@ -526,7 +528,7 @@ simplifyAst k (Ecase b1 (Ecase b2 tst alts2 an2) alts1 an1) st
             = (CaseAlt p e' an', set inGenv genv' st), otherwise
               where
                 (e', genv') = renameExpr "" (Ecase b1 e alts1 an') (view inGenv st)
-                an'         = over annoCpx (+ cpx1') an         || decrease by 2 to account for CaseAlt and min pattern p cpx
+                an'         = over annoCpx (+ cpx1') an
 
         pushAlt _ _ = unreachable
 
@@ -668,7 +670,8 @@ inlineGroup defs ns st
       where
         st1               = addNote (shows "--- " . showsListMapped " " showsName ns $ " ---") st
         ndefs1            = foldl addDef m_empty ns
-        st2               = st1 |> set inSimplified True |> set inLenv [Env defs] |> set inFuel (inlineMaxComplexity * #ns)
+        fuel              = inlineMaxComplexity * min2 cmpint 2 (#ns)   || limit total allowed fuel to 2*maxComplexity, if handling multiple defns in group
+        st2               = st1 |> set inSimplified True |> set inLenv [Env defs] |> set inFuel fuel
         (ndefs2, st3, ni) = iterate inlineDefs (ndefs1, st2, 0) |> dropWhile canInlineMore |> hd
 
         addDef m n
