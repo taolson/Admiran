@@ -247,7 +247,7 @@ v_unsafeIndex :: vector * -> int -> *
 v_unsafeIndex (Vector n p#) (I# i#) = case readArray# p# i# of e -> e
 
 v_unsafeThaw :: vector * -> mvector *
-v_unsafeThaw (Vector n p#) = (MVector n p#)
+v_unsafeThaw (Vector n p#) = MVector n p#
 
 
 || operations on mutable vectors
@@ -271,7 +271,7 @@ v_freeze (MVector n p#)
     = case n of I# n# ->
       case allocArray# n# of d# ->
       case copyArray# d# p# of _ ->
-      st_pure (Vector n d#)
+      st_pure $ Vector n d#
 
 || make a mutable copy of a mutable vector
 v_clone :: mvector * -> state ** (mvector *)
@@ -279,7 +279,7 @@ v_clone (MVector n p#)
     = case n of I# n# ->
       case allocArray# n# of d# ->
       case copyArray# d# p# of _ ->
-      st_pure (MVector n d#)
+      st_pure $ MVector n d#
 
 v_read :: mvector * -> int -> state ** *
 v_read (MVector n p#) i
@@ -308,7 +308,7 @@ v_fill (MVector _ p#) e = case fillArray# p# e of _ -> st_pure ()
 || unsafe in-place operations on mutable vectors without copying or bounds-checking
 
 v_unsafeFreeze :: mvector * -> state ** (vector *)
-v_unsafeFreeze (MVector n p#) = st_pure (Vector n p#)
+v_unsafeFreeze (MVector n p#) = st_pure $ Vector n p#
 
 v_unsafeRead :: mvector * -> int -> state ** *
 v_unsafeRead (MVector n p#) (I# i#)
