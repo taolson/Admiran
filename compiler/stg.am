@@ -295,7 +295,7 @@ updateHeap :: heapPtr -> heapObj -> state bdSt heapPtr
 updateHeap hp obj = st_over bdHeapMap (m_insert cmpheapPtr hp obj) >> st_pure hp
 
 lookupHeap :: heapPtr -> state bdSt heapObj
-lookupHeap hp st = (fromJust . m_lookup cmpheapPtr hp . view bdHeapMap $ st, st)
+lookupHeap hp st = (view bdHeapMap st |> m_lookup cmpheapPtr hp |> fromJust, st)
 
 || lookup possible closureInfo for an expr
 lookupClosureInfo :: expr -> state bdSt (maybe closureInfo)
@@ -313,13 +313,13 @@ addVarArityInfo :: name -> [pat] -> state bdSt ()
 addVarArityInfo dn vars
     = st_view bdGenv >>= go
       where
-        go genv = addInfo $ lookupSpec genv dn
+        go genv = lookupSpec genv dn |> addInfo
 
         addInfo Nothing = st_pure ()                            || no DefSpec for the defn name, can't infer arity
         addInfo (Just spec)
-            = st_mapM_ insInfo . zip2 vars . map typeList $ ts  || check each var with its corresponding type info from the DefSpec
+            = map typeList ts |> zip2 vars |> st_mapM_ insInfo
               where
-                ts = fst . typeList . view defnType $ spec
+                ts = view defnType spec |> typeList |> fst
 
         || insert a dummy closureInfo for the arg n with inferred arity 0, if it is a value type that isn't universally qualified (Tvar)
         insInfo (Pvar n, ([], bt))
@@ -344,6 +344,9 @@ makeOpr _ = unreachable
 unPrimInt :: expr -> maybe int
 unPrimInt (EprimInt n) = Just n
 unPrimInt _            = Nothing
+
+internalFreeNames :: ast -> [name]
+internalFreeNames a = view astAnnoFree a |> s_toList |> filter isInternal       || internal free var names of the defn
 
 || allocate a reg
 allocReg :: state bdSt ref
@@ -461,7 +464,7 @@ buildCodeAltsTally alts
 || note that the alts all share a common context with the same env (union of all free vars)
 buildCodeAlts :: caseSel -> opr -> [caseAlt] -> state bdSt [stgInsn]
 
-buildCodeAlts Csingle topr alts = buildCodeAlt $ hd alts
+buildCodeAlts Csingle topr alts = hd alts |> buildCodeAlt
 
 buildCodeAlts Cvectored topr alts
     = buildCodeAltsTally alts >>= st_mapM makeCode >>= mkVec
@@ -485,8 +488,13 @@ buildCodeAlts Cpriority topr alts
 
                 mkTagOpr (Plit (EprimInt n))  = makeImmOpr n
                 mkTagOpr (Plit (EprimChar c)) = makeImmOpr (code c)
-                mkTagOpr (Pctor cn vars)      = makeImmOpr . fromMaybe 0 . elemIndex (==$ getName cn) . map getName . fromMaybe [] . lookupCtorNames genv $ cn
+                mkTagOpr (Pctor cn vars)      = findMatching cn |> makeImmOpr
                 mkTagOpr p                    = topr
+
+                findMatching n
+                    = lookupCtorNames genv n |> fromMaybe [] |> map getName |> elemIndex (==$ ns) |> fromMaybe 0
+                      where
+                        ns = getName n
 
 buildCodeAlts _ _ _ = unreachable
 
@@ -502,7 +510,8 @@ buildCodeAltsCont sel alts
               || note: emptyLocInfo used to prevent concatenation of same defn name multiple times in codeObj locInfo
             = inDefEnv emptyLocInfo [] fns (buildCodeAlts sel r0Opr alts) >>= updateObj
               where
-                fns           = filter isInternal . s_toList . foldl (s_union cmpname) s_empty . map (converse analyzeExprFree genv) $ alts
+                fns = concatMap internalFreeNames alts |> nub cmpname
+
                 updateObj ins = st_pure (fns, cp) << updateCode cp (loc, PopEnv (#fns) : ins)
 
 || build the alts and the code to select from them in the current context, returning the insns along
@@ -520,9 +529,9 @@ buildCodeAltsNoCont sel topr alts
                 getRefs genv lenv frc
                     = st_mapM (const allocReg) frs <&> zip2 frs || allocate a new reg for each Frm ref that needs to be moved
                       where
-                        fns  = filter isInternal . s_toList . foldl (s_union cmpname) s_empty . map (converse analyzeExprFree genv) $ alts
-                        frs  = catMaybes . map getFrmRef $ fns, if frc > 0 & any needsFrm alts    || collect any existing Frm refs
-                             = [],                              otherwise                         || no moves of existing Frm refs required
+                        fns = concatMap internalFreeNames alts |> nub cmpname
+                        frs = map getFrmRef fns |> catMaybes, if frc > 0 & any needsFrm alts    || collect any existing Frm refs
+                            = [],                             otherwise                         || no moves of existing Frm refs required
 
                         || lookup n in localEnv, returning the opr and name if it is an Frm ref
                         getFrmRef n
@@ -531,9 +540,7 @@ buildCodeAltsNoCont sel topr alts
                                 isFrm (Ref (Frm, x)) = True
                                 isFrm o              = False
 
-                                check o
-                                    = Just (o, n), if isFrm o
-                                    = Nothing,     otherwise
+                                check o = if' (isFrm o) (Just (o, n)) Nothing
 
                 needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
                 needsFrm _                            = False
@@ -689,10 +696,9 @@ buildCode (Elet _ defs _ e)
         allocObj (n, d)
             = st_bind2 (allocFrmSlots nslots) allocCode mkObj
               where
-                fns    = filter isInternal . s_toList . view astAnnoFree $ d    || internal free var names of the defn
+                fns    = internalFreeNames d
                 nfns   = #fns
-                nslots = nfns,               if isDefFn d
-                       = max2 cmpint nfns 1, otherwise  || always allocate at least 1 slot for use by Update
+                nslots = if' (isDefFn d) nfns (max2 cmpint nfns 1)      || always allocate at least 1 slot for use by Update
 
                 mkObj rf cp
                     = st_pure (d, cp, rf, fns)                     <<
@@ -782,7 +788,7 @@ buildCode (Ecall (Tname f as) args)
         mkSel genv eis
             = PushCont selPtr [makeImmOpr i] : eis
               where
-                t       = nthType i . view defnType . fromJust . lookupSpec genv $ cn   || get the individual types of the ctor
+                t       = lookupSpec genv cn |> fromJust |> view defnType |> nthType i  || get the individual types of the ctor
                 selPtr  = selRetPtr,   if _eq cmptexpr t builtinTypeWord                || if we are selecting a word#, use Sel followed by a Ret
                         = selApplyPtr, otherwise                                        || otherwise it is a thunk; use Sel followed by an Apply
 
@@ -805,7 +811,7 @@ buildCode (Efatbar (Pvar n) e1 e2)
                        (inDefEnv emptyLocInfo [] fns (buildCode e2))
                        updateObj
               where
-                fns = filter isInternal . s_toList . analyzeExprFree e2 $ genv
+                fns = analyzeExprFree e2 genv |> s_toList |> filter isInternal
 
                 allocClosure
                     = allocReg,                 if fg == 0      || no existing Frame, so alloc to a reg
@@ -829,11 +835,10 @@ buildCode d
     = buildCodeDef d
       where
         loc = defnLocInfo d
+        fns = internalFreeNames d
 
         buildCodeDef (DefFn n vars e an)
             = inDefEnv loc vars fns (addVarArityInfo n vars >> buildCode e)
-              where
-                fns = filter isInternal . s_toList . view annoFree $ an || names of internal free var references
 
         || DefPats are thunks which may need to be updated after their evaluation.  The code first updates the thunk to point to
         || the blackhole trampoline code, so that recursive evaluation reports a blackHole immediately.  Then, an update continuation
@@ -846,7 +851,6 @@ buildCode d
         buildCodeDef (DefPat p e an)
             = inDefEnv loc [] fns (buildCode e) <&> mkCode
               where
-                fns        = filter isInternal . s_toList . view annoFree $ an  || names of free var references
                 bhInst     = Update r2Opr (Imm (Caddr blackHolePtr))            || update thunk to blackHole trampoline during evaluation
                 contInst   = PushCont updatePtr [r2Opr]                         || push a continuation to update thunk with result
                 noUpdate   = isCtorCall e \/ usedAffine (view annoUse an)
@@ -881,8 +885,7 @@ buildGroup genv ns
               where
                 d      = makeBuiltinCtorDef n,         if isBuiltin n
                        = fromJust (lookupDefn genv n), otherwise
-                nslots = 2, if isDefFn d
-                       = 3, otherwise   || allocate an extra slot for use by Update
+                nslots = if' (isDefFn d) 2 3    || allocate an extra slot for use by Update
 
                 mkObj d cp hp
                     = st_pure (n, cp, hp, d) << updateHeap hp (mkInfo d, [])
@@ -919,9 +922,8 @@ reachableFrom ns genv
               where
                 md            = lookupDefn genv n
                 d             = fromJust md
-                deps          = filter topLevel . s_toList . view astAnnoFree $ d       || find all top-level and builtin constructor dependencies
-                deps'         = [],   if isBuiltin n                                    || no deps for builtin constructors
-                              = deps, otherwise
+                deps          = view astAnnoFree d |> s_toList |> filter topLevel       || find all top-level and builtin constructor dependencies
+                deps'         = if' (isBuiltin n) [] deps                               || no deps for builtins
                 seen'         = m_insert cmpname n deps' seen
                 errNotFound n = error ("buildStg: " ++ showName n ++ " not found")
 
@@ -964,9 +966,9 @@ buildStg n genv
       where
         (start', genv') = makeStart n genv
         topLevel        = reachableFrom [start'] genv'
-        sccs            = findSCCs cmpname . makeDependencyGraph cmpname . m_toList $ topLevel
+        sccs            = m_toList topLevel |> makeDependencyGraph cmpname |> findSCCs cmpname
         (_, st)         = st_mapM_ (buildGroup genv') sccs (initBdSt genv')
-        Imm (Haddr bhp) = fromJust . m_lookup cmpname stdBlackHoleName . view bdLenv $ st
-        bhTramp         = fromJust . m_lookup cmpcodePtr blackHolePtr . view bdCodeMap $ st     || get existing blackHole trampoline code obj
+        Imm (Haddr bhp) = view bdLenv st |> m_lookup cmpname stdBlackHoleName |> fromJust
+        bhTramp         = view bdCodeMap st |> m_lookup cmpcodePtr blackHolePtr |> fromJust     || get existing blackHole trampoline code obj
         bhTramp'        = setSnd [Enter bhp []] bhTramp                                         || update trampoline to enter actual blackHole closure
         st'             = over bdCodeMap (m_insert cmpcodePtr blackHolePtr bhTramp') st         || replace with new trampoline code
