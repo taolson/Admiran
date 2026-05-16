@@ -938,7 +938,7 @@ makeStart n genv
     = (start, genv'), otherwise
       where
         mspec      = lookupSpec genv n
-        spec       = (view defnType . fromJust) mspec
+        spec       = fromJust mspec |> view defnType
         errNoSpec  = error ("entry function " ++ showName n ++ " not found")
         errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
         start      = Qualified (getModName n) "!start"

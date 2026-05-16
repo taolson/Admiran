@@ -254,9 +254,9 @@ builtinEnv
                           builtinReadFile, builtinWriteFile, builtinMtimeFile, builtinGetArg, builtinSystemCmd, builtinClock
                         ]
       where
-        || insert both qualified and unqualified names
-        ins env (Tname n ts) = m_insert cmpname (unqualifyName n) n . m_insert cmpname n n $ env
-        ins env (Evar  n)    = m_insert cmpname (unqualifyName n) n . m_insert cmpname n n $ env
+        || add both unresolved (qualified) and unqualified names
+        ins env (Tname n ts) = m_insert cmpname (unqualifyName n) n . m_insert cmpname (unresolveName n) n $ env
+        ins env (Evar  n)    = m_insert cmpname (unqualifyName n) n . m_insert cmpname (unresolveName n) n $ env
         ins env _            = unreachable
 
 builtinSpecs :: defnMap

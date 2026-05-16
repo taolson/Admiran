@@ -47,6 +47,7 @@ unqualifyName n = Unqualified $ getName n
 
 unresolveName :: name -> name
 unresolveName (Qualified m n) = Unresolved m n
+unresolveName (Builtin n)     = Unresolved "builtin" n
 unresolveName n               = n
 
 
