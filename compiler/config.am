@@ -51,4 +51,4 @@ inlineMaxFnComplexity = 150    || maximum complexity of a function for inlining
 inlineMaxCaseDup      = 16     || maximum number of CaseAlt duplications to allow (4 * 4)
 
 || desugar tuning parameters
-maxCaseVectored       = 6      || maximum allowable CaseAlts in a CVectored case expr (otherwise use CPriority)
+maxCaseVectored       = 15     || maximum allowable CaseAlts in a CVectored case expr (otherwise use CPriority)
