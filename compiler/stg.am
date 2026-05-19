@@ -346,7 +346,7 @@ unPrimInt (EprimInt n) = Just n
 unPrimInt _            = Nothing
 
 internalFreeNames :: ast -> [name]
-internalFreeNames a = view astAnnoFree a |> s_toList |> filter isInternal       || internal free var names of the defn
+internalFreeNames a = view astAnnoFree a |> filter isInternal   || internal free var names of the defn
 
 || allocate a reg
 allocReg :: state bdSt ref
@@ -811,7 +811,7 @@ buildCode (Efatbar (Pvar n) e1 e2)
                        (inDefEnv emptyLocInfo [] fns (buildCode e2))
                        updateObj
               where
-                fns = analyzeExprFree e2 genv |> s_toList |> filter isInternal
+                fns = analyzeExprFree e2 genv |> filter isInternal
 
                 allocClosure
                     = allocReg,                 if fg == 0      || no existing Frame, so alloc to a reg
@@ -922,8 +922,8 @@ reachableFrom ns genv
               where
                 md            = lookupDefn genv n
                 d             = fromJust md
-                deps          = view astAnnoFree d |> s_toList |> filter topLevel       || find all top-level and builtin constructor dependencies
-                deps'         = if' (isBuiltin n) [] deps                               || no deps for builtins
+                deps          = view astAnnoFree d |> filter topLevel   || find all top-level and builtin constructor dependencies
+                deps'         = if' (isBuiltin n) [] deps               || no deps for builtins
                 seen'         = m_insert cmpname n deps' seen
                 errNotFound n = error ("buildStg: " ++ showName n ++ " not found")
 
@@ -942,8 +942,8 @@ makeStart n genv
         errNoSpec  = error ("entry function " ++ showName n ++ " not found")
         errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
         start      = Qualified (getModName n) "!start"
-        fvs        = s_fromList cmpname [n, worldName, builtinExitName]
-        anno       = set annoFree fvs (genvAnno genv)
+        fns        = [n, worldName, builtinExitName]
+        anno       = set annoFree fns (genvAnno genv)
         startFn    = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0]) emptyAnno] emptyAnno
         def        = DefPat (Pvar start) startFn anno
         genv'      = over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv

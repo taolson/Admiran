@@ -171,7 +171,7 @@ analyzeAst k (Ecase cs e alts an)
         analyzeSingle a = st_liftA3 triple (clrCpxUses >> astRewriteLex analyzeAst a) (st_view azCpx) (st_view azUses)
         analyzeAlt    a = analyzeSingle a <&> updateAlt
 
-        updateAlt (a, c, u) = (set astAnnoCpx c a |> set astAnnoFree (m_keysSet u), c, u)
+        updateAlt (a, c, u) = (set astAnnoCpx c a |> set astAnnoFree (m_keys u), c, u)
 
         updateCase inCpx inUses (e', eCpx, eUse) altCpxUses
             = st_set azCpx cpx >> st_set azUses uses >> st_pure (Ecase cs e' alts' an')
@@ -181,7 +181,7 @@ analyzeAst k (Ecase cs e alts an)
                 maxUses  = foldl1 (mergeUsesWith (max2 cmpuseInfo)) altUses
                 caseCpx  = eCpx + sum altCpxs + 1
                 caseUses = mergeUsesWith appendUseInfo maxUses eUse
-                an'      = set annoCpx caseCpx an |> set annoFree (m_keysSet caseUses)
+                an'      = set annoCpx caseCpx an |> set annoFree (m_keys caseUses)
                 cpx      = inCpx + caseCpx
                 uses     = mergeUsesWith appendUseInfo inUses caseUses
 
@@ -217,7 +217,7 @@ updateDefn inCpx inUses d
                 fvu = map (\n -> m_findWithDefault cmpname Uzero n uses) fvn
                 aff = enumerate fvu |> filter (snd .> usedAffine) |> map fst |> bs_fromList
                 rec = m_member cmpname n free
-                d'  = set astAnno (view astAnnoLoc d, rec \/ view astAnnoRec d, cpx, Umany, m_keysSet free', aff) d
+                d'  = set astAnno (view astAnnoLoc d, rec \/ view astAnnoRec d, cpx, Umany, m_keys free', aff) d
 
                 free' = m_fmap (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
                       = free,                                     otherwise
@@ -258,7 +258,7 @@ updateLet (Elet rec defs pats e)
         computeEscapes defs (Evar n)
             = m_lookup cmpname n defs |> fromMaybef [] captured
               where
-                captured d = view astAnnoFree d |> s_toList |> (n :)
+                captured d = n : view astAnnoFree d
         computeEscapes _ _ = []
 
         checkUpdate ui d
@@ -310,6 +310,6 @@ analyzeExprCpx e genv
     = st_execState (astRewriteLex analyzeAst e) (initAzSt genv) |> view azCpx
 
 || run analysis on a single expr, collecting only the free variable info
-analyzeExprFree :: expr -> globalEnv -> s_set name
+analyzeExprFree :: expr -> globalEnv -> [name]
 analyzeExprFree e genv
-    = st_execState (astRewriteLex analyzeAst e) (initAzSt genv) |> view azUses |> m_keysSet
+    = st_execState (astRewriteLex analyzeAst e) (initAzSt genv) |> view azUses |> m_keys

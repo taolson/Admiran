@@ -9,7 +9,7 @@
 %import <map>
 %import <maybe>
 %import <set>
-%import <state>                 (>>=)/st_bind
+%import <state>                 (>>=)/st_bind (<&>)/st_rfmap
 %import "ast"
 %import "dependency"
 %import "exception"
@@ -157,15 +157,8 @@ renameAst k a st
 
         || rename the name references in the free set of an anno -- required because beta-reduction
         || during inlining calls renameExpr to rename the defn vars
-        renameAnno an st
-            = (set annoFree free' an, st')
-              where
-                (free', st') = foldl renameEntry (s_empty, st) . s_toList $ view annoFree an
+        renameAnno an = view annoFree an |> st_mapM renameRef <&> converse (set annoFree) an
 
-                renameEntry (b, st) n
-                    = (s_insert cmpname n' b, st')
-                      where
-                        (n', st') = renameRef n st
 
 || rename a name reference or report an undefinedName error
 renameRef :: name -> state rnSt name

@@ -200,10 +200,10 @@ deserialLoc :: deserializer location
 deserialLoc = deserialTup3 deserialString deserialPosInt deserialPosInt
 
 serialAnno :: serializer anno
-serialAnno = serialTup6 serialLoc serialBool serialPosInt serialUseInfo (serialSet serialName) serialBitSet
+serialAnno = serialTup6 serialLoc serialBool serialPosInt serialUseInfo (serialList serialName) serialBitSet
 
 deserialAnno :: deserializer anno
-deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialUseInfo (deserialSet cmpname deserialName) deserialBitSet
+deserialAnno = deserialTup6 deserialLoc deserialBool deserialPosInt deserialUseInfo (deserialList deserialName) deserialBitSet
 
 serialName :: serializer name
 serialName (Unqualified n)  = serialCtor 0 . serialString n

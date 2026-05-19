@@ -38,7 +38,7 @@ showsName n = showsInParensIf (isSymbol n) $ shows $ showName n
 showsAnno :: anno -> showS
 showsAnno (loc, rec, cpx, use, free, affine)
     = shows "{" . showsRec . showsint cpx . shows " " . showsUse use . shows " " .
-      showsInBrackets (showsListMapped ", " showsName (s_toList free))           .
+      showsInBrackets (showsListMapped ", " showsName free)                      .
       showsInBrackets (showsListMapped ", " showsint  (bs_toList affine)) . shows "}", if annoVerbose
     = id,                                                                              otherwise
       where

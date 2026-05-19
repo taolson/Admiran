@@ -258,9 +258,7 @@ insDefnMapMerge d m
 
 || make a list of dependencies of each defn on the others in a defnMap, based upon the annotation's freeVar info
 makeDefnDependencyList :: defnMap -> [(name, [name])]
-makeDefnDependencyList defs
-    = map (mapSnd (filter (converse (m_member cmpname) defs) . s_toList . view astAnnoFree)) (m_toList defs)
-
+makeDefnDependencyList defs = m_fmap (view astAnnoFree .> filter (converse (m_member cmpname) defs)) defs |> m_toList
 
 || functions to insert a top-level declaration into the correct part of a module, or report an error
 modInserter == module -> excpt module

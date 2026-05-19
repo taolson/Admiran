@@ -471,9 +471,9 @@ infer (Elet True defs _ e)
 
                 f4 sm1 (t, sm2)  = mst_pure (t, subComp sm2 sm1)
 
+|| infer defns
 infer d
-    = inLexEnv m_empty locInfer d,                   if isDefn d
-    = error ("unhandled infer case: " ++ showast d), otherwise
+    = inLexEnv m_empty locInfer d
       where
         loc        = defnLocInfo d
         locInfer d = mst_over tcLoc (mergeLocInfo loc) >> inferDef d

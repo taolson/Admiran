@@ -147,7 +147,7 @@ usedAffine _     = True
 || annotation added to certain asts (defns, case exprs and case alts)
 || anno is a union of all the possible values used to annotate an ast; not all
 || fields are relevant for all asts
-anno == (location, bool, int, useInfo, s_set name, bitSet)      || loc, recursive, complexity, useInfo, free vars, affine use info
+anno == (location, bool, int, useInfo, [name], bitSet)  || loc, recursive, complexity, useInfo, free vars, affine use info
 
 || don't auto-derive showI and ordI for anno
 showanno = undef
@@ -162,7 +162,7 @@ annoFree   = lensTup6_4   || defn free vars
 annoAffine = lensTup6_5   || fn vars usedAffine, as a bitSet
 
 emptyAnno :: anno
-emptyAnno = (emptyLocation, False, 0, Uzero, s_empty, bs_empty)
+emptyAnno = (emptyLocation, False, 0, Uzero, [], bs_empty)
 
 emptyAnnoLoc :: location -> anno
 emptyAnnoLoc loc = set annoLoc loc emptyAnno

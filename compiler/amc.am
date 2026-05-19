@@ -219,4 +219,4 @@ main
         check [start] fs = gen fs start
         check _       fs = err
 
-        err  = error "usage: amc <file name> {entry name}"
+        err  = errStrLn "usage: amc <file name> {entry name}"
