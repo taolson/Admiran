@@ -227,7 +227,7 @@ definitions for the corresponding operators, and is replicated here:
 | >.   |      |         |                                         |
 | <=.  |      |         |                                         |
 | ==$  |      |         | comparisons for string type             |
-| ~==$ |      |         |                                         |
+| ~=$  |      |         |                                         |
 | <$   |      |         |                                         |
 | <=$  |      |         |                                         |
 | >$   |      |         |                                         |
