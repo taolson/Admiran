@@ -202,37 +202,42 @@ definitions for the corresponding operators, and is replicated here:
 | -----|------|---------|-----------------------------------------|
 | $    |  0   | Right   | application                             |
 | $!   |      |         | strict application                      |
+| <\|> |      |         | monadic alternative                     |
 | \|>  |  1   | Left    | reverse application                     |
 | !>   |      |         | strict reverse application              |
-| <\|> |      |         | alternative                             |
 | >>=  |      |         | generic monad bind                      |
 | >>   |      |         | generic monad right                     |
 | <<   |      |         | generic monad left                      |
 | <$>  |      |         | generic functor fmap                    |
+| <&>  |      |         | generic functor reverse fmap            |
 | <*>  |      |         | generic applicative apply               |
-|      |      |         | boolean ops                             |
 | \/   |  2   | Right   | boolean OR                              |
 | &    |  3   | Right   | boolean AND                             |
 | ~    |  4   | Prefix  | boolean NOT                             |
-|      |      |         | comparison ops                          |
-| >    |  5   | Compare | comparisons for int type                |
-| >=   |      |         |                                         |
-| ==   |      |         |                                         |
+| ==   |  5   | Compare | comparisons for int type                |
 | ~=   |      |         |                                         |
-| <=   |      |         |                                         |
 | <    |      |         |                                         |
-| >.   |      |         | comparisons for char type               |
-| >=.  |      |         |                                         |
-| ==.  |      |         |                                         |
+| <=   |      |         |                                         |
+| >    |      |         |                                         |
+| >=   |      |         |                                         |
+| ==.  |      |         | comparisons for char type               |
 | ~=.  |      |         |                                         |
-| <=.  |      |         |                                         |
 | <.   |      |         |                                         |
-| >$   |      |         | comparisons for string type             |
-| >=$  |      |         |                                         |
-| ==$  |      |         |                                         |
-| ~=$  |      |         |                                         |
-| <=$  |      |         |                                         |
+| <=.  |      |         |                                         |
+| >.   |      |         |                                         |
+| <=.  |      |         |                                         |
+| ==$  |      |         | comparisons for string type             |
+| ~==$ |      |         |                                         |
 | <$   |      |         |                                         |
+| <=$  |      |         |                                         |
+| >$   |      |         |                                         |
+| >=$  |      |         |                                         |
+| ==%  |      |         | comparisons for fix16 type              |
+| ~=%  |      |         |                                         |
+| <%   |      |         |                                         |
+| <=%  |      |         |                                         |
+| >%   |      |         |                                         |
+| >=%  |      |         |                                         |
 | :    |  6   | Right   | list constructor                        |
 | ++   |      |         | list append                             |
 | .\|. |  7   | Left    | bitwise boolean OR                      |
@@ -240,9 +245,10 @@ definitions for the corresponding operators, and is replicated here:
 | .&.  |  9   | Left    | bitwise boolean AND                     |
 | .<<. | 10   | Left    | bit shift left                          |
 | .>>. |      |         | arithmetic bit shift right              |
-|      |      |         | integer arithmetic ops                  |
 | +    | 11   | Left    |                                         |
 | -    |      |         |                                         |
+| +%   |      |         | fix16 +                                 |
+| -%   |      |         | fix16 -                                 |
 | neg  | 12   | Prefix  |                                         |
 | *    | 13   | Left    |                                         |
 | quot |      |         | also quotrem, which returns a tuple     |
@@ -250,6 +256,8 @@ definitions for the corresponding operators, and is replicated here:
 | div  |      |         | also divmod, which returns a tuple      |
 | mod  |      |         |                                         |
 | /    |      |         |                                         |
+| *%   |      |         | fix16 *                                 |
+| /%   |      |         | fix16 /                                 |
 | ^    | 14   | Right   |                                         |
 | .    | 15   | Right   | function composition                    |
 | .>   | 16   | Left    | reverse function composition            |
