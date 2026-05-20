@@ -10,7 +10,7 @@
 %import "config"
 %import "grammar"
 %import "name"
-%import "parser"
+%import "parser"                (>>=)/p_bind (<&>)/p_rfmap (<<)/p_left (>>)/p_right (<|>)/p_alt
 %import "tokenizer"
 
 
@@ -323,13 +323,13 @@ p_spec s
     = spec
       where
         (Just spec, _)                    = parse ("builtin", emptyError, [], tokenize s)
-        parse                             = p_liftA2 mkSpec (p_tname $p_left p_colons) p_type
-        p_type                            = p_liftA2 mkType p_term (p_optional (p_sym "->" $p_right p_type))
-        p_term                            = p_tvar $p_alt p_tname $p_alt p_tlist $p_alt p_ttup
-        p_tname                           = p_any $p_bind mkTname
-        p_tvar                            = p_any $p_bind mkTvar
-        p_tlist                           = Tlist $p_fmap p_inBrackets p_type
-        p_ttup                            = Ttuple $p_fmap p_inParens (p_manySepBy p_comma p_type)
+        parse                             = p_liftA2 mkSpec (p_tname << p_colons) p_type
+        p_type                            = p_liftA2 mkType p_term (p_optional (p_sym "->" >> p_type))
+        p_term                            = p_tvar <|> p_tname <|> p_tlist <|> p_ttup
+        p_tname                           = p_any >>= mkTname
+        p_tvar                            = p_any >>= mkTvar
+        p_tlist                           = p_inBrackets p_type <&> Tlist
+        p_ttup                            = p_inParens (p_manySepBy p_comma p_type) <&> Ttuple
         mkTname (Tident n)                = p_pure (Tname (doQual n) [])
         mkTname (Tsymbol n)               = p_pure (Tname (doQual n) [])
         mkTname t                         = p_fail

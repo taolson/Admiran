@@ -8,6 +8,7 @@
 %import <lens>
 %import <map>
 %import <maybe>
+%import <maybe> qualified as mb (>>=)/mb_bind
 %import "ast"
 %import "dependency"
 %import "exception"             (>>=)/ex_bind (<&>)/ex_rfmap
@@ -91,7 +92,7 @@ reifyExports genv
               where
                 loci = locOnlyInfo loc
                 qn   = qualifyName mn n
-                md   = m_lookup cmpname n env $mb_bind lookupDefn genv
+                md   = m_lookup cmpname n env mb.>>= lookupDefn genv
 
         doMerge loc e1 e2
             = mergeEnvironments loci LibUnqualified (LibAs mn) e1 e2

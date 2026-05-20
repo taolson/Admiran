@@ -6,7 +6,7 @@
 %import <avl>
 %import <base>
 %import <map>
-%import <state>                 (>>=)/st_bind (<*>)/st_apply (<<)/st_left (>>)/st_right
+%import <state>                 (>>=)/st_bind (<&>)/st_rfmap (<<)/st_left (>>)/st_right
 %import "grammar"
 
 
@@ -164,7 +164,7 @@ astRewriteMap t (AVLNode (k, v) l r h)
 || wrap a defnMap and pat list in an Elet to allow easy traversal of both, unwrapping when done
 astRewriteInLet :: astRewriter * -> defnMap -> [defn] -> state * (defnMap, [defn])
 astRewriteInLet t defs pats
-    = unpack $st_fmap t (Elet True defs pats (Eint 0))
+    = t (Elet True defs pats (Eint 0)) <&> unpack
       where
         unpack (Elet _ defs' pats' _) = (defs', pats')
         unpack _                      = unreachable

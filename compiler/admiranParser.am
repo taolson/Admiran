@@ -22,7 +22,7 @@
 %import "grammar"
 %import "module"
 %import "name"
-%import "parser"                (>>=)/p_bind (<&>)/p_rfmap (<*>)/p_apply (<<)/p_left (>>)/p_right (<|>)/p_alt (>>=?)/p_guard
+%import "parser"                (>>=)/p_bind (<&>)/p_rfmap (<*>)/p_apply (<<)/p_left (>>)/p_right (<|>)/p_alt (>>=?)/p_guard (<?>)/p_satisfy
 %import "predef"
 %import "pretty"
 %import "tokenizer"
@@ -47,12 +47,12 @@ p_symbol
 
 p_infix :: parser name
 p_infix
-    = p_symbol $p_satisfy isInfix
+    = p_symbol <?> isInfix
       where
         isInfix n = ~s_member cmpstring (getName n) reservedNames & ~isPrefix n
 
 p_infix1 :: parser name
-p_infix1 = p_infix $p_satisfy ((~=$ "-") . getName)
+p_infix1 = p_infix <?> ((~=$ "-") . getName)
 
 p_prefix :: parser name
 p_prefix
@@ -65,13 +65,13 @@ p_prefix
 
 p_varOrConstructor, p_var, p_constructor :: parser name
 p_varOrConstructor
-    = (p_identifier <|> p_inParens p_symbol) $p_satisfy notReserved
+    = (p_identifier <|> p_inParens p_symbol) <?> notReserved
       where
         notReserved n = ~s_member cmpstring (getName n) reservedNames
 
-p_var = p_varOrConstructor $p_satisfy isVar
+p_var = p_varOrConstructor <?> isVar
 
-p_constructor = p_varOrConstructor $p_satisfy isConstructor
+p_constructor = p_varOrConstructor <?> isConstructor
 
 p_literal :: parser expr
 p_literal
@@ -361,7 +361,7 @@ p_rhs p_sep
 
         mkRhs e Nothing = p_pure e
         mkRhs e (Just defs)
-            = go (ex_foldM (converse insDefMult) m_empty fns)                   || insDefMult can return an exception
+            = ex_foldM (\m f -> insDefMult f m) m_empty fns |> go               || insDefMult can return an exception
               where
                 (fns, pats)        = partition isDefFn defs
                 go (Right (m, es)) = p_pure (Elet True m pats e)                || no exception; return the Elet
@@ -416,7 +416,7 @@ p_patErr = p_error 1 "error in pattern"
 
 || restrict prefixes to negate, for use in patterns which use negated Eints
 p_patPrefix :: parser name
-p_patPrefix = p_prefix $p_satisfy (_eq cmpname stdNegName)
+p_patPrefix = p_prefix <?> (_eq cmpname stdNegName)
 
 p_formal :: parser expr
 p_formal
@@ -445,7 +445,7 @@ p_patOrFnForm = p_patExpr >>= makePatFn []
 || parse a type name
 p_tname :: parser name
 p_tname
-    = p_identifier $p_satisfy isTname
+    = p_identifier <?> isTname
       where
         isTname n = isVar n & ~s_member cmpstring (getName n) reservedNames
 
@@ -460,7 +460,7 @@ p_tvar
 || parse an infix type operator, allowing the reserved name "->", but disallowing tvars and "!" (confuses with strictness annotation)
 p_tinfix :: parser name
 p_tinfix
-    = p_symbol $p_satisfy isTinfix
+    = p_symbol <?> isTinfix
       where
         isTinfix n
             = isVar n & ~isPrefix n & ~isTvarSymbol n & ~s_member cmpstring (getName n) reservedNames & ns ~=$ "!" \/ ns ==$ "->"
@@ -492,9 +492,9 @@ p_listTexpr = p_inBrackets p_type <&> Tlist
 || parse a type term
 p_tTerm :: parser texpr
 p_tTerm
-    = p_tname <&> converse Tname [] <|>
-      p_tvar                        <|>
-      p_parenTexpr                  <|>
+    = p_tname <&> ($Tname []) <|>
+      p_tvar                  <|>
+      p_parenTexpr            <|>
       p_listTexpr
 
 || parse a type term with optional strictness ("!")
@@ -544,7 +544,7 @@ p_type = p_tExpr [] []
 
 || restrict infix operators to constructors (e.g. ":" or "$Cons")
 p_cinfix :: parser name
-p_cinfix = p_infix $p_satisfy isConstructor
+p_cinfix = p_infix <?> isConstructor
 
 p_construct :: parser tform
 p_construct

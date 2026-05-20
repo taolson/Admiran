@@ -9,7 +9,7 @@
 %import <map>
 %import <maybe>
 %import <set>
-%import <state>
+%import <state>                 (>>=)/st_bind
 %import "ast"
 %import "config"
 %import "dependency"
@@ -70,7 +70,7 @@ rewriteAst :: astRewriteTraverser rwSt
 ||  they are used so frequently to make computation pipelines, and it is cheaper to do it here than in the general
 || inline pass
 rewriteAst k (Eap e1 e2) st
-    = (k (Eap e1 e2) $st_bind mkCall) st        || rewrite sub-expressions e1 & e2, then make them into an Ecall
+    = (k (Eap e1 e2) >>= mkCall) st        || rewrite sub-expressions e1 & e2, then make them into an Ecall
       where
         mkCall (Eap f e) st = (checkInline f e, st)
         mkCall _         _  = unreachable
@@ -86,7 +86,7 @@ rewriteAst k (Eap e1 e2) st
 || Note: performance comparison shows that this rewrite actually degrades performance a slight amount (when inlining), due to
 || some inlining rewrites not being performed, so it is conditioned here upon the config parameter useSel.
 rewriteAst k (Ecase s e alts an) st
-    = (k (Ecase s e alts an) $st_bind mkSel) st, if useSel
+    = (k (Ecase s e alts an) >>= mkSel) st, if useSel
       where
         mkSel (Ecase s e [CaseAlt (Pctor c vars) (Evar n) _] an) st
             = (Ecall (builtinSel c idx) [e], st), if isJust midx

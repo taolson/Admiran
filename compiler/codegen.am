@@ -1401,16 +1401,14 @@ genGenerics
 
 || generate the code section, emitting the string for each codeObj as it is generated
 genCode :: stgCode -> string
-genCode cd
-    = genSection "text" "" ++
-      (concatMap (converse genCodeObj "\n") . m_toList . fst) cd
+genCode cd = genSection "text" "" ++ (cd |> fst |> m_toList |> concatMap ($genCodeObj "\n"))
 
 || generate the heap section, emitting the string for each heapObj as it is generated
 genHeap :: stgHeap -> string
 genHeap hp
-    = genSection "data" ""                                       ++
-      genCGlobal "GlobalBase" ""                                 ++
-      (concatMap (converse genHeapObj "\n") . m_toList . fst) hp ++
+    = genSection "data" ""                                    ++
+      genCGlobal "GlobalBase" ""                              ++
+      (hp |> fst |> m_toList |> concatMap ($genHeapObj "\n")) ++
       genCGlobal "GlobalTop" ""
 
 codegen :: name -> (localEnv, stgCode, stgHeap) -> string

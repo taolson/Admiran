@@ -1,4 +1,4 @@
-|| parser.am -- basic parser combinators for a stream of tokens with locations
+|| parser.am -- basic parser combinators for a stream of tokens with locations, based upon the maybeState monad
 
 
 %export + p_get p_put p_modify p_bind p_pure p_fail p_fmap p_rfmap p_apply p_liftA2 p_liftA3 p_liftA4 p_left p_right p_bind2 p_mapM p_foldM p_runState

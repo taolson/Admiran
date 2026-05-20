@@ -91,7 +91,7 @@ module ::=
 
 showmodule :: showI module
 showmodule m
-    = lay . map showDefn . m_keys $ defns
+    = m_keys defns |> map showDefn |> lay
       where
         defns          = view modDefns m
         specs          = view modSpecs m
@@ -169,7 +169,7 @@ modImports
         overf fn (Module fs bs exs ins defs pats specs env) = Module fs bs exs (fn ins) defs pats specs env
 
 modImportFiles :: module -> [fileSpec]
-modImportFiles m = map (view libEnvFile) . view modImports $ m
+modImportFiles m = view modImports m |> map (view libEnvFile)
 
 modDefns :: lens module defnMap
 modDefns
@@ -258,7 +258,7 @@ insDefnMapMerge d m
 
 || make a list of dependencies of each defn on the others in a defnMap, based upon the annotation's freeVar info
 makeDefnDependencyList :: defnMap -> [(name, [name])]
-makeDefnDependencyList defs = m_fmap (view astAnnoFree .> filter (converse (m_member cmpname) defs)) defs |> m_toList
+makeDefnDependencyList defs = m_fmap (view astAnnoFree .> filter (\n -> m_member cmpname n defs)) defs |> m_toList
 
 || functions to insert a top-level declaration into the correct part of a module, or report an error
 modInserter == module -> excpt module
@@ -270,8 +270,8 @@ modInsExp pts m
 
 || insert an %import declaration, qualifying any alias directives with the module name
 modInsImp :: libEnv -> modInserter
-modInsImp lenv
-    = ex_pure . over modImports (lenv' :)
+modInsImp lenv m
+    = over modImports (lenv' :) m |> ex_pure
       where
         mn    = fileSpecName (view libEnvFile lenv)
         lenv' = over libEnvAlias (map doQual) lenv
@@ -287,7 +287,7 @@ modInsFre specs m = ex_error (Unsupported "%free") emptyLocInfo
 || insert a top-level definition
 modInsDef :: defn -> modInserter
 modInsDef d m
-    = ex_fmap setDefs . insDefnMapMerge qd . view modDefns $ m
+    = view modDefns m |> insDefnMapMerge qd |> ex_fmap setDefs
       where
         qd           = qualifyDefn (view modName m) d
         setDefs defs = set modDefns defs m
@@ -336,7 +336,7 @@ modInsData d m
 || insert a type specification
 modInsSpec :: defn -> modInserter
 modInsSpec d m
-    = ex_fmap setSpecs . insDefnMap qd . view modSpecs $ m
+    = view modSpecs m |> insDefnMap qd |> ex_fmap setSpecs
       where
         qd             = qualifyDefn (view modName m) d
         setSpecs specs = set modSpecs specs m
@@ -393,7 +393,7 @@ lookupModule genv n
 
 lookupName :: globalEnv -> name -> maybe name
 lookupName genv n
-    = m_lookup cmpname n . view modEnv . view genvMod $ genv, if isUnqualified n \/ isUnresolved n
+    = view genvMod genv |> view modEnv |> m_lookup cmpname n, if isUnqualified n \/ isUnresolved n
     = Just n,                                                 otherwise
 
 || lookup the definition of a Qualified name, using a lens to specify the defnMap to use
@@ -401,7 +401,7 @@ lookupDefnWithLens :: globalEnv -> lens module defnMap -> name -> maybe defn
 lookupDefnWithLens genv l n
     = Nothing,                                  if isUnqualified n \/ isBuiltin n
     = lookupModule genv (getModName n) >>=
-      (m_lookup cmpname n . view l),            otherwise
+      (view l .> m_lookup cmpname n),           otherwise
 
 lookupDefn :: globalEnv -> name -> maybe defn
 lookupDefn genv n
@@ -422,7 +422,7 @@ lookupSpec genv n
 || lookup an exportMap from a fileSpec
 lookupExportMap :: locInfo -> globalEnv -> fileSpec -> excpt nameMap
 lookupExportMap loci genv fs
-    = fromMaybef err (ex_pure . view modExportMap) $ lookupModule genv mn
+    = lookupModule genv mn |> fromMaybef err (view modExportMap .> ex_pure)
       where
         mn  = fileSpecName fs
         err = ex_error (Info $ "module " ++ mn ++ " not found") loci
@@ -431,12 +431,12 @@ lookupExportMap loci genv fs
 || generate name list for builtin constructors directly, since they aren't stored anywhere else
 lookupCtorNames :: globalEnv -> name -> maybe [name]
 lookupCtorNames genv n
-    = Just [n],                                   if isBuiltinTuple n
-    = Just [builtinNilName, builtinConsName],     if s ==$ getName builtinNilName \/ s ==$ getName builtinConsName
-    = Just [builtinUnitName],                     if s ==$ getName builtinUnitName
-    = lookupSpec genv n            >>=     || lookup spec for ctor, which should be a $Tarr b ... $Tarr (data type Tform)
-      (lookupDefn genv . baseName) >>=     || lookup defn of data type
-      (mb_pure . map tformName . view dataCtors), otherwise
+    = Just [n],                                     if isBuiltinTuple n
+    = Just [builtinNilName, builtinConsName],       if s ==$ getName builtinNilName \/ s ==$ getName builtinConsName
+    = Just [builtinUnitName],                       if s ==$ getName builtinUnitName
+    = lookupSpec genv n             >>=     || lookup spec for ctor, which should be a $Tarr b ... $Tarr (data type Tform)
+      (baseName .> lookupDefn genv) >>=     || lookup defn of data type
+      (view dataCtors .> map tformName .> mb_pure), otherwise
       where
         s                            = getName n
         baseName (DefSpec tf te an ) = tformName $ baseType te
@@ -504,7 +504,7 @@ replaceNameMapKey loc k k' m
 || merge nameMap e2 into nameMap e1, qualifying and renaming e2 names based upon libQual and libAs values
 mergeEnvironments :: locInfo -> libQual -> libAs -> nameMap -> nameMap -> excpt nameMap
 mergeEnvironments loc qual as e1 e2
-    = ex_foldM (addName qual) e1 . map (renameAs as) . filter (isQualified . snd) . m_toList $ e2
+    = m_toList e2 |> filter (snd .> isQualified) |> map (renameAs as) |> ex_foldM (addName qual) e1
       where
         renameAs LibNoAs   e      = e
         renameAs (LibAs s) (k, v)

@@ -7,7 +7,7 @@
 %import <lens>
 %import <map>
 %import <maybe>
-%import "exception"
+%import "exception"             (>>=)/ex_bind (<&>)/ex_rfmap
 %import "grammar"
 %import "module"
 %import "name"
@@ -136,7 +136,7 @@ deriveOrd d
 || derive any missing instances for ord, show for the dataDefs
 deriveInstances :: globalEnv -> excpt globalEnv
 deriveInstances genv
-    = converse (set genvMod) genv $ex_fmap ex_foldM insInstance m (shows ++ ords)
+    = ex_foldM insInstance m (shows ++ ords) <&> \m -> set genvMod m genv
       where
         m             = view genvMod genv
         defs          = view modDefns m
@@ -147,7 +147,7 @@ deriveInstances genv
         isDerivable d = isDefData d & (not . null . view dataCtors) d \/ isDefSyn d
 
         insInstance m (ds, df)
-            = modInsSpec ds m $ex_bind modInsDef df
+            = modInsSpec ds m >>= modInsDef df
 
         missing s d
             = isNothing (m_lookup cmpname n' defs) & ~any (match n') pats

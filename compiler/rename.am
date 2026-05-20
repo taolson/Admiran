@@ -140,7 +140,7 @@ renameAst k a st
         goDefn (DefPat p e an)     = st_liftA3 DefPat  (renamePatRef p) (st_pure e)                   (renameAnno an)
         goDefn (DefSyn tf te an)   = st_liftA3 DefSyn  (tvarDefs tf)    (tvarRefs te)                 (renameAnno an)
         goDefn (DefData tf tes an) = st_liftA3 DefData (tvarDefs tf)    (st_mapM tvarRefs tes)        (renameAnno an)
-        goDefn d                   = st_fmap (converse (set astAnno) d) (renameAnno (view astAnno d))
+        goDefn d                   = st_fmap (\a -> set astAnno a d)    (renameAnno (view astAnno d))
 
         renamePat (Pvar n)         = st_fmap Pvar $ renameDef n
         renamePat (Pctor n vars)   = st_liftA2 Pctor (renameRef n) (renamePats vars)
@@ -157,7 +157,7 @@ renameAst k a st
 
         || rename the name references in the free set of an anno -- required because beta-reduction
         || during inlining calls renameExpr to rename the defn vars
-        renameAnno an = view annoFree an |> st_mapM renameRef <&> converse (set annoFree) an
+        renameAnno an = view annoFree an |> st_mapM renameRef <&> \fns -> set annoFree fns an
 
 
 || rename a name reference or report an undefinedName error
