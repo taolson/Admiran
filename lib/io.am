@@ -1,4 +1,4 @@
-|| io.am -- the IO monad for sequencing access to the outside world
+|| io.am -- the IO monad for sequencing access to the outside world, based upon the state monad
 
 
 %export + -World io_bind io_pure io_kbind io_mapM io_mapM_ io_forM io_foldM io_fmap io_rfmap io_apply io_liftA2 io_liftA3 io_left io_right io_bind2 io_bind3
