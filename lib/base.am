@@ -314,6 +314,10 @@ cycle xs = xs' where xs' = xs ++ xs'
 singleton :: * -> [*]
 singleton a = [a]
 
+isSingleton :: [*] -> bool
+isSingleton [_] = True
+isSingleton _   = False
+
 replicate :: int -> * -> [*]
 replicate n = repeat .> take n
 

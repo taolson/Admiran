@@ -7,7 +7,8 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>                 (>>=?)/mb_bind
+%import <maybe>
+%import <maybe> qualified as mb (>>=)/mb_bind
 %import <state>                 (>>=)/st_bind
 %import "ast"
 %import "config"
@@ -75,10 +76,10 @@ match :: [name] -> [equation] -> state dsSt expr
 || then fold the new rhs values into a fatbar sequence with an Efail at the end
 match [] eqns st
     = (builtinFail, addDsErr Arity st),           if any (not . null . equationPats) eqns
-    = (hd rhss, st),                              if #rhss == 1         || optimization for common case to remove extraneous fatbars
+    = (hd rhss, st),                              if isSingleton rhss   || optimization for common case to remove extraneous fatbars
     = (foldr builtinFatbar builtinFail rhss, st), otherwise
       where
-        loc                    = fromMaybe emptyLocation . view dsLocation $ st
+        loc                    = view dsLocation st |> fromMaybe emptyLocation
         rhss                   = map addRenames eqns
         addRenames (x, rhs, m) = rhs,                                            if m_null m
                                = Elet True m_empty (map mkPat (m_toList m)) rhs, otherwise      || introduce a new Let binding to rename the vars
@@ -86,7 +87,7 @@ match [] eqns st
 
 match (var : vars) eqns st
     = (builtinFail, addDsErr Arity st),              if any (null . equationPats) eqns
-    = handleEqnGroup (hd eqnGroups) st,              if #eqnGroups == 1 || optimization for common case to remove extraneous fatbars
+    = handleEqnGroup (hd eqnGroups) st,              if isSingleton eqnGroups   || optimization for common case to remove extraneous fatbars
     = foldr seqEqnGroup (builtinFail, st) eqnGroups, otherwise
       where
         eqnGroups                 = groupBy sameFirstPatType eqns
@@ -150,10 +151,10 @@ matchCtor var vars peqns st
         genv              = view dsGenv st
         ctor              = getCn (hd peqns)
         mspec             = lookupSpec genv ctor
-        dname             = typeName . baseType . view defnType . fromJust $ mspec
+        dname             = fromJust mspec |> view defnType |> baseType |> typeName
         mcns              = lookupCtorNames genv ctor
         cns               = fromJust mcns
-        sel               = Csingle, if #cns == 1
+        sel               = Csingle, if isSingleton cns
                           = Cvectored, if #cns <= maxCaseVectored
                           = Cpriority, otherwise
         (ctorGroups, st1) = partitionByCtorName sel cns peqns st
@@ -182,15 +183,20 @@ matchCtor var vars peqns st
 
         insertPats ps1 (ps2, e, m) = (ps1 ++ ps2, e, m)
 
-        partitionByCtorName sel []         []   st = ([], st)
-        partitionByCtorName sel []         elts st = ([], addDsErr ((BadCtor dname . ctorName . fst . hd) elts) st)
-        partitionByCtorName sel (cn : cns) elts st = ((cn, p1) : rest, st'), if ~null p1 \/ _eq cmpcaseSel sel Cvectored
-                                                   = (rest, st'),            otherwise
-                                                     where
-                                                       cs          = getName cn
-                                                       (p1, p2)    = partition ((==$ cs) . getName . getCn) elts
-                                                       (rest, st') = partitionByCtorName sel cns p2 st
+        partitionByCtorName sel [] [] st = ([], st)
 
+        partitionByCtorName sel [] elts st
+            = ([], addDsErr err st)
+              where
+                err = hd elts |> fst |> ctorName |> BadCtor dname
+
+        partitionByCtorName sel (cn : cns) elts st
+            = ((cn, p1) : rest, st1), if ~null p1 \/ _eq cmpcaseSel sel Cvectored
+            = (rest, st1),            otherwise
+              where
+                cs          = getName cn
+                (p1, p2)    = partition (getCn .> getName .> (==$ cs)) elts
+                (rest, st1) = partitionByCtorName sel cns p2 st
 
 || a ctorEqn is a ctor name, its pattern vars, and an expression
 ctorEqn == (name, [pat], expr)
@@ -201,7 +207,11 @@ ctorEqn == (name, [pat], expr)
 patCaseTree :: [ctorEqn] -> nameMap -> state dsSt (expr, [name])
 
 || base case: return a tuple expr of all the Evars renaming Pvars in the case tree, along with the corresponding Pvar names
-patCaseTree [] mr st = ((makeTupleExpr . map Evar . m_elems $ mr, m_keys mr), st)
+patCaseTree [] mr st
+    = ((makeTupleExpr evars, pvars), st)
+      where
+        evars = m_elems mr |> map Evar
+        pvars = m_keys  mr
 
 || build a case tree, converting ctorEqns to Ecase exprs
 || works bidirectionally, building the rename map going down, then building the case tree coming back up
@@ -209,13 +219,16 @@ patCaseTree ((c, ps, rhs) : cs) mr st
     = ((Ecase sel rhs alts emptyAnno, vns), st2)
       where
         mcns                = lookupCtorNames (view dsGenv st) c
-        sel                 = Csingle,   if isJust mcns & #(fromJust mcns) == 1 || case is irrefutable if there is a single ctor
-                            = Cpriority, otherwise
+        cns                 = fromJust mcns
         (vs, cs', mr', st1) = foldr renameVar ([], [], mr, st) ps
         ((ct, vns), st2)    = patCaseTree (cs ++ cs') mr' st1
         ctorAlt             = CaseAlt (Pctor c vs) ct emptyAnno
         failAlt             = CaseAlt Pwildcard builtinFail emptyAnno
         alts                = if' (_eq cmpcaseSel sel Csingle) [ctorAlt] [ctorAlt, failAlt]
+
+        sel = Csingle,   if isJust mcns & isSingleton cns       || case is irrefutable if there is a single ctor
+            = Cpriority, otherwise
+
         renameVar p rvs
             = go p
               where
@@ -256,7 +269,7 @@ desugarAst k (Elet rec defs pats e) st
         topLevel                     = null (view dsDefnPath st)       || see if we are desugaring a top-level defn
         mn                           = view dsModName st
         (Elet _ defs1 pats' e', st1) = k (Elet rec defs pats e) st     || desugar the sub-asts of the Elet
-        (defs2, st2)                 = foldl insOrAddErrs (defs1, st1) $ flattenDefns pats'
+        (defs2, st2)                 = flattenDefns pats' |> foldl insOrAddErrs (defs1, st1)
         insOrAddErrs (defs, st) d    = (defs, over dsErrs (errs ++) st), if isLeft dm
                                      = (defs', st'),                     if isUnresolved dn
                                      = (defs', st),                      otherwise
@@ -280,10 +293,10 @@ desugarAst k (ElistComp e quals an) st
       where
         (e', st')                            = dsQuals quals builtinNil st
         dsQuals []                      c st = (ap2 builtinCons e c, st)
-        dsQuals ((Qgen [p] ge) : qs)    c st = dsGenSingle ge p    c st $ dsQuals qs
-        dsQuals ((Qgen ps  ge) : qs)    c st = dsGenMult   ge ps   c st $ dsQuals qs
-        dsQuals ((Qrecur p be fe) : qs) c st = dsGenRecur  be fe p c st $ dsQuals qs
-        dsQuals ((Qguard tst)  : qs)    c st = dsGenGuard  tst     c st $ dsQuals qs
+        dsQuals ((Qgen [p] ge) : qs)    c st = dsQuals qs |> dsGenSingle ge p    c st
+        dsQuals ((Qgen ps  ge) : qs)    c st = dsQuals qs |> dsGenMult   ge ps   c st
+        dsQuals ((Qrecur p be fe) : qs) c st = dsQuals qs |> dsGenRecur  be fe p c st
+        dsQuals ((Qguard tst)  : qs)    c st = dsQuals qs |> dsGenGuard  tst     c st
         dsQuals _                       _ _  = error "dsQuals: non-qualifier"
 
         || desugar a guard generator e.g. x > 10;
@@ -352,13 +365,13 @@ desugarAst k (Ecase Cnone e alts an) st
     = k (builtinFatbar (Ecase sel e alts' an) (Eap stdCaseFail (genLoc loc))) st
       where
         genv                  = view dsGenv st
-        loc                   = fromJust . snd . view dsLoc $ st
+        loc                   = view dsLoc st |> snd |> fromJust
         (sel, alts')          = checkPats $ map getPat alts
         sequentialFromZero xs = and $ zipWith (==) [0 ..] xs
         sortedLitAlts         = sortOn cmpint getLit alts
         sortedCtorAlts        = sortOn cmpint getCtorTag alts
         failAlt               = CaseAlt Pwildcard builtinFail emptyAnno
-        allCtors              = fromMaybef [] (map getName) $ find isCtorAlt alts >>=? (getCtorName .> lookupCtorNames genv)
+        allCtors              = find isCtorAlt alts mb.>>= getCtorName .> lookupCtorNames genv |> fromMaybef [] (map getName)
 
         isCtorAlt (CaseAlt (Pctor _ _) _ _) = True
         isCtorAlt _                       = False
@@ -376,14 +389,14 @@ desugarAst k (Ecase Cnone e alts an) st
         getCtorTag _                         = unreachable
 
         checkPats ps
-            = (Csingle,   alts),              if #ps == 1 & irrefutable lastPat
+            = (Csingle,   alts),              if isSingleton ps & irrefutable lastPat
             = (Cvectored, sortedCtorAlts),    if all isPctor ps & #ps == #allCtors & sequentialFromZero (map getCtorTag sortedCtorAlts)
             = (Cvectored, sortedLitAlts),     if all isPlit ps & #ps == 3 & sequentialFromZero (map getLit sortedLitAlts) || 0#,1#,2# for cmp# result value
             = (Cpriority, alts),              if irrefutable lastPat
             = (Cpriority, alts ++ [failAlt]), otherwise
               where
                 lastPat       = last ps
-                irrefutable p = isPvarOrWild p \/ isPctor p & #allCtors == 1
+                irrefutable p = isPvarOrWild p \/ isPctor p & isSingleton allCtors
 
 || add defn names and locations to lexical state while traversing
 || rewrite literals to common dsLits references
@@ -408,14 +421,15 @@ desugarDef :: bool -> astRewriteTraverser dsSt
 desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
     = k (DefMult Mpat (caseDef ns : accs)) st2, if numPatVars > 0
       where
+        genv         = view dsGenv st
         mn           = view dsModName st
         gen          = view dsGen st
         (gen1, ctn)  = if' topLevel (genPrivateName mn "patMatch" gen) (genName "`patMatch" gen)
         st1          = set dsGen gen1 st
         numPatVars   = #ns
-        singlePatVar = numPatVars == 1
-        singleCtor   = (== 1) . length . fromMaybe [] . lookupCtorNames (view dsGenv st)
-        simpleCtor   = singleCtor c & all isPvar pats
+        singlePatVar = isSingleton ns
+        singleCtor   = lookupCtorNames genv c |> fromMaybef False isSingleton
+        simpleCtor   = singleCtor & all isPvar pats
         accs         = if' singlePatVar [] (map makeAccessor $ zip2 ns [0 ..])
         cn           = if' simpleCtor c (builtinTupleName numPatVars)
 
@@ -423,10 +437,12 @@ desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
             = ((rhs, map unPvar pats), st1),            if simpleCtor
             = patCaseTree [(c, pats, rhs)] m_empty st1, otherwise
 
-        patMatch = Eap (builtinSel c 0) caseTree,                                        if simpleCtor & singlePatVar & useSel
-                 = makeSel c 0 caseTree,                                                 if simpleCtor & singlePatVar
-                 = caseTree,                                                             if simpleCtor
-                 = builtinFatbar caseTree . Eap stdMatchFail . genLoc $ view annoLoc an, otherwise
+        patMatch = Eap (builtinSel c 0) caseTree, if simpleCtor & singlePatVar & useSel
+                 = makeSel c 0 caseTree,          if simpleCtor & singlePatVar
+                 = caseTree,                      if simpleCtor
+                 = builtinFatbar caseTree fail,   otherwise
+                   where
+                     fail = view annoLoc an |> genLoc |> Eap stdMatchFail
 
         caseDef [n] = DefPat (Pvar n)   patMatch an  || single renamed variable
         caseDef ns  = DefPat (Pvar ctn) patMatch an  || allocate var for tuple of renamed variables
@@ -449,7 +465,8 @@ desugarDef topLevel k (DefPat p rhs an) st
     = (DefPat p rhs an, addDsErr (BadPattern p) st), if ~isPvar p
     = k (DefPat p rhs' an) st,                       if ~isSimpleExpr rhs
       where
-        rhs' = builtinFatbar rhs . Eap stdMatchFail . genLoc $ view annoLoc an
+        fail = view annoLoc an |> genLoc |> Eap stdMatchFail
+        rhs' = builtinFatbar rhs fail
 
 || desugar patterns in a DefMult of function definitions, replacing it with a single DefFn
 || with an irrefutable pattern desugared using a case tree
@@ -466,7 +483,8 @@ desugarDef topLevel k (DefMult Mfun defs) st
         (gen', varNames) = genNames "var" gen [1 .. arity]
         st1              = set dsGen gen' st
         (caseTree, st2)  = match varNames (zip3 pats rhss (repeat m_empty)) st1
-        caseExpr         = builtinFatbar caseTree . Eap stdCaseFail . genLoc $ view annoLoc an
+        fail             = view annoLoc an |> genLoc |> Eap stdCaseFail
+        caseExpr         = builtinFatbar caseTree fail
 
 desugarDef topLevel k a st = k a st
 
@@ -513,7 +531,7 @@ desugar genv
         defs              = view modDefns m
         pats              = view modPats m
         ((defs1, _), st') = astRewriteInLet (astRewriteLex desugarAst) defs pats $ initDsSt genv
-        litPats           = (map (mkLit mn) . m_toList . view dsLits) st'
+        litPats           = view dsLits st' |> m_toList |> map (mkLit mn)
         defs2             = foldr insDefnMapUnchecked defs1 litPats
-        genv'             = over genvMod (set modDefns defs2 . set modPats []) $ view dsGenv st'
-        (errs, warns)     = partition isError $ view dsErrs st'
+        genv'             = view dsGenv st' |> over genvMod (set modDefns defs2 . set modPats [])
+        (errs, warns)     = view dsErrs st' |> partition isError

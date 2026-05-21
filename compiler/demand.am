@@ -47,8 +47,8 @@ addDmName n = st_over dmNames (s_insert cmpname n)
 || now unique, so we can keep them in a single set, rather than lexically scope them
 delDmNames :: [name] -> state dmSt ()
 delDmNames ns
-    = st_over dmNames (converse (foldr (s_delete cmpname)) ns) >>
-      st_over dmMap   (converse (foldr (m_delete cmpname)) ns)
+    = st_over dmNames (foldr (\s n -> s_delete cmpname n s) ns) >>
+      st_over dmMap   (foldr (\m n -> m_delete cmpname n m) ns)
 
 || add a note to the demand state, limiting the length of the note string
 addNote :: string -> state dmSt ()

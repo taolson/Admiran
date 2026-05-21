@@ -5,7 +5,7 @@
 
 %import <base>
 %import <either>
-%import <io>                    (>>=)/io_bind (<$>)/io_fmap (>>)/io_right
+%import <io>                    (>>=)/io_bind (>>)/io_right
 %import <lens>
 %import <map>
 %import <maybe>

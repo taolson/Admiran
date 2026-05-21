@@ -7,10 +7,11 @@
 %import <either>
 %import <lens>
 %import <map>
-%import <maybe>                 (>>=)/mb_bind  (<&>)/mb_rfmap
+%import <maybe>                 (<&>)/mb_rfmap
+%import <maybe> qualified as mb (>>=)/mb_bind
 %import <set>
 %import "config"
-%import "exception"             (>>=?)/ex_bind
+%import "exception"             (>>=)/ex_bind
 %import "grammar"
 %import "name"
 %import "predef"
@@ -28,7 +29,7 @@ fullFileName (FileSpec ps n) = intercalate filePathSeparator $ ps ++ [n]
 
 fileSpecFromString :: string -> maybe fileSpec
 fileSpecFromString s
-    = safeHd filePathSeparator >>= splitPath >>= mkSpec
+    = safeHd filePathSeparator mb.>>= splitPath mb.>>= mkSpec
       where
         splitPath c    = split c s |> viewR
         mkSpec (ps, n) = withoutSuffix "am" n |> FileSpec ps |> Just
@@ -321,11 +322,11 @@ makeStrictCtor n tag cts an
 modInsData :: defn -> modInserter
 modInsData d m
     = case d of
-        DefData dt ctors an -> ex_foldM (insFn dt an) m (enumerate ctors) >>=? modInsDef d
+        DefData dt ctors an -> ex_foldM (insFn dt an) m (enumerate ctors) >>= modInsDef d
         _                   -> ex_pure m
       where
         insFn dt an m (tag, (Tname n cts))
-            = modInsSpec spec m >>=? modInsDef fn
+            = modInsSpec spec m >>= modInsDef fn
               where
                 t      = foldr Tarr dt $ map unStrict cts
                 spec   = DefSpec (Tname n []) t an
@@ -345,13 +346,13 @@ modInsSpec d m
 modInsAbs :: defn -> modInserter
 modInsAbs d m
     = case d of
-        DefAbs _ ds _ _ -> ex_foldM (converse modInsSpec) m ds >>=? modInsDef d
+        DefAbs _ ds _ _ -> ex_foldM (converse modInsSpec) m ds >>= modInsDef d
         _               -> ex_pure m
 
 || make a module from an initial module and a sequence of modInserter functions
 makeModule :: module -> [modInserter] -> excpt module
 makeModule m insrs
-    = ex_foldM (|>) m insrs >>=? checkStdlib
+    = ex_foldM (|>) m insrs >>= checkStdlib
       where
         mn     = view modName m
         stdlib = FileSpec stdlibPath stdlibModuleName
@@ -399,19 +400,19 @@ lookupName genv n
 || lookup the definition of a Qualified name, using a lens to specify the defnMap to use
 lookupDefnWithLens :: globalEnv -> lens module defnMap -> name -> maybe defn
 lookupDefnWithLens genv l n
-    = Nothing,                                  if isUnqualified n \/ isBuiltin n
-    = lookupModule genv (getModName n) >>=
-      (view l .> m_lookup cmpname n),           otherwise
+    = Nothing,                                if isUnqualified n \/ isBuiltin n
+    = lookupModule genv (getModName n) mb.>>=
+      view l .> m_lookup cmpname n,           otherwise
 
 lookupDefn :: globalEnv -> name -> maybe defn
 lookupDefn genv n
-    = lookupName genv n >>= lookupDefnWithLens genv modDefns
+    = lookupName genv n mb.>>= lookupDefnWithLens genv modDefns
 
 || lookup the type specification for a name in the global environment
 || tuple types are dynamically generated
 lookupSpec :: globalEnv -> name -> maybe defn
 lookupSpec genv n
-    = lookupName genv n >>= getSpec
+    = lookupName genv n mb.>>= getSpec
       where
         getSpec qn = Just (makeTupleSpec qn),             if isBuiltinTuple qn
                    = m_lookup cmpname qn builtinSpecs,    if isBuiltin qn
@@ -431,16 +432,19 @@ lookupExportMap loci genv fs
 || generate name list for builtin constructors directly, since they aren't stored anywhere else
 lookupCtorNames :: globalEnv -> name -> maybe [name]
 lookupCtorNames genv n
-    = Just [n],                                     if isBuiltinTuple n
-    = Just [builtinNilName, builtinConsName],       if s ==$ getName builtinNilName \/ s ==$ getName builtinConsName
-    = Just [builtinUnitName],                       if s ==$ getName builtinUnitName
-    = lookupSpec genv n             >>=     || lookup spec for ctor, which should be a $Tarr b ... $Tarr (data type Tform)
-      (baseName .> lookupDefn genv) >>=     || lookup defn of data type
-      (view dataCtors .> map tformName .> mb_pure), otherwise
+    = Just [n],                               if isBuiltinTuple n
+    = Just [builtinNilName, builtinConsName], if s ==$ getName builtinNilName \/ s ==$ getName builtinConsName
+    = Just [builtinUnitName],                 if s ==$ getName builtinUnitName
+    = doLookup,                               otherwise
       where
         s                            = getName n
         baseName (DefSpec tf te an ) = tformName $ baseType te
         baseName _                   = unreachable
+
+       || lookup spec for ctor, which should be a $Tarr b ... $Tarr (data type Tform)
+       || then use the baseName to lookup all the ctors of the data type
+        doLookup = lookupSpec genv n mb.>>= baseName .> lookupDefn genv <&> view dataCtors .> map tformName
+
 
 || lookup the arity for a function reference in the global environment
 || since constuctor definitions use the poly-arity "pack" builtin, they don't have arguments,
@@ -481,7 +485,7 @@ insNameMapDefn e n d
         insDataName e n = insName e n n
 
         insName e n n'
-            = insNameMap loci (unresolveName n) n' e >>=?
+            = insNameMap loci (unresolveName n) n' e >>=
               insNameMap loci (unqualifyName n) n'    || add both unresolved (qualified) and unqualified names
 
 || delete a name mapping from a nameMap, or report an undefined error
@@ -495,7 +499,7 @@ delNameMap loc k m
 replaceNameMapKey :: locInfo -> name -> name -> nameMap -> excpt nameMap
 replaceNameMapKey loc k k' m
     = ex_pure m,                  if isNothing mprev & isUnqualified k || silently ignore replacement for missing unqualified names (Undefined err)
-    = delNameMap loc k m >>=?
+    = delNameMap loc k m >>=
       insNameMap loc k' prev,     otherwise
       where
         mprev = m_lookup cmpname k m
