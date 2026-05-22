@@ -348,9 +348,8 @@ movOpForOpr (Imm (Haddr hp)) = "leaq"
 movOpForOpr (Ref (Frm, n))   = "leaq"
 movOpForOpr a                = "movq"
 
-|| force an opr to an x86Reg, if it doesn't already resolve to one
-|| returns the final destination x86Reg and a showS representing the (possible empty)
-|| move operation
+|| force an Opr to an x86Reg, if it doesn't already resolve to one
+|| returns the x86Reg and a (possible empty) move operation to initialize it
 ensureX86Reg :: x86Opr -> opr -> (x86Opr, showS)
 ensureX86Reg default a
     = (xa, id),      if isX86Reg xa
@@ -359,9 +358,9 @@ ensureX86Reg default a
         xa = cvtOpr a
         op = genOpcode (movOpForOpr a) [xa, default]
 
-|| same as above, but for a destination reference
-|| this should be used during generation of stgInsns where the dst must be an x86Reg, or
-|| to improve performance of generated code that references the dst multiple times
+|| force a Ref to an x86Reg, if it doesn't already resolve to one
+|| returns the x86Reg and a (possibly empty) move operation to move the reg
+|| to the final dst
 ensureX86DstReg :: x86Opr -> ref -> (x86Opr, showS)
 ensureX86DstReg default d
     = (xd, id),      if isX86Reg xd
@@ -1068,10 +1067,11 @@ genInsn (WriteStream d s c)
 genInsn (AllocArray d (Imm (Word sz)))
     = genAlloc  xd (sz + 1)                            . || tag word + array size
       genOpcode "movq" [X86Imm tag, addX86Offset 0 xd] .
-      genOpcode "incq" [xd]
+      genOpcode "incq" [xd]                            .
+      movd
       where
-        xd  = cvtRef d
-        tag = genHarrayTag sz
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        tag        = genHarrayTag sz
 
 || general version for size known at runtime
 genInsn (AllocArray d a)
@@ -1080,9 +1080,10 @@ genInsn (AllocArray d a)
       genOpcode "shlq" [X86Imm 31, x86Tmp1]         . || move Harray size in qwords to correct field in tagword
       genOpcode "addq" [X86Imm 6, x86Tmp1]          . || add tag value 6 for Harray
       genOpcode "movq" [x86Tmp1, addX86Offset 0 xd] . || move the tagword into the heapObj
-      genOpcode "incq" [xd]                           || and return the tagged heapObj addr
+      genOpcode "incq" [xd]                         . || and return the tagged heapObj addr
+      movd
       where
-        xd = cvtRef d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d
 
 || fill an array with a replicated value
 genInsn (FillArray a v)
