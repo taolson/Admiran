@@ -360,7 +360,8 @@ ensureX86Reg default a
 
 || force a Ref to an x86Reg, if it doesn't already resolve to one
 || returns the x86Reg and a (possibly empty) move operation to move the reg
-|| to the final dst
+|| to the final dst.  Use when operations on dst must be an X86Reg (e.g. indirect writes),
+|| or when dst is operated upon multiple times, to optimize code.
 ensureX86DstReg :: x86Opr -> ref -> (x86Opr, showS)
 ensureX86DstReg default d
     = (xd, id),      if isX86Reg xd
@@ -839,7 +840,7 @@ genInsn (Add d a b)
       where
         xa         = cvtOpr a
         xb         = cvtOpr b
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d  || optimization assumes dst is an X86Reg
 
         optimize x1 (X86Imm n) = genOpcode "leaq" [addX86Offset n x1, xd] . movd, if isX86Reg x1 & ~isX86Imm64 (X86Imm n)
         optimize x1 x2
@@ -852,7 +853,7 @@ genInsn (Sub d a b)
       where
         xa         = cvtOpr a
         xb         = cvtOpr b
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d  || optimization assumes dst is an X86Reg
 
         optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset (-n) xa, xd]           . movd, if ~isX86Imm64 (X86Imm n)
         optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "subq" [xb, xd] . movd
@@ -864,7 +865,7 @@ genInsn (Mul d a b)
       where
         xa         = cvtOpr a
         xb         = cvtOpr b
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d  || optimization assumes dst is an X86Reg
 
         || Mul imm reg can be replaced by a leaq if the imm is 1, 2, 3, 4, 5, 8, or 9
         || and can optimize away the tag removal of the imm operand, otherwise
@@ -957,7 +958,7 @@ genInsn (Bshl d a b)
       genOpcode "movq" [x86Tmp0, x86rcx]        || restore rcx
       where
         xcl        = byte0 x86rcx
-        (xd, movd) = ensureX86DstReg x86Tmp1 d
+        (xd, movd) = ensureX86DstReg x86Tmp1 d  || operate on xd multiple times, so optimize it to a reg
 
 || specialized version for shift amount known at compile-time
 genInsn (Bshr d a (Imm (Word b)))
@@ -966,7 +967,7 @@ genInsn (Bshr d a (Imm (Word b)))
       genOpcode "andq" [X86Imm (-2), xd] .      || ensure the tag bit is 0
       movd
       where
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d  || operate on xd multiple times, so optimize it to a reg
 
 || general version for shift amount known at runtime
 genInsn (Bshr d a b)
@@ -980,7 +981,7 @@ genInsn (Bshr d a b)
       genOpcode "movq" [x86Tmp0, x86rcx]        || restore rcx
       where
         xcl        = byte0 x86rcx
-        (xd, movd) = ensureX86DstReg x86Tmp1 d
+        (xd, movd) = ensureX86DstReg x86Tmp1 d  || operate on xd multiple times, so optimize it to a reg
 
 || a bitwise NOT must set the bottom bit to 0 to maintain the tag bit
 genInsn (Bnot d a)
@@ -989,7 +990,7 @@ genInsn (Bnot d a)
       genOpcode "andq" [X86Imm (-2), xd] .      || ensure the tag bit is 0
       movd
       where
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d  || operate on xd multiple times, so optimize it to a reg
 
 || Note: generic selRet and selApply are expanded to individual functions for each of the Arg registers
 || and reference during the generation of a PushCont insn, so Sel insn shouldn't be generated, here; just ignore it
@@ -1000,10 +1001,11 @@ genInsn (Sel d a) = id
 genInsn (AllocStream d (Imm (Word fd)) (Imm (Word sz)))
     = genAlloc  xd (sz + 1)                            .        || tagword + stream size
       genOpcode "movq" [X86Imm tag, addX86Offset 0 xd] .
-      genOpcode "incq" [xd]
+      genOpcode "incq" [xd]                            .
+      movd
       where
-        xd  = cvtRef d
-        tag = genHstreamTag fd sz
+        (xd, movd) = ensureX86DstReg x86Tmp0 d                  || xd must be an X86Reg to perform indirect write of tag
+        tag        = genHstreamTag fd sz
 
 || general version for fd and size known at runtime
 genInsn (AllocStream d fd sz)
@@ -1015,9 +1017,10 @@ genInsn (AllocStream d fd sz)
       genOpcode "addq" [x86MovTmp, x86Tmp1]             .       || add it to the tagword
       genOpcode "addq" [X86Imm 5, x86Tmp1]              .       || add tag value 5 for Hstream to tagword
       genOpcode "movq" [x86Tmp1, addX86Offset 0 xd]     .       || move the tagword into the heapObj
-      genOpcode "incq" [xd]                                     || and return the tagged heapObj addr
+      genOpcode "incq" [xd]                             .       || and return the tagged heapObj addr
+      movd
       where
-        xd = cvtRef d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d                  || xd must be an X86Reg to perform indirect write of tag
 
 || read a byte from the Hstream a, returning -1 if at the end of the stream
 genInsn (ReadStream d s)
@@ -1070,20 +1073,20 @@ genInsn (AllocArray d (Imm (Word sz)))
       genOpcode "incq" [xd]                            .
       movd
       where
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d           || xd must be an X86Reg to perform indirect write of tag
         tag        = genHarrayTag sz
 
 || general version for size known at runtime
 genInsn (AllocArray d a)
-    = genOpcode (movOpForOpr a) [cvtOpr a, x86Tmp1] . || note: tmp0 can't be used here, because d may be tmp0
-      genAllocVar xd x86Tmp1                        . || note: xa contains a tagged value at runtime, so it is already scaled by 2
-      genOpcode "shlq" [X86Imm 31, x86Tmp1]         . || move Harray size in qwords to correct field in tagword
-      genOpcode "addq" [X86Imm 6, x86Tmp1]          . || add tag value 6 for Harray
-      genOpcode "movq" [x86Tmp1, addX86Offset 0 xd] . || move the tagword into the heapObj
-      genOpcode "incq" [xd]                         . || and return the tagged heapObj addr
+    = genOpcode (movOpForOpr a) [cvtOpr a, x86Tmp1] .   || note: tmp0 can't be used here, because d may be tmp0
+      genAllocVar xd x86Tmp1                        .   || note: xa contains a tagged value at runtime, so it is already scaled by 2
+      genOpcode "shlq" [X86Imm 31, x86Tmp1]         .   || move Harray size in qwords to correct field in tagword
+      genOpcode "addq" [X86Imm 6, x86Tmp1]          .   || add tag value 6 for Harray
+      genOpcode "movq" [x86Tmp1, addX86Offset 0 xd] .   || move the tagword into the heapObj
+      genOpcode "incq" [xd]                         .   || and return the tagged heapObj addr
       movd
       where
-        (xd, movd) = ensureX86DstReg x86Tmp0 d
+        (xd, movd) = ensureX86DstReg x86Tmp0 d          || xd must be an X86Reg to perform indirect write of tag
 
 || fill an array with a replicated value
 genInsn (FillArray a v)
