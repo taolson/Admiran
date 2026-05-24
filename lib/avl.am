@@ -3,7 +3,7 @@
 
 %export + -height -computeHeight -delta -rotL -rotR -balanceL -balanceR
 
-%import <maybe> (<$>?)/mb_fmap
+%import <maybe> (<&>)/mb_rfmap
 
 
 avlTree * ::= AVLLeaf | AVLNode * (avlTree *) (avlTree *) int
@@ -138,8 +138,8 @@ a_delete cmp v n
         go (AVLNode v' l r h)
             = case cmp v v' of
                 EQ -> Just $ a_moveR l r
-                LT -> insL <$>? go l
-                GT -> insR <$>? go r
+                LT -> go l <&> insL
+                GT -> go r <&> insR
               where
                 insL l' = a_balance $ AVLNode v' l' r h
                 insR r' = a_balance $ AVLNode v' l r' h

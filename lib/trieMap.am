@@ -16,7 +16,7 @@
 
 %import <base>
 %import <either>
-%import <maybe>                 (>>=?)/mb_bind (<$>?)/mb_fmap (<|>?)/mb_alt
+%import <maybe>                 (<&>)/mb_rfmap (<|>)/mb_alt
 
 
 || a trieBranch holds a prefix key and its associated sub-trie
@@ -61,7 +61,7 @@ tb_modify cmp check k bs
         go k [] = Nothing                       || no match found
         go k (b : bs)
             = case check $ tb_match cmp k b of
-                Nothing -> (b :) <$>? go k bs   || branch didn't match or failed check; merge this branch with the result of checking the remaining
+                Nothing -> go k bs <&> (b :)    || branch didn't match or failed check; merge this branch with the result of checking the remaining
                 Just b' -> Just (b' : bs)       || branch passed check; return modified branch along with remaining unexamined branches
 
 || a trie is a list of trieBranches to continue prefix matching and a possible value stored at this trie level
@@ -95,7 +95,7 @@ t_prefix cmp k t
     = go k t
       where
         go [] (Trie bs mv) = mv
-        go k  (Trie bs mv) = mv <|>? lookup k bs
+        go k  (Trie bs mv) = mv <|> lookup k bs
 
         lookup k bs
             = case tb_find cmp k bs of
@@ -152,19 +152,19 @@ t_delete cmp k t
     = fromMaybe t $ go k t
       where
         go [] (Trie bs mv) = Just $ Trie bs Nothing     || trie matches key -- remove value
-        go k  (Trie bs mv) = converse Trie mv <$>? tb_modify cmp check k bs
+        go k  (Trie bs mv) = tb_modify cmp check k bs <&> converse Trie mv
 
-        check (Mkey t k p) = pair p <$>? go k t         || continue matching k, return modified trieBranch if a deletion occurred
+        check (Mkey t k p) = go k t <&> pair p          || continue matching k, return modified trieBranch if a deletion occurred
         check _            = Nothing
 
 t_adjust :: ordI * -> (** -> **) -> [*] -> trie * ** -> trie * **
 t_adjust cmp f k t
     = fromMaybe t $ go k t
       where
-        go [] (Trie bs mv) = (f .> Just .> Trie bs) <$>? mv     || trie matches key -- perform adjustment if value exists
-        go k  (Trie bs mv) = converse Trie mv <$>? tb_modify cmp check k bs
+        go [] (Trie bs mv) = mv <&> (f .> Just .> Trie bs)      || trie matches key -- perform adjustment if value exists
+        go k  (Trie bs mv) = tb_modify cmp check k bs <&> converse Trie mv
 
-        check (Mkey t k p) = pair p <$>? go k t         || continue matching k, return modified trieBranch if an adjust occurred
+        check (Mkey t k p) = go k t <&> pair p  || continue matching k, return modified trieBranch if an adjust occurred
         check _            = Nothing
 
 || filter the elements of a trieMap with a predicate function and return the filtered trieMap
@@ -220,7 +220,7 @@ t_fmap :: (** -> ***) -> trie * ** -> trie * ***
 t_fmap f t
     = go t
       where
-        go (Trie bs mv) = case map goNext bs of bs' -> case f <$>? mv of mv' -> Trie bs' mv'
+        go (Trie bs mv) = case map goNext bs of bs' -> case mv <&> f of mv' -> Trie bs' mv'
         goNext (p, t)   = case go t of t' -> (p, t')
 
 t_rfmap :: trie * ** -> (** -> ***) -> trie * ***

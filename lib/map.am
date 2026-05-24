@@ -4,7 +4,7 @@
 %export + m_empty m_null m_isSingleton m_size m_first m_last m_toList
 
 %import <avl>   m_empty/a_empty m_null/a_null m_size/a_size m_isSingleton/a_isSingleton m_first/a_first m_last/a_last m_toList/a_toList
-%import <maybe> (<$>?)/mb_fmap
+%import <maybe> (<&>)/mb_rfmap
 
 
 m_map * ** == avlTree (*, **)
@@ -44,15 +44,15 @@ m_alter :: ordI * -> (maybe ** -> maybe **) -> * -> m_map * ** -> m_map * **
 m_alter cmp f k
     = \m -> fromMaybe m $ go m
       where
-        go AVLLeaf = m_singleton k <$>? f Nothing
+        go AVLLeaf = f Nothing <&> m_singleton k
         go (AVLNode p l r h)
             = case p of (k', v') ->
                   case cmp k k' of
                     EQ -> case f (Just v') of
                             Nothing -> Just $ a_moveR l r     || delete the node
                             Just v  -> Just $ AVLNode (k, v) l r h
-                    LT -> insL <$>? go l
-                    GT -> insR <$>? go r
+                    LT -> go l <&> insL
+                    GT -> go r <&> insR
               where
                 insL l' = a_balance $ AVLNode p l' r h
                 insR r' = a_balance $ AVLNode p l r' h
@@ -71,7 +71,7 @@ m_delete cmp k = m_alter cmp (const Nothing) k
 
 || return the original map if the key wasn't found, otherwise return the adjusted map
 m_adjust :: ordI * -> (** -> **) -> * -> m_map * ** -> m_map * **
-m_adjust cmp f k = m_alter cmp (f <$>?) k
+m_adjust cmp f k = m_alter cmp (<&> f) k
 
 m_lookup :: ordI * -> * -> m_map * ** -> maybe **
 m_lookup cmp k

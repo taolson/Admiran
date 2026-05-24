@@ -5,7 +5,7 @@
 
 %import <avl>   s_empty/a_empty s_null/a_null s_singleton/a_singleton s_isSingleton/a_isSingleton s_size/a_size s_member/a_member
                 s_first/a_first s_last/a_last s_delete/a_delete s_toList/a_toList s_foldr/a_foldr s_foldl/a_foldl
-%import <maybe> (<$>?)/mb_fmap
+%import <maybe> (<&>)/mb_rfmap
 
 s_set * == avlTree *
 
@@ -31,8 +31,8 @@ s_insertIfAbsent cmp v
         go (AVLNode v' l r h)
             = case cmp v v' of
                 EQ -> Nothing
-                LT -> insL <$>? go l
-                GT -> insR <$>? go r
+                LT -> go l <&> insL
+                GT -> go r <&> insR
               where
                 insL l' = a_balance $ AVLNode v' l' r h
                 insR r' = a_balance $ AVLNode v' l r' h
@@ -42,7 +42,7 @@ s_viewMin :: s_set * -> maybe (*, s_set *)
 s_viewMin AVLLeaf = Nothing
 s_viewMin (AVLNode v l r h)
     = case s_null l of
-        False -> balanceL <$>? s_viewMin l
+        False -> s_viewMin l <&> balanceL
         True  -> Just (v, r)
       where
         balanceL (v', l') = case a_balance $ AVLNode v l' r h of n' -> (v', n')
@@ -52,7 +52,7 @@ s_viewMax :: s_set * -> maybe (*, s_set *)
 s_viewMax AVLLeaf = Nothing
 s_viewMax (AVLNode v l r h)
     = case s_null r of
-        False -> balanceR <$>? s_viewMax r
+        False -> s_viewMax r <&> balanceR
         True  -> Just (v, l)
       where
         balanceR (v', r') = case a_balance $ AVLNode v l r' h of n' -> (v', n')

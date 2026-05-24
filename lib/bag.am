@@ -9,7 +9,7 @@
                 b_findWithDefault/m_findWithDefault b_elems/m_elems b_keys/m_keys b_keysSet/m_keysSet b_toList/m_toList
                 b_deleteKey/m_delete b_adjust/m_adjust b_alter/m_alter
 
-%import <maybe> (<$>?)/mb_fmap
+%import <maybe> (<&>)/mb_rfmap
 
 
 b_bag * == m_map * int
@@ -37,8 +37,8 @@ b_deleteTimes cmp k n b
                               EQ -> case nd > 0 of
                                       False -> Just $ a_moveR l r
                                       True  -> Just $ AVLNode (k, nd) l r h
-                              LT -> insL <$>? go l
-                              GT -> insR <$>? go r
+                              LT -> go l <&> insL
+                              GT -> go r <&> insR
                             where
                               nd = n' - n
               where
