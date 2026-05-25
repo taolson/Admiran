@@ -34,7 +34,6 @@ useBlackHole          = True    || detect attempts to re-evaluate an in-evaluati
 useStreamFusion       = False   || experimental; currently doesn't work; use stream functions explicitly in code, instead
 
 || verbose output configuration
-demandVerbose         = False   || report information during demand pass
 inlineVerbose         = False   || report information during inlining pass
 annoVerbose           = False   || display a detailed anno field when pretty-printing an AST
 noteLengthLimit       = 100
