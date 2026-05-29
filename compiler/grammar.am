@@ -218,20 +218,25 @@ reservedNames = s_fromList cmpstring ["if", "otherwise", "type", "where", "absty
 
 || common name operations
 
-isConstructor, isWildcard, isPrefix, isVar, isTvarSymbol, isSymbol :: name -> bool
-isConstructor n = isUpper c \/ c ==. ':' where c = hd $ getName n
-isVar n         = ~isConstructor n
-isWildcard n    = getName n ==$ "_"
-isPrefix n      = ((_eq cmpassoc AssocPrefix) . snd . opPrecAssoc) n
-isTvarSymbol n  = all (==. '*') (getName n)
+isConstructor, isTvarSymbol, isVar, isPrefix, isWildcard, isSymbol :: name -> bool
+isConstructor n = getName n |> safeHd |> fromMaybef False (\c -> c ==. ':' \/ isUpper c)
+isTvarSymbol  n = getName n |> all (==. '*')
+isVar         n = ~isConstructor n
+isPrefix      n = opPrecAssoc n |> snd |> _eq cmpassoc AssocPrefix
+
+isWildcard n
+    = getName n |> check
+      where
+        check ['_'] = True
+        check _     = False
 
 isSymbol n
-    = ~letter c &  c ~=. '_'
+    = getName n |> check
       where
-        s = getName n
-        c0 = s ! 0
-        c  = s ! 1, if c0 ==. '`'       || '`' used to mark internally-generated names; skip past it to get the real first char
-           = c0,    otherwise
+        check []         = False
+        check ('_' : cs) = False
+        check ('`' : cs) = check cs     || ignore prefix '`' which are used to mark names of inlined defns
+        check (c   : cs) = ~letter c
 
 
 || common expr operations
