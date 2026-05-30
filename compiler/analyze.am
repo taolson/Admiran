@@ -13,12 +13,10 @@
 
 %import <base>
 %import <bitSet>
-%import <either>
 %import <lens>
 %import <map>
 %import <maybe>                 (<|>)/mb_alt
 %import <maybe> qualified as mb (<&>)/mb_rfmap
-%import <set>
 %import <state>                 (>>=)/st_bind (<&>)/st_rfmap (<<)/st_left (>>)/st_right
 %import "ast"
 %import "exception"
