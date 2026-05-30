@@ -1,3 +1,14 @@
+--- Warning for unused import files ---
+Adding a warning for any unused import files would be fairly easily done in rename, by adding a list of potentially unused import file names
+to the dynamic env and deleting from this list the modName of a name resolved in renameRef.  However, there is a tricky case:
+a module may directly export an alias of one of its imported names (e.g. s_member in set gets exported as "s_member -> avl.a_member"),
+so the actual reference to module "set" isn't seen.  This becomes a problem if the only uses of an imported module are its renamed
+imports.
+
+A possibility is to recreate some of the work done in reifyImports to create a mapping from (UnQualified / Unresolved name) -> original modName,
+then do a lookup in this map as well to find it's original importing modName and remove that from the list of potentially unused ones.
+
+
 --- Stack and Tail-Call handling ---
 Rewrite Env handling for continuations: instead of temporarly pushing live vars to the stack, then popping them into the Env array
 at the beginning of a continuation, use the stack itself as the Env.  To minimize pushing/popping, keep all Stk vars up to the highest
@@ -14,7 +25,11 @@ Need to re-study BuildCodeAlts / BuildCodeAltsTally nbuildCodeAltsCont etc. to f
 3) Done: Add new SetEnv insn to set the Env ptr to the current SP plus the stackSize
 4) Done: Add an caseAlt bool to LexSt to qualify PopEnv insertion during generation of BuildCodeCall
 5) Done: In buildCodeAltsCont, replace (PopEnv #fns) with SetEnv (stack size value)
-4) Done: in buildCodeCall, add a PopEnv <stack size> before the call, if not inCaseScrutinee
+
+4) Prog: in buildCodeCall, add a PopEnv <stack size> before the call, if not inCaseScrutinee
+         Note: we can't just place it before the call, because later on an Update may be added to the beginning, which
+         will result in a push of the Update code before we adjust the stack to pop the old frame!
+  
 5) in inLexEnv, add a new stkname field for stack-bound free vars, and update the stkSize state based upon how many were added
 6) in codegen, add Stk to the cvtRef code (using the offset as a negative index from x86Env)
 7) in codegen, add new SetEnv insn
@@ -106,6 +121,12 @@ into those imported from other modules, and those defined in the current module.
 priority over name resolution and "shadow" any names from imports, so qualified names don't have to be used for local module versions.
 Ambiguous error reporting would still occur for unqualified names that aren't defined in the current module but have multiple definitions
 in imports.
+
+Another thing to look into is whether we can push resolving an Ecall of an Ambigous name to the typecheck stage, and use a form of
+unification to decide which actual defn to use (useful for things like "generic" >>=, comparisons, show, etc. where we can resolve the
+name at the call site.  This would give us simpler ad-hoc polymorphism.  However, if the compiler started using this, then we couldn't
+remove the typechecker pass when building the bootstrap compilers.
+
 
 steps:
 
@@ -353,6 +374,11 @@ rewrite: rewrite Eap tree from default left-associative to correct tree using fi
 
 
 --- More Inliner Optimizations (and debug) ---
+
+Instead of treating an Elet as just another ast in the general inlining, make it the outermost operation, where we perform a full
+inlining (multiple passes with full fuel) on each Defn in an Elet, then perform it on the Elet expr.  This allows individual defns
+to fully be inlined even if one or more of the others aren't.
+
 Ccurrently the analysis info (free vars, uses, complexity) is recomputed after each inlining pass for the function group being
 inlined.  This might be able to be changed to updating those vars during the inline pass, rather than re-performing the
 analysis each time.  Performace doesn't seem to bad right now, though.
@@ -519,7 +545,7 @@ annotating the AST with the type of each node, to allow detection of these cases
 
 --- Extending case .. of .. expressions ---
 Explicit case <expr> of <alt> expressions are implemented to support STG primitive alts, i.e.
-case (a# +# b#) of 0# -> ... 1# -> ... to allow stdlib to pack/unpack results for primitive comparison operations.  Should
+case (a# $cmp# b#) of 0# -> ... 1# -> ... to allow stdlib to pack/unpack results for primitive comparison operations.  Should
 the case exprs be extended to allow full Haskell case expressions (complex pats, literal pats, etc?)  If so, we need to
 add desugaring of explicit case expressions to use the match pattern compiler:
 
