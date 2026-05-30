@@ -8,7 +8,6 @@
 %import <maybe>
 %import "config"
 %import "exception"
-%import "grammar"
 %import "name"
 %import "pretty"
 %import "stg"

@@ -6,7 +6,6 @@
 %import <base>
 %import <either>
 %import <map>
-%import <maybe>
 %import <set>
 
 

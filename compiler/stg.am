@@ -8,12 +8,10 @@
         buildStg heapObjWords stringWords
 
 %import <base>
-%import <bitSet>
 %import <lens>
 %import <map>
 %import <maybe>
 %import <maybe> qualified as mb (>>=)/mb_bind
-%import <set>
 %import <state>                 (>>=)/st_bind (<$>)/st_fmap (<&>)/st_rfmap (<<)/st_left (>>)/st_right
 %import "analyze"
 %import "config"
@@ -773,7 +771,7 @@ buildCode (Ecase sel e alts an)
 buildCode (Tname f as)
     = st_pure [Ret (cvtArg 1) (cvtArg 2)], if _eq cmpname f builtinPackName
       where
-        cvtArg i = (as !? i) mb.>>= unPrimInt |> fromMaybe 0 |> makeImmOpr
+        cvtArg i = as !? i mb.>>= unPrimInt |> fromMaybe 0 |> makeImmOpr
 
 || handle polymorphic pseudo-function <sel>, by pushing a sel continuation with the index
 || NOTE: if the inliner is allowed to inline constructors, the <pack> will get inlined to
@@ -782,9 +780,9 @@ buildCode (Ecall (Tname f as) args)
     = st_liftA2 mkSel (st_view bdGenv) (buildCode e), if _eq cmpname f builtinSelName
     = buildCodeCall (Evar cn) args,                   otherwise
       where
-        e  = args !? 0 |> fromMaybe builtinFail
-        cn = as   !? 0 |> fromMaybe builtinFail |> tformName
-        i  = (as !? 1) mb.>>= unPrimInt |> fromMaybe 0
+        e  = safeHd args |> fromMaybe builtinFail
+        cn = safeHd as   |> fromMaybe builtinFail |> tformName
+        i  = as !? 1 mb.>>= unPrimInt |> fromMaybe 0
 
         mkSel genv eis
             = PushCont selPtr [makeImmOpr i] : eis

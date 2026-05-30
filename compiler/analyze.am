@@ -45,16 +45,17 @@ mergeUsesWith f ma mb
 
 || state passed through analyze:
 || dynamic state:
+|| Note:      the name keys in uses are lexically-managed, but the use-counts need to be cumulative within overall scopes, so "uses"
+||            must be dynamic state instead of automatically-managed lexical state
 || genv:      globalEnv
 || errs:      exceptions collected during traversal
 || uses:      useInfo for in-scope variable names, which will used to determine free variables and use counts of defns
+|| affine:    map from name to affine use bitSet for defn
 || cpx:       ast complexity
-|| Note:      the name keys in uses are lexically-managed, but the use-counts need to be cumulative within overall scopes, so "uses"
-||            must be dynamic state instead of automatically-managed lexical state
+||
 || lexically-scoped state:
 || loc:       location info from enclosing definitions
 || defName:   defn name of enclosing defn (can't use top of loc name stack, since it ignores defn names beginning with "`")
-|| affine:    map from name to affine use bitSet for defn
 
 azDynSt   == (globalEnv, [exception], useInfoMap, affineMap, int)
 azLexSt   == (locInfo, maybe name)

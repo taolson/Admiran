@@ -4,11 +4,9 @@
 %export rewrite
 
 %import <base>
-%import <either>
 %import <lens>
 %import <map>
 %import <maybe>
-%import <set>
 %import <state>                 (>>=)/st_bind
 %import "ast"
 %import "config"

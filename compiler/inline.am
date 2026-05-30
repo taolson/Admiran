@@ -4,11 +4,9 @@
 %export inline streamSubst
 
 %import <base>
-%import <either>
 %import <lens>
 %import <map>
 %import <maybe>                 (>>=)/mb_bind (<&>)/mb_rfmap (<|>)/mb_alt
-%import <set>
 %import <state>
 %import <state> qualified as st (>>=)/st_bind
 %import "analyze"

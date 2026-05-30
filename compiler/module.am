@@ -9,7 +9,6 @@
 %import <map>
 %import <maybe>                 (<&>)/mb_rfmap
 %import <maybe> qualified as mb (>>=)/mb_bind
-%import <set>
 %import "config"
 %import "exception"             (>>=)/ex_bind
 %import "grammar"

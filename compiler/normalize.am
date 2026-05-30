@@ -8,14 +8,11 @@
 %export normalize
 
 %import <base>
-%import <bitSet>
 %import <lens>
 %import <map>
 %import <maybe>                 (<&>)/mb_rfmap (<|>)/mb_alt
-%import <set>
 %import <state>                 (>>=)/st_bind
 %import "ast"
-%import "config"
 %import "exception"
 %import "grammar"
 %import "module"

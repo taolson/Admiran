@@ -6,7 +6,6 @@
 %import <base>
 %import <bitSet>
 %import <map>
-%import <set>
 %import "config"
 %import "grammar"
 %import "name"

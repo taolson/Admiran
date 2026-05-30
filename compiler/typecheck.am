@@ -13,7 +13,6 @@
 %export typecheck
 
 %import <base>
-%import <either>
 %import <lens>
 %import <map>
 %import <maybe>
