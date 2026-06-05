@@ -131,7 +131,7 @@ lookupAffineInfo (Evar n)
         getInfo am genv
             = fromMaybe bs_empty check
               where
-                check = Nothing,        if isConstructor n
+                check = Nothing,        if isConstructor n      || ctors don't use any args, but escape all of them, so mark as all non-affine
                       = checkBuiltin,   if isBuiltin n
                       = checkAffineMap, otherwise
 
@@ -144,13 +144,11 @@ lookupAffineInfo (Evar n)
                     = bs_all (aty - 1), if ns ==$ "writeArray#" \/ ns ==$ "fillArray#"
                     = bs_all aty,       otherwise
 
-|| handle affineInfo for builtinPack and builtinSel
+|| handle affineInfo for builtinSel and builtinPack
 lookupAffineInfo (Tname n args)
-    = st_pure $ bs_all nargs,   if _eq cmpname n builtinPackName
-    = st_pure $ bs_singleton 0, otherwise
-      where
-        EprimInt nargs = args ! 2
-
+    = st_pure $ bs_singleton 0, if _eq cmpname n builtinSelName || builtinSel uses its source arg once
+    = st_pure $ bs_empty,       otherwise                       || builtinPack doesn't use any of its args, but is only used in ctors, which
+                                                                || escape all the args, so just mark as all non-affine
 lookupAffineInfo _ = st_pure bs_empty
 
 
