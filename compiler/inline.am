@@ -226,10 +226,11 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecall (Evar c) a
 || argument of a call, with the selector selecting a fn that gets passed the remaining arguments of the call
 || prime example is Lens (getf/overf) functions
 inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) (Evar n : args)) st
-    = k selArg              st', if useSel & inlinable & null args
-    = (selArg, st'), if useSel & inlinable & null args
-    = (Ecall selArg args, st'), if useSel & inlinable
+    = classify args, if useSel & inlinable
       where
+        classify []   = k selArg st'
+        classify _    = k (Ecall selArg args) st'
+
         inlinable     = isJust md & isDefPat d & isJust margs'
         note          = "inlined builtinSel on " ++ showName n
         st'           = st |> set inSimplified True |> addInfo note
