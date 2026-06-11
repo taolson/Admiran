@@ -191,8 +191,8 @@ v_sortBy cmp v
 || binary search a sorted vector for a matching entry, based upon the result of the cmp fn
 || return the matching value and its index or Nothing
 || uses a search on the open interval [lo .. hi), which is inclusive of lo but exclusive of hi
-v_search :: (* -> ordering) -> vector * -> maybe (int, *)
-v_search cmp v
+v_search :: (* -> * -> ordering) -> vector * -> * -> maybe (int, *)
+v_search cmp v tgt
     = go 0 $ v_length v
       where
         go lo hi
@@ -201,7 +201,7 @@ v_search cmp v
               where
                 mid   = lo + (hi - lo) $quot 2
                 vm    = v !! mid
-                check = case cmp vm of
+                check = case cmp vm tgt of
                           EQ -> Just (mid, vm)
                           LT -> go (mid + 1) hi
                           GT -> go lo mid
@@ -356,7 +356,7 @@ runSTVector f v
 stRef * == mvector *
 
 newSTRef :: * -> st (stRef *)
-newSTRef = v_singleton .> v_unsafeThaw .> st_pure
+newSTRef x = v_singleton x |> v_unsafeThaw |> st_pure
 
 readSTRef :: stRef * -> st *
 readSTRef a = v_unsafeRead a 0
