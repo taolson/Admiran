@@ -437,8 +437,11 @@ p_patFormal :: parser pat
 p_patFormal = p_formal >>= makePat
 
 p_patOrFnForm :: parser (either pat fnform)
-p_patOrFnForm = p_patExpr >>= makePatFn []
-
+p_patOrFnForm
+    = p_patExpr >>= makePatFn [] >>= check
+      where
+        check (Left p) = p_patErr, if isPlit p \/ isPwildcard p
+        check x        = p_pure x
 
 || Admiran type expression parsing
 
