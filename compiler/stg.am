@@ -422,8 +422,8 @@ buildCodeAlt (CaseAlt (Pvar n) e an)
         matchVar _ _         = False
 
         doAlt inBuiltin
-            = inAltEnv [] (buildCode e),   if inBuiltin || the Pvar n has already been bound to an allocated register for builtins
-            = allocReg >>= createAlt, otherwise
+            = inAltEnv [] (buildCode e), if inBuiltin || the Pvar n has already been bound to an allocated register for builtins
+            = allocReg >>= createAlt,    otherwise
               where
                 createAlt reg
                   = inAltEnv [] (st_over bdLenv (m_insert cmpname n (Ref reg)) >> buildCode e) <&> addClosure
@@ -456,7 +456,7 @@ buildCodeAltsTally alts
                                 doMax rc fc (bbs, mrc, mfc) = st_pure (ins : bbs, max2 cmpint mrc rc, max2 cmpint mfc fc)
 
                 setMax (bbs, mrc, mfc)
-                    = st_set bdRegGen mrc >> st_set bdFrmGen mfc >> st_pure bbs
+                    = st_set bdRegGen brc >> st_set bdFrmGen bfc >> st_pure bbs
 
 || convert a list of CaseAlts to the stgInsns to match against them,
 || based upon the caseSel of the Ecase and the tag opr, and return the code

@@ -4,7 +4,7 @@
 %export +
 
 %import <base>
-%import <either>
+%import <either>        (>>=)/e_bind (<&>)/e_rfmap
 %import <lens>
 %import <maybe>         (<|>)/mb_alt
 %import "grammar"
@@ -180,11 +180,7 @@ isNote e = _eq cmpexceptionType Note $ view excptType e
 
 || monad interface
 ex_bind :: excpt * -> (* -> excpt **) -> excpt **
-ex_bind e f
-    = e |> eitherf (|> Left) bind
-      where
-        bind (x, warns) = f x |> eitherf (|> Left) (mapSnd (warns ++) .> Right)
-
+ex_bind e f = e >>= \(x, warns) -> f x <&> mapSnd (warns ++)
 
 ex_pure :: * -> excpt *
 ex_pure x = Right (x, [])

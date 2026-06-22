@@ -87,8 +87,12 @@ rewriteAst k (Ecase s e alts an) st
     = (k (Ecase s e alts an) >>= mkSel) st, if useSel
       where
         mkSel (Ecase s e [CaseAlt (Pctor c vars) (Evar n) _] an) st
-            = (Ecall (builtinSel c idx) [e], st), if isJust midx
+            = (Ecall (builtinSel c idx) [e], st), if isJust maty & aty == #vars & isJust midx
               where
+                genv = view rwGenv st
+                maty = lookupArity genv c
+                aty  = fromJust maty
+
                 midx = elemIndex matchVar vars
                 idx  = fromJust midx
 

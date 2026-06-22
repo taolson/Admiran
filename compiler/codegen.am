@@ -1043,12 +1043,12 @@ genInsn (ReadStream d s)
 || write a byte to the Hstream s
 || return 0 if the byte was succesfully written, -1 otherwise
 genInsn (WriteStream d s c)
-    = genMove      d (Imm (Word (-1)))                  .       || move default buffer full indication to destination
-      movs                                              .       || ensure stream value (heaptr) is in a register
+    = movs                                              .       || ensure stream value (heaptr) is in a register
       genOpcode    "movzwq" [addX86Offset 3 xs, lim]    .       || extract limit field from tag
       genOpcode    "movzwq" [addX86Offset 1 xs, creg]   .       || extract buffer qwords field from tag
       genOpcode    "shlq"   [X86Imm 3, creg]            .       || convert buffer size to bytes
       genOpcode    "cmpq"   [creg, lim]                 .       || compare current limit to buffer size
+      genMove      d (Imm (Word (-1)))                  .       || move default buffer full indication to destination
       genJmpOpcode "jae"    (cvtJmpAddr "1f")           .       || jump if lim >= buffer size
       genOpcode    "movq"   [cvtOpr c, creg]            .       || move char value to creg to allow lsb aliasing
       genOpcode    "sarq"   [creg]                      .       || remove value tag
