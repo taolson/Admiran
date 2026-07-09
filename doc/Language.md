@@ -211,7 +211,7 @@ definitions for the corresponding operators, and is replicated here:
 | <$>  |      |         | generic functor fmap                    |
 | <&>  |      |         | generic functor reverse fmap            |
 | <*>  |      |         | generic applicative apply               |
-| \/   |  2   | Right   | boolean OR                              |
+| \\/  |  2   | Right   | boolean OR                              |
 | &    |  3   | Right   | boolean AND                             |
 | ~    |  4   | Prefix  | boolean NOT                             |
 | ==   |  5   | Compare | comparisons for int type                |
