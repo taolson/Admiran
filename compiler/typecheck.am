@@ -382,10 +382,11 @@ infer (Ecase _ e alts an)
     = mst_bind2 newTvar (inferList (e : alts)) f1
       where
         f1 tv ((t : ts), sm)
-            = mst_foldM unifyPairWord sm ts >>= f2 tv, if isTypePairWord t      || special case restriction for builtins returning a pair of words
-            = mst_foldM unifyAlt      sm ts >>= f2 tv, otherwise                || unify type of all alts to common type te -> *
+            = mst_foldM unifyPairWord sm ts >>= f2 tv <|> err, if isTypePairWord t      || special case restriction for builtins returning a pair of words
+            = mst_foldM unifyAlt      sm ts >>= f2 tv <|> err, otherwise                || unify type of all alts to common type te -> *
               where
-                t2t'        = t $Tarr tv
+                t2t'          = t $Tarr tv
+                err           = Info "case alternate types don't match" |> tc_errorNote
                 unifyAlt sm t = unify t t2t' sm
 
                 || caseAlts restricted to pair constructor patterns
@@ -439,9 +440,10 @@ infer (Efatbar p e1 e2)
     = mst_bind2 newTvar (inferList [e1, e2]) f1
       where
         f1 tv (ts, sm)
-            = mst_foldM unify' sm ts >>= f2 tv  || unify types of e1 and e2 to a common type *
+            = mst_foldM unify' sm ts >>= f2 tv <|> err  || unify types of e1 and e2 to a common type *
               where
                 unify' sm t = unify t tv sm
+                err         = Info "function types don't match in function with multiple definitions" |> tc_errorNote
 
         f2 tv sm = mst_pure (t_subst sm tv, sm)
 
