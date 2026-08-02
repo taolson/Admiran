@@ -445,11 +445,16 @@ simplifyAst k (Elet b defs ps e) st
 
          f _ _ = unreachable
 
-|| simplify case exprs that don't return
-simplifyAst k (Ecase b e alts an) st
-    = k e st', if noReturn e st
+|| float a let outside of a case scrutinee
+|| since the case evaluation is strict, the Elet bindings will always be evaluated, and this
+|| exposes opportunities to match case evaluation of a constant or simple expr
+simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts an) st
+    = k (Elet b2 defs ps (Ecase b1 e alts an')) st'
       where
-        st' = st |> set inSimplified True |> addInfo "simplified no-return scrutinee"
+        cpx  = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without e
+        an'  = over annoCpx (subtract cpx) an               || remove Elet cpx from scrutinee
+        note = "float let out of case scrutinee"
+        st'  = st |> set inSimplified True |> addInfo note
 
 || simplify operations on builtin functions with literal operands
 || note that this pattern match uses the more complex (Ecase (Ecall ..) [CaseAlt ..]) pattern, rather than
@@ -560,6 +565,7 @@ simplifyAst k (Ecase b e alts an) st
         deltaCpx   = cpx - cpxa
 
         note = "simplified constant ctor scrutinee " ++ showAst e
+
         st'  = st |> set inSimplified True |> over inFuel (+ deltaCpx) |> addInfo note
 
         extrCtorArgs (Evar c)              = Just (c, []),   if isConstructor c
@@ -597,17 +603,6 @@ simplifyAst k (Ecase b e alts an) st
                 matchAlt (CaseAlt Pwildcard e an)            k = Just (e, view annoCpx an - 2)
                 matchAlt (CaseAlt (Pvar v) e an)             k = Just (createBinding loc e [Pvar v] [EprimInt n], view annoCpx an - 2)
                 matchAlt a                                   k = k
-
-|| float a let outside of a case scrutinee
-|| since the case evaluation is strict, the Elet bindings will always be evaluated, and this
-|| exposes opportunities to match case evaluation of a constant or simple expr
-simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts an) st
-    = k (Elet b2 defs ps (Ecase b1 e alts an')) st'
-      where
-        cpx  = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without e
-        an'  = over annoCpx (subtract cpx) an               || remove Elet cpx from scrutinee
-        note = "float let out of case scrutinee"
-        st'  = st |> set inSimplified True |> addInfo note
 
 || this is needed when a partially-applied Ecall gets inlined
 simplifyAst k (Ecall (Ecall f args2) args1) st
