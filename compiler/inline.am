@@ -563,10 +563,8 @@ simplifyAst k (Ecase b e alts an) st
         cpx        = view annoCpx an
         (e', cpxa) = fromJust ma
         deltaCpx   = cpx - cpxa
-
-        note = "simplified constant ctor scrutinee " ++ showAst e
-
-        st'  = st |> set inSimplified True |> over inFuel (+ deltaCpx) |> addInfo note
+        note       = "simplified constant ctor scrutinee " ++ showAst e
+        st'        = st |> set inSimplified True |> over inFuel (+ deltaCpx) |> addInfo note
 
         extrCtorArgs (Evar c)              = Just (c, []),   if isConstructor c
         extrCtorArgs (Ecall (Evar c) args) = Just (c, args), if isConstructor c
