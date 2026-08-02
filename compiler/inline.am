@@ -189,7 +189,7 @@ isSimple :: expr -> bool
 isSimple (Ecall (Evar c) args) = isConstructor c & all isSimpleExpr args
 isSimple e                     = isSimpleExpr e
 
-|| see if expr can return a value, or if it terminates
+|| see if expr can return a value or not
 || (used when rewriting nested case exprs, to prevent expansion of a non-returning expr)
 noReturn :: expr -> inSt -> bool
 noReturn (Evar n) st
@@ -198,8 +198,9 @@ noReturn (Evar n) st
         checkThunk (DefPat _ e _) = noReturn e st
         checkThunk m              = False
 
-noReturn (Ecall e args) st = noReturn e st
-noReturn e              st = False
+noReturn (Ecall e _) st = noReturn e st
+noReturn (Efail _)   st = True
+noReturn e           st = False
 
 
 inlineAst :: astRewriteTraverser inSt
@@ -505,9 +506,8 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
         checkShr _            _            = defl
 
 || swap order of an Ecase where the scrutinee is also an Ecase
-|| note: this duplicates alts1 #alts2 times. Since we are duplicating alts1, and there
-|| is a chance that we might float a let defined in one outside of it, we could run into
-|| name collision problems.  To solve this, we rename each duplicate.
+|| note: this duplicates alts1 #alts2 times, although that will likely be mitigated by a
+|| subsequent simplification of constant case scrutinees.
 simplifyAst k (Ecase b1 (Ecase b2 tst alts2 an2) alts1 an1) st
     = k (Ecase b2 tst alts2' an2') st2, if #alts1 * #alts2 <= inlineMaxCaseDup
       where
@@ -521,19 +521,36 @@ simplifyAst k (Ecase b1 (Ecase b2 tst alts2 an2) alts1 an1) st
         note          = "swapped order of case (case)"
         st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
-        || push a duplicate of alts1 into an alt2
+        || push alts1 into an alt2
         pushAlt (CaseAlt p e an) st
-            = (CaseAlt p e an, st),                    if noReturn e st     || e doesn't return, so don't replace it
-            = (CaseAlt p e' an', set inGenv genv' st), otherwise
+            = (CaseAlt p e  an,  st), if noReturn e st  || e doesn't return, so don't replace it
+            = (CaseAlt p e' an', st), otherwise
               where
-                (e', genv') = renameExpr "" (Ecase b1 e alts1 an') (view inGenv st)
-                an'         = over annoCpx (+ cpx1') an
+                e'  = Ecase b1 e alts1 an'
+                an' = over annoCpx (+ cpx1') an
 
         pushAlt _ _ = unreachable
 
+|| swap order of an Ecase with an Efatbar scrutinee
+|| this is to expose more case (case) swap opportunities in e1 and e2, and to
+|| simplify continuation handling in STG
+simplifyAst k (Ecase b (Efatbar p e1 e2) alts an) st
+    = k (Efatbar p (insCase e1) (insCase e2)) st'
+      where
+        genv      = view inGenv st
+        cpx1      = view annoCpx an
+        cpx2      = analyzeExprCpx (Efatbar p e1 e2) genv
+        deltaFuel = cpx1 - cpx2
+        note      = "swapped order of case (fatbar)"
+        st'       = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
+
+        insCase e = Ecase b e alts an
+
+|| simplify an Ecase with a noReturn scrutinee by replacing it with the scrutinee
 || simplify an Ecase with a constant constructor scrutinee by replacing it with its corresponding caseAlt
 || this is the main simplification optimization which the others are trying to expose
 simplifyAst k (Ecase b e alts an) st
+    = k e  st,  if noReturn e st
     = k e' st', if isJust ma
       where
         loc        = view inLocation st |> fromMaybe emptyLocation
