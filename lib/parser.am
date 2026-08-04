@@ -64,7 +64,7 @@ p_optional pa ps
         Just a    = ra
 
 p_cons :: parser * -> parser [*] -> parser [*]
-p_cons = p_liftA2 (:)
+p_cons pa pb = p_liftA2 (:) pa pb
 
 p_some :: parser * -> parser [*]
 p_some p = p $p_cons p_many p
@@ -115,10 +115,10 @@ p_satisfy f
 
 || parser which matches a specific character
 p_char :: char -> parser char
-p_char c = p_satisfy equal where equal c' = c' ==. c            || written this way to remove a partially-applied comparison passed to satisfy
+p_char c = p_satisfy (c ==.)
 
 p_notChar :: char -> parser char
-p_notChar c = p_satisfy notEqual where notEqual c' = c' ~=. c   || written this way to remove a partially-applied comparison passed to satisfy
+p_notChar c = p_satisfy (c ~=.)
 
 p_digit :: parser char
 p_digit = p_satisfy digit

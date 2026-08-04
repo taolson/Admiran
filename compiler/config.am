@@ -29,7 +29,7 @@ cCompilerName         = "cc"
 
 || enable/disable features
 useInlining           = True    || inline functions and single-use values
-useSel                = True    || use builtinSel to select fields from a data defn or tuple, instead of deconstructing it
+useSel                = False   || doesn't work with new closure coalescing; disable for now
 useBlackHole          = True    || detect attempts to re-evaluate an in-evaluation thunk at runtime (infinite loop)
 useStreamFusion       = False   || experimental; currently doesn't work; use stream functions explicitly in code, instead
 

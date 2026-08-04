@@ -62,8 +62,15 @@ st_kbind f g = \x -> f x $st_bind g
 st_mapM :: (** -> state * ***) -> [**] -> state * [***]
 st_mapM f xs = foldr (f .> st_liftA2 (:)) (st_pure []) xs
 
+|| since st_mapM_ runs the function f for its effect only, and can be used on
+|| very large ranges for the list, it is better to write and explicit loop with
+|| a tail call, rather than a foldr with state operations
 st_mapM_ :: (** -> state * ***) -> [**] -> state * ()
-st_mapM_ f xs = foldr (f .> st_right) (st_pure ()) xs
+st_mapM_ f xs
+    = go xs
+      where
+        go []       s = ((), s)
+        go (x : xs) s = case f x of m -> case m s of (_, s') -> go xs s'
 
 st_forM :: [**] -> (** -> state * ***) -> state * ()
 st_forM xs f = st_mapM_ f xs

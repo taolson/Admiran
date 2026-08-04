@@ -98,7 +98,7 @@ match (var : vars) eqns st
             = matchVar  var vars peqns,        if isPvar      firstPat
             = matchLit  var vars peqns,        if isPlit      firstPat
             = matchCtor var vars peqns,        if isPctor     firstPat
-            = error "match: unknown eqnGroup", otherwise
+            = unreachable,                     otherwise
               where
                 peqns    = map extractFirstPat eqns
                 pats     = map fst peqns
@@ -114,7 +114,7 @@ match (var : vars) eqns st
                 p2  = hd ps2
 
         extractFirstPat ((p : ps), e, m) = (p, (ps, e, m))
-        extractFirstPat _                = error "match: extractFirstPat empty patterns"
+        extractFirstPat _                = unreachable
 
 || match a group of variables (irrefutable)
 || rename the peqn Pvar name to the common var, or report a name clash error
@@ -297,7 +297,7 @@ desugarAst k (ElistComp e quals an) st
         dsQuals ((Qgen ps  ge) : qs)    c st = dsQuals qs |> dsGenMult   ge ps   c st
         dsQuals ((Qrecur p be fe) : qs) c st = dsQuals qs |> dsGenRecur  be fe p c st
         dsQuals ((Qguard tst)  : qs)    c st = dsQuals qs |> dsGenGuard  tst     c st
-        dsQuals _                       _ _  = error "dsQuals: non-qualifier"
+        dsQuals _                       _ _  = unreachable
 
         || desugar a guard generator e.g. x > 10;
         dsGenGuard tst c st nextQual

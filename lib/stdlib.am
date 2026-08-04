@@ -403,7 +403,7 @@ intval xs
     = go 0 xs
       where
         code0         = code '0'
-        go n (x : xs) = go (n * 10 + code x - code0) xs, if '0' <=. x <=. '9'
+        go n (x : xs) = go (n * 10 + code x - code0) xs, if digit x
         go n xs       = n
 
 

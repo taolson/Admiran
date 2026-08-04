@@ -287,8 +287,9 @@ cvtReg n
 
 || convert an stgInsn reference to an x86Opr
 cvtRef :: ref -> x86Opr
-cvtRef (Env, n) = addX86Offset (n * 8 + 15) x86Env   || x86Env holds tagged closure base; adjust to remove tag bit and point to env field
-cvtRef (Frm, n) = addX86Offset (n * 8 - 1)  x86Frm   || x86Frm holds tagged Frame base; untag frm base pointer
+cvtRef (Stk, n) = addX86Offset (n * -8)     x86Env      || x86Env holds untagged top of stack continuation frame, with stack growing down
+cvtRef (Env, n) = addX86Offset (n * 8 + 15) x86Env      || x86Env holds tagged closure base; adjust to remove tag bit and point to env field
+cvtRef (Frm, n) = addX86Offset (n * 8 - 1)  x86Frm      || x86Frm holds tagged Frame base; untag frm base pointer
 cvtRef (Arg, n) = cvtArg n
 cvtRef (Reg, n) = cvtReg n
 
@@ -535,7 +536,7 @@ genApplyToEnvs
 
         genAppToEnv n
             = shows ("\nApplyToEnv" ++ showint n ++ ":\n") .
-              foldr (.) id (map doPop [0 .. n - 1])        .    || pop env on stack into Args registers
+              foldr (.) id (map doPop [n - 1, n - 2 .. 0]) .    || pop env on stack (reverse order due to Stk growing down) into Args registers
               genInsn (Apply r0Opr env)
               where
                 env     = map (Ref . pair Arg) [0 .. n - 1]
@@ -650,7 +651,7 @@ genInsn (Apply fopr args)
 || the generic ApplyToEnv is replaced by the individual ApplyToEnv routines, and is not directly called
 genInsn ApplyToEnv = id
 
-|| enter the Hfbalt closure pointed to by fopr, unwinding the stack to the saved sp
+|| enter the Hfbalt closure pointed to by fopr, restoring the stack, env, and frame pointers to their captured values
 genInsn (Fail fopr)
     = genMove r2Ref fopr                                       .        || copy fopr into x86Env
       genOpcode    "movzwq" [addX86Offset 1 x86Env, x86Tmp0]   .        || extract the env size field and use it to index into the env
@@ -719,26 +720,22 @@ genInsn (PushCont cp env)
 
         genPushCont ptr env
             = genAllocStk (#env)                        .       || allocate stack space for the env
-              genMoveToMem      x86SP env               .       || move env oprs to stack
+              genMoveToMem      x86SP (reverse env)     .       || move env oprs to stack (stack continuations grow down)
               genOpcode "leaq"  [ptr, x86MovTmp]        .       || push continuation codePtr to return to
               genOpcode "pushq" [x86MovTmp]
 
         genAllocStk 0 = id                                      || no insn required for 0 env args
         genAllocStk n = genOpcode "subq" [X86Imm (n * 8), x86SP]
 
-|| pop a saved context environment from the stack and put in the global Env space
-|| this is to solve the problem of having an active environment on the stack while
-|| needing to push a new continuation environment, and requiring that tail calls
-|| not actually grow the stack
-genInsn (PopEnv 0) = id                                         || nothing required for a null closure env
-genInsn (PopEnv n)
-    = err,                                            if n >= codegenMaxEnv
-    = foldr (.) id (map doPop [2 .. n + 1]) .                   || leaves 2 slots at beginning of Env to emulate a heap closure tag and codePtr
-      genOpcode "leaq" [addX86Offset 1 genv, x86Env], otherwise || set the x86Env to the global Env area
-      where
-        genv    = cvtCMemAddr "Env"
-        doPop n = genOpcode "popq" [addX86Offset (n * 8) genv]
-        err     = error $ "Env " ++ showint n ++ " exceeds limit -- increase codegenMaxEnv?"
+|| pop a saved context environment from the stack
+genInsn (PopCont n) = genOpcode "addq" [X86Imm (n * 8), x86SP]
+
+|| set x86Env base register to top of stack closure
+|| x86XP points to last value in stack closure, and base register points to
+|| first value, so use (n - 1) * 8 as the offset
+genInsn (SetEnv n)
+    = id,                                                          if n == 0
+    = genOpcode "leaq" [addX86Offset ((n - 1) * 8) x86SP, x86Env], otherwise
 
 genInsn (AllocFrame n)
     = genAlloc x86Frm n         .
@@ -765,15 +762,15 @@ genInsn (Tclosure d cp env)
              = env,            otherwise
         tag  = genThunkTag (#zenv)
 
-|| generate a fatbar alternate closure, capturing the current stack pointer value
+|| generate a fatbar alternate closure, capturing the current stack, env, and frame pointers.
 || if the destination is a Reg ref, then allocate space for the closure
 || if the destination is a Frm ref, then space has already been allocated
-genInsn (Sclosure d cp env)
+genInsn (Aclosure d cp sg env)
     = mbAlloc          d (#env + 3)                          .  || +3 = slot for tag, slot for codePtr, slot for stackPtr value
       genOpcode "movq" [X86Imm tag, addX86Offset 0 xd]       .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
       genMoveToMem     (addX86Offset 16 xd) env              .  || copy env to closure env
-      genOpcode "movq" [x86SP, addX86Offset spLoc xd]        .  || save current SP after env
+      genSaveSP                                              .
       mbTag            d                                        || tag destination as heapPtr, if we performed an alloc
       where
         xd    = cvtRef d
@@ -786,6 +783,13 @@ genInsn (Sclosure d cp env)
 
         mbTag (Frm, _) = id
         mbTag _        = genOpcode "incq" [xd]
+
+        || save the (possibly PopCont-adjusted) SP at the end of the env
+        genSaveSP
+            = genOpcode "movq" [x86SP, addX86Offset spLoc xd],     if sg == 0
+            = genOpcode "movq" [x86SP, x86MovTmp]           .
+              genOpcode "addq" [X86Imm (sg * 8), x86MovTmp] .
+              genOpcode "movq" [x86MovTmp, addX86Offset spLoc xd], otherwise
 
 || generate a thunk closure for a saturated constructor value, capturing its tag and args
 || The tag and arg arity are not known at compile time, so the constructor puts the
@@ -1043,12 +1047,12 @@ genInsn (ReadStream d s)
 || write a byte to the Hstream s
 || return 0 if the byte was succesfully written, -1 otherwise
 genInsn (WriteStream d s c)
-    = movs                                              .       || ensure stream value (heaptr) is in a register
+    = genMove      d (Imm (Word (-1)))                  .       || move default buffer full indication to destination
+      movs                                              .       || ensure stream value (heaptr) is in a register
       genOpcode    "movzwq" [addX86Offset 3 xs, lim]    .       || extract limit field from tag
       genOpcode    "movzwq" [addX86Offset 1 xs, creg]   .       || extract buffer qwords field from tag
       genOpcode    "shlq"   [X86Imm 3, creg]            .       || convert buffer size to bytes
       genOpcode    "cmpq"   [creg, lim]                 .       || compare current limit to buffer size
-      genMove      d (Imm (Word (-1)))                  .       || move default buffer full indication to destination
       genJmpOpcode "jae"    (cvtJmpAddr "1f")           .       || jump if lim >= buffer size
       genOpcode    "movq"   [cvtOpr c, creg]            .       || move char value to creg to allow lsb aliasing
       genOpcode    "sarq"   [creg]                      .       || remove value tag
