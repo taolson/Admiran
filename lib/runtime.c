@@ -26,7 +26,6 @@
 // NOTE: must match the corresponding values in the config.m file in the compiler
 #define maxArgs 16
 #define maxRegs 16
-#define maxEnv  20
 
 uint64_t gcInitMem = 0x000c0000;  // initial memory size, in words (0xc0000 = 6MB, sized to fit L3 cache)
 uint64_t gcMaxMem  = 0x20000000;  // maximum size, in words, to grow allocated memory (0x20000000 = 4GB)
@@ -118,7 +117,6 @@ extern void *GlobalTop;          // marker for the top of the global heap area
 // it solves the problem of needing to create a new continuation environment on the stack while in a continuation
 value Arg[maxArgs];     // note: must match configuration size in codegen.m
 value Reg[maxRegs];     // note: must match configuration size in codegen.m
-value Env[maxEnv+2];    // +2 to reserve two slots at beginning of Env to emulate the tagword and codePtr of a heap closure
 value *Frm;             // save area for FrmReg
 value FrmSize;          // save area for frame size value (set when a new frame is allocated, for use by GC to ensure frame is contiguous)
 value *Stk;             // save area for Admiran stack pointer
@@ -530,12 +528,6 @@ void gcTraceRoots ()
   heapRelocateBlock (Reg, Reg + maxRegs);       // should revise to trace only live Regs (R0, R1, R2 always considered live?)
 
 #if GC_DEBUG > 2
-  printf ("relocate Env\n");
-#endif
-  gcRootInfo = "Env";
-  heapRelocateBlock (Env+2, Env + maxEnv+2);    // should revise to trace only live Envs (Env 0, 1 are dummy space to match heapClosure format)
-
-#if GC_DEBUG > 2
   printf ("relocate Stk\n");
 #endif
   gcRootInfo = "Stk";
@@ -761,8 +753,8 @@ void pushApplyToEnv (word arity, word nargs)
 
   Stk -= extra + 1;                     // allocate space on stack for closure env and codePtr
   Stk[0] = ApplyToEnvFns[extra];        // closure codePtr is the appropriate ApplyToEnvFns for extra number of args
-  for (int i = 0; i < extra; ++i) {     // save the extra args in the stack closure env
-    Stk[i + 1] = Arg[arity + i];
+  for (int i = 1; i <= extra; ++i) {    // save the extra args in the stack closure env
+    Stk[i] = Arg[nargs - i];            // save in reverse order, since stack grows down
   }
 }
 
