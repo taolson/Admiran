@@ -22,10 +22,11 @@ repr == (int, string)
 || fizzBuzz takes a list of reprs to use, then generates an infinite stream of
 || result strings
 fizzBuzz :: [repr] -> [string]
-fizzBuzz = map generate .> transpose .> map concat .> enumerate .> map default
-           where
-             generate (n, s) = cycle $ s : rep (n - 1) []
-             default  (i, s) = if' (null s) (showint i) s
+fizzBuzz rs
+    = map generate rs |> transpose |> map concat |> enumerate |> map default
+      where
+        generate (n, s) = s : rep (n - 1) [] |> cycle
+        default  (i, s) = if' (null s) (showint i) s
 
 main :: io ()
 main = fizzBuzz [(3, "Fizz"), (5, "Buzz"), (7, "Baz")] |> take 106 |> io_mapM_ putStrLn
