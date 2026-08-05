@@ -175,3 +175,5 @@ the inlined and optimized modules.
 To learn more about how functional languages are implemented.  To have a fun project to work on that can provide
 a nearly endless list of ToDos (see doc/TODO!).  To have a fun language to write Advent Of Code solutions in.  Maybe
 it can be useful for someone else interested in these things.
+
+Lovingly hand-crafted with no AI.
