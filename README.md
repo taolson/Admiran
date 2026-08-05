@@ -36,92 +36,92 @@ by typing `amc` *module name* e.g. `amc fib`
 Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
 all other required modules will be built as required.
 
-## System Requirements
+## Language Features
 
-Admiran currently only runs on x86-64 based MacOS or Linux systems (or under Rosetta 2 on Apple silicon).
-The only external dependency is a C compiler for assembling the generated asm files and linking them with
-the C runtime library. This is automatically done when compiling an Admiran source file.
+Admiran is an "extended subset" of Miranda, an ML-like language,
+and has all its basic features:
 
-## Features
+* Call-By-Value (Lazy) evaluation by default
+* Strongly-typed with parametric polymorphism
+* Curried, higher-order functions
+* Algebraic Data Types
+* Abstract types
+* Type synonyms
+* List comprehensions and infinite lists
+* Tuples
+* Pattern matching, including nested complex patterns
+* Guarded equations
+* Layout-sensitive syntax
+* Nested function closures
+* Modules for controlling name spaces and visibility
 
-* Compiler can compile itself (self hosting)
-  - ~6700 SLOC for compiler
-  - ~3300 SLOC for library
-* Compiles to x86-64 assembly language
-* Runs under MacOS or Linux
-* Whole program compilation with inter-module inlining and optimizations
-  - compile-time evaluation of builtin functions and case selection for known constant operands
-  - dead-code elimination, including tree-shaking to remove unused functions
-  - let floating and case expression floating
-
-* Hindley-Milner type inference and checking
-* Library of useful functional polymorphic data structures, including
-  - lists and tuples (built-in)
-  - map, set, and bag, based upon AVL balanced-binary trees
-  - mutable and immutable vectors
-  - functor / applicative / monad implementations for maybe, either, state, and io
-  - lens for accessing nested structures
-  - parser combinators
-  - streams (streaming interface that supports stream fusion)
-  - double-ended queue based upon finger trees
-  - heap (priority queue)
-  - 2D and 3D vectors with associated math operations, folds, maps, etc.
-  - zipper to provide a cursor position within a list
-
-* Small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
-* 20x to 50x faster than the original Miranda compiler/combinator interpreter
-
-### Miranda language features removed from Admiran
-
-Admiran is an "extended subset" of Miranda, and does not (currently) implement every feature
-in the original Miranda language:
-* `num` type (combined floating-point or arbitrary-precision integers) replaced with 64-bit `int`
-* polymorphic show and comparison operators that work on any type replaced with manual show and
-  ord "typeclass" instances and distinct infix operators for comparing ints, chars, and strings
-* no `%free` directive for parameterized modules
-* "p + k" patterns or patterns with multiple uses of the same variable are not allowed
-
-### Admiran new language features not in Miranda
+In addition, Admiran has features found in other functional languages,
+like Haskell and F#:
 
 * Monadic IO scheme instead of sys_message streams
 * User-defined infix operators and infix constructors
-* Case expressions
+* Case expressions (strictly-evaluated in Admiran)
 * Lambda expressions
 * Wildcards in pattern matching
 * Names can be qualified with their module name
 * Module imports can be qualified only, or renamed
 * Unboxed ints, chars, and strings
 * Underscores allowed in integer literals
-* Automatically-derived instances of ord (comparison) and show instances for user-defined
+* Automatically-derived instances of ord (comparison) and show functions for user-defined
   data types and type aliases
 * Type "holes" to have the type checker report the type of a specified hole in a type spec
 
-### Differences from Haskell
+## Compiler Features
 
-Haskell's design was strongly influenced by Miranda, so Admiran has a lot of similarities
-with it. The main differences are:
-* No typeclasses (so no generic Show, Ord, Functor or Monad). Instead, instances
-  of a "typeclass" dictionary are passed explicitly to functions that require them.
-* No higher-kinded types, so generic functions that can operate on any functor, applicative,
-  or monad aren't possible. Instead, code which uses these kinds must be specialized on the
-  particular instance.
-* Admiran typenames are lower-case, and type variables are *, **, etc. instead of lower-case variables
-* Data and type definitions use a different syntax (::= and ==, respectively)
-* Admiran allows only restricted simple patterns for case alternatives
-* Admiran conditional expressions `= <expr>, if <test>` vs Haskell guarded
-  expressions `| <test> = <expr>`
-    
-* Some layout and offside-rule differences
+The Admiran compiler is written in Admiran (self-hosting), and is very small
+for its functionality (26 modules, ~7000 SLOC), comprising the entire compiler
+pipeline from source tokenization through to x86-64 assembly-language code generation.
 
-## Distribution Subdirectories
+* Whole-program compilation
+* Parser written using parser-combinators
+* Desugaring to simplified core AST
+* Multiple analysis passes to analyze definition usage and complexity
+* Hindley-Milner type inference and checking
+* Multi-pass AST optimizer, including:
 
-* `bin/` executables are put here
-* `boot/` contains the asm source for the two pre-built bootstrap compilers (one for Linux, one for MacOS)
-* `doc/` project documentation (mostly incomplete, in-progress right now)  ToDo list
-* `compiler/` contains the Admiran source files for the amc compiler
-* `lib/` contains the sources for the various libraries, and the runtime.c file
-* `examples/` contains some example programs to show Admiran syntax and to try the compiler out
-* `tools/` contains some tools built with Admiran for use on Admiran files
+  - inter-module inlining
+  - compile-time evaluation of builtin functions and case selection for known constant operands
+  - let floating and case expression floating to expose more optimization opportunites
+  - dead-code elimination, including tree-shaking to remove unused functions
+
+* AST serialization / deserialization for modules
+* Spineless Tagless G-Machine (STG) IR
+
+  - Implements "Eval/Apply" model
+  - Lowers to virtual STG instruction set (register-based)
+  - Function call optimization for known functions or closures
+  - Tail call optimization
+  - Thunk update removal
+
+* code produced is 20x to 50x the performance of the original Miranda compiler/combinator interpreter
+
+## Library Features
+
+The Admiran library implements many useful functional polymorphic data structures,
+useful in both the compiler as well as user programs:
+
+  - Map, Set, and Bag, based upon AVL balanced-binary trees
+  - Mutable and immutable vectors
+  - Functor / Applicative / Monad implementations for maybe, either, state, and io
+  - Lenses for accessing nested structures
+  - Parser combinators
+  - Streams (streaming interface that supports stream fusion)
+  - Double-ended queue based upon finger trees
+  - Heap (priority queue)
+  - 2D and 3D vectors with associated math operations, folds, maps, etc.
+  - Zipper to provide a cursor position within a list
+  - Small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
+
+## System Requirements
+
+Admiran currently only runs on x86-64 based MacOS or Linux systems (or under Rosetta 2 on Apple silicon).
+The only external dependency is a C compiler for assembling the generated asm files and linking them with
+the C runtime library. This is automatically done when compiling an Admiran source file.
 
 ## Configuring and Bootstrapping Admiran
 
@@ -144,8 +144,7 @@ The script will bootstrap the compiler in 4 stages:
 3. re-compile with amcStage1 to create amcStage2.
 4. re-compile with amcStage2, to verify that the compiler is stable (produces the same asm file), and install in bin as amc
 
-When complete, it should report
-`=== amc compiler built successfully ===`
+When complete, it should report `=== amc compiler built successfully ===`
 and install as amc in the supplied bin directory.
 
 It is suggested that you add the bin directory to your PATH variable in your shell, to allow the amc compiler to be run from anywhere.
@@ -160,6 +159,16 @@ force a rebuild from the source file.
 
 The program `tools/dumpX2.am` can be used to pretty-print the contents of .x2 files and show the final result of
 the inlined and optimized modules.
+
+## Distribution Subdirectories
+
+* `bin/` executables are put here
+* `boot/` contains the asm source for the two pre-built bootstrap compilers (one for Linux, one for MacOS)
+* `doc/` project documentation (mostly incomplete, in-progress right now)  ToDo list
+* `compiler/` contains the Admiran source files for the amc compiler
+* `lib/` contains the sources for the various libraries, and the runtime.c file
+* `examples/` contains some example programs to show Admiran syntax and to try the compiler out
+* `tools/` contains some tools built with Admiran for use on Admiran files
 
 ## Why did I write this?
 
