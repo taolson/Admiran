@@ -73,9 +73,10 @@ like Haskell and F#:
 
 ## Compiler Features
 
-The Admiran compiler is written in Admiran (self-hosting), and is very small
-for its functionality (26 modules, ~7000 SLOC), comprising the entire compiler
-pipeline from source tokenization through to x86-64 assembly-language code generation.
+The Admiran compiler is written in Admiran (self-hosting). The goal is to implement the
+entire compiler pipeline, from source tokenization through to low-level asm code generation,
+while keeping the compiler small enough (currently ~7000 SLOC in 26 modules) to be easily
+understandable by someone studying it.
 
 * Whole-program compilation
 * Parser written using parser-combinators
@@ -115,7 +116,7 @@ useful in both the compiler as well as user programs:
   - Heap (priority queue)
   - 2D and 3D vectors with associated math operations, folds, maps, etc.
   - Zipper to provide a cursor position within a list
-  - Small C runtime (linked in with executable) that implements a 2-stage compacting garbage collector
+  - Small C runtime (linked in with executable) that implements a 2-generation compacting garbage collector
 
 ## System Requirements
 
@@ -164,7 +165,7 @@ the inlined and optimized modules.
 
 * `bin/` executables are put here
 * `boot/` contains the asm source for the two pre-built bootstrap compilers (one for Linux, one for MacOS)
-* `doc/` project documentation (mostly incomplete, in-progress right now)  ToDo list
+* `doc/` project documentation (language documentation complete, others in-progress)
 * `compiler/` contains the Admiran source files for the amc compiler
 * `lib/` contains the sources for the various libraries, and the runtime.c file
 * `examples/` contains some example programs to show Admiran syntax and to try the compiler out
@@ -173,7 +174,7 @@ the inlined and optimized modules.
 ## Why did I write this?
 
 To learn more about how functional languages are implemented.  To have a fun project to work on that can provide
-a nearly endless list of ToDos (see doc/TODO!).  To have a fun language to write Advent Of Code solutions in.  Maybe
+a nearly endless list of to-dos. To have a fun language to write Advent Of Code solutions in.  Maybe
 it can be useful for someone else interested in these things.
 
 Lovingly hand-crafted with no AI.
