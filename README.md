@@ -81,23 +81,24 @@ understandable by someone studying it.
 * Whole-program compilation
 * Parser written using parser-combinators
 * Desugaring to simplified core AST
-* Multiple analysis passes to analyze definition usage and complexity
+* Multiple analysis passes to analyze definition for free variables, usage, and complexity
 * Hindley-Milner type inference and checking
 * Multi-pass AST optimizer, including:
 
   - inter-module inlining
   - compile-time evaluation of builtin functions and case selection for known constant operands
   - let floating and case expression floating to expose more optimization opportunites
-  - dead-code elimination, including tree-shaking to remove unused functions
+  - dead-code elimination
 
 * AST serialization / deserialization for modules
 * Spineless Tagless G-Machine (STG) IR
 
   - Implements "Eval/Apply" model
   - Lowers to virtual STG instruction set (register-based)
-  - Function call optimization for known functions or closures
+  - Function call arity analysis and optimization for known functions or closures
   - Tail call optimization
   - Thunk update removal
+  - Reachability analysis to only include used definitions (tree-shaking)
 
 * code produced is 20x to 50x the performance of the original Miranda compiler/combinator interpreter
 
