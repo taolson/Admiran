@@ -29,10 +29,6 @@ codeObj  == (locInfo, [stgInsn])                || source fn name and loc info, 
 codePtr  == int                                 || index into the stgCode map
 stgCode  == (m_map codePtr codeObj, codePtr)    || code map, next unused codePtr value
 
-|| lenses for codeObj
-coLoc   = lensFst
-coInsns = lensSnd
-
 || a heap object consists of a heapInfo tag along with a list of free-variable environment values
 heapInfo ::=
     || these heapObjects can be applied directly if the arities match the #args
@@ -72,7 +68,7 @@ stackObj     == (codePtr, [value])
 continuation == stackObj         || type synonym for stackObj
 stgStack     == [continuation]
 
-|| values are either unboxed Words, codePtrs, or heap pointers
+|| values are either unboxed Words, codePtrs, or heapPtrs
 value ::= Word int | Caddr codePtr | Haddr heapPtr
 
 || a ref represents a variable holding a value, and is an index into a particular refSpace
@@ -843,7 +839,7 @@ buildCode (Ecase sel e alts an)
               where
                 mkCont fvs = PushCont cp fvs : eis
 
-|| Special case for the polymorphic psuedo-function <pack>, which is represented as a Tname.
+|| Handle the polymorphic psuedo-function <pack>, which is represented as a Tname.
 || While it is nominally packing together args for a constructor, most of the time we are just
 || dynamically returning to a case continuation, so <pack> just becomes a Ret with the constructor's
 || tag in r0 and it's arity in r1, and the existing constructor args already in place in the args

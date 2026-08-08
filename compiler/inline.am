@@ -514,7 +514,7 @@ simplifyAst k (Ecase sel (Ecall (Evar (Builtin fn)) [ea, eb]) [CaseAlt (Pvar v) 
 || note: this duplicates alts1 #alts2 times, although that will likely be mitigated by a
 || subsequent simplification of constant case scrutinees.
 simplifyAst k (Ecase b1 (Ecase b2 tst alts2 an2) alts1 an1) st
-    = k (Ecase b2 tst alts2' an2') st2, if #alts1 * #alts2 <= inlineMaxCaseDup
+    = k (Ecase b2 tst alts2' an2') st2
       where
         cpx1          = view annoCpx an1
         cpx2          = view annoCpx an2
