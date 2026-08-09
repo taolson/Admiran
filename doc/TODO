@@ -1,96 +1,3 @@
---- Warning for unused import files ---
-Adding a warning for any unused import files would be fairly easily done in rename, by adding a list of potentially unused import file names
-to the dynamic env and deleting from this list the modName of a name resolved in renameRef.  However, there is a tricky case:
-a module may directly export an alias of one of its imported names (e.g. s_member in set gets exported as "s_member -> avl.a_member"),
-so the actual reference to module "set" isn't seen.  This becomes a problem if the only uses of an imported module are its renamed
-imports.
-
-A possibility is to recreate some of the work done in reifyImports to create a mapping from (UnQualified / Unresolved name) -> original modName,
-then do a lookup in this map as well to find it's original importing modName and remove that from the list of potentially unused ones.
-
-
---- Stack and Tail-Call handling ---
-Rewrite Env handling for continuations: instead of temporarly pushing live vars to the stack, then popping them into the Env array
-at the beginning of a continuation, use the stack itself as the Env.  To minimize pushing/popping, keep all Stk vars up to the highest
-Stk var ref in the union of CaseAlt free vars when processing an Ecase, and add new Alt/Reg refs after that.  Only perform a PopEnv
-of the total stack amount just before the last insn of of a CaseAlt expr, as long as it isn't an Ecase expr that does a PushCont.
-
-Steps:
-
-Need to re-study BuildCodeAlts / BuildCodeAltsTally nbuildCodeAltsCont etc. to fully understand them again, and maybe simplify.
-
-
-1) Done: add a new Stk refSpace to signify that the var index is to be a negative offset from the Env ptr (stack grows down)
-2) Done: Add stackSize to the LexSt tuple to track the current continuation stack frame size
-3) Done: Add new SetEnv insn to set the Env ptr to the current SP plus the stackSize
-4) Done: Add an caseAlt bool to LexSt to qualify PopEnv insertion during generation of BuildCodeCall
-5) Done: In buildCodeAltsCont, replace (PopEnv #fns) with SetEnv (stack size value)
-
-4) Prog: in buildCodeCall, add a PopEnv <stack size> before the call, if not inCaseScrutinee
-         Note: we can't just place it before the call, because later on an Update may be added to the beginning, which
-         will result in a push of the Update code before we adjust the stack to pop the old frame!
-  
-5) in inLexEnv, add a new stkname field for stack-bound free vars, and update the stkSize state based upon how many were added
-6) in codegen, add Stk to the cvtRef code (using the offset as a negative index from x86Env)
-7) in codegen, add new SetEnv insn
-8) in codegen, change PopEnv to just add N*8 to the SP
-
-
---- memostring, memopair not memoizing in memoTrie ---
-some simple tests of memoization on strings or pairs of ints show that the memoization isn't
-happening -- need to track down root cause.  Doesn't appear to be due to recent noUpdate optimization
-in stg, as commenting that out still is failing.
-
-*** The problem isn't in the memoTrie code; it happens when code that uses MemoTrie creates a thunk from memo
-and that thunk is used multiple times in other code, and is inlined.  The problem is in inlining (Ecall (Evar n) args),
-where n is a DefPat that returns a function, rather than a function, and there is no check for Umany.  However, if we
-try to qualify that with not inlining DefPats that are Umany, then code size and runtime blows up on a lot of tests.
-Need to find a way to allow most of those cases to be inlined without causing memoization problems.
-
-*** looking at a simple test case, where we create a memoized function "foo", then use it to map over a list, we expect the
-single memoized function to be used over and over, but instead we:
-    1) inline "map foo" to \xs -> go ... go (x : xs) = foo x, so foo is now used in a loop
-    2) inline "foo" to memopair ..., so a new foo function is created each time
-
---- Default of Umany in inline:wrapInLet causes a few performance regressions ---
-2015
-   16          0.005          0.007  (+40.1%) -- inlining on day16.day16 was dropped
-   18          2.549          4.403  (+72.7%) -- inlining on getLight was dropped due to maxComplexity (Umany as default for WrapInLet)
-2017
-   15          5.969          7.511  (+25.8%) -- inlining on day15.day15 was dropped
-2024
-    6          0.465          0.628  (+35.1%) -- ""
-
-Currently Umany is used, as it is the safe default, but we could pass the defn's anAffine bitSet into createBinding and
-wrapInLet, and if the var's corresponding usedAffine bit is set, we can set initial use to Uone instead of Umany.
-
-
---- STG ---
-It looks like the stack pointer handling in Sclosure and Fail isn't required; the stack always is in the same position during calls
-to Fail as it was during the Sclosure.  Might be able to be replaced with an easier mechanism; need to check against the join-point
-idea to see if it requires stack manipulation at all, and if it can be merged with the Fatbar/fail mechanism.
-
-
---- Need to look at RetArg implementation and how word# values should be returned from functions ---
-The RetArg mechanism currently returns the particular Arg register value in R0, but subsequent code usually
-assumes that:
-  1) the value is in Arg 0
-  2) the value is a thunk, which might need to be evaluated
-
-Need to rethink how to handle returning unboxed values
-
-Howver, using continuations (with lambdas), returning an unboxed value can be changed into passing the unboxed value
-as an argument for the continuation, which works correctly, e.g.
-
-fact (I# n)
-    = go n (\r -> I# r)
-      where
-        go n k = case n $cmp 1 of
-                   2# -> case n -# 1# of n1 ->
-                         go n1 (\r -> case r *# n of r' -> k r'
-                   _  -> k 1#
-
-
 --- Importing and Exporting Names ---
 Haskell allows Unqualified names in the environment to map to multiple Qualified names, and only reports an error
 if the unqualified name is used.  Possibly implement this with a special environment nameMap that maps from an
@@ -170,6 +77,98 @@ steps:
    - When exporting an entire module, only the unqualified key names in the module are exported.  When exporting an identifier,
      the identifier (qualified or unqualified) is looked up in the environment, then put in the export map with an unqualified
      key.
+
+
+--- Stack-allocation of Tclosure, Fclosure  ---
+There is an opportunity to allocate Tclosures and Fclosures on the stack, if they don't escape the current lexical context.  This
+would be when a closure is allocated, then we push a continuation closure on the stack, and then call some expr that uses the
+Tclosure/Fclosures, and when we return to the continuation, the Tclosure/Fclosure references are dead.  An example is:
+
+# admiranParser.makePatFn
+318:
+    Call 109 [Ref (Env, 0), Ref (Env, 1)]
+
+# admiranParser.makePatFn
+319:
+    Call 311 [Ref (Env, 0), Ref (Env, 1)]
+
+# admiranParser.makePatFn
+320:
+    Call 164 [Imm Haddr 44, Ref (Env, 0)]
+
+# admiranParser.makePatFn
+321:
+    AllocFrame 8                                        <-- can AllocStack 8, subtracting from the sp for the space
+    Tclosure (Frm, 0) 318 [Ref (Arg, 0), Ref (Env, 1)]  <-- use (Stk, 0), (Stk, 4)... here to stack-allocate the closures
+    Tclosure (Frm, 4) 319 [Ref (Frm, 0), Ref (Env, 2)]
+    PushCont xxx [Ref (Env, 0)]                           <-- pushes a cont below the stack-allocated closures
+    EnterInd Ref (Frm, 4) []
+
+xxx:
+    PopEnv _   <-- here we would "un-allocate the stack frame by adding 8 words?
+
+
+--- Warning for unused import files ---
+Adding a warning for any unused import files would be fairly easily done in rename, by adding a list of potentially unused import file names
+to the dynamic env and deleting from this list the modName of a name resolved in renameRef.  However, there is a tricky case:
+a module may directly export an alias of one of its imported names (e.g. s_member in set gets exported as "s_member -> avl.a_member"),
+so the actual reference to module "set" isn't seen.  This becomes a problem if the only uses of an imported module are its renamed
+imports.
+
+A possibility is to recreate some of the work done in reifyImports to create a mapping from (UnQualified / Unresolved name) -> original modName,
+then do a lookup in this map as well to find it's original importing modName and remove that from the list of potentially unused ones.
+
+
+--- memostring, memopair not memoizing in memoTrie ---
+some simple tests of memoization on strings or pairs of ints show that the memoization isn't
+happening -- need to track down root cause.  Doesn't appear to be due to recent noUpdate optimization
+in stg, as commenting that out still is failing.
+
+*** The problem isn't in the memoTrie code; it happens when code that uses MemoTrie creates a thunk from memo
+and that thunk is used multiple times in other code, and is inlined.  The problem is in inlining (Ecall (Evar n) args),
+where n is a DefPat that returns a function, rather than a function, and there is no check for Umany.  However, if we
+try to qualify that with not inlining DefPats that are Umany, then code size and runtime blows up on a lot of tests.
+Need to find a way to allow most of those cases to be inlined without causing memoization problems.
+
+*** looking at a simple test case, where we create a memoized function "foo", then use it to map over a list, we expect the
+single memoized function to be used over and over, but instead we:
+    1) inline "map foo" to \xs -> go ... go (x : xs) = foo x, so foo is now used in a loop
+    2) inline "foo" to memopair ..., so a new foo function is created each time
+
+*** compiling the memoTree lib and the test without inlining fixes the problem for memopair, but the problem still persists
+for memostring, so there is still a memoization problem unrelated to inlining, there.
+
+--- Default of Umany in inline:wrapInLet causes a few performance regressions ---
+2015
+   16          0.005          0.007  (+40.1%) -- inlining on day16.day16 was dropped
+   18          2.549          4.403  (+72.7%) -- inlining on getLight was dropped due to maxComplexity (Umany as default for WrapInLet)
+2017
+   15          5.969          7.511  (+25.8%) -- inlining on day15.day15 was dropped
+2024
+    6          0.465          0.628  (+35.1%) -- ""
+
+Currently Umany is used, as it is the safe default, but we could pass the defn's anAffine bitSet into createBinding and
+wrapInLet, and if the var's corresponding usedAffine bit is set, we can set initial use to Uone instead of Umany.
+
+
+--- Need to look at RetArg implementation and how word# values should be returned from functions ---
+The RetArg mechanism currently returns the particular Arg register value in R0, but subsequent code usually
+assumes that:
+  1) the value is in Arg 0
+  2) the value is a thunk, which might need to be evaluated
+
+Need to rethink how to handle returning unboxed values
+
+Howver, using continuations (with lambdas), returning an unboxed value can be changed into passing the unboxed value
+as an argument for the continuation, which works correctly, e.g.
+
+fact (I# n)
+    = go n (\r -> I# r)
+      where
+        go n k = case n $cmp 1 of
+                   2# -> case n -# 1# of n1 ->
+                         go n1 (\r -> case r *# n of r' -> k r'
+                   _  -> k 1#
 
 
 --- add command-line options for both compiler and runtime ---
