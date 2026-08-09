@@ -33,6 +33,8 @@ Here's a small example of an Admiran program, to generate and print a list of th
 Some other small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
 by typing `amc` *module name* e.g. `amc fib`
 
+Hundreds of other examples can be found in my [10 years of Advent of Code solutions](https://github.com/taolson/advent-of-code)
+
 Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
 all other required modules will be built as required.
 
@@ -81,7 +83,8 @@ understandable by someone studying it.
 * Whole-program compilation
 * Parser written using parser-combinators
 * Desugaring to simplified core AST
-* Multiple analysis passes to analyze definition for free variables, usage, and complexity
+* Multiple analysis passes to analyze definitions for free variables, usage, complexity,
+  and escape status for let-bound definitions
 * Hindley-Milner type inference and checking
 * Multi-pass AST optimizer, including:
 
@@ -117,6 +120,7 @@ useful in both the compiler as well as user programs:
   - Heap (priority queue)
   - 2D and 3D vectors with associated math operations, folds, maps, etc.
   - Zipper to provide a cursor position within a list
+  - Bidirectional "time-traveling" Tardis state monad
   - Small C runtime (linked in with executable) that implements a 2-generation compacting garbage collector
 
 ## System Requirements
