@@ -31,12 +31,11 @@ Here's a small example of an Admiran program, to generate and print a list of th
     main = primes |> take 100 |> showlist showint |> putStrLn
 
 Some other small example programs are in the examples directory.  They can be built with the Makefile in that directory, or individually
-by typing `amc` *module name* e.g. `amc fib`
+by typing `amc` *module name* e.g. `amc fib`. Note that amc is a whole-program compiler, so you only need to specify the top-level module
+that contains the "main" function; all other required modules will be built as required.
 
-Hundreds of other examples can be found in my [10 years of Advent of Code solutions](https://github.com/taolson/advent-of-code)
-
-Note that amc is a whole-program compiler, so you only need to specify the top-level module that contains the "main" function;
-all other required modules will be built as required.
+Hundreds of other examples can be found in my [10 years of Advent of Code solutions](https://github.com/taolson/advent-of-code), and the
+amc compiler itself is an example of a large, multi-module Admiran program.
 
 ## Language Features
 
@@ -114,11 +113,14 @@ useful in both the compiler as well as user programs:
   - Mutable and immutable vectors
   - Functor / Applicative / Monad implementations for maybe, either, state, and io
   - Lenses for accessing nested structures
+  - BitSets for handling sets of small integers
   - Parser combinators
   - Streams (streaming interface that supports stream fusion)
   - Double-ended queue based upon finger trees
   - Heap (priority queue)
   - 2D and 3D vectors with associated math operations, folds, maps, etc.
+  - A-star and BFS search algorithms
+  - Function memoization
   - Zipper to provide a cursor position within a list
   - Bidirectional "time-traveling" Tardis state monad
   - Small C runtime (linked in with executable) that implements a 2-generation compacting garbage collector
