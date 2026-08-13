@@ -10,7 +10,7 @@
 ||     lambda expressions for anonymous functions: \<pats> -> <expr>
 
 
-%export parse parseExpr
+%export parse
 
 %import <base>
 %import <either>
@@ -30,7 +30,6 @@
 
 || Admiran expression parsing
 
-|| parse an identifier
 p_identifier :: parser name
 p_identifier
     = p_any >>=? mkIdent
@@ -84,15 +83,12 @@ p_literal
         flit (TprimChar c)  = p_pure (EprimChar c)
         flit _              = p_fail
 
-|| comma separated list of many
 p_listManyOf :: parser * -> parser [*]
 p_listManyOf p = p_manySepBy p_comma p
 
-|| comma separated list of some
 p_listSomeOf :: parser * -> parser [*]
 p_listSomeOf p = p_someSepBy p_comma p
 
-|| parse a parenthesized expression, either Unit (), a single expression (x), or a tuple (x, y, ..)
 p_parenExpr :: parser expr -> parser expr
 p_parenExpr pElt
     = p_inParens (p_listManyOf pElt) <&> mkParen
@@ -101,7 +97,6 @@ p_parenExpr pElt
         mkParen [e] = e                || (expr)
         mkParen xs  = makeTupleExpr xs || (a, b ..)
 
-|| parse an explicit list of expressions
 p_listExpr :: parser expr -> parser expr
 p_listExpr pElt = p_inBrackets $ p_listManyOf pElt <&> makeList
 
@@ -172,7 +167,6 @@ p_rangeBy
 p_rangeExpr :: parser expr
 p_rangeExpr = p_inBrackets (p_range <|> p_rangeBy)
 
-|| parse an expression term
 p_term :: parser expr
 p_term
     = p_varOrConstructor <&> Evar <|>
@@ -187,34 +181,19 @@ p_term
       p_rangeExpr
 
 
-|| p_exp: handle infix expressions with operator precedence and associativity specified by operator tables
-||        uses an expression stack and an operator stack, parsing terms and oprs, and reducing the stacks
-||        when an operator is parsed with lower precedence than the top-of-stack operator
-
-|| the tokenizer and parser represent a negative literal as the application of a prefix neg operator to
-|| a positive literal, as it makes the tokenizer easier.  check for this and replace with the negative literal
-exprOrNegLit :: expr -> expr
-exprOrNegLit (Eap (Evar op) e)
-    = fromJust negLit, if _eq cmpname op stdNegName & isJust negLit
-      where
-        negLit = maybeNeg e
-
-        maybeNeg (Eint n)        = Just . Eint $ -n
-        maybeNeg (Plit (Eint n)) = Just . Plit . Eint $ -n
-        maybeNeg _               = Nothing
-
-exprOrNegLit e = e
-
-|| the following mutually-recursive parsers are used for parsing both expr expressions and pat patterns
-|| by passing specialized sub-parsers as parameters
+|| Handle infix expressions with operator precedence and associativity specified by operator tables.
+|| Uses the "Shunting Yard Algorithm" with an expression stack and an operator stack, parsing terms and oprs,
+|| and reducing the stacks when an operator is parsed with lower precedence than the top-of-stack operator.
 ||
+|| The following mutually-recursive parsers are used for parsing both expr expressions and pat patterns
+|| by passing specialized sub-parsers as parameters. NOTE: this might also be used for parsing type
+|| expressions, if the Eap and Evar and ap2 used in p_expAp and reductions are parameterized so that they
+|| could be substituted by Tap / Tarr, and Tname would also have to change signatures to refer to (ast *)
+|| instead of expr. At that point, it would be best to gather all the parameterized functions into an p_expInfo
+|| structure and pass that instead of the individual functions.
+
 || parse a term (with an optional prefix op) and push it on the expr stack
 ||
-|| NOTE: this might also be used for parsing type expressions, if the Eap and Evar and ap2 used in
-|| p_expAp and reductions are parameterized so that they could be substituted by Tap / Tarr  and Tname
-|| would also have to change signatures to refer to (ast *) instead of expr
-|| at that point, it would be best to gather all the parameterized functions into an p_expInfo structure
-|| and pass that instead of the individual functions
 p_exp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
 p_exp pPre pInf pTerm es ops
     = pPre >>= fpre <|> pTerm >>= fterm
@@ -222,15 +201,15 @@ p_exp pPre pInf pTerm es ops
         fpre op = p_exp   pPre pInf pTerm es (op : ops)
         fterm e = p_expOp pPre pInf pTerm (e : es) ops
 
-|| parse a possible pOpr and push it on the opr stack
+|| parse a possible infix operator and push it on the opr stack, or check for function application
 p_expOp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
 p_expOp pPre pInf pTerm es ops
     = pInf >>= fbinop <|> p_expAp pPre pInf pTerm es ops
       where
         fbinop op = p_expReduce pPre pInf pTerm es (op : ops)
 
-|| parse a possible application (juxtaposition of two exprs), and push it on the expr stack
-|| check first for termination of expression
+|| parse a possible application (juxtaposition of two exprs) and push it on the expr stack, then
+|| continue with p_expOp, or perform the final reduction on the expression
 p_expAp :: parser name -> parser name -> parser expr -> [expr] -> [name] -> parser expr
 p_expAp pPre pInf pTerm es ops
     = pTerm >>= fexpr es <|> p_expFinal es ops
@@ -285,6 +264,20 @@ p_expFinal (e : es)       (op : ops) = p_expFinal (pe : es) ops, if _eq cmpassoc
 p_expFinal (er : el : es) (op : ops) = p_expFinal (ap2 (Evar op) el er : es) ops
 p_expFinal _              _          = p_error 1 "error in expression"
 
+|| the tokenizer and parser represent a negative literal as the application of a prefix neg operator to
+|| a positive literal, as it makes the tokenizer easier.  check for this and replace with the negative literal
+exprOrNegLit :: expr -> expr
+exprOrNegLit (Eap (Evar op) e)
+    = fromJust negLit, if _eq cmpname op stdNegName & isJust negLit
+      where
+        negLit = maybeNeg e
+
+        maybeNeg (Eint n)        = Just . Eint $ -n
+        maybeNeg (Plit (Eint n)) = Just . Plit . Eint $ -n
+        maybeNeg _               = Nothing
+
+exprOrNegLit e = e
+
 p_expr :: parser expr
 p_expr = p_exp p_prefix p_infix p_term [] []
 
@@ -337,14 +330,12 @@ p_condOtherwise e = p_ident "otherwise" >> p_pure (Cdefault e)
 
 p_cond e = p_comma >> (p_condIf e <|> p_condOtherwise e <|> p_expected "a conditional expression")
 
-|| parse conditional expressions for the given expr
 p_conds :: parser token -> expr -> parser expr
 p_conds p_sep e
     = p_liftA2 mkCond (p_cond e) (p_many (p_outdent >> p_sep >> p_indent >> (p_expr >>= p_cond <|> p_expected "a conditional expression")))
       where
         mkCond c cs = Econd (c : cs)
 
-|| parse "where ..." definitions
 p_whdefs :: parser [defn]
 p_whdefs = p_ident "where" >> (p_some p_def <&> map fst <|> p_expected "'where' definitions")
 
@@ -443,16 +434,15 @@ p_patOrFnForm
         check (Left p) = p_patErr, if isPlit p \/ isPwildcard p
         check x        = p_pure x
 
+
 || Admiran type expression parsing
 
-|| parse a type name
 p_tname :: parser name
 p_tname
     = p_identifier <?> isTname
       where
         isTname n = isVar n & ~s_member cmpstring (getName n) reservedNames
 
-|| parse a type variable
 p_tvar :: parser texpr
 p_tvar
     = p_any >>=? ftvar
@@ -478,8 +468,6 @@ p_tform
         mkTform n    vars   = Tname n vars
         mkInf   var1 n var2 = Tname n [var1, var2]
 
-|| parse a parenthesized type expression, either unit (), a single type expression (x), or a tuple (x, y, ..)
-|| used for parsing both expressions and patterns
 p_parenTexpr :: parser texpr
 p_parenTexpr
     = p_inParens (p_listManyOf p_type) <&> mkParen
@@ -488,11 +476,9 @@ p_parenTexpr
         mkParen [t] = t               || (expr)
         mkParen ts  = Ttuple ts       || (a, b ..)
 
-|| parse a list type
 p_listTexpr :: parser texpr
 p_listTexpr = p_inBrackets p_type <&> Tlist
 
-|| parse a type term
 p_tTerm :: parser texpr
 p_tTerm
     = p_tname <&> ($Tname []) <|>
@@ -508,7 +494,9 @@ p_tSTerm
         mkSTerm t Nothing  = t
         mkSTerm t (Just _) = Tstrict t
 
-|| parse a type and push it on the expr stack
+|| This is a simplified version of the infix expression parser, using the Shunting Yard Algorithm,
+|| and specialized for type expressions (all infix operators are right-associative)
+
 p_tExpr :: [texpr] -> [name] -> parser texpr
 p_tExpr es ops
     = p_tTerm >>= fexpr
@@ -538,7 +526,6 @@ p_tFinal (er : el : es') (op : ops') = p_tFinal (Tarr el er : es') ops',        
                                      = p_tFinal ((Tname op [el, er]) : es') ops', otherwise
 p_tFinal _               _           = p_error 1 "error in expression"
 
-|| parse a type -- could possibly modify p_exp to handle this and get rid of the specialized parsers, above
 p_type :: parser texpr
 p_type = p_tExpr [] []
 
@@ -566,7 +553,6 @@ p_constructs = p_someSepBy p_vBar p_construct
 
 || Admiran definition parsing
 
-|| get the location info for the current token
 p_getLoc :: parser location
 p_getLoc ps
     = (Just (mn, il, ic), ps)
@@ -606,7 +592,6 @@ p_tdef
         mkData loc tf ctors = modInsData (DefData tf  ctors              (emptyAnnoLoc loc))
         mkAbs  loc tf ts    = modInsAbs  (DefAbs  tf  ts builtinTypeType (emptyAnnoLoc loc))
 
-|| parse a definition
 p_def :: parser (defn, modInserter)
 p_def
     = p_liftA3 mkDef p_getLoc p_patOrFnForm (p_equal >> p_rhs p_equal)
@@ -653,7 +638,7 @@ p_alias :: parser libAlias
 p_alias
     = p_alias' p_var         <|>                || note: separate p_var and p_constructor here to ensure
       p_alias' p_constructor <|>                || the alias is the same (var or ctor) as the sym
-      p_minus >> p_var <&> AliasRemove
+      p_minus >> p_varOrConstructor <&> AliasRemove
       where
         p_alias' p = p_liftA2 Alias p (p_sym "/" >> p)
 
@@ -704,7 +689,3 @@ parse m input
         psErr        = view psErrStr ps
         el           = view psErrLn ps
         ec           = view psErrCn ps
-
-|| parse an expr
-parseExpr :: string -> (maybe expr, psSt)
-parseExpr input = p_expr ("interactive", emptyError, [], tokenize input)
