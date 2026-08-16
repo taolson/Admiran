@@ -1147,7 +1147,7 @@ genInsn (ReadArray d a i)
       where
         (xa, mova) = ensureX86Reg x86Tmp0 a
         (xi, movi) = ensureX86Reg x86Tmp1 i
-        xd           = cvtRef d
+        xd         = cvtRef d
 
 || write an array at an index
 || specialized version for index known at compile-time

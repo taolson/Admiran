@@ -544,9 +544,7 @@ buildCodeAlts Csingle topr [alt]
     = buildCodeAlt alt
 
 buildCodeAlts Cvectored topr alts
-    = st_mapM buildCodeAlt alts >>= st_mapM makeCode >>= mkVec
-      where
-        mkVec cps = st_pure [CaseVec topr cps]
+    = st_mapM buildCodeAlt alts >>= st_mapM makeCode <&> \cps -> [CaseVec topr cps]
 
 || create a sequence of Jeq topr <tag> <codeptr> insns up to the first
 || irrefutable alt, then fall through to its insns
@@ -574,39 +572,6 @@ buildCodeAlts Cpriority topr alts
                         ns = getName n
 
 buildCodeAlts _ _ _ = unreachable
-
-
-|| build the alts and the code to select from them in the context of a new
-|| continuation closure, then return a union of all the non-Stk free vars
-|| and a new codePtr with the insns.
-buildCodeAltsCont :: caseSel -> [caseAlt] -> state bdSt ([name], codePtr)
-buildCodeAltsCont sel alts
-    = st_bind4 (st_view bdLoc) (st_view bdStkGen) (lookupOprsMatching (isStkOpr .> not) fns) allocCode mkCont
-      where
-        fns = concatMap internalFreeNames alts |> nub cmpname
-
-        mkCont loc sg nsOprs cp
-            = inContEnv fns' (buildCodeAlts sel r0Opr alts) >>= updateObj
-              where
-                fns'  = map fst nsOprs
-                envSz = sg + #fns'
-
-                updateObj   ins = st_pure (fns', cp) << updateCode cp (loc, addSetEnv envSz ins)
-
-                addSetEnv 0 ins = ins
-                addSetEnv n ins = SetEnv n : ins
-
-|| build the alts and the code to select from them in the current context, returning the insns along
-|| with a list of Mov insns which will move any existing Frm refs to new registers if there are any refs
-|| to them in the free vars of alts that allocate a new Frm
-buildCodeAltsNoCont :: caseSel -> opr -> [caseAlt] -> state bdSt ([stgInsn], [stgInsn])
-buildCodeAltsNoCont sel topr alts
-    = st_liftA2 pair (rebindToRegs isFrmOpr fns) (inBuiltinEnv (buildCodeAlts sel topr alts))
-      where
-        fns = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
-
-        needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
-        needsFrm _                            = False
 
 || build the code to handle a call to a builtin function; these will all be single stgInsns
 || the destination ref to use is passed in, as it can be optimized to a new Reg ref in
@@ -675,8 +640,6 @@ buildCodeCallBuiltin n args dsts
         go "clock#"          = opDS  (SystemOp 10)
 
         go _ = unreachable
-
-
 
 || build code for an Ecall (function) or an Evar (thunk), based upon info from the call fopr and any closureInfo
 buildCodeCall :: expr -> [expr] -> state bdSt [stgInsn]
@@ -815,29 +778,49 @@ buildCode (Elet _ defs _ e)
 || operands that doesn't require a continuation to capture free vars. Also, builtin primitives
 || only return word# results (value, tag, or tuple of words), so a Csingle caseAlt with all Pvar vars
 || is optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
+||
+|| if any caseAlt will perform an AllocFrm due to an Elet, rebind any existing Frm-bound free vars to Regs
+|| so that they may be referenced correctly
 buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
-    = mkDsts sel alts >>= mkCode, if isBuiltin fn & ~isConstructor fn
+    = st_bind2 (rebindToRegs isFrmOpr fns) (mkDsts sel alts) mkCode, if isBuiltin fn & ~isConstructor fn
       where
+        fns = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
+
+        needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
+        needsFrm _                            = False
+
         mkDsts Csingle [CaseAlt p e an]            =         makeRef p  <&> singleton .> pair (Just e), if isPvarOrWild p
         mkDsts Csingle [CaseAlt (Pctor c ps) e an] = st_mapM makeRef ps <&>              pair (Just e), if isBuiltinTuple c & all isPvarOrWild ps
         mkDsts _       _                           = st_pure [r0Ref]    <&>              pair Nothing   || multiple alts (cmp#)
 
-        mkCode (me, dsts)
+        mkCode movs (me, dsts)
             = st_liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
               where
-                buildAlts Nothing  = buildCodeAltsNoCont sel r0Opr alts
-                buildAlts (Just e) = buildCode e <&> pair []
+                buildAlts Nothing  = buildCodeAlts sel r0Opr alts
+                buildAlts (Just e) = buildCode e
 
-        insMovs bi (movs, ais) = movs ++ (bi : ais)
+                insMovs bi ais = movs ++ (bi : ais)
 
 || general case evaluation
+|| make a new context of non-Stk free vars for all the caseAlts, then append that to any existing continuation
+|| closure with a PushCont
 buildCode (Ecase sel e alts an)
-    = st_bind2 (inLexEnv (st_set bdCaseAlt False >> buildCode e)) (buildCodeAltsCont sel alts) mkCase
+    = lookupOprsMatching (isStkOpr .> not) fns >>= mkCode
       where
-        mkCase eis (fns, cp)
-            = st_mapM (makeOpr . Evar) fns <&> mkCont
+        fns = concatMap internalFreeNames alts |> nub cmpname
+
+        addSetEnv 0 ins = ins
+        addSetEnv n ins = SetEnv n : ins
+
+        mkCode nOprs
+            = st_bind3 (st_view bdStkGen) buildScrut buildAlts insStkAdj
               where
-                mkCont fvs = PushCont cp fvs : eis
+                (fns', foprs') = unzip2 nOprs
+                buildScrut     = st_set bdCaseAlt False >> buildCode e
+                buildAlts      = inContEnv fns' (buildCodeAlts sel r0Opr alts)
+
+                insStkAdj sg eis ais
+                    = makeCode (addSetEnv (sg + #fns') ais) <&> \cp -> [PushCont cp foprs'] ++ eis
 
 || Handle the polymorphic psuedo-function <pack>, which is represented as a Tname.
 || While it is nominally packing together args for a constructor, most of the time we are just
