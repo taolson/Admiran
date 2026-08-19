@@ -41,6 +41,9 @@ showblock (Directive i)         = showinsn i
 
 || parsing asm file
 
+identChar :: char -> bool
+identChar c = letter c \/ digit c \/ c ==. '_'
+
 anyPrefix :: [string] -> string -> bool
 anyPrefix ps s = any (\p -> isPrefixOf cmpchar p s) ps
 
@@ -72,7 +75,7 @@ p_identChar :: parser char
 p_identChar
     = p_any >>= check
       where
-        check c = p_pure c, if letter c \/ digit c \/ c ==. '_'
+        check c = p_pure c, if identChar c
                 = p_fail,   otherwise
 
 p_ident :: parser string
@@ -181,10 +184,14 @@ classify b
               Nothing -> Block hdr lbl <$> updateLabels insns   || not a ctor block; update any code labels in insns
               Just ta -> installOrReplace b ta                  || ctor block; install or replace
       where
+        replaceParens '(' = ' '
+        replaceParens ')' = ' '
+        replaceParens c   = c
+
         checkHdr (Comment s : _) = Nothing, if member cmpchar s '`'     || strict ctors (marked with `Sc in hdr comment) cannot be generic
         checkHdr _               = Just ()
 
-        checkCtor (Comment s : _) = checkComment (words s)
+        checkCtor (Comment s : _) = map replaceParens s |> words |> checkComment
         checkCtor _               = Nothing
 
         checkComment ["Ret", "Imm", "Word", st, "Imm", "Word", sa] = Just (intval st, intval sa)
