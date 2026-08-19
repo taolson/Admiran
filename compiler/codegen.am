@@ -1309,7 +1309,7 @@ genSaveState
       genOpcode "movq" [x86Frm, cvtCMemAddr "Frm"]            .
       genOpcode "movq" [x86GcAlloc, cvtCMemAddr "gcNewAlloc"] .
       genOpcode "movq" [x86SP, cvtCMemAddr "Stk"]             .
-      genOpcode "subq" [X86Imm (8 * codegenMaxEnv), x86SP]    . || subtract maxEnv space for possibly saving ApplyToEnv args
+      genOpcode "subq" [X86Imm (8 * codegenMaxArgs), x86SP]   . || subtract maxArgs space for possibly saving ApplyToEnv args
       genOpcode "andq" [X86Imm (-16), x86SP]                    || and force 16-byte alignment for x86-64 calling convention
       where
         saveArgs n = genOpcode "movq" [cvtArg n, cvtArgState n]

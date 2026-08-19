@@ -41,7 +41,6 @@ noteLengthLimit       = 100
 || code generator resource sizes (NOTE: must match the sizes defined in runtime.c)
 codegenMaxArgs        = 16
 codegenMaxRegs        = 16
-codegenMaxEnv         = 20
 
 || inliner tuning parameters
 inlineMaxIterations   = 15     || maximum number of iterations of the inliner per function group
