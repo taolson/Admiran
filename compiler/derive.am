@@ -19,50 +19,52 @@ deriveShow :: defn -> (defn, defn)
 deriveShow d
     = (defSpec, defFn)
       where
-        fn          = Unqualified $ "show" ++ getName (defnName d)
-        an          = viewAnno d
-        tfd         = view defnTform d
-        tvs         = tformVars tfd
-        instNames   = zip2 tvs . map (Internal "showtv") $ [0 ..]
-        spec        = foldr (Tarr . ($Tarr stdString)) (tfd $Tarr stdString) tvs
-        go          = Unqualified "go"
-        ctors       = view dataCtors d
-        goDefs      = map genDef ctors
-        goDict      = m_singleton go $ DefMult Mfun goDefs
-        e           = Elet False goDict [] (Evar go), if isDefData d
-                    = showForType (view defnType d),  otherwise
-        defSpec     = DefSpec (Tname fn []) spec an
-        defFn       = DefFn fn (map (Pvar . snd) instNames) e an
+        fn        = "show" ++ getName (defnName d) |> Unqualified
+        an        = viewAnno d
+        tfd       = view defnTform d
+        tvs       = tformVars tfd
+        instNames = map (Internal "showtv") [0 ..] |> zip2 tvs
+        spec      = foldr (Tarr . ($Tarr stdString)) (tfd $Tarr stdString) tvs
+        go        = Unqualified "go"
+        ctors     = view dataCtors d
+        goDefs    = map genDef ctors
+        goDict    = DefMult Mfun goDefs |> m_singleton go
 
-        showForType (Tvar n)       = fromMaybef builtinFail Evar . findInstName . Tvar $ n
-        showForType (Ttuple ts)    = foldl Eap (makeTupleShow $ #ts) $ map showForType ts
-        showForType (Tlist t)      = Eap stdShowList $ showForType t
-        showForType (Tarr t1 t2)   = stdShowFn
-        showForType (Tstrict t)    = showForType t
+        e = Elet False goDict [] (Evar go), if isDefData d
+          = showForType (view defnType d),  otherwise
 
-        showForType (Tname (Qualified m n) vars)
-            = foldl Eap (Evar . Qualified m $ "show" ++ n) $ map showForType vars
+        defSpec = DefSpec (Tname fn []) spec an
+        defFn   = DefFn fn (map (Pvar . snd) instNames) e an
 
-        showForType (Tname (Unresolved m n) vars)
-            = foldl Eap (Evar . Unresolved m $ "show" ++ n) $ map showForType vars
-
-        showForType (Tname n vars)
-            = foldl Eap (Evar . Unqualified $ "show" ++ getName n) $ map showForType vars
+        showForType (Tvar n)     = Tvar n |> findInstName |> fromMaybef builtinFail Evar
+        showForType (Ttuple ts)  = map showForType ts |> foldl Eap (makeTupleShow $ #ts)
+        showForType (Tlist t)    = showForType t |> Eap stdShowList
+        showForType (Tarr t1 t2) = stdShowFn
+        showForType (Tstrict t)  = showForType t
+        showForType (Tname tn vars)
+            = map showForType vars |> foldl Eap (mkShow tn |> Evar)
+              where
+                mkShow (Qualified  m n) = Qualified  m $ "show" ++ n
+                mkShow (Unresolved m n) = Unresolved m $ "show" ++ n
+                mkShow n                = Unqualified  $ "show" ++ getName n
 
         showForType _ = unreachable
 
-        findInstName te = mb_fmap snd . find ((_eq cmptexpr te) . fst) $ instNames
+        findInstName te = find (fst .> (_eq cmptexpr te)) instNames |> mb_fmap snd
 
         genDef (Tname n tas)
             = DefFn go [Pctor n (map Pvar vars)] showExpr an
               where
-                ns               = Estring $ getName n
-                (_, vars)        = genNames "a" 0 tas
-                showExpr         = ns,                                                                if null tas & ~isSymbol n
-                                 = buildExpr,                                                         otherwise
-                buildExpr        = foldl appendShow ns . map mkShow $ zip2 tas [0 ..],                if ~isSymbol n \/ null tas
-                                 = foldl appendShow (mkShow (tas ! 0, 0)) [ns, mkShow (tas ! 1, 1)],  if #tas == 2
-                                 = foldl appendShow (showInParens ns) . map mkShow $ zip2 tas [0 ..], otherwise
+                ns        = Estring $ getName n
+                (_, vars) = genNames "a" 0 tas
+
+                showExpr = ns,                                                                 if null tas
+                         = showInParens buildExpr,                                             otherwise
+
+                buildExpr = foldl appendShow ns . map mkShow $ zip2 tas [0 ..],                if ~isSymbol n
+                          = foldl appendShow (mkShow (tas ! 0, 0)) [ns, mkShow (tas ! 1, 1)],  if #tas == 2
+                          = foldl appendShow (showInParens ns) . map mkShow $ zip2 tas [0 ..], otherwise
+
                 showInParens s   = ap2 stdAppend (Estring "(") . ap2 stdAppend s $ Estring ")"
                 appendShow s1 s2 = ap2 stdAppend s1 $ ap2 stdAppend (Estring " ") s2
                 mkShow (t, i)    = Eap (showForType t) . Evar $ Internal "a" i
@@ -74,56 +76,58 @@ deriveOrd :: defn -> (defn, defn)
 deriveOrd d
     = (defSpec, defFn)
       where
-        fn         = Unqualified $ "cmp" ++ getName (defnName d)
-        an         = viewAnno d
-        tfd        = view defnTform d
-        tvs        = tformVars tfd
-        instNames  = zip2 tvs . map (Internal "cmptv") $ [0 ..]
-        spec       = foldr (Tarr . cmpSpec) (cmpSpec tfd) tvs
-        go         = Unqualified "go"
-        ctors      = view dataCtors d
-        nullary    = null . tformVars
-        vars       = map Unqualified ["a", "b"]
-        tagCmp     = DefFn go (map Pvar vars) (Ecall stdCmpTags (map Evar vars)) an
-        goDefs     = [genDef a b | a, b <- zip2 ctors [0 ..]],          if #ctors <= 5
-                   = [genDef a a | a <- zip2 ctors [0 ..]] ++ [tagCmp], otherwise
-        goDict     = m_singleton go $ DefMult Mfun goDefs
-        e          = stdCmpTags,                     if isDefData d & all nullary ctors
-                   = Elet False goDict [] (Evar go), if isDefData d
-                   = cmpForType (view defnType d),   otherwise
-        defSpec    = DefSpec (Tname fn []) spec an
-        defFn      = DefFn fn (map (Pvar . snd) instNames) e an
+        fn        = "cmp" ++ getName (defnName d) |> Unqualified
+        an        = viewAnno d
+        tfd       = view defnTform d
+        tvs       = tformVars tfd
+        instNames = map (Internal "cmptv") [0 ..] |> zip2 tvs
+        spec      = foldr (Tarr . cmpSpec) (cmpSpec tfd) tvs
+        go        = Unqualified "go"
+        ctors     = view dataCtors d
+        nullary   = null . tformVars
+        vars      = map Unqualified ["a", "b"]
+        tagCmp    = DefFn go (map Pvar vars) (Ecall stdCmpTags (map Evar vars)) an
+        goDict    = DefMult Mfun goDefs |> m_singleton go
 
-        cmpSpec t  = t $Tarr t $Tarr stdOrdering
+        goDefs = [genDef a b | a, b <- zip2 ctors [0 ..]],          if #ctors <= 5
+               = [genDef a a | a <- zip2 ctors [0 ..]] ++ [tagCmp], otherwise
 
-        cmpForType (Tvar n)       = fromMaybef builtinFail Evar . findInstName . Tvar $ n
-        cmpForType (Ttuple ts)    = foldl Eap (makeTupleCmp $ #ts) $ map cmpForType ts
-        cmpForType (Tlist t)      = Eap stdCmpList $ cmpForType t
-        cmpForType (Tarr t1 t2)   = stdCmpFn
-        cmpForType (Tstrict t)    = cmpForType t
+        e = stdCmpTags,                     if isDefData d & all nullary ctors
+          = Elet False goDict [] (Evar go), if isDefData d
+          = cmpForType (view defnType d),   otherwise
 
-        cmpForType (Tname (Qualified m n) vars)
-            = foldl Eap (Evar . Qualified m $ "cmp" ++ n) $ map cmpForType vars
+        defSpec   = DefSpec (Tname fn []) spec an
+        defFn     = DefFn fn (map (Pvar . snd) instNames) e an
+        cmpSpec t = t $Tarr t $Tarr stdOrdering
 
-        cmpForType (Tname (Unresolved m n) vars)
-            = foldl Eap (Evar . Unresolved m $ "cmp" ++ n) $ map cmpForType vars
+        cmpForType (Tvar n)     = fromMaybef builtinFail Evar . findInstName . Tvar $ n
+        cmpForType (Ttuple ts)  = map cmpForType ts |> foldl Eap (makeTupleCmp $ #ts)
+        cmpForType (Tlist t)    = cmpForType t |> Eap stdCmpList
+        cmpForType (Tarr t1 t2) = stdCmpFn
+        cmpForType (Tstrict t)  = cmpForType t
 
-        cmpForType (Tname n vars)
-            = foldl Eap (Evar . Unqualified $ "cmp" ++ getName n) $ map cmpForType vars
+        cmpForType (Tname tn vars)
+            = map cmpForType vars |> foldl Eap (mkCmp tn |> Evar)
+              where
+                mkCmp (Qualified  m n) = Qualified  m $ "cmp" ++ n
+                mkCmp (Unresolved m n) = Unresolved m $ "cmp" ++ n
+                mkCmp n                = Unqualified  $ "cmp" ++ getName n
 
         cmpForType _ = unreachable
 
-        findInstName te = mb_fmap snd . find ((_eq cmptexpr te) . fst) $ instNames
+        findInstName te = find (fst .> (_eq cmptexpr te)) instNames |> mb_fmap snd
 
         genDef (c1, tag1) (c2, tag2)
             = DefFn go [genPat c1 "a", genPat c2 "b"] cmpExpr an
               where
-                tvs          = tformVars c1
-                ctorTvarIdx  = zip2 tvs [0 ..]
-                cmpExpr      = stdLT,                                           if tag1 < tag2
-                             = stdGT,                                           if tag1 > tag2
-                             = stdEQ,                                           if null tvs
-                             = foldr1 (ap2 stdThenCmp) (map mkCmp ctorTvarIdx), otherwise
+                tvs         = tformVars c1
+                ctorTvarIdx = zip2 tvs [0 ..]
+
+                cmpExpr = stdLT,                                           if tag1 < tag2
+                        = stdGT,                                           if tag1 > tag2
+                        = stdEQ,                                           if null tvs
+                        = foldr1 (ap2 stdThenCmp) (map mkCmp ctorTvarIdx), otherwise
+
                 mkCmp (t, i) = ap2 (cmpForType t) (Evar (Internal "a" i)) (Evar (Internal "b" i))
 
                 genPat (Tname n tas) s
