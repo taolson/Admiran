@@ -25,7 +25,6 @@
 || functions which don't return (call error and terminate)
 noReturnNames = map makeStdlibName ["exit", "error#", "error", "blackHole", "undef", "unreachable", "caseFail", "matchFail", "cmpFn"]
 
-|| don't inline io functions, since there is no performance or space benefit
 isIOfn :: name -> bool
 isIOfn n = getModName n ==$ "io"
 
@@ -178,6 +177,7 @@ betaReduce d args st
                        = (Ecall e1 args2), otherwise
 
 || see if name is something we can replace with its definition
+|| IO functions don't benefit from being inlined, so we add them here
 canInline :: name -> bool
 canInline n = ~(isBuiltin n \/ isConstructor n \/ isIOfn n \/ member cmpname noInlineNames n)
 
@@ -195,8 +195,7 @@ noReturn :: expr -> inSt -> bool
 noReturn (Evar n) st
     = member cmpname noReturnNames n \/ fromMaybef False checkThunk (fst (lookupEnv n st))
       where
-        checkThunk (DefPat _ e _) = noReturn e st
-        checkThunk m              = False
+        checkThunk a = isDefPat a & noReturn (fnExpr a) st
 
 noReturn (Ecall e _) st = noReturn e st
 noReturn (Efail _)   st = True
@@ -229,18 +228,18 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecall (Evar c) a
 inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) (Evar n : args)) st
     = classify args, if useSel & inlinable
       where
-        classify []   = k selArg st'
-        classify _    = k (Ecall selArg args) st'
+        classify [] = k selArg st'
+        classify _  = k (Ecall selArg args) st'
 
-        inlinable     = isJust md & isDefPat d & isJust margs'
-        note          = "inlined builtinSel on " ++ showName n
-        st'           = st |> set inSimplified True |> addInfo note
-        md            = fst $ lookupEnv n st
-        d             = fromJust md
-        DefPat _ e _  = d
-        margs'        = ctorCallArgs e
-        args'         = fromJust margs'
-        selArg        = args' ! idx
+        inlinable = isJust md & isDefPat d & isJust margs'
+        note      = "inlined builtinSel on " ++ showName n
+        st'       = st |> set inSimplified True |> addInfo note
+        md        = fst $ lookupEnv n st
+        d         = fromJust md
+        e         = fnExpr d
+        margs'    = ctorCallArgs e
+        args'     = fromJust margs'
+        selArg    = args' ! idx
 
         ctorCallArgs (Ecall (Evar c) args) = Just args, if isConstructor c
         ctorCallArgs e                     = Nothing
@@ -340,17 +339,17 @@ inlineAst k (Ecase b (Evar n) alts an) st
 inlineAst k (CaseAlt p (Evar n) an) st
     = k (CaseAlt p e' an) st2, if inlinable
       where
-        inlinable     = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
-        (md, cf)      = lookupEnv n st
-        d             = fromJust md
-        useInfo       = view astAnnoUse d
-        cpx           = view astAnnoCpx d
-        deltaCpx      = cpx - 2
-        affineCpx     = usedAffine useInfo & ~cf
-        e             = fnExpr d
-        (e', st1)     = betaReduce d [] st
-        note          = "inlined caseAlt expr " ++ showName n
-        st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
+        inlinable = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
+        (md, cf)  = lookupEnv n st
+        d         = fromJust md
+        useInfo   = view astAnnoUse d
+        cpx       = view astAnnoCpx d
+        deltaCpx  = cpx - 2
+        affineCpx = usedAffine useInfo & ~cf
+        e         = fnExpr d
+        (e', st1) = betaReduce d [] st
+        note      = "inlined caseAlt expr " ++ showName n
+        st2       = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
 
 || do inlining of a simple expr
 inlineAst k (Evar n) st
@@ -358,17 +357,17 @@ inlineAst k (Evar n) st
     = (Evar n, st), otherwise
       where
         || note: allowing non-Internals gives best overall results
-        inlinable     = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
-        (md, cf)      = lookupEnv n st
-        d             = fromJust md
-        useInfo       = view astAnnoUse d
-        cpx           = view astAnnoCpx d
-        deltaCpx      = cpx - 2
-        affineCpx     = usedAffine useInfo & ~cf
-        DefPat _ e _  = d
-        (e', st1)     = betaReduce d [] st
-        note          = "inlined expr " ++ showName n
-        st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
+        inlinable = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
+        (md, cf)  = lookupEnv n st
+        d         = fromJust md
+        useInfo   = view astAnnoUse d
+        cpx       = view astAnnoCpx d
+        deltaCpx  = cpx - 2
+        affineCpx = usedAffine useInfo & ~cf
+        e         = fnExpr d
+        (e', st1) = betaReduce d [] st
+        note      = "inlined expr " ++ showName n
+        st2       = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
 
 || add locInfo for defn, and a FnBound frame to the local env when entering a DefFn
 inlineAst k a st
@@ -409,15 +408,14 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
         || this gets rid of extraneous thunk creation / updates which couldn't be optimized away by the inlining of
         || a caseAlt value (introduced Let bindings cause that pattern to fail)
         insLet (CaseAlt p (Evar n) an)
-            = CaseAlt p e' an', if isJust md & ~view astAnnoRec d & isDefPat d
+            = CaseAlt p e an', if isJust md & ~view astAnnoRec d & isDefPat d
               where
-                md        = m_lookup cmpname n defs
-                d         = fromJust md
-                cpx       = view astAnnoCpx d
-                deltaCpx  = cpx - 2
-                an'       = over annoCpx (+ deltaCpx) an
-
-                DefPat _ e' _ = d
+                md       = m_lookup cmpname n defs
+                d        = fromJust md
+                e        = fnExpr d
+                cpx      = view astAnnoCpx d
+                deltaCpx = cpx - 2
+                an'      = over annoCpx (+ deltaCpx) an
 
         insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an)
         insLet _                = unreachable
