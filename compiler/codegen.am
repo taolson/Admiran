@@ -434,12 +434,18 @@ genQuotRem xa xb
       genOpcode "cqto"  []                           .  || sign-extend to %rdx for upper 64 bits of dividend
       genOpcode "idivq" [x86Tmp1]                       || perform 128b/64b divide; quotient in %rax, remainder in %rdx
 
-|| generate code to perform a write-barrier check on the addr in register upd
+|| generate code to check if a write barrier is required and perform it
+|| second argument is the label to jump to if a write barrier isn't required
+genWriteBarrierCheck :: x86Opr -> string -> showS
+genWriteBarrierCheck upd lbl
+    = genOpcode    "cmpq"  [cvtCMemAddr "gcNewBase", upd] .
+      genJmpOpcode "jae"   (cvtJmpAddr lbl)                     || skip if upd >= gcNewBase (unsigned)
+      || fall through to code after write barrier check
+
+|| generate code to perform a write barrier on upd, by adding it to the roots list
 genWriteBarrier :: x86Opr -> showS
 genWriteBarrier upd
-    = genOpcode    "cmpq"  [cvtCMemAddr "gcNewBase", upd]          .
-      genJmpOpcode "jae"   (cvtJmpAddr "0f")                       .    || skip if upd >= gcNewBase (unsigned)
-      genOpcode    "movq"  [cvtCMemAddr "gcRootsAlloc", x86MovTmp] .    || note: move is done before check so that the update is recorded if a GC happens
+    = genOpcode    "movq"  [cvtCMemAddr "gcRootsAlloc", x86MovTmp] .    || note: move is done before check so that the update is recorded if a GC happens
       genOpcode    "subq"  [X86Imm 8, x86MovTmp]                   .    || decrement the roots table alloc pointer (roots table grows down)
       genOpcode    "movq"  [upd, addX86Offset 0 x86MovTmp]         .    || put the update thunk addr in the roots table
       genOpcode    "movq"  [x86MovTmp, cvtCMemAddr "gcRootsAlloc"] .
@@ -827,7 +833,9 @@ genInsn (Update d (Imm (Caddr cp)))
               genOpcode    "leaq" [fwdPtr, addX86Offset 7 upd]       .  || update old closure's code ptr to do forwarding
               genOpcode    "leaq" [addX86Offset 1 x86Env, x86MovTmp] .  || update env 0 in old closure to point to new closure
               genOpcode    "movq" [x86MovTmp, addX86Offset 15 upd]   .
-              genWriteBarrier upd                                       || perform a write barrier check on upd
+              genWriteBarrierCheck upd "1f"                          .  || perform a write barrier check on upd
+              genWriteBarrier upd                                    .
+              shows "1:\n"                                              || use label 1, since 0 is used by genWriteBarrier
               where
                 packFn = cvtReg 1
                 upd    = cvtReg 3       || x86MovTmp is used, and R0, R1 (x86Tmp0, x86Tmp1) are live, but R3 is available
@@ -1155,12 +1163,13 @@ genInsn (WriteArray a (Imm (Word i)) v)
     = mova                                                 .    || ensure array a operand is in a register
       genOpcode    movv   [xv, addX86Offset idx xa]        .    || perform write
       genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "2f")                .
+      genJmpOpcode "je"   (cvtJmpAddr "1f")                .
       genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                .    || not in new space,
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      genJmpOpcode "jb"   (cvtJmpAddr "1f")                .
+      genWriteBarrierCheck xa "1f"                         .
       genWriteBarrier xa                                   .
-      shows "2:\n"
+      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      shows "1:\n"
       where
         (xa, mova) = ensureX86Reg x86Tmp0 a
         xv         = cvtOpr v
@@ -1174,12 +1183,13 @@ genInsn (WriteArray a i v)
       movv                                                 .
       genOpcode    "movq" [xv, X86Idx xa xi 4 7]           .    || offset of 8 - 1 to subtract the tag bit
       genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "2f")                .
+      genJmpOpcode "je"   (cvtJmpAddr "1f")                .
       genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                .    || not in new space,
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      genJmpOpcode "jb"   (cvtJmpAddr "1f")                .    || not in new space,
+      genWriteBarrierCheck xa "1f"                         .
       genWriteBarrier xa                                   .
-      shows "2:\n"
+      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      shows "1:\n"
       where
        (xa, mova) = ensureX86Reg x86Tmp0 a
        (xi, movi) = ensureX86Reg x86Tmp1 i
