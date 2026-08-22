@@ -238,10 +238,10 @@ deserialNameMap :: deserializer nameMap
 deserialNameMap = deserialList (deserialTup2 deserialName deserialName) <&> m_fromList cmpname
 
 serialEnvMap :: serializer envMap
-serialEnvMap = serialList (serialTup2 serialName (serialSet serialName)) . m_toList
+serialEnvMap = serialList (serialTup2 serialName (serialList serialName)) . m_toList
 
 deserialEnvMap :: deserializer envMap
-deserialEnvMap = deserialList (deserialTup2 deserialName (deserialSet cmpname deserialName)) <&> m_fromList cmpname
+deserialEnvMap = deserialList (deserialTup2 deserialName (deserialList deserialName)) <&> m_fromList cmpname
 
 serialAst :: serializer ast
 serialAst (Evar n)            = serialCtor  0 . serialName n
@@ -350,18 +350,6 @@ deserialLibQual
         ctor 1 = st_pure LibQualified
         ctor _ = unreachable
 
-serialLibAs :: serializer libAs
-serialLibAs LibNoAs   = serialCtor 0
-serialLibAs (LibAs s) = serialCtor 1 . serialString s
-
-deserialLibAs :: deserializer libAs
-deserialLibAs
-    = deserialCtor >>= ctor
-      where
-        ctor 0 = st_pure LibNoAs
-        ctor 1 = deserialString <&> LibAs
-        ctor _ = unreachable
-
 serialLibPart :: serializer libPart
 serialLibPart (LibIdent n l)  = serialCtor 0 . serialName n     . serialLoc l
 serialLibPart (LibRemove n l) = serialCtor 1 . serialName n     . serialLoc l
@@ -403,10 +391,10 @@ deserialLibBinding
         dlb _ = unreachable
 
 serialLibEnv :: serializer libEnv
-serialLibEnv = serialTup6 serialFileSpec serialLoc serialLibQual serialLibAs (serialList serialLibBinding) (serialList serialLibAlias)
+serialLibEnv = serialTup6 serialFileSpec serialLoc serialLibQual serialString (serialList serialLibBinding) (serialList serialLibAlias)
 
 deserialLibEnv :: deserializer libEnv
-deserialLibEnv = deserialTup6 deserialFileSpec deserialLoc deserialLibQual deserialLibAs (deserialList deserialLibBinding) (deserialList deserialLibAlias)
+deserialLibEnv = deserialTup6 deserialFileSpec deserialLoc deserialLibQual deserialString (deserialList deserialLibBinding) (deserialList deserialLibAlias)
 
 serialBuildStatus :: serializer buildStatus
 serialBuildStatus Unbuilt    = serialCtor 0

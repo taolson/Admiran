@@ -50,7 +50,6 @@ isLibRemove lp                = False
 
 || qualification spec for imported identifiers
 libQual ::= LibUnqualified | LibQualified
-libAs   ::= LibNoAs | LibAs string
 
 || alias of import module names to local names
 libAlias ::=
@@ -63,7 +62,7 @@ libBinding ::=
     BindType name texpr
 
 || %import directive
-libEnv == (fileSpec, location, libQual, libAs, [libBinding], [libAlias])
+libEnv == (fileSpec, location, libQual, string, [libBinding], [libAlias])
 
 || lenses on libEnv
 libEnvFile  = lensTup6_0
@@ -355,7 +354,7 @@ makeModule m insrs
       where
         mn     = view modName m
         stdlib = FileSpec stdlibPath stdlibModuleName
-        stdImp = modInsImp (stdlib, initLocation mn, LibUnqualified, LibNoAs, [], [])
+        stdImp = modInsImp (stdlib, initLocation mn, LibUnqualified, stdlibModuleName, [], [])
 
         || add implicit stdlib import if module isn't stdlib and doesn't explicitly import it
         checkStdlib m
@@ -504,13 +503,12 @@ replaceNameMapKey loc k k' m
         mprev = m_lookup cmpname k m
         prev  = fromJust mprev
 
-|| merge nameMap e2 into nameMap e1, qualifying and renaming e2 names based upon libQual and libAs values
-mergeEnvironments :: locInfo -> libQual -> libAs -> nameMap -> nameMap -> excpt nameMap
-mergeEnvironments loc qual as e1 e2
-    = m_toList e2 |> filter (snd .> isQualified) |> map (renameAs as) |> ex_foldM (addName qual) e1
+|| merge nameMap e2 into nameMap e1, qualifying and renaming e2 names based upon libQual
+mergeEnvironments :: locInfo -> libQual -> string -> nameMap -> nameMap -> excpt nameMap
+mergeEnvironments loc qual s e1 e2
+    = m_toList e2 |> filter (snd .> isQualified) |> map (renameAs s) |> ex_foldM (addName qual) e1
       where
-        renameAs LibNoAs   e      = e
-        renameAs (LibAs s) (k, v)
+        renameAs s (k, v)
             = (k, v),                        if isUnqualified k
             = (Unresolved s (getName k), v), otherwise
 

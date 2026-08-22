@@ -95,7 +95,7 @@ reifyExports genv
                 md   = m_lookup cmpname n env mb.>>= lookupDefn genv
 
         doMerge loc e1 e2
-            = mergeEnvironments loci LibUnqualified (LibAs mn) e1 e2
+            = mergeEnvironments loci LibUnqualified mn e1 e2
               where
                 loci = locOnlyInfo loc
 

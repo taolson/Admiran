@@ -627,12 +627,8 @@ p_libQual
         mkQual Nothing  = LibUnqualified
         mkQual (Just _) = LibQualified
 
-p_libAs :: parser libAs
-p_libAs
-    = p_optional (p_ident "as" >> p_identifier) <&> mkAs
-      where
-        mkAs Nothing  = LibNoAs
-        mkAs (Just s) = LibAs (getName s)
+p_libAs :: parser string
+p_libAs = p_ident "as" >> p_identifier <&> getName
 
 p_alias :: parser libAlias
 p_alias
@@ -651,9 +647,9 @@ p_binder = p_inBraces (p_some p_binding)
 
 p_env :: parser libEnv
 p_env
-    = (p_liftA4 mkEnv p_getLoc p_fileSpec p_libQual p_libAs <*> p_optional p_binder) <*> p_many p_alias
+    = (p_liftA4 mkEnv p_getLoc p_fileSpec p_libQual (p_optional p_libAs) <*> p_optional p_binder) <*> p_many p_alias
       where
-        mkEnv loc fs lq la mbi as = (fs, loc, lq, la, fromMaybe [] mbi, as)
+        mkEnv loc fs lq ms mbi as = (fs, loc, lq, fromMaybe (fileSpecName fs) ms, fromMaybe [] mbi, as)
 
 p_libDir :: parser modInserter
 p_libDir
