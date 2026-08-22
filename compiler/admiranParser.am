@@ -37,6 +37,9 @@ p_identifier
         mkIdent (Tident n) = p_pure n
         mkIdent _          = p_fail
 
+p_unqualified :: parser string
+p_unqualified = p_identifier <?> isUnqualified <&> getName <|> p_expected "an unqualified identifier"
+
 p_symbol :: parser name
 p_symbol
     = p_any >>=? mkSym
@@ -604,9 +607,9 @@ p_def
 
 p_fileSpec :: parser fileSpec
 p_fileSpec
-    = p_inAngles p_identifier <&> mkStd <|> p_any >>=? fid
+    = p_inAngles p_unqualified <&> mkStd <|> p_any >>=? fid
       where
-        mkStd n            = FileSpec stdlibPath (getName n)
+        mkStd n            = FileSpec stdlibPath n
         fid (TlitString s) = fromMaybef p_fail p_pure (fileSpecFromString s)
         fid _              = p_fail
 
@@ -628,15 +631,18 @@ p_libQual
         mkQual (Just _) = LibQualified
 
 p_libAs :: parser string
-p_libAs = p_ident "as" >> p_identifier <&> getName
+p_libAs = p_ident "as" >> p_unqualified
 
 p_alias :: parser libAlias
 p_alias
-    = p_alias' p_var         <|>                || note: separate p_var and p_constructor here to ensure
-      p_alias' p_constructor <|>                || the alias is the same (var or ctor) as the sym
+    = p_bind2 p_varOrConstructor (p_sym "/" >> p_varOrConstructor) check <|>
       p_minus >> p_varOrConstructor <&> AliasRemove
       where
-        p_alias' p = p_liftA2 Alias p (p_sym "/" >> p)
+        check n1 n2
+            = p_pure (Alias n1 n2),                          if match
+            = p_expected "matching unqualified identifiers", otherwise
+              where
+                match = isUnqualified n1 & isUnqualified n2 & (isVar n1 & isVar n2 \/ isConstructor n1 & isConstructor n2)
 
 p_binding :: parser libBinding
 p_binding = p_liftA2 BindVar  p_var (p_equal >> (p_inLayout p_expr)) <|>
