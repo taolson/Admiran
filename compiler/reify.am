@@ -39,8 +39,8 @@ reifyImports genv
                 doAliases nm    = ex_foldM aliasNameMap nm aliases
                 doMerge   nm    = mergeIntoEnvMap qual as nm em |> ex_pure
 
-                aliasNameMap nm (AliasRemove n) = delNameMap loci (unqualifyName n) nm
-                aliasNameMap nm (Alias n' n)    = replaceNameMapKey loci (unqualifyName n) (unqualifyName n') nm
+                aliasNameMap nm (AliasRemove n) = delNameMap loci n nm
+                aliasNameMap nm (Alias n' n)    = replaceNameMapKey loci n n' nm
 
 || reify module definitions that match a qualifying function
 reifyDefns :: (defn -> bool) -> globalEnv -> excpt globalEnv
@@ -54,7 +54,7 @@ reifyDefns defType genv
         updateGenv em = set genvMod (set modEnv em m) genv
         ins em d      = insEnvMapDefn d em
 
-|| convert unreified list of export directive parts to a reified export environment
+|| convert unreified list of export directive parts to a reified export nameMap
 reifyExports :: globalEnv -> excpt globalEnv
 reifyExports genv
     = doExports exps <&> updateGenv

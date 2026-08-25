@@ -263,16 +263,9 @@ modInsExp :: [libPart] -> modInserter
 modInsExp pts m
     = ex_pure (over modExportParts (pts ++) m)
 
-|| insert an %import declaration, qualifying any alias directives with the module name
+|| insert an %import declaration
 modInsImp :: libEnv -> modInserter
-modInsImp lenv m
-    = over modImports (lenv' :) m |> ex_pure
-      where
-        mn    = fileSpecName (view libEnvFile lenv)
-        lenv' = over libEnvAlias (map doQual) lenv
-
-        doQual (Alias n1 n2)   = Alias (qualifyName mn n1) (qualifyName mn n2)
-        doQual (AliasRemove n) = AliasRemove (qualifyName mn n)
+modInsImp lenv m = over modImports (lenv :) m |> ex_pure
 
 || insert a %free declaration
 modInsFre :: [defn] -> modInserter
@@ -491,7 +484,7 @@ replaceNameMapKey loci k k' nm
 
 
 || envMap operations
-|| an envMap maps an Unresolved name (possibly qualified with an "as" module alias) or an
+|| an envMap maps an Unresolved name (possibly qualified with an "as" module alias) or
 || Unqualified name to the list of Qualified names in modules where it is defined.
 
 || lookup a name in the envMap, and return it or an exceptionInfo if
@@ -510,8 +503,8 @@ insEnvMap :: name -> name -> envMap -> envMap
 insEnvMap n n' em
     = m_alter cmpname insSingle n em
       where
-        insSingle Nothing   = Just $ singleton n'       || n didn't exist; insert as singleton
-        insSingle (Just ns) = Just $ n' : ns
+        insSingle Nothing   = singleton n'          |> Just     || n didn't exist; insert as singleton
+        insSingle (Just ns) = nub cmpname (n' : ns) |> Just     || merge with existing mappings
 
 || insert a Qualified defn name into an envMap, inserting all of the associated constructors if it is a data defn
 || this will silently replace any existing entry, since top-level module definition names are defined to shadow any
