@@ -25,7 +25,6 @@
 %import "name"
 %import "predef"
 
-
 affineMap  == m_map name bitSet
 useInfoMap == m_map name useInfo
 

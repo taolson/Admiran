@@ -86,7 +86,7 @@ module ::=
         defnMap                    || top-level definitions (functions, simple patterns, data types, and type synonyms, all in the same namespace)
         [defn]                     || top-level patterns before they are desugared to a simple pattern
         defnMap                    || top-level type specifications
-        nameMap                    || top-level environment for this module, mapping Unqualified names to Qualified names
+        envMap                     || top-level environment for this module, mapping Unqualified or Unresolved names to Qualified names
 
 showmodule :: showI module
 showmodule m
@@ -102,7 +102,7 @@ showmodule m
 cmpmodule = undef
 
 || create an empty module with a name and initial environment
-emptyModule :: fileSpec -> nameMap -> module
+emptyModule :: fileSpec -> envMap -> module
 emptyModule fs env = Module fs Unbuilt (Left []) [] m_empty [] m_empty env
 
 || lenses for module components
@@ -191,7 +191,7 @@ modSpecs
         getf (Module fs bs exs ins defs pats specs env)     = specs
         overf fn (Module fs bs exs ins defs pats specs env) = Module fs bs exs ins defs pats (fn specs) env
 
-modEnv :: lens module nameMap
+modEnv :: lens module envMap
 modEnv
     = Lens getf overf
       where
@@ -208,24 +208,20 @@ insDefnMapUnchecked d m = m_insert cmpname (defnName d) d m
 || insert a Qualified name -> defn into a defnMap, or report a name clash
 insDefnMap :: defn -> defnMap -> excpt defnMap
 insDefnMap d m
-    = ex_pure (m_insert cmpname n d m),        if isNothing md'
-    = ex_error (NameClash n') (defnLocInfo d), otherwise
+    = ex_error (NameClash n) (defnLocInfo d), if m_member cmpname n m
+    = ex_pure (m_insert cmpname n d m),       otherwise
       where
         n   = defnName d
-        md' = m_lookup cmpname n m
-        d'  = fromJust md'
-        n'  = defnName d'
 
 || insert a DefFn into a DefnMap by merging it into an existing DefMult, or create one
 insDefMult :: defn -> defnMap -> excpt defnMap
 insDefMult d m
     = ex_pure (m_insertWith cmpname addMult n dm m), if isNothing md' \/ isDefMult d'
-    = ex_error (NameClash n') (defnLocInfo d),       otherwise
+    = ex_error (NameClash n) (defnLocInfo d),        otherwise
       where
         n   = defnName d
         md' = m_lookup cmpname n m
         d'  = fromJust md'
-        n'  = defnName d'
         dm  = DefMult Mfun [d]
 
         addMult (DefMult _ defs2) (DefMult _ defs1)
@@ -246,7 +242,7 @@ insDefnMapMerge d m
         n       = defnName d
         md'     = m_lookup cmpname n m
         d'      = fromJust md'
-        ncError = ex_error (NameClash (defnName d')) (defnLocInfo d)
+        ncError = ex_error (NameClash (defnName d)) (defnLocInfo d)
 
         || merge an implementation type synonym into a DefAbs
         insDefAbs (DefAbs tf ds t an) (DefSyn tf' t' an')
@@ -277,7 +273,6 @@ modInsImp lenv m
 
         doQual (Alias n1 n2)   = Alias (qualifyName mn n1) (qualifyName mn n2)
         doQual (AliasRemove n) = AliasRemove (qualifyName mn n)
-
 
 || insert a %free declaration
 modInsFre :: [defn] -> modInserter
@@ -390,10 +385,10 @@ lookupModule genv n
       where
         m  = view genvMod genv
 
+|| look up a name in the current module of the globalEnv, and
+|| return Nothing if lookupEnvMap returns an exceptInfo
 lookupName :: globalEnv -> name -> maybe name
-lookupName genv n
-    = view genvMod genv |> view modEnv |> m_lookup cmpname n, if isUnqualified n \/ isUnresolved n
-    = Just n,                                                 otherwise
+lookupName genv n = view genvMod genv |> view modEnv |> lookupEnvMap n |> eitherf (const Nothing) Just 
 
 || lookup the definition of a Qualified name, using a lens to specify the defnMap to use
 lookupDefnWithLens :: globalEnv -> lens module defnMap -> name -> maybe defn
@@ -464,81 +459,105 @@ genvAnno genv = view genvMod genv |> view modName |> initLocation |> emptyAnnoLo
 
 || insert a mapping into a nameMap, or report a name clash
 insNameMap :: locInfo -> name -> name -> nameMap -> excpt nameMap
-insNameMap loc k v m
-    = ex_pure (m_insert cmpname k v m), if isNothing mprev
-    = ex_error (NameClash prev) loc,    otherwise
+insNameMap loci k v nm
+    = ex_error (NameClash k) loci,       if m_member cmpname k nm
+    = ex_pure (m_insert cmpname k v nm), otherwise
+
+|| insert a  mapping into a name map, inserting all of the associated constructors if it is a data defn
+insNameMapDefn :: locInfo -> name -> defn -> nameMap -> excpt nameMap
+insNameMapDefn loci n d nm
+    = insNameMap loci (unqualifyName n) n' nm >>= \nm' -> ex_foldM insName nm' ns
       where
-        mprev = m_lookup cmpname k m
-        prev  = fromJust mprev
+        n'   = defnName d
+        ns   = map tformName (view dataCtors d), if isDefData d
+             = [],                               otherwise
 
-|| insert a defn name into a nameMap, inserting all of the associated constructors if it is a data defn
-insNameMapDefn :: nameMap -> name -> defn -> excpt nameMap
-insNameMapDefn e n d
-    = ex_foldM insDataName e ns, if isDefData d     || insert data type name and constructor names (implicitly Qualified)
-    = insName e n (defnName d),  otherwise
-      where
-        loci = defnLocInfo d
-        ns   = n : map tformName (view dataCtors d)
-
-        insDataName e n = insName e n n
-
-        insName e n n'
-            = insNameMap loci (unresolveName n) n' e >>=
-              insNameMap loci (unqualifyName n) n'    || add both unresolved (qualified) and unqualified names
+        insName nm n = insNameMap loci (unqualifyName n) n nm
 
 || delete a name mapping from a nameMap, or report an undefined error
 delNameMap :: locInfo -> name -> nameMap -> excpt nameMap
-delNameMap loc k m
-    = ex_pure (m_delete cmpname k m), if m_member cmpname k m \/ isUnqualified k        || delete or silently ignore, if Unqualified
-    = ex_error (Undefined k) loc,     otherwise                                         || report an error, otherwise
+delNameMap loci k nm
+    = ex_pure (m_delete cmpname k nm), if m_member cmpname k nm
+    = ex_error (Undefined k) loci,     otherwise
 
 || replace a key name in the nameMap
 || used for aliasing names during import
 replaceNameMapKey :: locInfo -> name -> name -> nameMap -> excpt nameMap
-replaceNameMapKey loc k k' m
-    = ex_pure m,                  if isNothing mprev & isUnqualified k || silently ignore replacement for missing unqualified names (Undefined err)
-    = delNameMap loc k m >>=
-      insNameMap loc k' prev,     otherwise
+replaceNameMapKey loci k k' nm
+    = delNameMap loci k nm >>= insNameMap loci k' prev
       where
-        mprev = m_lookup cmpname k m
+        mprev = m_lookup cmpname k nm
         prev  = fromJust mprev
 
-|| merge nameMap e2 into nameMap e1, qualifying and renaming e2 names based upon libQual
-mergeEnvironments :: locInfo -> libQual -> string -> nameMap -> nameMap -> excpt nameMap
-mergeEnvironments loc qual s e1 e2
-    = m_toList e2 |> filter (snd .> isQualified) |> map (renameAs s) |> ex_foldM (addName qual) e1
+
+|| envMap operations
+|| an envMap maps an Unresolved name (possibly qualified with an "as" module alias) or an
+|| Unqualified name to the list of Qualified names in modules where it is defined.
+
+|| lookup a name in the envMap, and return it or an exceptionInfo if
+|| not found, or not a singleton
+lookupEnvMap :: name -> envMap -> either exceptionInfo name
+lookupEnvMap n em
+    = Right n,                        if isQualified n \/ isBuiltin n \/ isPrivate n
+    = m_lookup cmpname n em |> check, otherwise
       where
-        renameAs s (k, v)
-            = (k, v),                        if isUnqualified k
-            = (Unresolved s (getName k), v), otherwise
+        check Nothing    = Left (Undefined n)
+        check (Just [n]) = Right n
+        check (Just ns)  = Left (AmbiguousName n ns)
 
-        addName LibUnqualified m (k, v) = insNameMap loc k v m
-        addName LibQualified m (k, v)
-            = ex_pure m,            if isUnqualified k
-            = insNameMap loc k v m, otherwise
-
-|| extract all of the top-level definitions from a specified module, by matching Unresolved key module names
-|| with the target name, then checking for a corresponding Undefined key with the same name that has the same
-|| value
-definedInModule :: string -> nameMap -> nameMap
-definedInModule s env
-    = foldl insMatching m_empty $ m_toList env
+|| insert a mapping into an envMap, possibly adding to existing mappings for that name
+insEnvMap :: name -> name -> envMap -> envMap
+insEnvMap n n' em
+    = m_alter cmpname insSingle n em
       where
-        matchTargetMod (Unresolved mn _) = mn ==$ s
-        matchTargetMod _                 = False
+        insSingle Nothing   = Just $ singleton n'       || n didn't exist; insert as singleton
+        insSingle (Just ns) = Just $ n' : ns
 
-        || insert entries with matching Unresolved keys
-        insMatching m (n, d)
-            = insMatchingUnqual m' un d, if matchTargetMod n
-            = m,                         otherwise
-              where
-                m' = m_insert cmpname n d m
-                un = unqualifyName n
+|| insert a Qualified defn name into an envMap, inserting all of the associated constructors if it is a data defn
+|| this will silently replace any existing entry, since top-level module definition names are defined to shadow any
+|| imported names
+insEnvMapDefn :: defn -> envMap -> envMap
+insEnvMapDefn d em
+    = foldl insName em ns, if isDefData d    || insert data type name and constructor names
+    = insName em n,        otherwise
+      where
+        n  = defnName d
+        ns = n : map tformName (view dataCtors d)
 
-        || insert entries that match the Unqualified name and value
-        insMatchingUnqual m un d
-            = m_insert cmpname un d m, if isJust md' & _eq cmpname d' d
-            = m,                       otherwise
+        insName m n
+            = foldl ins m [unresolveName n, unqualifyName n]
               where
-                md' = m_lookup cmpname un env
-                d'  = fromJust md'
+                ins m n' = m_insert cmpname n' [n] m
+
+|| merge nameMap nm into envMap em, qualifying names based upon the "as" module string and libQual
+|| used to import another module's export map
+mergeIntoEnvMap :: libQual -> string -> nameMap -> envMap -> envMap
+mergeIntoEnvMap qual as nm em
+    = mergeQuals |> mergeUnquals qual
+      where
+        nml = m_toList nm
+
+        mergeQuals = foldl (\m (k, v) -> insEnvMap (Unresolved as (getName k)) v m) em nml
+
+        mergeUnquals LibUnqualified m = foldl (\m (k, v) -> insEnvMap k v m) m nml
+        mergeUnquals _              m = m
+
+|| merge Unqualified names in the envMap em that are defined in module mn into nameMap em
+|| used to create an export nameMap from an envMap
+mergeIntoNameMap :: locInfo -> string -> envMap -> nameMap -> excpt nameMap
+mergeIntoNameMap loci mn em nm
+    = m_keys em |> ex_foldM tryMatch nm
+      where
+        tryMatch nm n
+            = ex_pure nm,                         if ~isUnresolved n \/ getModName n ~=$ mn
+            = unqualifyName n |> findMatching nm, otherwise
+
+        findMatching nm n
+            = m_lookup cmpname n em |> fromMaybef (ex_pure nm) (add n)
+              where
+                add n [n'] = insNameMap loci n n' nm
+                add n ns   = ex_error (AmbiguousName n ns) loci
+
+
+
+

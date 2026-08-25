@@ -24,7 +24,7 @@ showsExceptionType Error = shows "error "
 
 || indentifying information for each exception
 exceptionInfo ::=
-    AmbiguousName  [name]            |       || ambiguous name reference
+    AmbiguousName  name [name]       |       || ambiguous name reference
     Arity                            |       || arity mismatch in arguments for function or type
     BadCtor        name  name        |       || constructor is not a member of the data defn
     BadPattern     pat               |       || pattern is not a constructor or variable
@@ -58,18 +58,18 @@ showsExName (Internal n d)  = shows n        || show name without uniquifying nu
 showsExName n               = shows (showName n)
 
 showsExceptionInfo :: exceptionInfo -> showS
-showsExceptionInfo (AmbiguousName  ns)  = showsExName (unqualifyName (hd ns)). shows " is ambiguous; it could be " . showsCommaList showsExName ns
+showsExceptionInfo (AmbiguousName  n ns) = showsExName n . shows " is ambiguous; it could be " . showsCommaList showsExName ns
 showsExceptionInfo Arity                = shows "arity mismatch in argument count to a function or type definition"
 showsExceptionInfo (BadCtor dn cn)      = showsExName cn . shows " is not a constructor for " . showsExName dn
 showsExceptionInfo (BadPattern p)       = shows "bad pattern " . showsAst p
 showsExceptionInfo (CtorArity cn)       = shows "constructor " . showsExName cn . shows " used with wrong arity in formal"
 showsExceptionInfo (DepCycle s)         = shows "dependency cycle in " . shows s
-showsExceptionInfo (NameClash n)        = shows "name clash with " . showsName n
+showsExceptionInfo (NameClash n)        = shows "name clash: " . showsExName n . shows " is previously defined"
 showsExceptionInfo NonExhaustive        = shows "non-exhaustive patterns"
 showsExceptionInfo NotPairPat           = shows "case alternate pattern must be an explicit pair"
 showsExceptionInfo (NotType n)          = showsExName n . shows " is not a typename"
 showsExceptionInfo (Occurs n t2)        = shows "cannot construct the infinite type " . showsAst (Tvar n) . shows " ~ " . showsAst t2
-showsExceptionInfo (QualBind n)         = shows "qualified name in binding position: " . showsName n
+showsExceptionInfo (QualBind n)         = showsExName n . shows " cannot be a qualified name"
 showsExceptionInfo (RepeatedTvar n)     = shows "repeated type var " . showsAst (Tvar n)
 showsExceptionInfo (SpecNoDef n)        = showsExName n . shows " specified but not defined"
 showsExceptionInfo (TypeHole t)         = shows "type hole found with type " . showsAst t

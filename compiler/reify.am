@@ -32,32 +32,27 @@ reifyImports genv
             = ex_error (Unsupported "bindings in %import") loci,     otherwise
               where
                 loci = locOnlyInfo loc
-                env  = view modEnv m
+                em   = view modEnv m
 
-                updateModEnv e = set modEnv e m
-                getExports     = lookupExportMap loci genv fs
-                doAliases ienv = ex_foldM aliasNameMap ienv aliases
-                doMerge        = mergeEnvironments loci qual as env
+                updateModEnv em = set modEnv em m
+                getExports      = lookupExportMap loci genv fs
+                doAliases nm    = ex_foldM aliasNameMap nm aliases
+                doMerge   nm    = mergeIntoEnvMap qual as nm em |> ex_pure
 
-                aliasNameMap e (AliasRemove n)
-                    = delNameMap loci (unresolveName n) e >>=
-                      delNameMap loci (unqualifyName n)
-
-                aliasNameMap e (Alias n' n)
-                    = replaceNameMapKey loci (unresolveName n) (unresolveName n') e >>=
-                      replaceNameMapKey loci (unqualifyName n) (unqualifyName n')
+                aliasNameMap nm (AliasRemove n) = delNameMap loci (unqualifyName n) nm
+                aliasNameMap nm (Alias n' n)    = replaceNameMapKey loci (unqualifyName n) (unqualifyName n') nm
 
 || reify module definitions that match a qualifying function
 reifyDefns :: (defn -> bool) -> globalEnv -> excpt globalEnv
 reifyDefns defType genv
-    = ex_foldM ins env defLst <&> updateGenv
+    = foldl ins em defs |> updateGenv |> ex_pure
       where
-        m      = view genvMod genv
-        env    = view modEnv m
-        defLst = filter (defType . snd) . m_toList . view modDefns $ m
+        m    = view genvMod genv
+        em   = view modEnv m
+        defs = view modDefns m |> m_elems |> filter defType
 
-        updateGenv e = set genvMod (set modEnv e m) genv
-        ins e (n, d) = insNameMapDefn e n d
+        updateGenv em = set genvMod (set modEnv em m) genv
+        ins em d      = insEnvMapDefn d em
 
 || convert unreified list of export directive parts to a reified export environment
 reifyExports :: globalEnv -> excpt globalEnv
@@ -67,7 +62,7 @@ reifyExports genv
         m    = view genvMod genv
         mn   = view modName m
         exps = view modExportParts m
-        env  = view modEnv m
+        em   = view modEnv m
 
         updateGenv m       = set genvMod m genv
         updateExportMap nm = setModExportMap nm m
@@ -75,27 +70,23 @@ reifyExports genv
         doExports []   = doExports [LibAll (initLocation mn)]           || default is to export everything
         doExports exps = ex_foldM doPart m_empty exps <&> updateExportMap
 
-        doPart e (LibAll loc)    = doMerge loc e (definedInModule mn env)
-        doPart e (LibFile f loc) = doMerge loc e (definedInModule mn env) where mn = fileSpecName f
+        doPart nm (LibAll loc)    = doMerge loc mn em nm
+        doPart nm (LibFile f loc) = doMerge loc (fileSpecName f) em nm
 
-        doPart e (LibRemove n loc)
-            = delNameMap loci (unresolveName n') e >>=
-              delNameMap loci (unqualifyName n')
+        doPart nm (LibRemove n loc)
+            = delNameMap loci n nm
               where
                 loci = locOnlyInfo loc
-                n'   = qualifyName mn n, if isUnqualified n
-                     = n,                otherwise
 
-        doPart e (LibIdent n loc)
-            = ex_error (Undefined n) loci,       if isNothing md
-            = insNameMapDefn e qn (fromJust md), otherwise
+        doPart nm (LibIdent n loc)
+            = lookupEnvMap n em |> eitherf err ins
               where
-                loci = locOnlyInfo loc
-                qn   = qualifyName mn n
-                md   = m_lookup cmpname n env mb.>>= lookupDefn genv
+                loci   = locOnlyInfo loc
+                err ei = ex_error ei loci
+                ins _  = lookupDefn genv n |> fromJust |> \d -> insNameMapDefn loci n d nm
 
-        doMerge loc e1 e2
-            = mergeEnvironments loci LibUnqualified mn e1 e2
+        doMerge loc mn em nm
+            = mergeIntoNameMap loci mn em nm
               where
                 loci = locOnlyInfo loc
 

@@ -8,6 +8,7 @@
 %import <lens>
 %import <map>
 %import <maybe>
+%import <maybe> qualified as mb (>>=)/mb_bind
 %import <set>
 %import <state>                 (>>=)/st_bind (<&>)/st_rfmap
 %import "ast"
@@ -29,7 +30,7 @@
 || env:  nameMap defining the lexical environment
 || tenv: set of tvars in scope
 rnDynSt   == (globalEnv, [exception], string)
-rnLexSt   == (locInfo, nameMap, s_set int)
+rnLexSt   == (locInfo, envMap, s_set int)
 rnSt      == (rnDynSt, rnLexSt)
 
 || lenses for rnSt fields
@@ -52,11 +53,11 @@ addRnErr ei st = over rnErrs ((Error, ei, view rnLoc st) :) st
 
 || add a rename to the rnEnv
 addRnEnv :: name -> name -> rnSt -> rnSt
-addRnEnv n1 n2 = over rnEnv $ m_insert cmpname n1 n2
+addRnEnv n n' = over rnEnv $ m_insert cmpname n [n']
 
-|| lookup a name in the rnEnv
-lookupRnEnv :: name -> rnSt -> maybe name
-lookupRnEnv n = m_lookup cmpname n . view rnEnv
+|| lookup a name in the rnEnv and ensure it is a singleton
+lookupRnEnv :: name -> rnSt -> either exceptionInfo name
+lookupRnEnv n st = view rnEnv st |> lookupEnvMap n
 
 nameNeedsResolution :: name -> bool
 nameNeedsResolution n
@@ -99,7 +100,7 @@ renameAst k (Elet rec defs ps e) st
             = addRnErr (QualBind n1) st,   if isUnresolved n1
             = go (edges cmpname fwd n1 g), otherwise
               where
-                go [n2] = addRnEnv n1 (fromMaybe n2 (lookupRnEnv n2 st)) st     || check if n2 is renamed already
+                go [n2] = addRnEnv n1 (fromEither n2 (lookupRnEnv n2 st)) st    || check if n2 is renamed already
                 go _    = st    || n1 was not a renamePat; don't install a rename for it
 
         || rename other defns by running renameDef to get a new name, then install that in the defnMap
@@ -163,10 +164,10 @@ renameAst k a st
 || rename a name reference or report an undefinedName error
 renameRef :: name -> state rnSt name
 renameRef n st
-    = fromMaybef (n, st') ($pair st) (lookupRnEnv n st), if nameNeedsResolution n
-    = (n, st),                                           otherwise
+    = eitherf reportErr ($pair st) (lookupRnEnv n st), if nameNeedsResolution n
+    = (n, st),                                         otherwise
       where
-        st' = addRnErr (Undefined n) st
+        reportErr ei = (n, addRnErr ei st)
 
 || rename a name definition:
 || create a new Internal name if it is Unqualified, adding a prefix string if one is present
@@ -181,8 +182,8 @@ renameDef n st
         s          = getName n
         s'         = s,        if null pfx \/ isPrefixOf cmpchar pfx s
                    = pfx ++ s, otherwise
-        (gen', n') = genName s' . view rnGen $ st
-        st'        = addRnEnv n n' . set rnGen gen' $ st
+        (gen', n') = view rnGen st |> genName s'
+        st'        = addRnEnv n n' st |> set rnGen gen'
 
 || check for unbound tvarReferences in a texpr
 tvarRef :: astRewriteTraverser rnSt

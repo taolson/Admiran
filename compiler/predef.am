@@ -240,23 +240,25 @@ builtinNil              = makeBuiltinVar "Nil"
 builtinCons             = makeBuiltinVar ":"
 
 || builtin environment
-builtinEnv :: nameMap
+builtinEnv :: envMap
 builtinEnv
-    = foldl ins m_empty [ builtinTypeType, builtinTypeUnit, builtinTypeWord,
-                          builtinUnit, builtinNil, builtinCons,
-                          builtinCmp, builtinAdd, builtinSub, builtinMul, builtinQuotRem, builtinDivMod,
-                          builtinAnd, builtinOr, builtinXor, builtinNot, builtinShl, builtinShr,
-                          builtinAllocByteStream, builtinAllocFileStream, builtinReadByteStream, builtinWriteByteStream,
-                          builtinAllocArray, builtinFillArray, builtinCopyArray, builtinReadArray, builtinWriteArray,
-                          builtinGetTag,
-                          builtinExit, builtinOpenFileRead, builtinOpenFileWrite, builtinOpenFileAppend, builtinCloseFile,
-                          builtinReadFile, builtinWriteFile, builtinMtimeFile, builtinGetArg, builtinSystemCmd, builtinClock
-                        ]
+    = foldl insName m_empty
+          [ builtinTypeType, builtinTypeUnit, builtinTypeWord
+          , builtinUnit, builtinNil, builtinCons
+          , builtinCmp, builtinAdd, builtinSub, builtinMul, builtinQuotRem, builtinDivMod
+          , builtinAnd, builtinOr, builtinXor, builtinNot, builtinShl, builtinShr
+          , builtinAllocByteStream, builtinAllocFileStream, builtinReadByteStream, builtinWriteByteStream
+          , builtinAllocArray, builtinFillArray, builtinCopyArray, builtinReadArray, builtinWriteArray
+          , builtinGetTag
+          , builtinExit, builtinOpenFileRead, builtinOpenFileWrite, builtinOpenFileAppend, builtinCloseFile
+          , builtinReadFile, builtinWriteFile, builtinMtimeFile, builtinGetArg, builtinSystemCmd, builtinClock
+          ]
       where
-        || add both unresolved (qualified) and unqualified names
-        ins env (Tname n ts) = m_insert cmpname (unqualifyName n) n . m_insert cmpname (unresolveName n) n $ env
-        ins env (Evar  n)    = m_insert cmpname (unqualifyName n) n . m_insert cmpname (unresolveName n) n $ env
-        ins env _            = unreachable
+        insName env (Tname n ts) = ins env n
+        insName env (Evar  n)    = ins env n
+        insName env _            = unreachable
+
+        ins env n = m_insert cmpname (unqualifyName n) [n] env |> m_insert cmpname (unresolveName n) [n]
 
 builtinSpecs :: defnMap
 builtinSpecs

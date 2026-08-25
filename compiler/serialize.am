@@ -419,7 +419,7 @@ serialModule (Module fs bs exs ins defs pats specs env)
       serialDefnMap defs                                        .
       serialList serialAst pats                                 .
       serialDefnMap specs                                       .
-      serialNameMap env
+      serialEnvMap env
 
 deserialModule :: deserializer module
 deserialModule = ((st_liftA6 Module
@@ -430,4 +430,4 @@ deserialModule = ((st_liftA6 Module
                      deserialDefnMap
                      (deserialList deserialAst))  <*>
                      deserialDefnMap)             <*>
-                     deserialNameMap
+                     deserialEnvMap
