@@ -378,23 +378,11 @@ deserialLibAlias
         dla 1 =           AliasRemove <$>    deserialName
         dla _ = unreachable
 
-serialLibBinding :: serializer libBinding
-serialLibBinding (BindVar n e)   = serialCtor 0 . serialName n . serialAst e
-serialLibBinding (BindType n te) = serialCtor 1 . serialName n . serialAst te
-
-deserialLibBinding :: deserializer libBinding
-deserialLibBinding
-    = deserialCtor >>= dlb
-      where
-        dlb 0 = st_liftA2 BindVar  deserialName deserialAst
-        dlb 1 = st_liftA2 BindType deserialName deserialAst
-        dlb _ = unreachable
-
 serialLibEnv :: serializer libEnv
-serialLibEnv = serialTup6 serialFileSpec serialLoc serialLibQual serialString (serialList serialLibBinding) (serialList serialLibAlias)
+serialLibEnv = serialTup5 serialFileSpec serialLoc serialLibQual serialString (serialList serialLibAlias)
 
 deserialLibEnv :: deserializer libEnv
-deserialLibEnv = deserialTup6 deserialFileSpec deserialLoc deserialLibQual deserialString (deserialList deserialLibBinding) (deserialList deserialLibAlias)
+deserialLibEnv = deserialTup5 deserialFileSpec deserialLoc deserialLibQual deserialString (deserialList deserialLibAlias)
 
 serialBuildStatus :: serializer buildStatus
 serialBuildStatus Unbuilt    = serialCtor 0

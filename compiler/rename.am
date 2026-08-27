@@ -97,8 +97,7 @@ renameAst k (Elet rec defs ps e) st
 
         || handle renamePats by installing the mapping from n1 -> n2 in the rename map
         renamePat st n1
-            = addRnErr (QualBind n1) st,   if isUnresolved n1
-            = go (edges cmpname fwd n1 g), otherwise
+            = go (edges cmpname fwd n1 g)
               where
                 go [n2] = addRnEnv n1 (fromEither n2 (lookupRnEnv n2 st)) st    || check if n2 is renamed already
                 go _    = st    || n1 was not a renamePat; don't install a rename for it
@@ -174,7 +173,6 @@ renameRef n st
 || and add the mapping to the environment
 renameDef :: name -> state rnSt name
 renameDef n st
-    = (n, addRnErr (QualBind n) st), if isUnresolved n  || definition names cannot be Unresolved (qualified with a module name) prior to rename
     = (n', st'),                     if nameNeedsResolution n
     = (n,  st),                      otherwise
       where

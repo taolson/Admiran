@@ -35,7 +35,6 @@ exceptionInfo ::=
     NotPairPat                       |       || case alternate pattern is not a pair
     NotType        name              |       || name is not defined as a type
     Occurs         int   texpr       |       || type var n occurs in its substitution (infinite type)
-    QualBind       name              |       || qualified name in binding position
     RepeatedTvar   int               |       || type var n used multiple times in a definition
     SpecNoDef      name              |       || specified, but not defined
     TypeHole       texpr             |       || type hole found when unifying with texpr
@@ -69,7 +68,6 @@ showsExceptionInfo NonExhaustive        = shows "non-exhaustive patterns"
 showsExceptionInfo NotPairPat           = shows "case alternate pattern must be an explicit pair"
 showsExceptionInfo (NotType n)          = showsExName n . shows " is not a typename"
 showsExceptionInfo (Occurs n t2)        = shows "cannot construct the infinite type " . showsAst (Tvar n) . shows " ~ " . showsAst t2
-showsExceptionInfo (QualBind n)         = showsExName n . shows " cannot be a qualified name"
 showsExceptionInfo (RepeatedTvar n)     = shows "repeated type var " . showsAst (Tvar n)
 showsExceptionInfo (SpecNoDef n)        = showsExName n . shows " specified but not defined"
 showsExceptionInfo (TypeHole t)         = shows "type hole found with type " . showsAst t

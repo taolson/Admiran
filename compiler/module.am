@@ -56,21 +56,15 @@ libAlias ::=
     Alias       name name |
     AliasRemove name
 
-|| binding of %free variables or types
-libBinding ::=
-    BindVar  name expr  |
-    BindType name texpr
-
 || %import directive
-libEnv == (fileSpec, location, libQual, string, [libBinding], [libAlias])
+libEnv == (fileSpec, location, libQual, string, [libAlias])
 
 || lenses on libEnv
-libEnvFile  = lensTup6_0
-libEnvLoc   = lensTup6_1
-libEnvQual  = lensTup6_2
-libEnvAs    = lensTup6_3
-libEnvBind  = lensTup6_4
-libEnvAlias = lensTup6_5
+libEnvFile  = lensTup5_0
+libEnvLoc   = lensTup5_1
+libEnvQual  = lensTup5_2
+libEnvAs    = lensTup5_3
+libEnvAlias = lensTup5_4
 
 || build status, used to differentiate modules that have only been parsed
 || with ones that are fully built (e.g. read in from a serialized version)
@@ -211,7 +205,7 @@ insDefnMap d m
     = ex_error (NameClash n) (defnLocInfo d), if m_member cmpname n m
     = ex_pure (m_insert cmpname n d m),       otherwise
       where
-        n   = defnName d
+        n    = defnName d
 
 || insert a DefFn into a DefnMap by merging it into an existing DefMult, or create one
 insDefMult :: defn -> defnMap -> excpt defnMap
@@ -219,10 +213,10 @@ insDefMult d m
     = ex_pure (m_insertWith cmpname addMult n dm m), if isNothing md' \/ isDefMult d'
     = ex_error (NameClash n) (defnLocInfo d),        otherwise
       where
-        n   = defnName d
-        md' = m_lookup cmpname n m
-        d'  = fromJust md'
-        dm  = DefMult Mfun [d]
+        n    = defnName d
+        md'  = m_lookup cmpname n m
+        d'   = fromJust md'
+        dm   = DefMult Mfun [d]
 
         addMult (DefMult _ defs2) (DefMult _ defs1)
             = DefMult Mfun (defs1 ++ defs2) || add new def after any existing defs to maintain pattern order
@@ -276,7 +270,8 @@ modInsDef :: defn -> modInserter
 modInsDef d m
     = view modDefns m |> insDefnMapMerge qd |> ex_fmap setDefs
       where
-        qd           = qualifyDefn (view modName m) d
+        qd = qualifyDefn (view modName m) d
+
         setDefs defs = set modDefns defs m
 
 || insert a top-level pattern
@@ -342,7 +337,7 @@ makeModule m insrs
       where
         mn     = view modName m
         stdlib = FileSpec stdlibPath stdlibModuleName
-        stdImp = modInsImp (stdlib, initLocation mn, LibUnqualified, stdlibModuleName, [], [])
+        stdImp = modInsImp (stdlib, initLocation mn, LibUnqualified, stdlibModuleName, [])
 
         || add implicit stdlib import if module isn't stdlib and doesn't explicitly import it
         checkStdlib m
@@ -477,10 +472,10 @@ delNameMap loci k nm
 || used for aliasing names during import
 replaceNameMapKey :: locInfo -> name -> name -> nameMap -> excpt nameMap
 replaceNameMapKey loci k k' nm
-    = delNameMap loci k nm >>= insNameMap loci k' prev
+    = m_lookup cmpname k nm |> fromMaybef err repl
       where
-        mprev = m_lookup cmpname k nm
-        prev  = fromJust mprev
+        err       = ex_error (Undefined k) loci
+        repl prev = delNameMap loci k nm >>= insNameMap loci k' prev
 
 
 || envMap operations

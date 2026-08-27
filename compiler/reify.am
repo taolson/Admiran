@@ -27,9 +27,8 @@ reifyImports genv
 
         updateGenv m = set genvMod m genv
 
-        reifyImport m (fs, loc, qual, as, binds, aliases)
-            = getExports >>= doAliases >>= doMerge <&> updateModEnv, if null binds
-            = ex_error (Unsupported "bindings in %import") loci,     otherwise
+        reifyImport m (fs, loc, qual, as, aliases)
+            = getExports >>= doAliases >>= doMerge <&> updateModEnv
               where
                 loci = locOnlyInfo loc
                 em   = view modEnv m

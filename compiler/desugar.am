@@ -198,6 +198,7 @@ matchCtor var vars peqns st
                 (p1, p2)    = partition (getCn .> getName .> (==$ cs)) elts
                 (rest, st1) = partitionByCtorName sel cns p2 st
 
+
 || a ctorEqn is a ctor name, its pattern vars, and an expression
 ctorEqn == (name, [pat], expr)
 
@@ -266,21 +267,19 @@ desugarAst :: astRewriteTraverser dsSt
 desugarAst k (Elet rec defs pats e) st
     = (Elet rec defs2 [] e', st2)
       where
-        topLevel                     = null (view dsDefnPath st)       || see if we are desugaring a top-level defn
-        mn                           = view dsModName st
+        topLevel = null (view dsDefnPath st)
+        mn       = view dsModName st
+
         (Elet _ defs1 pats' e', st1) = k (Elet rec defs pats e) st     || desugar the sub-asts of the Elet
-        (defs2, st2)                 = flattenDefns pats' |> foldl insOrAddErrs (defs1, st1)
-        insOrAddErrs (defs, st) d    = (defs, over dsErrs (errs ++) st), if isLeft dm
-                                     = (defs', st'),                     if isUnresolved dn
-                                     = (defs', st),                      otherwise
-                                       where
-                                         dn               = defnName d
-                                         dm               = insDefnMap d' defs
-                                         Right (defs', _) = dm
-                                         Left errs        = dm
-                                         d'               = qualifyDefn mn d, if topLevel
-                                                          = d,                otherwise
-                                         st'              = addDsErr (QualBind dn) st
+
+        (defs2, st2)  = flattenDefns pats' |> foldl ins (defs1, st1)
+
+        ins (defs, st) d
+            = insDefnMap d' defs |> eitherf (addErrs .> (pair defs)) (fst .> ($pair st))
+              where
+                d' = if' topLevel (qualifyDefn mn d) d
+
+                addErrs es = over dsErrs (es ++) st
 
 || desugar a list comprehension e.g. [(x * x, y) | x, y <- [1 .. 10]]
 || instead of using a strategy similar to the list monad (bind = concatMap, return x = [x]), which does a lot of extra
@@ -333,12 +332,14 @@ desugarAst k (ElistComp e quals an) st
                 || however, adding a wildcard match to the end of each case results in a lot of "unreachable pattern"
                 || warnings.  Since most patterns are irrefutable, we track refutability, and only add the fail case
                 || when the pattern can be refutable:
-                refutable (Plit _)       = True
-                refutable (Pctor n vars) = isNothing mcns \/ #cns > 1 \/ any refutable vars
-                                           where
-                                             mcns = lookupCtorNames (view dsGenv st) n
-                                             cns  = fromJust mcns
-                refutable p              = False
+                refutable (Plit _) = True
+                refutable (Pctor n vars)
+                    = isNothing mcns \/ #cns > 1 \/ any refutable vars
+                      where
+                        mcns = lookupCtorNames (view dsGenv st) n
+                        cns  = fromJust mcns
+
+                refutable p = False
 
         || desugar a multiple-pattern generator e.g. x, y <- zs;
         dsGenMult ge ps c gen nextQual
@@ -366,7 +367,7 @@ desugarAst k (Ecase Cnone e alts an) st
       where
         genv                  = view dsGenv st
         loc                   = view dsLoc st |> snd |> fromJust
-        (sel, alts')          = checkPats $ map getPat alts
+        (sel, alts')          = map getPat alts |> checkPats
         sequentialFromZero xs = and $ zipWith (==) [0 ..] xs
         sortedLitAlts         = sortOn cmpint getLit alts
         sortedCtorAlts        = sortOn cmpint getCtorTag alts
@@ -374,7 +375,7 @@ desugarAst k (Ecase Cnone e alts an) st
         allCtors              = find isCtorAlt alts mb.>>= getCtorName .> lookupCtorNames genv |> fromMaybef [] (map getName)
 
         isCtorAlt (CaseAlt (Pctor _ _) _ _) = True
-        isCtorAlt _                       = False
+        isCtorAlt _                         = False
 
         getPat (CaseAlt p _ _) = p
         getPat _               = unreachable
@@ -385,7 +386,7 @@ desugarAst k (Ecase Cnone e alts an) st
         getCtorName (CaseAlt (Pctor n _) _ _) = n
         getCtorName _                         = unreachable
 
-        getCtorTag (CaseAlt (Pctor n _) _ _) = fromMaybe 0 $ elemIndex (==$ getName n) allCtors
+        getCtorTag (CaseAlt (Pctor n _) _ _) = elemIndex (==$ getName n) allCtors |> fromMaybe 0
         getCtorTag _                         = unreachable
 
         checkPats ps
@@ -430,7 +431,7 @@ desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
         singlePatVar = isSingleton ns
         singleCtor   = lookupCtorNames genv c |> fromMaybef False isSingleton
         simpleCtor   = singleCtor & all isPvar pats
-        accs         = if' singlePatVar [] (map makeAccessor $ zip2 ns [0 ..])
+        accs         = if' singlePatVar [] (zip2 ns [0 ..] |> map makeAccessor)
         cn           = if' simpleCtor c (builtinTupleName numPatVars)
 
         ((caseTree, ns), st2)
@@ -498,17 +499,17 @@ desugarLit k e st
       where
         mn         = view dsModName st
         gen        = view dsGen st
-        mv         = m_lookup cmplit e $ view dsLits st
+        mv         = view dsLits st |> m_lookup cmplit e
         v          = fromJust mv
         (gen', v') = genPrivateName mn "lit" gen
-        st'        = over dsLits (m_insert cmplit e v') $ set dsGen gen' st
+        st'        = set dsGen gen' st |> over dsLits (m_insert cmplit e v')
 
 || make a common definition for a literal expression
 mkLit :: string -> (expr, name) -> defn
 mkLit mn (l, v)
     = DefPat (Pvar v) l' an
       where
-        an         = emptyAnnoLoc $ initLocation mn
+        an         = initLocation mn |> emptyAnnoLoc
         (ctor, ml) = go l
         l'         = fromMaybef ctor (Eap ctor) ml
 

@@ -37,9 +37,6 @@ p_identifier
         mkIdent (Tident n) = p_pure n
         mkIdent _          = p_fail
 
-p_unqualified :: parser string
-p_unqualified = p_identifier <?> isUnqualified <&> getName <|> p_expected "an unqualified identifier"
-
 p_symbol :: parser name
 p_symbol
     = p_any >>=? mkSym
@@ -65,13 +62,11 @@ p_prefix
                = p_fail,            otherwise
                  where s = getName n
 
-p_varOrConstructor, p_unqualVarOrConstructor, p_var, p_constructor :: parser name
+p_varOrConstructor, p_var, p_constructor :: parser name
 p_varOrConstructor
     = (p_identifier <|> p_inParens p_symbol) <?> notReserved
       where
         notReserved n = ~s_member cmpstring (getName n) reservedNames
-
-p_unqualVarOrConstructor = p_varOrConstructor <?> isUnqualified
 
 p_var = p_varOrConstructor <?> isVar
 
@@ -366,6 +361,22 @@ p_rhs p_sep
 
 || Admiran pattern and fnform parsing
 
+p_unqualified :: parser name -> parser name
+p_unqualified p
+    = p >>= check
+      where
+        check n = p_pure n, if isUnqualified n
+                = err n,    otherwise
+
+        err n = p_error 2 (showName n ++ " cannot be a qualified name")
+
+p_uIdentifier :: parser string
+p_uIdentifier = p_unqualified p_identifier <&> getName
+
+p_uVarOrConstructor :: parser name
+p_uVarOrConstructor = p_unqualified p_varOrConstructor
+
+
 || a fnform is the left hand side of a function definition
 fnform == (name, [pat])
 
@@ -416,9 +427,9 @@ p_patPrefix = p_prefix <?> (_eq cmpname stdNegName)
 
 p_formal :: parser expr
 p_formal
-    = p_varOrConstructor <&> Pvar <|>
-      p_literal          <&> Plit <|>
-      p_parenExpr p_patExpr       <|>
+    = p_uVarOrConstructor <&> Pvar <|>
+      p_literal           <&> Plit <|>
+      p_parenExpr p_patExpr        <|>
       p_listExpr  p_patExpr
 
 || parse an expr restricted to pat forms
@@ -609,7 +620,7 @@ p_def
 
 p_fileSpec :: parser fileSpec
 p_fileSpec
-    = p_inAngles p_unqualified <&> mkStd <|> p_any >>=? fid
+    = p_inAngles p_uIdentifier <&> mkStd <|> p_any >>=? fid
       where
         mkStd n            = FileSpec stdlibPath n
         fid (TlitString s) = fromMaybef p_fail p_pure (fileSpecFromString s)
@@ -633,12 +644,12 @@ p_libQual
         mkQual (Just _) = LibQualified
 
 p_libAs :: parser string
-p_libAs = p_ident "as" >> p_unqualified
+p_libAs = p_ident "as" >> p_uIdentifier
 
 p_alias :: parser libAlias
 p_alias
-    = p_bind2 p_unqualVarOrConstructor (p_sym "/" >> p_unqualVarOrConstructor) checkMatch <|>
-      p_minus >> p_unqualVarOrConstructor <&> AliasRemove
+    = p_bind2 p_uVarOrConstructor (p_sym "/" >> p_uVarOrConstructor) checkMatch <|>
+      p_minus >> p_uVarOrConstructor <&> AliasRemove
       where
         checkMatch n1 n2
             = p_pure (Alias n1 n2),                                  if match
@@ -646,18 +657,11 @@ p_alias
               where
                 match = isVar n1 & isVar n2 \/ isConstructor n1 & isConstructor n2
 
-p_binding :: parser libBinding
-p_binding = p_liftA2 BindVar  p_var (p_equal >> (p_inLayout p_expr)) <|>
-            p_liftA2 BindType p_var (p_eqeq  >> (p_inLayout p_type))
-
-p_binder :: parser [libBinding]
-p_binder = p_inBraces (p_some p_binding)
-
 p_env :: parser libEnv
 p_env
-    = (p_liftA4 mkEnv p_getLoc p_fileSpec p_libQual (p_optional p_libAs) <*> p_optional p_binder) <*> p_many p_alias
+    = p_liftA4 mkEnv p_getLoc p_fileSpec p_libQual (p_optional p_libAs) <*> p_many p_alias
       where
-        mkEnv loc fs lq ms mbi as = (fs, loc, lq, fromMaybe (fileSpecName fs) ms, fromMaybe [] mbi, as)
+        mkEnv loc fs lq ms as = (fs, loc, lq, fromMaybe (fileSpecName fs) ms, as)
 
 p_libDir :: parser modInserter
 p_libDir
