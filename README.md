@@ -42,7 +42,7 @@ amc compiler itself is an example of a large, multi-module Admiran program.
 Admiran is an "extended subset" of Miranda, an ML-like language,
 and has all its basic features:
 
-* Call-By-Value (Lazy) evaluation by default
+* Call-By-Need (Lazy) evaluation by default
 * Strongly-typed with parametric polymorphism
 * Curried, higher-order functions
 * Algebraic Data Types
