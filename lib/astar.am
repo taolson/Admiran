@@ -8,10 +8,10 @@
 
 %import <base>
 %import <lens>
-%import <map>
-%import <maybe>
-%import <set>
-
+%import <map>    as m
+%import <maybe>  as mb
+%import <set>    as s
+%import <stdlib> as std
 
 || read-only state passed through aStar
 || *  == node type
@@ -31,7 +31,7 @@ rs_cf   = lensTup6_4    || cost function
 rs_ef   = lensTup6_5    || heuristic estimate function
 
 || mutable state passed through aStar
-mstate * ** == (**, s_set (int, *), m_map * int, m_map * int, m_map * *)
+mstate * ** == (**, s.set (int, *), m.map * int, m.map * int, m.map * *)
 
 || don't auto-derive ordI and showI for mstate
 showmstate = undef
@@ -53,20 +53,20 @@ backtrace rs ms n
         cmp  = view rs_cmp rs
         pm   = view ms_pm  ms
 
-        go p n = fromMaybef p' (go p') (m_lookup cmp n pm) where p' = n : p
+        go p n = fromMaybef p' (go p') (m.lookup cmp n pm) where p' = n : p
 
 || default (~ inf) cost to use for any costs not found in the gScore or fScore maps
 maxCost :: int
 maxCost = 1 .<<. 60
 
 || get the current cost of a node from the fScore or gScore map
-getCost :: ordI * -> * -> (m_map * int) -> int
-getCost cmp k m = m_findWithDefault cmp maxCost k m
+getCost :: ordI * -> * -> (m.map * int) -> int
+getCost cmp k m = m.findWithDefault cmp maxCost k m
 
 || add the movesfrom src to dsts, updating mstate
 addMoves :: rstate * ** -> mstate * ** -> * -> [*] -> mstate * **
 addMoves (cmp, cmpo, _, _, cf, ef) ms src dsts
-    = foldl go ms dsts
+    = std.foldl go ms dsts
       where
         srcCost = view ms_gs ms |> getCost cmp src
 
@@ -81,13 +81,13 @@ addMoves (cmp, cmpo, _, _, cf, ef) ms src dsts
                 prevEst  = view ms_fs ms |> getCost cmp dst
                 os       = view ms_os ms
 
-                os'      = s_delete cmpo (prevEst, dst) os, if update & prevEst < maxCost
+                os'      = s.delete cmpo (prevEst, dst) os, if update & prevEst < maxCost
                          = os,                              otherwise
 
-                ms'      = set  ms_os (s_insert cmpo (estCost, dst) os') .     || add dst to open set
-                           over ms_gs (m_insert cmp dst cost)            .     || add new best cost for dst
-                           over ms_fs (m_insert cmp dst estCost)         .     || add new best estimate of final cost for dst
-                           over ms_pm (m_insert cmp dst src)             $ ms  || add new best path step
+                ms'      = lens.set  ms_os (s.insert cmpo (estCost, dst) os') .     || add dst to open set
+                           lens.over ms_gs (m.insert cmp dst cost)            .     || add new best cost for dst
+                           lens.over ms_fs (m.insert cmp dst estCost)         .     || add new best estimate of final cost for dst
+                           lens.over ms_pm (m.insert cmp dst src)             $ ms  || add new best path step
 
 solve :: rstate * ** -> mstate * ** -> ([*], mstate * **)
 solve rs ms
@@ -96,7 +96,7 @@ solve rs ms
         gf = view rs_gf rs
         xf = view rs_xf rs
 
-        go ms = case view ms_os ms |> s_viewMin of
+        go ms = case view ms_os ms |> s.viewMin of
                   Nothing -> ([], ms)
                   Just p  -> check ms p
 
@@ -104,29 +104,29 @@ solve rs ms
             = backtrace rs ms' n, if gf n
             = go $! expand ms' n, otherwise
               where
-                ms' = set ms_os os' ms
+                ms' = lens.set ms_os os' ms
 
         expand ms n
-            = case xf (n, view ms_xs ms) of (adj, xs') -> addMoves rs (set ms_xs xs' ms) n adj
+            = case xf (n, view ms_xs ms) of (adj, xs') -> addMoves rs (lens.set ms_xs xs' ms) n adj
 
 aStarSolve :: ordI * -> * -> (* -> bool) -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> ([*], **)
 aStarSolve cmp start gf xf xs cf ef
-    = solve (cmp, cmpo, gf, xf, cf, ef) (xs, os, gs, fs, m_empty) |> mapSnd (view ms_xs)
+    = solve (cmp, cmpo, gf, xf, cf, ef) (xs, os, gs, fs, m.empty) |> mapSnd (view ms_xs)
       where
         initEst = ef start
-        os      = s_singleton (initEst, start)
-        gs      = m_singleton start 0
-        fs      = m_singleton start initEst
+        os      = s.singleton (initEst, start)
+        gs      = m.singleton start 0
+        fs      = m.singleton start initEst
 
         cmpo (ca, na) (cb, nb) = cmpint ca cb $thenCmp cmp na nb
 
-aStarReachable :: ordI * -> * -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> m_map * *
+aStarReachable :: ordI * -> * -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> m.map * *
 aStarReachable cmp start xf xs cf ef
-    = solve (cmp, cmpo, const False, xf, cf, ef) (xs, os, gs, fs, m_empty) |> snd |> view ms_pm
+    = solve (cmp, cmpo, const False, xf, cf, ef) (xs, os, gs, fs, m.empty) |> snd |> view ms_pm
       where
         initEst = ef start
-        os      = s_singleton (initEst, start)
-        gs      = m_singleton start 0
-        fs      = m_singleton start initEst
+        os      = s.singleton (initEst, start)
+        gs      = m.singleton start 0
+        fs      = m.singleton start initEst
 
         cmpo (ca, na) (cb, nb) = cmpint ca cb $thenCmp cmp na nb

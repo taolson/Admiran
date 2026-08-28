@@ -3,20 +3,20 @@
 || shows the use of mutable vectors sequenced in the io monad
 || and the use of case expressions to ensure strictness
 
-%import <io>           (>>=)/io_bind (>>)/io_right
-%import <vector>
+%import <io>
+%import <vector> as v
 
 
 digits = 10_000
 
 step :: mvector int -> int -> int -> io int
-step mv 0 x = io_pure x
+step mv 0 x = io.pure x
 step mv i x
     = case quotrem x i of
-        (q, r) -> update >> v_unsafeRead mv i' >>= next
+        (q, r) -> update >> v.unsafeRead mv i' >>= next
                   where
                     i'     = i - 1
-                    update = case r of xm -> v_unsafeWrite mv i xm  || ensure the updated value is strict (not a lazy thunk)
+                    update = case r of xm -> v.unsafeWrite mv i xm  || ensure the updated value is strict (not a lazy thunk)
                     next v = case 10 * v + q of x' -> step mv i' x' || ensure the next x value is strict
 
 outer :: mvector int -> int -> int -> io ()
@@ -28,8 +28,8 @@ outer mv n x
 
 main :: io ()
 main
-    = v_rep digits 1 |> v_unsafeThaw |> go
+    = v.rep digits 1 |> v.unsafeThaw |> go
       where
-        go mv = v_unsafeWrite mv 0 0 >>
-                v_unsafeWrite mv 1 2 >>
+        go mv = v.unsafeWrite mv 0 0 >>
+                v.unsafeWrite mv 1 2 >>
                 outer mv digits 0

@@ -4,14 +4,13 @@
 %export reifyImports reifyDefns reifyDefAbs reifyExports reifySyns reifyTypes
 
 %import <base>
-%import <either>
+%import <either>                        -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
 %import <lens>
-%import <map>
-%import <maybe>
-%import <maybe> qualified as mb (>>=)/mb_bind
+%import <map>           qualified as m
+%import <maybe>                         -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
 %import "ast"
 %import "dependency"
-%import "exception"             (>>=)/ex_bind (<&>)/ex_rfmap
+%import "exception"     as ex
 %import "grammar"
 %import "module"
 %import "name"
@@ -21,7 +20,7 @@
 || add imported environments to the top-level environment, processing aliases and removes
 reifyImports :: globalEnv -> excpt globalEnv
 reifyImports genv
-    = ex_foldM reifyImport m (view modImports m) <&> updateGenv
+    = ex.foldM reifyImport m (view modImports m) <&> updateGenv
       where
         m = view genvMod genv
 
@@ -35,8 +34,8 @@ reifyImports genv
 
                 updateModEnv em = set modEnv em m
                 getExports      = lookupExportMap loci genv fs
-                doAliases nm    = ex_foldM aliasNameMap nm aliases
-                doMerge   nm    = mergeIntoEnvMap qual as nm em |> ex_pure
+                doAliases nm    = ex.foldM aliasNameMap nm aliases
+                doMerge   nm    = mergeIntoEnvMap qual as nm em |> ex.pure
 
                 aliasNameMap nm (AliasRemove n) = delNameMap loci n nm
                 aliasNameMap nm (Alias n' n)    = replaceNameMapKey loci n n' nm
@@ -44,11 +43,11 @@ reifyImports genv
 || reify module definitions that match a qualifying function
 reifyDefns :: (defn -> bool) -> globalEnv -> excpt globalEnv
 reifyDefns defType genv
-    = foldl ins em defs |> updateGenv |> ex_pure
+    = foldl ins em defs |> updateGenv |> ex.pure
       where
         m    = view genvMod genv
         em   = view modEnv m
-        defs = view modDefns m |> m_elems |> filter defType
+        defs = view modDefns m |> m.elems |> filter defType
 
         updateGenv em = set genvMod (set modEnv em m) genv
         ins em d      = insEnvMapDefn d em
@@ -67,7 +66,7 @@ reifyExports genv
         updateExportMap nm = setModExportMap nm m
 
         doExports []   = doExports [LibAll (initLocation mn)]           || default is to export everything
-        doExports exps = ex_foldM doPart m_empty exps <&> updateExportMap
+        doExports exps = ex.foldM doPart m.empty exps <&> updateExportMap
 
         doPart nm (LibAll loc)    = doMerge loc mn em nm
         doPart nm (LibFile f loc) = doMerge loc (fileSpecName f) em nm
@@ -81,7 +80,7 @@ reifyExports genv
             = lookupEnvMap n em |> eitherf err ins
               where
                 loci   = locOnlyInfo loc
-                err ei = ex_error ei loci
+                err ei = ex.error ei loci
                 ins _  = lookupDefn genv n |> fromJust |> \d -> insNameMapDefn loci n d nm
 
         doMerge loc mn em nm
@@ -131,13 +130,13 @@ expand (Tname n vars) st
         def            = fromJust mdef
         vars'          = tformVars $ view defnTform def
         te'            = view defnType def
-        rnMap          = m_fromList cmptexpr (zip2 vars' vars)
+        rnMap          = m.fromList cmptexpr (zip2 vars' vars)
         (renamedTe, _) = astRewriteTDCont renameTvars te' rnMap   || note: TDCont used to prevent infinite loop in renaming Tvars
 
         stNotType      = addTsErr (NotType n) loc st
         stArity        = addTsErr Arity loc st
 
-        renameTvars k (Tvar n) rnMap = (m_findWithDefault cmptexpr (Tvar n) (Tvar n) rnMap, rnMap)
+        renameTvars k (Tvar n) rnMap = (m.findWithDefault cmptexpr (Tvar n) (Tvar n) rnMap, rnMap)
         renameTvars k a        s     = k a s
 
 expand a s = (a, s)
@@ -145,7 +144,7 @@ expand a s = (a, s)
 || expand a type synonym to a base type
 expandSyn :: tsSt -> name -> tsSt
 expandSyn st n
-    = over tsModDefns (m_insert cmpname n d') st'
+    = over tsModDefns (m.insert cmpname n d') st'
       where
         genv       = view tsGenv st
         d          = fromJust (lookupDefn genv n)        || guaranteed to exist
@@ -160,8 +159,8 @@ expandSyns st
     = addTsErr (DepCycle (showCycles cycs)) emptyLocInfo st, if isLeft morder
     = foldl expandSyn st order,                              otherwise
       where
-        synDefs     = m_filter cmpname isSyn (view tsModDefns st)
-        morder      = dependencyOrder cmpname . makeDependencyGraph cmpname . makeDefnDependencyList $ synDefs
+        synDefs     = m.filter cmpname isSyn (view tsModDefns st)
+        morder      = makeDefnDependencyList synDefs |> makeDependencyGraph cmpname |> dependencyOrder cmpname
         Left cycs   = morder
         Right order = morder
 
@@ -198,8 +197,8 @@ expandDataDefs ddefs st
 || reify type synonyms, checking for dependency loops
 reifySyns :: globalEnv -> excpt globalEnv
 reifySyns genv
-    = ex_return (view tsGenv st) warns, if null errs
-    = ex_errs   errs,                   otherwise
+    = ex.return (view tsGenv st) warns, if null errs
+    = ex.errs   errs,                   otherwise
       where
         st            = expandSyns (initTsSt genv)
         (errs, warns) = partition isError (view tsErrs st)
@@ -207,27 +206,27 @@ reifySyns genv
 || reify specs and data defs
 reifyTypes :: globalEnv -> excpt globalEnv
 reifyTypes genv
-    = ex_return (view tsGenv st) warns, if null errs
-    = ex_errs   errs,                   otherwise
+    = ex.return (view tsGenv st) warns, if null errs
+    = ex.errs   errs,                   otherwise
       where
-        specs         = filter isDefSpec . m_elems . view genvModSpecs $ genv
-        ddefs         = filter isDefData . m_elems . view genvModDefns $ genv
-        st            = expandDataDefs ddefs . expandSpecs specs . initTsSt $ genv
-        (errs, warns) = partition isError (view tsErrs st)
+        specs         = view genvModSpecs genv |> m.elems |> filter isDefSpec
+        ddefs         = view genvModDefns genv |> m.elems |> filter isDefData
+        st            = initTsSt genv |> expandSpecs specs |> expandDataDefs ddefs
+        (errs, warns) = view tsErrs st |> partition isError
 
 || reify module abstype definitions by converting them to opaque DefData with no constructors,
 || then re-expanding their original signature specs
 reifyDefAbs :: globalEnv -> excpt globalEnv
 reifyDefAbs genv
-    = ex_return (view tsGenv st) warns, if null errs
-    = ex_errs   errs,                   otherwise
+    = ex.return (view tsGenv st) warns, if null errs
+    = ex.errs   errs,                   otherwise
       where
-        absTys        = filter isDefAbs . m_elems . view genvModDefns $ genv
+        absTys        = view genvModDefns genv |> m.elems |> filter isDefAbs
         st            = foldl update (initTsSt genv) absTys
         (errs, warns) = partition isError (view tsErrs st)
 
         update st (DefAbs tf specs te an)
-            = expandSpecs specs . over tsModDefns (insDefnMapUnchecked d) $ st
+            = over tsModDefns (insDefnMapUnchecked d) st |> expandSpecs specs
               where
                 d = DefData tf [] an
 

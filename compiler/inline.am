@@ -5,15 +5,14 @@
 
 %import <base>
 %import <lens>
-%import <map>
-%import <maybe>                 (>>=)/mb_bind (<&>)/mb_rfmap (<|>)/mb_alt
-%import <state>
-%import <state> qualified as st (>>=)/st_bind
+%import <map>           qualified as m
+%import <maybe>         as mb
+%import <state>         as st           -view -set -over -(<&>)
 %import "analyze"
 %import "ast"
 %import "config"
 %import "dependency"
-%import "exception"
+%import "exception"     as ex           -(>>=) -(<&>) -(<|>)
 %import "grammar"
 %import "module"
 %import "name"
@@ -99,7 +98,7 @@ addInfo s st
 || an indication of whether the lookup crossed a function definition boundary
 lookupEnv :: name -> inSt -> (maybe defn, bool)
 lookupEnv n st
-    = lookFrame (view inLenv st) False, if m_null (view inSubst st)
+    = lookFrame (view inLenv st) False, if m.null (view inSubst st)
     = lookStream,                       otherwise
       where
         lookFrame []             cf = (lookupDefn (view inGenv st) n, cf)       || name not found in Lenv, check globalEnv
@@ -108,7 +107,7 @@ lookupEnv n st
             = (md, cf),        if isJust md
             = lookFrame fs cf, otherwise
               where
-                md = m_lookup cmpname n e
+                md = m.lookup cmpname n e
 
         || only allow functions from the stream module to be inlined
         lookStream
@@ -123,11 +122,11 @@ replace e bdgs
     = e,  if null bdgs
     = e', otherwise
       where
-        env = m_fromList cmpname bdgs
-        e'  = st_evalState (astRewriteTD replaceAst e) ()
+        env = m.fromList cmpname bdgs
+        e'  = st.evalState (astRewriteTD replaceAst e) ()
 
-        replaceAst (Evar n) = st_pure $ m_findWithDefault cmpname (Evar n) n env
-        replaceAst a        = st_pure a
+        replaceAst (Evar n) = st.pure $ m.findWithDefault cmpname (Evar n) n env
+        replaceAst a        = st.pure a
 
 || rewrite only case scrutinees in an expr, replacing var references with the corresponding value of the binding
 replaceScrutinee :: expr -> int -> [(name, expr)] -> expr
@@ -135,10 +134,10 @@ replaceScrutinee e cpx bdgs
     = e,  if null bdgs
     = e', otherwise
       where
-        e' = st_evalState (astRewriteTD replaceAst e) ()
+        e' = st.evalState (astRewriteTD replaceAst e) ()
 
-        replaceAst (Ecase b e alts an) = st_pure $ Ecase b (replace e bdgs) alts (over annoCpx (+ cpx) an)
-        replaceAst a                   = st_pure a
+        replaceAst (Ecase b e alts an) = st.pure $ Ecase b (replace e bdgs) alts (over annoCpx (+ cpx) an)
+        replaceAst a                   = st.pure a
 
 || wrap an expr in a sequence of individual let bindings created from a list of names and exprs
 wrapInLet :: location -> expr -> [(name, expr)] -> expr
@@ -148,7 +147,7 @@ wrapInLet loc e bdgs
         an = set annoUse Umany $ emptyAnnoLoc loc
 
         wrap (n, e') e
-            = Elet False (m_singleton n d) [] e
+            = Elet False (m.singleton n d) [] e
               where
                 d = DefPat (Pvar n) e' an
 
@@ -279,7 +278,7 @@ inlineAst k (Ecall (Evar ts) [e]) st
 inlineAst k (Ecall (Evar n) args) st
     = k (Ecall (Evar n') args) st', if isJust mn'
       where
-        mn'  = m_lookup cmpname n (view inSubst st)
+        mn'  = m.lookup cmpname n (view inSubst st)
         n'   = fromJust mn'
         note = "substituted stream version of " ++ showName n
         st'  = st |> set inSimplified True |> addInfo note
@@ -322,7 +321,7 @@ inlineAst k (Ecase b (Evar n) alts an) st
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
         st2          = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
-        (alts', st3) = st_mapM bindInAlt alts st
+        (alts', st3) = st.mapM bindInAlt alts st
 
         bindInAlt alt st
             = (alt, st),                                                      if isNothing me
@@ -387,7 +386,7 @@ simplifyAst :: astRewriteTraverser inSt
 
 || don't do any simplification during stream substitution, or if out of fuel
 simplifyAst k a st
-    = (a, st), if ~m_null (view inSubst st) \/ view inFuel st <= 0
+    = (a, st), if ~m.null (view inSubst st) \/ view inFuel st <= 0
 
 || float a let into caseAlts, if unused in the case scrutinee
 || this will cause the lets to be specialized in each alt, allowing unused lets to be removed
@@ -395,7 +394,7 @@ simplifyAst k a st
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
     = k (Ecase b e alts' an') st', if ~used
       where
-        cpx       = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
+        cpx       = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
         used      = astAccumTD tallyUses e False
         alts'     = map insLet alts
         deltaCpx  = #alts * cpx
@@ -410,7 +409,7 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
         insLet (CaseAlt p (Evar n) an)
             = CaseAlt p e an', if isJust md & ~view astAnnoRec d & isDefPat d
               where
-                md       = m_lookup cmpname n defs
+                md       = m.lookup cmpname n defs
                 d        = fromJust md
                 e        = fnExpr d
                 cpx      = view astAnnoCpx d
@@ -420,7 +419,7 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
         insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an)
         insLet _                = unreachable
 
-        tallyUses (Evar n) used = used \/ m_member cmpname n defs
+        tallyUses (Evar n) used = used \/ m.member cmpname n defs
         tallyUses a        used = used
 
 || dead code elimination for unused definitions (that have been inlined), and rewrite of the Elet to its
@@ -433,9 +432,9 @@ simplifyAst k (Elet b defs ps e) st
             = (e, st'),                     if null ds
             = (Elet rec defs' pats e, st'), otherwise
               where
-                (dead, ds) = m_toList defs |> partition (snd .> notUsed)
+                (dead, ds) = m.toList defs |> partition (snd .> notUsed)
                 fuel'      = dead |> map (snd .> view astAnnoCpx) |> sum
-                defs'      = m_fromList cmpname ds
+                defs'      = m.fromList cmpname ds
                 notes      = ("increased fuel by " ++ showint fuel') : map (("eliminated " ++) .  showName . defnName . snd) dead
                 st'        = st,                                                                       if null dead
                            = foldr addInfo st notes |> set inSimplified True |> over inFuel (+ fuel'), otherwise
@@ -449,7 +448,7 @@ simplifyAst k (Elet b defs ps e) st
 simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts an) st
     = k (Elet b2 defs ps (Ecase b1 e alts an')) st'
       where
-        cpx  = m_elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without e
+        cpx  = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without e
         an'  = over annoCpx (subtract cpx) an               || remove Elet cpx from scrutinee
         note = "float let out of case scrutinee"
         st'  = st |> set inSimplified True |> addInfo note
@@ -520,7 +519,7 @@ simplifyAst k (Ecase b1 (Ecase b2 tst alts2 an2) alts1 an1) st
         deltaCpx      = #alts2 * cpx1'
         deltaFuel     = deltaCpx - cpx1'
         an2'          = over annoCpx (+ deltaCpx) an2
-        (alts2', st1) = st_mapM pushAlt alts2 st
+        (alts2', st1) = st.mapM pushAlt alts2 st
         note          = "swapped order of case (case)"
         st2           = st1 |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
 
@@ -557,7 +556,7 @@ simplifyAst k (Ecase b e alts an) st
     = k e' st', if isJust ma
       where
         loc        = view inLocation st |> fromMaybe emptyLocation
-        ma         = extrCtorArgs e >>= matchCtor <|> extrLit e >>= matchLit
+        ma         = extrCtorArgs e mb.>>= matchCtor mb.<|> extrLit e mb.>>= matchLit
         cpx        = view annoCpx an
         (e', cpxa) = fromJust ma
         deltaCpx   = cpx - cpxa
@@ -672,17 +671,17 @@ simplifyAst k a st = k a st
 || and the code reverts to the un-inlined version
 inlineGroup :: defnMap -> [name] -> state inSt defnMap
 inlineGroup defs ns st
-    = (m_union cmpname defs ndefs2, st3), if ni < inlineMaxIterations & view inFuel st3 > 0  || add inlined version if inlining was succesful
-    = (m_union cmpname defs ndefs1, st3), otherwise                                          || revert to original if could only inline partial
+    = (m.union cmpname defs ndefs2, st3), if ni < inlineMaxIterations & view inFuel st3 > 0  || add inlined version if inlining was succesful
+    = (m.union cmpname defs ndefs1, st3), otherwise                                          || revert to original if could only inline partial
       where
         st1               = addNote (shows "--- " . showsListMapped " " showsName ns $ " ---") st
-        ndefs1            = foldl addDef m_empty ns
+        ndefs1            = foldl addDef m.empty ns
         fuel              = inlineMaxComplexity * min2 cmpint 2 (#ns)   || limit total allowed fuel to 2*maxComplexity, if handling multiple defns in group
         st2               = st1 |> set inSimplified True |> set inLenv [Env defs] |> set inFuel fuel
         (ndefs2, st3, ni) = iterate inlineDefs (ndefs1, st2, 0) |> dropWhile canInlineMore |> hd
 
         addDef m n
-            = m_insert cmpname n (fromJust md) m, if isJust md
+            = m.insert cmpname n (fromJust md) m, if isJust md
             = m,                                  otherwise
               where
                 md = fst (lookupEnv n st1) <|> lookupDefn (view inGenv st) n
@@ -707,13 +706,13 @@ inlineGroup defs ns st
 
 inline :: globalEnv -> excpt globalEnv
 inline genv
-    = ex_return genv  [],    if ~useInlining
-    = ex_return genv' warns, if null errs
-    = ex_errs errs,          otherwise
+    = ex.return genv  [],    if ~useInlining
+    = ex.return genv' warns, if null errs
+    = ex.errs errs,          otherwise
       where
         m              = view genvMod genv
         sccs           = view modDefns m |> makeDefnDependencyList |> makeDependencyGraph cmpname |> findSCCs cmpname
-        (defs', st)    = st_foldM inlineGroup m_empty sccs (initInSt genv m_empty)
+        (defs', st)    = st.foldM inlineGroup m.empty sccs (initInSt genv m.empty)
         genv'          = over genvMod (set modDefns defs') (view inGenv st)
         (errs, warns)  = partition isError (view inErrs st)
 
@@ -722,13 +721,13 @@ inline genv
 || and finding the corresponding names for the same functions without the quote
 mkStreamSubstMap :: globalEnv -> nameMap
 mkStreamSubstMap genv
-    = m_empty, if isNothing msubns
+    = m.empty, if isNothing msubns
     = subMap,  otherwise
       where
-        msubns = lookupModule genv "stream" <&> view modDefns .> m_keys .> filter (getName .> last .> isSubChar)        || get the compatible substitution fns
+        msubns = lookupModule genv "stream" <&> view modDefns .> m.keys .> filter (getName .> last .> isSubChar)        || get the compatible substitution fns
         subns  = fromJust msubns
         mns    = subns |> map (getName .> init .> Unqualified .> lookupName genv)                                       || get the names they will replace
-        subMap = subns |> zip2 mns |> filter (fst .> isJust) |> map (mapFst fromJust) |> m_fromList cmpname             || make the substitution name map
+        subMap = subns |> zip2 mns |> filter (fst .> isJust) |> map (mapFst fromJust) |> m.fromList cmpname             || make the substitution name map
 
         isSubChar c = c ==. '_' \/ c ==. '@'
 
@@ -738,13 +737,13 @@ mkStreamSubstMap genv
 || fuse paired toStream/fromStream functions
 streamSubst :: globalEnv -> excpt globalEnv
 streamSubst genv
-    = ex_return genv  [],    if ~useStreamFusion
-    = ex_return genv' warns, if null errs
-    = ex_errs errs,          otherwise
+    = ex.return genv  [],    if ~useStreamFusion
+    = ex.return genv' warns, if null errs
+    = ex.errs errs,          otherwise
       where
         m             = view genvMod genv
         subst         = mkStreamSubstMap genv
         sccs          = view modDefns m |> makeDefnDependencyList |> makeDependencyGraph cmpname |> findSCCs cmpname
-        (defs', st)   = st_foldM inlineGroup m_empty sccs (initInSt genv subst)
+        (defs', st)   = st.foldM inlineGroup m.empty sccs (initInSt genv subst)
         genv'         = over genvMod (set modDefns defs') (view inGenv st)
         (errs, warns) = partition isError (view inErrs st)

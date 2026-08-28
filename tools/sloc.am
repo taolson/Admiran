@@ -2,14 +2,14 @@
 
 
 %import <base>
-%import <io>                    (>>=)/io_bind (>>)/io_right
-%import <maybe>
+%import <io>
+%import <maybe> qualified as mb
 
 
 || report whether line is a code line or not (any that isn't blank or only a comment)
 isCodeLine :: string -> bool
 isCodeLine
-    = words .> viewL .> fromMaybef False (fst .> isPrefixOf cmpchar "||" .> not)
+    = words .> viewL .> mb.fromMaybef False (fst .> isPrefixOf cmpchar "||" .> not)
 
 || process a file, reporting its sloc and returning a running tally of the total sloc
 process :: int -> string -> io int
@@ -21,9 +21,9 @@ process tot fn
               || forcing the running total to be strict.  If we didn't, the files would be lazily processed, causing
               || a bunch of files to be opened and processed in parallel, then closed, resulting in a "too many open files"
               || error if we try to do a total report on too many.
-            = case tot + n of tot' -> padL 5 (showint n) ++ " " ++ fn |> putStrLn >> io_pure tot'
+            = case tot + n of tot' -> padL 5 (showint n) ++ " " ++ fn |> putStrLn >> pure tot'
 
 main :: io ()
-main = getArgs >>= io_foldM process 0 >>= reportTotal
+main = getArgs >>= foldM process 0 >>= reportTotal
        where
          reportTotal t = "\n" ++ padL 5 (showint t) ++ " total" |> putStrLn

@@ -14,15 +14,15 @@
 
 %import <base>
 %import <lens>
-%import <map>
-%import <maybe>
-%import <maybeState>            (>>=)/mst_bind (<&>)/mst_rfmap (<<)/mst_left (>>)/mst_right
-%import <set>
-%import <state>
-%import <state> qualified as st (>>=)/st_bind (<<)/st_left (>>)/st_right
+%import <map>           qualified as m
+%import <maybe>         as mb           -pure -(>>=) -(<<) -(>>) -(<&>) -mapM -foldM
+%import <maybe>         qualified as mb
+%import <maybeState>    as mst
+%import <set>           qualified as s
+%import <state>         qualified as st
 %import "ast"
 %import "dependency"
-%import "exception"
+%import "exception"     as ex           -pure -(>>=) -(<&>) -foldM
 %import "grammar"
 %import "module"
 %import "name"
@@ -31,15 +31,15 @@
 
 
 || a substMap is a map from a Tvar number to a texpr which substitutes for it
-tvSet    == s_set int
-substMap == m_map int texpr
+tvSet    == s.set int
+substMap == m.map int texpr
 
 id_subst :: substMap
-id_subst = m_empty
+id_subst = m.empty
 
 || apply a substitution to a Tvar number
 subst :: substMap -> int -> texpr
-subst sm n = m_findWithDefault cmpint (Tvar n) n sm
+subst sm n = m.findWithDefault cmpint (Tvar n) n sm
 
 || apply a substitution to a texpr
 t_subst :: substMap -> texpr -> texpr
@@ -52,25 +52,25 @@ t_subst sm t
 || find the free Tvars in a texpr
 t_ftv :: texpr -> tvSet
 t_ftv t
-    = astAccumTD ftv t s_empty
+    = astAccumTD ftv t s.empty
       where
-        ftv (Tvar v) s = s_insert cmpint v s
+        ftv (Tvar v) s = s.insert cmpint v s
         ftv a        s = s
 
 || compose substitutions
 subComp :: substMap -> substMap -> substMap
-subComp sm sm' = m_fmap (t_subst sm) sm' |> m_union cmpint sm
+subComp sm sm' = sm' m.<&> t_subst sm |> m.union cmpint sm
 
 || normalize the Tvars used in a texpr to the lowest unique values
 normalize :: texpr -> texpr
 normalize t
-    = astRewriteTD norm t (m_empty, 1) |> fst
+    = astRewriteTD norm t (m.empty, 1) |> fst
       where
         norm (Tvar n) (m, gen)
-            = (Tvar gen, (m_insert cmpint n gen m, gen + 1)), if isNothing mn'
+            = (Tvar gen, (m.insert cmpint n gen m, gen + 1)), if isNothing mn'
             = (Tvar n', (m, gen)),                            otherwise
               where
-                mn' = m_lookup cmpint n m
+                mn' = m.lookup cmpint n m
                 n'  = fromJust mn'
         norm t s = (t, s)
 
@@ -102,25 +102,25 @@ s_subst :: substMap -> scheme -> scheme
 s_subst sm (Forall as t)
     = t_subst sm' t |> Forall as
       where
-        sm' = foldr (m_delete cmpint) sm (s_toList as)  || remove the schematic variables from the substitution
+        sm' = foldr (m.delete cmpint) sm (s.toList as)  || remove the schematic variables from the substitution
 
 || find the free Tvars in a scheme
 s_ftv :: scheme -> tvSet
-s_ftv (Forall as t) = s_difference cmpint (t_ftv t) as
+s_ftv (Forall as t) = s.difference cmpint (t_ftv t) as
 
 
 || schemeMap operations
 
-typeMap   == m_map name texpr
-schemeMap == m_map name scheme
+typeMap   == m.map name texpr
+schemeMap == m.map name scheme
 
 || perform a substitution on a schemeMap
 sm_subst :: substMap -> schemeMap -> schemeMap
-sm_subst sm = s_subst sm |> m_fmap
+sm_subst sm = s_subst sm |> (m.<$>)
 
 || find free tvars in a schemeMap
 sm_ftv :: schemeMap -> tvSet
-sm_ftv m = m_elems m |> map s_ftv |> foldl (s_union cmpint) s_empty
+sm_ftv m = m.elems m |> map s_ftv |> foldl (s.union cmpint) s.empty
 
 
 || typeEnv operations
@@ -133,7 +133,7 @@ te_subst sm = sm_subst sm |> map
 
 || find free Tvars in a type environment
 te_ftv :: typeEnv -> tvSet
-te_ftv e = map sm_ftv e |> foldl (s_union cmpint) s_empty
+te_ftv e = map sm_ftv e |> foldl (s.union cmpint) s.empty
 
 
 || state passed through typecheck
@@ -163,16 +163,16 @@ tcGen   = composeLens tcGenv lensTup3_2
 tcSpecs = tcGenv $composeLens genvMod $composeLens modSpecs
 
 initTcSt :: globalEnv -> tcSt
-initTcSt genv = ((genv, m_empty, s_empty, []), (emptyLocInfo, []))
+initTcSt genv = ((genv, m.empty, s.empty, []), (emptyLocInfo, []))
 
 addTcNote, addTcWarn, addTcErr, attachTcNote :: exceptionInfo -> locInfo -> tcSt -> tcSt
-addTcNote ei loc = over tcErrs ((Note,  ei, loc) :)
-addTcWarn ei loc = over tcErrs ((Warn,  ei, loc) :)
-addTcErr  ei loc = over tcErrs ((Error, ei, loc) :)
+addTcNote ei loc = lens.over tcErrs ((Note,  ei, loc) :)
+addTcWarn ei loc = lens.over tcErrs ((Warn,  ei, loc) :)
+addTcErr  ei loc = lens.over tcErrs ((Error, ei, loc) :)
 
 || attach additional info to the most recent exception, or create a new Note
 attachTcNote info loc
-    = over tcErrs attach
+    = lens.over tcErrs attach
       where
         attach []                          = [(Note, info, loc)]
         attach ((et, ExMult eis, el) : es) = (et, ExMult (eis ++ [info]), el) : es
@@ -182,76 +182,76 @@ attachTcNote info loc
 tcState * == maybeState tcSt *
 
 || alternative interface
-|| note: this cannot simply be an alias to mst_alt, because we need to keep the exceptions generated
+|| note: this cannot simply be an alias to (<|>), because we need to keep the exceptions generated
 || in the primary leg and pass them to the secondary leg
 (<|>) :: tcState * -> tcState * -> tcState *
 ma <|> mb
     = go
       where
-        go s = mst_runState ma s |> alt
+        go s = runState ma s |> alt
                where
-                 alt (Nothing, s') = set tcErrs (view tcErrs s') s |> mst_runState mb
+                 alt (Nothing, s') = lens.set tcErrs (lens.view tcErrs s') s |> runState mb
                  alt ra            = ra
 
 || add an error to the state and fail with Nothing
 tc_error, tc_errorNote  :: exceptionInfo -> tcState *
-tc_error     ei st = (Nothing, addTcErr     ei (view tcLoc st) st)
-tc_errorNote ei st = (Nothing, attachTcNote ei (view tcLoc st) st)
+tc_error     ei st = (Nothing, addTcErr     ei (lens.view tcLoc st) st)
+tc_errorNote ei st = (Nothing, attachTcNote ei (lens.view tcLoc st) st)
 
 || add a note to the state
 tc_note :: exceptionInfo -> tcState ()
-tc_note ei st = (Just (), addTcNote ei (view tcLoc st) st)
+tc_note ei st = (Just (), addTcNote ei (lens.view tcLoc st) st)
 
 
 || lookup a scheme in the current environment
 lookupEnv :: name -> typeEnv -> maybe scheme
-lookupEnv n = foldr (m_lookup cmpname n .> mb_alt) Nothing
+lookupEnv n = foldr (m.lookup cmpname n .> (mb.<|>)) Nothing
 
 || lookup (or dynamically create) the type scheme for a name in the global environment
 || note: caching schemes in tcScms doesn't appear to speed things up (3% slower in compiling advent2021 suite) -- remove to make simpler?
 lookupScheme :: name -> tcState scheme
 lookupScheme n st
-    = mst_maybe msl st,          if isJust msl
-    = mst_maybe msd st,          if isJust msd
-    = mst_pure  scm st',         if isJust msp
+    = liftMaybe msl st,          if isJust msl
+    = liftMaybe msd st,          if isJust msd
+    = pure  scm st',             if isJust msp
     = tc_error (Undefined n) st, if isNothing mtd & isNothing mtb
     = tc_error (TypeIdent n) st, if isJust mtd & (isDefSyn def \/ isDefData def \/ isDefAbs def) \/ isJust mtb
     = tc_error (WrongType n) st, otherwise      || inferred spec for an un-spec'd defn was not installed prior
       where
-        genv = view tcGenv st
-        msl  = lookupEnv n (view tcEnv st)              || search current lexical environment
-        msd  = m_lookup cmpname  n (view tcScms st)     || search global schemes
+        genv = lens.view tcGenv st
+        msl  = lookupEnv n (lens.view tcEnv st)         || search current lexical environment
+        msd  = m.lookup cmpname n (lens.view tcScms st) || search global schemes
         msp  = lookupSpec  genv n                       || lookup type spec in global environment
         scm  = mkScheme  (fromJust msp)                 || and install in the global schemes, if found
         mtd  = lookupDefn genv n                        || lookup defn in global environment
         def  = fromJust mtd
-        mtb  = m_lookup cmpname (unqualifyName n) builtinEnv
-        st'  = over tcScms (m_insert cmpname n scm) st
+        mtb  = m.lookup cmpname (unqualifyName n) builtinEnv
+        st'  = lens.over tcScms (m.insert cmpname n scm) st
 
 
 || type inference
 
 || generate a new Tvar number from the state
 newTvar :: tcState texpr
-newTvar = mst_view tcGen <&> Tvar << mst_over tcGen (+ 1)
+newTvar = mst.view tcGen <&> Tvar << mst.over tcGen (+ 1)
 
 || create a new instance of a type scheme by creating new Tvars for the schematic vars
 instantiate :: scheme -> tcState (texpr, substMap)
 instantiate (Forall as t)
-    = mst_mapM (const newTvar) asl >>= mkSm
+    = mapM (const newTvar) asl >>= mkSm
       where
-        asl = s_toList as
+        asl = s.toList as
         mkSm asl'
-            = mst_pure (t_subst sm t, id_subst)
+            = pure (t_subst sm t, id_subst)
               where
-                sm = zip2 asl asl' |> m_fromList cmpint
+                sm = zip2 asl asl' |> m.fromList cmpint
 
 || generalize a texpr to a scheme
 generalize :: typeEnv -> texpr -> scheme
 generalize env t
     = Forall as t
       where
-        as = s_difference cmpint (t_ftv t) (te_ftv env)
+        as = s.difference cmpint (t_ftv t) (te_ftv env)
 
 
 || perform an inference in a new lexical environment, restoring the environment afterwards
@@ -259,10 +259,10 @@ generalize env t
 || use mst_ applicatives so that we guarantee the lex state is restored
 inLexEnv :: schemeMap -> (* -> tcState **) -> * -> tcState **
 inLexEnv env action e st
-    = (r, set tcLex lex st')
+    = (r, lens.set tcLex lex st')
       where
-        lex      = view tcLex st
-        (r, st') = st |> over tcEnv (env :) |> action e
+        lex      = lens.view tcLex st
+        (r, st') = st |> lens.over tcEnv (env :) |> action e
 
 || capture and restore the lexical state around an inference
 lexMono, lexPoly :: typeMap -> (* -> tcState **) -> * -> tcState **
@@ -271,30 +271,30 @@ lexMono, lexPoly :: typeMap -> (* -> tcState **) -> * -> tcState **
 lexMono tmap inf e
     = inLexEnv smap inf e
       where
-        smap = m_fmap (Forall s_empty) tmap
+        smap = tmap m.<&> Forall s.empty
 
 || lexPoly uses polymorphic bindings for the new environment frame
 lexPoly tmap inf e
-    = mst_view tcEnv >>= f
+    = mst.view tcEnv >>= f
       where
         f env
             = inLexEnv smap inf e
               where
-                smap = m_fmap (generalize env) tmap
+                smap = tmap m.<&> generalize env
 
 
 || generate a typeMap of new Tvars from a defnMap
 genTypeMap :: defnMap -> tcState typeMap
 genTypeMap dm
-    = mst_mapM (const newTvar) ds <&> mkMap
+    = mapM (const newTvar) ds <&> mkMap
       where
-        (ks, ds) = m_toList dm |> unzip2
-        mkMap    = zip2 ks .> m_fromList cmpname
+        (ks, ds) = m.toList dm |> unzip2
+        mkMap    = zip2 ks .> m.fromList cmpname
 
 || make a typeMap from a list of patterns and corresponding texprs
 || filter out any non-Pvar (wildcard) patterns from the typeMap
 mkTypeMap :: [pat] -> [texpr] -> typeMap
-mkTypeMap ps ts = zip2 ps ts |> filter (fst .> isPvar) |> map (mapFst unPvar) |> m_fromList cmpname
+mkTypeMap ps ts = zip2 ps ts |> filter (fst .> isPvar) |> map (mapFst unPvar) |> m.fromList cmpname
 
 || extract the types of the pats from the defn's DefSpec, if available
 || this allows a form of bidirectional type checking where the user-defined top-level DefSpec
@@ -303,18 +303,18 @@ mkTypeMap ps ts = zip2 ps ts |> filter (fst .> isPvar) |> map (mapFst unPvar) |>
 || vars without types.
 typesFromSpec :: name -> [pat] -> tcState [texpr]
 typesFromSpec n vars
-    = (mst_view tcGenv >>= getSpec <|> mst_pure []) >>= addMissing
+    = (mst.view tcGenv >>= getSpec <|> pure []) >>= addMissing
       where
         nvars         = #vars
-        getSpec genv  = lookupSpec genv n |> fromMaybef mst_fail genScm         || find the typeSpec for a name
+        getSpec genv  = lookupSpec genv n |> fromMaybef fail genScm         || find the typeSpec for a name
         genScm s      = mkScheme s |> instantiate >>= genTs                     || generate a new scheme from the spec
-        genTs (s, _)  = typeList s |> fst |> take nvars |> mst_pure             || collect the individual var types
-        addMissing ts = mst_mapM (const newTvar) [1 .. nvars - #ts] <&> (ts ++) ||  if spec is missing or has fewer types, pad with newTvars
+        genTs (s, _)  = typeList s |> fst |> take nvars |> pure             || collect the individual var types
+        addMissing ts = mapM (const newTvar) [1 .. nvars - #ts] <&> (ts ++) ||  if spec is missing or has fewer types, pad with newTvars
 
 || report extra info when an error is encountered in mutual recursive definitions
 mutRecErr :: [name] -> tcState *
 mutRecErr ns
-    = mst_fail,           if #ns < 2    || don't add additional note if just a single (self-recursive) name
+    = fail,              if #ns < 2    || don't add additional note if just a single (self-recursive) name
     = tc_errorNote info, otherwise
       where
         info = Info . shows "in mutually-recursive definition of " . showsCommaList showsExName ns $ ""
@@ -338,18 +338,18 @@ isTypeFnPair _                       = False
 || returning a value (rather than just the state value from accum), and we have to explicitly write
 || an infer for each different AST node, anyway.  So a custom traversal scheme is used, here
 infer :: expr -> tcState (texpr, substMap)
-infer (Eint n)        = mst_pure (stdInt, id_subst)
-infer (Echar c)       = mst_pure (stdChar, id_subst)
-infer (Estring s)     = mst_pure (Tlist stdChar, id_subst)
-infer (EprimInt n)    = mst_pure (builtinTypeWord, id_subst)
-infer (EprimChar c)   = mst_pure (builtinTypeWord, id_subst)
-infer (EprimString s) = mst_pure (builtinTypeWord, id_subst)
+infer (Eint n)        = pure (stdInt, id_subst)
+infer (Echar c)       = pure (stdChar, id_subst)
+infer (Estring s)     = pure (Tlist stdChar, id_subst)
+infer (EprimInt n)    = pure (builtinTypeWord, id_subst)
+infer (EprimChar c)   = pure (builtinTypeWord, id_subst)
+infer (EprimString s) = pure (builtinTypeWord, id_subst)
 infer (Evar n)        = lookupScheme n >>= instantiate
 
 || handle polymorphic pseudo-functions pack and sel
 || the constructor name to use for the function is passed as the first argument
 infer (Tname n vars)
-    = mst_bind2 (mst_view tcEnv) (lookupScheme cn) f    || lookup the scheme for the constructor
+    = bind2 (mst.view tcEnv) (lookupScheme cn) f        || lookup the scheme for the constructor
       where
         (Tname cn []) = vars ! 0                        || constructor passed as first argument
         (EprimInt i)  = vars ! 1                        || index passed as second argument
@@ -362,15 +362,15 @@ infer (Tname n vars)
                          = s,                            otherwise
 
 infer (Eap e1 e2)
-    = mst_bind2 newTvar (inferList [e1, e2]) f1
+    = bind2 newTvar (inferList [e1, e2]) f1
       where
         f1 tv ([t1, t2], sm) = unify t1 (t2 $Tarr tv) sm >>= f2 tv         || t1 == t2 -> *
         f1 _  _              = unreachable
 
-        f2 tv sm             = mst_pure (t_subst sm tv, sm)
+        f2 tv sm             = pure (t_subst sm tv, sm)
 
 infer (Ecall e args)
-    = mst_bind2 newTvar (inferList (e : args)) f1
+    = bind2 newTvar (inferList (e : args)) f1
       where
         f1 tv ((t : ts), sm) = (unify t (foldr Tarr tv ts) sm) <&> f2 tv  <|> err       || te = (t0 -> ... tn -> tv)
         f1 _  _              = unreachable
@@ -379,11 +379,11 @@ infer (Ecall e args)
         err                  = Info ("in application of " ++ showAst e) |> tc_errorNote
 
 infer (Ecase _ e alts an)
-    = mst_bind2 newTvar (inferList (e : alts)) f1
+    = bind2 newTvar (inferList (e : alts)) f1
       where
         f1 tv ((t : ts), sm)
-            = mst_foldM unifyPairWord sm ts >>= f2 tv <|> err, if isTypePairWord t      || special case restriction for builtins returning a pair of words
-            = mst_foldM unifyAlt      sm ts >>= f2 tv <|> err, otherwise                || unify type of all alts to common type te -> *
+            = foldM unifyPairWord sm ts >>= f2 tv <|> err, if isTypePairWord t  || special case restriction for builtins returning a pair of words
+            = foldM unifyAlt      sm ts >>= f2 tv <|> err, otherwise            || unify type of all alts to common type te -> *
               where
                 t2t'          = t $Tarr tv
                 err           = Info "case alternate types don't match" |> tc_errorNote
@@ -395,7 +395,7 @@ infer (Ecase _ e alts an)
 
         f1 _ _ = unreachable
 
-        f2 tv sm = mst_pure (t_subst sm tv, sm)
+        f2 tv sm = pure (t_subst sm tv, sm)
 
 infer (CaseAlt (Pctor n vars) e an)
     = infer (Evar n) >>= f1     || infer the type of the constructor
@@ -407,24 +407,24 @@ infer (CaseAlt (Pctor n vars) e an)
                 (ts, bt) = typeList spec
                 tdefs    = mkTypeMap vars ts
 
-        f2 bt sm (t, sm') = mst_pure (bt $Tarr t, subComp sm' sm)  || type of CaseAlt is base type of constructor -> te
+        f2 bt sm (t, sm') = pure (bt $Tarr t, subComp sm' sm)  || type of CaseAlt is base type of constructor -> te
 
 infer (CaseAlt (Pvar n) e an)
     = newTvar >>= f1
       where
-        f1 tv         = lexMono (m_singleton n tv) infer e >>= f2 tv
-        f2 tv (t, sm) = mst_pure (tv $Tarr t, sm)
+        f1 tv         = lexMono (m.singleton n tv) infer e >>= f2 tv
+        f2 tv (t, sm) = pure (tv $Tarr t, sm)
 
 infer (CaseAlt (Plit e1) e2 an)
     = inferList [e1, e2] >>= f1
       where
-        f1 ([t1, t2], sm) = mst_pure (t1 $Tarr t2, sm)
+        f1 ([t1, t2], sm) = pure (t1 $Tarr t2, sm)
         f1 _              = unreachable
 
 infer (CaseAlt Pwildcard e an)
-    = mst_bind2 newTvar (infer e) f
+    = bind2 newTvar (infer e) f
       where
-         f tv (t, sm) = mst_pure (tv $Tarr t, sm)       || inferred type is * -> t
+         f tv (t, sm) = pure (tv $Tarr t, sm)       || inferred type is * -> t
 
 || Efatbar and Efail form a control scheme, with an Efail acting like a
 || non-local control transfer to the right branch of the enclosing Efatbar
@@ -434,25 +434,25 @@ infer (CaseAlt Pwildcard e an)
 infer (Efail e)
     = newTvar >>= f
       where
-        f tv = mst_pure (tv, id_subst)                  || let inference figure out the result type
+        f tv = pure (tv, id_subst)                  || let inference figure out the result type
 
 infer (Efatbar p e1 e2)
-    = mst_bind2 newTvar (inferList [e1, e2]) f1
+    = bind2 newTvar (inferList [e1, e2]) f1
       where
         f1 tv (ts, sm)
-            = mst_foldM unify' sm ts >>= f2 tv <|> err  || unify types of e1 and e2 to a common type *
+            = foldM unify' sm ts >>= f2 tv <|> err  || unify types of e1 and e2 to a common type *
               where
                 unify' sm t = unify t tv sm
                 err         = Info "function types don't match in function with multiple definitions" |> tc_errorNote
 
-        f2 tv sm = mst_pure (t_subst sm tv, sm)
+        f2 tv sm = pure (t_subst sm tv, sm)
 
 || non-recursive Let
 infer (Elet False defs _ e)
     = inferMap defs >>= f1         || infer defs in defnMap
       where
         f1 (ts, sm)     = lexPoly ts infer e >>= f2 sm     || infer e in new polymorphic environment of def types
-        f2 sm  (t, sm') = mst_pure (t, subComp sm' sm)
+        f2 sm  (t, sm') = pure (t, subComp sm' sm)
 
 || recursive Let
 infer (Elet True defs _ e)
@@ -461,86 +461,86 @@ infer (Elet True defs _ e)
         f1 ts1
             = lexMono ts1 inferMap defs >>= f2     || infer def types monomorphically
               where
-                f2 (ts2, sm) = (unifyMaps Infer ts1 ts2 sm >>= f3 ts2) <|> mutRecErr (m_keys defs)
+                f2 (ts2, sm) = (unifyMaps Infer ts1 ts2 sm >>= f3 ts2) <|> mutRecErr (m.keys defs)
 
                 f3 ts2 sm1
-                    = mst_over tcEnv (te_subst sm1) >>
-                      lexPoly ts2' infer e         >>=
+                    = mst.over tcEnv (te_subst sm1) >>
+                      lexPoly ts2' infer e          >>=
                       f4 sm1
                       where
-                        ts2' = m_fmap (t_subst sm1) ts2
+                        ts2' = ts2 m.<&> t_subst sm1
 
-                f4 sm1 (t, sm2)  = mst_pure (t, subComp sm2 sm1)
+                f4 sm1 (t, sm2)  = pure (t, subComp sm2 sm1)
 
 || infer defns
 infer d
-    = inLexEnv m_empty locInfer d
+    = inLexEnv m.empty locInfer d
       where
         loc        = defnLocInfo d
-        locInfer d = mst_over tcLoc (mergeLocInfo loc) >> inferDef d
+        locInfer d = mst.over tcLoc (mergeLocInfo loc) >> inferDef d
 
         inferDef (DefFn n vars e an)
-            = typesFromSpec n vars >>= f1      || preferably use types from type spec, or infer with new Tvars
+            = typesFromSpec n vars >>= f1       || preferably use types from type spec, or infer with new Tvars
               where
                 f1 ts = lexMono tdefs infer e >>= f2 ts || infer the type of the body in a new mono environment
                         where
                           tdefs = mkTypeMap vars ts
 
-                f2 ts (t, sm) = mst_pure (foldr (Tarr . t_subst sm) t ts, sm)   || final type is ts0 -> .. t
+                f2 ts (t, sm) = pure (foldr (Tarr . t_subst sm) t ts, sm)   || final type is ts0 -> .. t
 
         inferDef (DefPat p e an)
             = infer e >>= f
               where
                 f (t, sm) = tc_error UnboxedPat, if _eq cmptexpr t builtinTypeWord
-                          = mst_pure (t, sm),     otherwise
+                          = pure (t, sm),        otherwise
 
         inferDef d = defnName d |> TypeIdent |> tc_error
 
 || infer a (possibly mutually-recursive group) of definitions in a type environment
 inferDefs :: [defn] -> tcState [texpr]
 inferDefs defs
-    = mst_view tcGenv >>= f
+    = mst.view tcGenv >>= f
       where
         ndefs = #defs
         ns    = map defnName defs
         def   = hd defs
-        rec   = view astAnnoRec def
+        rec   = lens.view astAnnoRec def
 
         || infer a single defn normally, if it isn't recursive or it has an existing spec
         || otherwise, infer the definition(s) monomorphically as a recursive group
-        f genv = infer def >>= wrapSingle,                      if ndefs == 1 & (~rec \/ hasSpec)
-               = mst_mapM (const newTvar) defs >>= inferDefsRec, otherwise
+        f genv = infer def >>= wrapSingle,                   if ndefs == 1 & (~rec \/ hasSpec)
+               = mapM (const newTvar) defs >>= inferDefsRec, otherwise
                  where
                    hasSpec              = defnName def |> lookupSpec genv |> isJust     || polymorphic recursive fn (Milner-Mycroft Calculus)
-                   wrapSingle (tdef, x) = mst_pure [tdef]
+                   wrapSingle (tdef, x) = pure [tdef]
 
         inferDefsRec ts1
             = lexMono tm1 inferList defs >>= f2
               where
-                tm1          = zip2 ns ts1 |> m_fromList cmpname
+                tm1          = zip2 ns ts1 |> m.fromList cmpname
                 f2 (ts2, sm) = (unifyLists Infer ts1 ts2 sm >>= f3 ts2) <|> mutRecErr ns
-                f3 ts2 sm'   = map (t_subst sm') ts2 |> mst_pure
+                f3 ts2 sm'   = map (t_subst sm') ts2 |> pure
 
-|| note: this cannot be performed with a mst_mapM, because it is bidirectional:
+|| note: this cannot be performed with a mapM, because it is bidirectional:
 || going forward, the phi's are computed for each expr and the environment schemes are
 || updated with them, so that the types of subsequent exprs are infered with those prior
 || constraints.  Then going backward, each prior inferred type has the subsequent phi's
 || folded into their type, to get the fixpoint for the constraints.
-|| it could be performed with a right-fold version of mst_foldM, but that wouldn't be simpler than this.
+|| it could be performed with a right-fold version of foldM, but that wouldn't be simpler than this.
 inferList :: [expr] -> tcState ([texpr], substMap)
-inferList [] = mst_pure ([], id_subst)
+inferList [] = pure ([], id_subst)
 inferList (e : es)
     = infer e >>= f1
       where
-        f1 (t, sm)        = mst_over tcEnv (te_subst sm) >> (inferList es >>= f2 t sm)
-        f2 t sm (ts, sm') = mst_pure (t_subst sm' t : ts, subComp sm' sm)
+        f1 (t, sm)        = mst.over tcEnv (te_subst sm) >> (inferList es >>= f2 t sm)
+        f2 t sm (ts, sm') = pure (t_subst sm' t : ts, subComp sm' sm)
 
 inferMap :: defnMap -> tcState (typeMap, substMap)
 inferMap dm
     = inferList defs >>= f
       where
-        (ks, defs) = m_toList dm |> unzip2
-        f (ts, sm) = mst_pure (m_fromList cmpname (zip2 ks ts), sm)
+        (ks, defs) = m.toList dm |> unzip2
+        f (ts, sm) = pure (m.fromList cmpname (zip2 ks ts), sm)
 
 
 || type unification
@@ -553,16 +553,16 @@ unifyMode ::= Infer | Check
 || of the original second type, which have been saved in the tcSt
 extend :: unifyMode -> substMap -> int -> texpr -> tcState substMap
 extend um sm tvn t
-    = mst_view tcFvars >>= f
+    = mst.view tcFvars >>= f
       where
         f oFvars
-            = mst_pure sm,               if _eq cmptexpr t tv                   || no extension for equal texprs
-            = tc_error (Occurs tvn' t'), if s_member cmpint tvn $ fvars um      || tvn occurs in free vars of t, which implies an infinite type
-            = mst_pure  extended,        otherwise                              || extend sm with tvn ~ t
+            = pure sm,               if _eq cmptexpr t tv                   || no extension for equal texprs
+            = tc_error (Occurs tvn' t'), if s.member cmpint tvn $ fvars um  || tvn occurs in free vars of t, which implies an infinite type
+            = pure  extended,        otherwise                              || extend sm with tvn ~ t
               where
-                sm'         = m_singleton tvn t
-                mapped      = m_fmap (t_subst sm') sm
-                extended    = m_union cmpint mapped sm'
+                sm'         = m.singleton tvn t
+                mapped      = sm m.<&> t_subst sm'
+                extended    = m.union cmpint mapped sm'
                 tv          = Tvar tvn
                 Tarr tv' t' = Tarr tv t |> normalize
                 Tvar tvn'   = tv'
@@ -576,7 +576,7 @@ unify' :: unifyMode -> texpr -> texpr -> substMap -> tcState substMap
 unify' um t1 t2 sm
     = go t1 t2
       where
-        go (Tvar tvn)    t2            = go t1' t2',           if m_member cmpint tvn sm        || unify
+        go (Tvar tvn)    t2            = go t1' t2',           if m.member cmpint tvn sm        || unify
                                        = extend um sm tvn t2', otherwise                        || extend
                                            where
                                              t1' = subst sm tvn
@@ -587,9 +587,9 @@ unify' um t1 t2 sm
         go (Tlist ta)    (Tlist tb)    = go ta tb
         go (Tarr ta tb)  (Tarr tc td)  = unifyLists um [ta, tb] [tc, td] sm
         go (Tstrict ta)  (Tstrict tb)  = go ta tb
-        go t1            t2            = tc_note (TypeHole nt2) >> mst_pure sm, if isTWild t1
-                                       = tc_note (TypeHole nt1) >> mst_pure sm, if isTWild t2
-                                       = tc_error $ Unify nt1 nt2,              otherwise
+        go t1            t2            = tc_note (TypeHole nt2) >> pure sm, if isTWild t1
+                                       = tc_note (TypeHole nt1) >> pure sm, if isTWild t2
+                                       = tc_error $ Unify nt1 nt2,          otherwise
                                          where
                                            nt1 = normalize t1
                                            nt2 = normalize t2
@@ -597,14 +597,14 @@ unify' um t1 t2 sm
 || unify a pair of texpr lists
 unifyLists :: unifyMode -> [texpr] -> [texpr] -> substMap -> tcState substMap
 unifyLists um ts1 ts2 sm
-    = zip2 ts1 ts2 |> mst_foldM unifyPair sm
+    = zip2 ts1 ts2 |> foldM unifyPair sm
       where
         unifyPair sm (t1, t2) = unify' um t1 t2 sm
 
 || unify a pair of texpr maps
 unifyMaps :: unifyMode -> typeMap -> typeMap -> substMap -> tcState substMap
 unifyMaps um ts1 ts2 sm
-    = unifyLists um (m_elems ts1) (m_elems ts2) sm
+    = unifyLists um (m.elems ts1) (m.elems ts2) sm
 
 unify :: texpr -> texpr -> substMap -> tcState substMap
 unify t1 t2 sm
@@ -613,7 +613,7 @@ unify t1 t2 sm
 
 subsumes :: texpr -> texpr -> substMap -> tcState substMap
 subsumes t1 t2 sm
-    = mst_set tcFvars (t_ftv t2) >>
+    = mst.set tcFvars (t_ftv t2) >>
       (unify' Check t1 t2 sm <|>
       tc_errorNote (Unify (normalize t1) (normalize t2)))   || add additional error info for the top-level unification types
 
@@ -624,23 +624,23 @@ subsumes t1 t2 sm
 ||       in inferDefs, which will return Nothing.  If they return a list of types to matchSpecs, then matchSpecs
 ||       runs matchOrAdd in an st monad (rather than a tc monad) to collect info from
 ||       all type results, rather than short-circuiting on the first failure from subsumes, then wraps the result
-||       state with a mst_pure (), to match the final return type
+||       state with a pure (), to match the final return type
 typecheckGroup :: [name] -> tcState ()
 typecheckGroup ns
-    = mst_view tcGenv >>= f
+    = mst.view tcGenv >>= f
       where
         f genv
             = inferDefs defs >>= matchSpecs
               where
                 defs          = map (fromJust . lookupDefn genv) ns     || guaranteed to exist
-                matchSpecs ts = mst_pure () st.<< st_mapM_ matchOrAdd (zip2 ns ts)
+                matchSpecs ts = pure () st.<< st.mapM_ matchOrAdd (zip2 ns ts)
 
         matchOrAdd (n, t)
-            = mst_view tcGenv >>= f
+            = mst.view tcGenv >>= f
               where
                 f genv
                   = installSpec,                                         if isNothing mspec   || install the inferred spec if not specified
-                  = inLexEnv m_empty locSubsumes id_subst st.>>= verify, otherwise            || verify inferred against specified type
+                  = inLexEnv m.empty locSubsumes id_subst st.>>= verify, otherwise            || verify inferred against specified type
                     where
                       mspec          = lookupSpec genv n
                       spec           = fromJust mspec
@@ -651,29 +651,29 @@ typecheckGroup ns
 
                       verify Nothing = typeSpecError
                       verify _       = installSpec, if hasTypeHole spec || install the inferred spec, if the spec matches but has a type hole
-                                     = mst_pure () , otherwise
+                                     = pure (),     otherwise
 
-                      installSpec    = mst_over tcSpecs (m_insert cmpname n spec')
-                      typeSpecError  = mst_over tcErrs ((Error, TypeSpec spec spec', loc) :)
-                      locSubsumes sm = mst_over tcLoc (mergeLocInfo loc) st.>> subsumes t t' sm
+                      installSpec    = mst.over tcSpecs (m.insert cmpname n spec')
+                      typeSpecError  = mst.over tcErrs ((Error, TypeSpec spec spec', loc) :)
+                      locSubsumes sm = mst.over tcLoc (mergeLocInfo loc) st.>> subsumes t t' sm
 
 
 || divide top-level definitions into mutually-recursive groups and typecheck each
 || group in dependency-order
 typecheck :: globalEnv -> excpt globalEnv
 typecheck genv
-    = ex_return genv' warns, if null errs
-    = ex_errs   errs,        otherwise
+    = ex.return genv' warns, if null errs
+    = ex.errs   errs,        otherwise
       where
-        m              = view genvMod genv
-        defs           = m_filter cmpname isDefFnPat (view modDefns m)
-        specs          = m_elems (view modSpecs m)
-        st             = foldr  addNoDefWarn (initTcSt genv) (filter noDef specs)
+        m              = lens.view genvMod genv
+        defs           = m.filter cmpname isDefFnPat (lens.view modDefns m)
+        specs          = m.elems (lens.view modSpecs m)
+        st             = foldr addNoDefWarn (initTcSt genv) (filter noDef specs)
         deps           = makeDefnDependencyList defs
         sccs           = makeDependencyGraph cmpname deps |> findSCCs cmpname
-        st'            = st_mapM_ typecheckGroup sccs st  |> snd        || note: st_mapM_ to run typecheck on all groups
-        genv'          = view tcGenv st'
-        (errs, warns)  = partition isError (view tcErrs st')
+        st'            = st.mapM_ typecheckGroup sccs st  |> snd        || note: st.mapM_ to run typecheck on all groups
+        genv'          = lens.view tcGenv st'
+        (errs, warns)  = partition isError (lens.view tcErrs st')
 
-        noDef d        = ~m_member cmpname (defnName d) defs
-        addNoDefWarn d = addTcWarn (SpecNoDef (defnName d)) (locOnlyInfo (view astAnnoLoc d))
+        noDef d        = ~m.member cmpname (defnName d) defs
+        addNoDefWarn d = addTcWarn (SpecNoDef (defnName d)) (locOnlyInfo (lens.view astAnnoLoc d))

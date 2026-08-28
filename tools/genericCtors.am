@@ -4,12 +4,14 @@
 
 
 %import <base>
-%import <map>
-%import <maybe>         (>>=?)/mb_bind (<$>?)/mb_fmap (>>?)/mb_right
-%import <maybeState>    (>>=)/mst_bind (<$>)/mst_fmap (<<)/mst_left (>>)/mst_right
-%import <parser>        (<|>)/p_alt
-%import <io>            (>>=.)/io_bind (>>.)/io_right
-
+%import <map>           qualified as m
+%import <maybe>         as mb           -(>>=) -(<$>) -(<<) -(>>) -(<|>)
+%import <maybe>         qualified as mb
+%import <maybeState>    as mst
+%import <parser>        qualified as p
+%import <io>                            -(>>=) -(<$>) -(<<) -(>>)
+%import <io>            qualified
+%import <stdlib>
 
 insn ::= Insn string string | Pseudo string string | LocalLbl string | Comment string
 
@@ -52,73 +54,73 @@ isHeader  s   = anyPrefix ["globl"] s
 isDirective s = anyPrefix ["text", "data", "p2align"] s
 isData    s   = anyPrefix ["quad", "ascii", "byte"] s
 
-p_nl :: parser char
-p_nl = p_char '\n'
+p_nl :: p.parser char
+p_nl = p.char '\n'
 
-p_space' :: parser char
+p_space' :: p.parser char
 p_space'
-    = p_any >>= check
+    = p.any >>= check
       where
-        check c = p_pure c, if c ==. ' ' \/ c ==. '\t'
-                = p_fail,   otherwise
+        check c = p.pure c, if c ==. ' ' \/ c ==. '\t'
+                = p.fail,   otherwise
 
-p_spaces' :: parser string
-p_spaces' = p_some p_space'
+p_spaces' :: p.parser string
+p_spaces' = p.some p_space'
 
-p_discardLine :: parser ()
-p_discardLine = p_skipUntil p_any p_nl >> p_pure ()
+p_discardLine :: p.parser ()
+p_discardLine = p.skipUntil p.any p_nl >> p.pure ()
 
-p_restOfLine :: parser string
-p_restOfLine = p_many p_space' >> p_manyUntil p_any p_nl
+p_restOfLine :: p.parser string
+p_restOfLine = p.many p_space' >> p.manyUntil p.any p_nl
 
-p_identChar :: parser char
+p_identChar :: p.parser char
 p_identChar
-    = p_any >>= check
+    = p.any >>= check
       where
-        check c = p_pure c, if identChar c
-                = p_fail,   otherwise
+        check c = p.pure c, if identChar c
+                = p.fail,   otherwise
 
-p_ident :: parser string
-p_ident = p_some p_identChar
+p_ident :: p.parser string
+p_ident = p.some p_identChar
 
-p_pseudo :: (string -> bool) -> parser string
+p_pseudo :: (string -> bool) -> p.parser string
 p_pseudo tst
-    = p_char '.' >> p_ident >>= check
+    = p.char '.' >> p_ident >>= check
       where
-        check s = p_pure s, if tst s
-                = p_fail,   otherwise
+        check s = p.pure s, if tst s
+                = p.fail,   otherwise
 
-p_lbl :: parser string
-p_lbl = p_ident << p_char ':' << p_discardLine
+p_lbl :: p.parser string
+p_lbl = p_ident << p.char ':' << p_discardLine
 
-p_localLbl :: parser string
-p_localLbl = (p_some p_digit) << p_char ':' << p_discardLine
+p_localLbl :: p.parser string
+p_localLbl = (p.some p.digit) << p.char ':' << p_discardLine
 
-p_comment :: parser string
-p_comment = p_char '#' >> p_restOfLine
+p_comment :: p.parser string
+p_comment = p.char '#' >> p_restOfLine
 
-p_insn :: parser insn
+p_insn :: p.parser insn
 p_insn
-    = p_liftA2 Insn   (p_spaces' >> p_ident)         p_restOfLine <|>
-      p_liftA2 Pseudo (p_spaces' >> p_pseudo isData) p_restOfLine <|>
+    = p.liftA2 Insn   (p_spaces' >> p_ident)         p_restOfLine <|>
+      p.liftA2 Pseudo (p_spaces' >> p_pseudo isData) p_restOfLine <|>
       LocalLbl <$> p_localLbl                                     <|>
       Comment  <$> p_comment
 
-p_headerInsn :: parser insn
+p_headerInsn :: p.parser insn
 p_headerInsn
     = (Comment <$> p_comment) <|>
-      (p_liftA2 Pseudo (p_spaces' >> p_pseudo isHeader) p_restOfLine)
+      (p.liftA2 Pseudo (p_spaces' >> p_pseudo isHeader) p_restOfLine)
 
-p_header :: parser [insn]
-p_header = p_many (p_many p_nl >> p_headerInsn)
+p_header :: p.parser [insn]
+p_header = p.many (p.many p_nl >> p_headerInsn)
 
-p_directive :: parser insn
-p_directive = p_liftA2 Pseudo (p_spaces' >> p_pseudo isDirective) p_restOfLine
+p_directive :: p.parser insn
+p_directive = p.liftA2 Pseudo (p_spaces' >> p_pseudo isDirective) p_restOfLine
 
-p_block :: parser block
+p_block :: p.parser block
 p_block
-    = p_many p_nl >>
-      ( p_liftA3 Block p_header p_lbl (p_many p_insn) <|>
+    = p.many p_nl >>
+      ( p.liftA3 Block p_header p_lbl (p.many p_insn) <|>
         Directive <$> p_directive
       )
 
@@ -129,10 +131,10 @@ p_block
 tagAty == (int, int)
 
 || map from tag and arity to the generic ctor label
-ctorMap == m_map tagAty string
+ctorMap == m.map tagAty string
 
 || map from a code label to a generic ctor label and its insns
-jmpMap == m_map string (string, [insn])
+jmpMap == m.map string (string, [insn])
 
 gSt == (ctorMap, jmpMap)
 
@@ -140,16 +142,16 @@ gSt == (ctorMap, jmpMap)
 || be replaced by one (returns Nothing to indicate replacement)
 installOrReplace :: block -> tagAty -> maybeState gSt block
 installOrReplace (Block hdr lbl insns) ta
-    = mst_get >>= go
+    = p.get >>= go
       where
         go (cm, jm)
-            = fromMaybef install replace (m_lookup cmptagAty ta cm)
+            = fromMaybef install replace (m.lookup cmptagAty ta cm)
               where
-                cm'          = m_insert cmptagAty ta lbl cm
-                jm' lbl'     = m_insert cmpstring lbl (lbl', insns) jm
+                cm'          = m.insert cmptagAty ta lbl cm
+                jm' lbl'     = m.insert cmpstring lbl (lbl', insns) jm
                 hdr'         = Comment ("Generic Ctor for " ++ showtagAty ta) : tl hdr
-                install      = mst_put (cm', jm' lbl) >> mst_pure (Block hdr' lbl insns)
-                replace lbl' = mst_put (cm, jm' lbl') >> mst_fail
+                install      = mst.put (cm', jm' lbl) >> mst.pure (Block hdr' lbl insns)
+                replace lbl' = mst.put (cm, jm' lbl') >> mst.fail
 
 installOrReplace _ _ = unreachable      || added to remove compiler warning
 
@@ -157,7 +159,7 @@ installOrReplace _ _ = unreachable      || added to remove compiler warning
 || also perform inlining of a generic ctor in a tail-call position
 updateLabels :: [insn] -> maybeState gSt [insn]
 updateLabels insns
-    = mst_get >>= doUpdate .> mst_pure
+    = mst.get >>= doUpdate .> mst.pure
       where
         doUpdate (cm, jm)
             = go insns
@@ -166,11 +168,11 @@ updateLabels insns
                 go [i]      = fromMaybe [i] (tryInline i)               || replace tail-call jmp with ctor block
                 go (i : is) = fromMaybe i   (tryUpdate i) : go is       || update label with generic ctor label
 
-                tryInline (Insn "jmp" lbl) = snd       <$>? m_lookup cmpstring lbl jm
-                tryInline i                = singleton <$>? tryUpdate i
+                tryInline (Insn "jmp" lbl) = snd       mb.<$> m.lookup cmpstring lbl jm
+                tryInline i                = singleton mb.<$> tryUpdate i
 
-                tryUpdate i = viewArgs i                              >>=?
-                              \lbl       -> m_lookup cmpstring lbl jm >>=?
+                tryUpdate i = viewArgs i                              mb.>>=
+                              \lbl       -> m.lookup cmpstring lbl jm mb.>>=
                               \(lbl', _) -> Just $ setArgs lbl' i
 
 || classify a block type and perform the appropriate operation
@@ -178,9 +180,9 @@ updateLabels insns
 classify :: block -> maybeState gSt block
 classify b
     = case b of
-        Directive _         -> mst_pure b
+        Directive _         -> mst.pure b
         Block hdr lbl insns ->
-            case (checkHdr hdr >>? checkCtor insns) of
+            case (checkHdr hdr mb.>> checkCtor insns) of
               Nothing -> Block hdr lbl <$> updateLabels insns   || not a ctor block; update any code labels in insns
               Just ta -> installOrReplace b ta                  || ctor block; install or replace
       where
@@ -199,25 +201,25 @@ classify b
 
 || process the file a block at a time, parsing a block from the file stream and
 || writing out the updated block
-process :: gSt -> psSt -> io psSt
+process :: gSt -> p.psSt -> io p.psSt
 process gs ps
-    = mst_runState p_block ps |> checkParse                     || parse the next block with the parser state ps
+    = mst.runState p_block ps |> checkParse                     || parse the next block with the parser state ps
       where
-        checkParse (Nothing, ps') = io_pure ps'                 || no more blocks to process
+        checkParse (Nothing, ps') = io.pure ps'                 || no more blocks to process
         checkParse (Just b,  ps')
-            = mst_runState (classify b) gs |> checkBlock        || process the block with the genericCtor state gs
+            = mst.runState (classify b) gs |> checkBlock        || process the block with the genericCtor state gs
               where
                 checkBlock (Nothing, gs') = process gs' ps'
-                checkBlock (Just b', gs') = putStrLn (showblock b') >>. process gs' ps'
+                checkBlock (Just b', gs') = putStrLn (showblock b') io.>> process gs' ps'
 
 
 main :: io ()
-main = getArgs >>=. check
+main = getArgs io.>>= check
        where
-         check [fn] = (readFile fn >>=. doProcess) >>=. (p_end .> checkResult)
+         check [fn] = readFile fn io.>>= doProcess io.>>= p.end .> checkResult
          check _    = error "usage: genericCtors <asm file name>"
 
-         doProcess s = process (m_empty, m_empty) (1#, 1#, s)
+         doProcess s = process (m.empty, m.empty) (1#, 1#, s)
 
-         checkResult (Nothing, ps) = error (p_error ps)
-         checkResult _             = io_pure ()
+         checkResult (Nothing, ps) = error (p.error ps)
+         checkResult _             = io.pure ()

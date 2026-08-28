@@ -4,9 +4,9 @@
 %export +
 
 %import <base>
-%import <either>        (>>=)/e_bind (<&>)/e_rfmap
+%import <either>        as e
 %import <lens>
-%import <maybe>         (<|>)/mb_alt
+%import <maybe>         as mb
 %import "grammar"
 %import "name"
 %import "pretty"
@@ -58,32 +58,32 @@ showsExName n               = shows (showName n)
 
 showsExceptionInfo :: exceptionInfo -> showS
 showsExceptionInfo (AmbiguousName  n ns) = showsExName n . shows " is ambiguous; it could be " . showsCommaList showsExName ns
-showsExceptionInfo Arity                = shows "arity mismatch in argument count to a function or type definition"
-showsExceptionInfo (BadCtor dn cn)      = showsExName cn . shows " is not a constructor for " . showsExName dn
-showsExceptionInfo (BadPattern p)       = shows "bad pattern " . showsAst p
-showsExceptionInfo (CtorArity cn)       = shows "constructor " . showsExName cn . shows " used with wrong arity in formal"
-showsExceptionInfo (DepCycle s)         = shows "dependency cycle in " . shows s
-showsExceptionInfo (NameClash n)        = shows "name clash: " . showsExName n . shows " is previously defined"
-showsExceptionInfo NonExhaustive        = shows "non-exhaustive patterns"
-showsExceptionInfo NotPairPat           = shows "case alternate pattern must be an explicit pair"
-showsExceptionInfo (NotType n)          = showsExName n . shows " is not a typename"
-showsExceptionInfo (Occurs n t2)        = shows "cannot construct the infinite type " . showsAst (Tvar n) . shows " ~ " . showsAst t2
-showsExceptionInfo (RepeatedTvar n)     = shows "repeated type var " . showsAst (Tvar n)
-showsExceptionInfo (SpecNoDef n)        = showsExName n . shows " specified but not defined"
-showsExceptionInfo (TypeHole t)         = shows "type hole found with type " . showsAst t
-showsExceptionInfo (TypeIdent n)        = shows "typename " . showsExName n . shows " used as an expression identifier"
-showsExceptionInfo (TypeSpec d1 d2)     = shows "cannot match specified type with inferred type:\n    specified: " .
+showsExceptionInfo Arity                 = shows "arity mismatch in argument count to a function or type definition"
+showsExceptionInfo (BadCtor dn cn)       = showsExName cn . shows " is not a constructor for " . showsExName dn
+showsExceptionInfo (BadPattern p)        = shows "bad pattern " . showsAst p
+showsExceptionInfo (CtorArity cn)        = shows "constructor " . showsExName cn . shows " used with wrong arity in formal"
+showsExceptionInfo (DepCycle s)          = shows "dependency cycle in " . shows s
+showsExceptionInfo (NameClash n)         = shows "name clash: " . showsExName n . shows " is previously defined"
+showsExceptionInfo NonExhaustive         = shows "non-exhaustive patterns"
+showsExceptionInfo NotPairPat            = shows "case alternate pattern must be an explicit pair"
+showsExceptionInfo (NotType n)           = showsExName n . shows " is not a typename"
+showsExceptionInfo (Occurs n t2)         = shows "cannot construct the infinite type " . showsAst (Tvar n) . shows " ~ " . showsAst t2
+showsExceptionInfo (RepeatedTvar n)      = shows "repeated type var " . showsAst (Tvar n)
+showsExceptionInfo (SpecNoDef n)         = showsExName n . shows " specified but not defined"
+showsExceptionInfo (TypeHole t)          = shows "type hole found with type " . showsAst t
+showsExceptionInfo (TypeIdent n)         = shows "typename " . showsExName n . shows " used as an expression identifier"
+showsExceptionInfo (TypeSpec d1 d2)      = shows "cannot match specified type with inferred type:\n    specified: " .
                                                  showsAst d1 . shows "\n    inferred:  " . showsAst d2
-showsExceptionInfo (UnboundTvar n)      = shows "unbound type var " . showsAst (Tvar n)
-showsExceptionInfo UnboxedPat           = shows "pattern type cannot be an unboxed value"
-showsExceptionInfo (Undefined n)        = showsExName n . shows " is undefined"
-showsExceptionInfo (Unify t1 t2)        = shows "cannot unify\n\t" . showsAst t1 . shows "\n    with\n\t" . showsAst t2
-showsExceptionInfo (Unreachable p)      = shows "unreachable pattern"
-showsExceptionInfo (Unsupported s)      = shows s . shows " is unsupported"
-showsExceptionInfo (Unused n)           = showsExName n . shows " is unused"
-showsExceptionInfo (WrongType n)        = shows "type inferred for " . showsExName n . shows " is wrong"
-showsExceptionInfo (Info s)             = shows s
-showsExceptionInfo (ExMult es)          = showsListMapped "\n    " showsExceptionInfo es
+showsExceptionInfo (UnboundTvar n)       = shows "unbound type var " . showsAst (Tvar n)
+showsExceptionInfo UnboxedPat            = shows "pattern type cannot be an unboxed value"
+showsExceptionInfo (Undefined n)         = showsExName n . shows " is undefined"
+showsExceptionInfo (Unify t1 t2)         = shows "cannot unify\n\t" . showsAst t1 . shows "\n    with\n\t" . showsAst t2
+showsExceptionInfo (Unreachable p)       = shows "unreachable pattern"
+showsExceptionInfo (Unsupported s)       = shows s . shows " is unsupported"
+showsExceptionInfo (Unused n)            = showsExName n . shows " is unused"
+showsExceptionInfo (WrongType n)         = shows "type inferred for " . showsExName n . shows " is wrong"
+showsExceptionInfo (Info s)              = shows s
+showsExceptionInfo (ExMult es)           = showsListMapped "\n    " showsExceptionInfo es
 
 || limit the length of an Info
 limitInfo :: int -> string -> string
@@ -124,7 +124,7 @@ mergeLocInfo (p1, ml1) (p2, ml2)
     = (p1 ++ p2, ml'), otherwise
       where
         n   = getName (hd p1)
-        ml' = ml1 <|> ml2
+        ml' = ml1 mb.<|> ml2
 
 showsLocInfo :: locInfo -> showS
 showsLocInfo (ns, ml)
@@ -177,57 +177,59 @@ isNote e = _eq cmpexceptionType Note $ view excptType e
 
 
 || monad interface
-ex_bind :: excpt * -> (* -> excpt **) -> excpt **
-ex_bind e f = e >>= \(x, warns) -> f x <&> mapSnd (warns ++)
 
-ex_pure :: * -> excpt *
-ex_pure x = Right (x, [])
+pure :: * -> excpt *
+pure x = Right (x, [])
 
-ex_error :: exceptionInfo -> locInfo -> excpt *
-ex_error ei loc = Left [(Error, ei, loc)]
+error :: exceptionInfo -> locInfo -> excpt *
+error ei loc = Left [(Error, ei, loc)]
 
-ex_note :: string -> * -> excpt *
-ex_note s x = Right (x, [(Note, Info s, emptyLocInfo)])
+note :: string -> * -> excpt *
+note s x = Right (x, [(Note, Info s, emptyLocInfo)])
 
 || like pure, but also include any warnings
-ex_return :: * -> [exception] -> excpt *
-ex_return x warns = Right (x, warns)
+return :: * -> [exception] -> excpt *
+return x warns = Right (x, warns)
 
 || return a group of errors
-ex_errs :: [exception] -> excpt *
-ex_errs es = Left es
+errs :: [exception] -> excpt *
+errs es = Left es
 
-ex_kbind :: (* -> excpt **) -> (** -> excpt ***) -> * -> excpt ***
-ex_kbind f g = \x -> f x $ex_bind g
+(>>=) :: excpt * -> (* -> excpt **) -> excpt **
+e >>= f = e e.>>= \(x, warns) -> f x e.<&> mapSnd (warns ++)
 
-ex_foldM :: (* -> ** -> excpt *) -> * -> [**] -> excpt *
-ex_foldM f z0 xs
-    = foldr c ex_pure xs z0
+(>=>) :: (* -> excpt **) -> (** -> excpt ***) -> * -> excpt ***
+f >=> g = \x -> f x >>= g
+
+foldM :: (* -> ** -> excpt *) -> * -> [**] -> excpt *
+foldM f z0 xs
+    = foldr c pure xs z0
       where
-        c x k z = f z x $ex_bind k
+        c x k z = f z x >>= k
 
 
 || functor interface
-ex_fmap :: (* -> **) -> excpt * -> excpt **
-ex_fmap f m = m $ex_bind (ex_pure . f)
 
-ex_rfmap :: excpt * -> (* -> **) -> excpt **
-ex_rfmap m f = ex_fmap f m
+(<$>) :: (* -> **) -> excpt * -> excpt **
+f <$> m = m >>= (pure . f)
+
+(<&>) :: excpt * -> (* -> **) -> excpt **
+m <&> f = f <$> m
 
 
 || applicative interface
 || note: merges errors and warnings from both sides, so not written as the normal bind with fmap
-ex_apply :: excpt (* -> **) -> excpt * -> excpt **
-ex_apply (Left errs1)        (Left errs2)        = Left (errs1 ++ errs2)
-ex_apply (Left errs1)        (Right (a, warns))  = Left errs1
-ex_apply (Right (f, warns1)) (Left errs2)        = Left errs2
-ex_apply (Right (f, warns1)) (Right (a, warns2)) = Right (f a, warns1 ++ warns2)
+(<*>) :: excpt (* -> **) -> excpt * -> excpt **
+(<*>) (Left errs1)        (Left errs2)        = Left (errs1 ++ errs2)
+(<*>) (Left errs1)        (Right (a, warns))  = Left errs1
+(<*>) (Right (f, warns1)) (Left errs2)        = Left errs2
+(<*>) (Right (f, warns1)) (Right (a, warns2)) = Right (f a, warns1 ++ warns2)
 
-ex_liftA2 :: (* -> ** -> ***) -> excpt * -> excpt ** -> excpt ***
-ex_liftA2 f ma mb = (f $ex_fmap ma) $ex_apply mb
+liftA2 :: (* -> ** -> ***) -> excpt * -> excpt ** -> excpt ***
+liftA2 f ma mb = (f <$> ma) <*> mb
 
 
 || alternative interface
-ex_alt :: excpt * -> excpt * -> excpt *
-ex_alt (Left x)  er = er
-ex_alt (Right x) er = (Right x)
+(<|>) :: excpt * -> excpt * -> excpt *
+Left  x <|> er = er
+Right x <|> er = Right x

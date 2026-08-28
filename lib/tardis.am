@@ -12,28 +12,28 @@
 tardis * ** *** == (*, **) -> (***, (*, **))
 
 || running
-td_runState :: tardis * ** *** -> (*, **) -> (***, (*, **))
-td_runState m s = m s
+runState :: tardis * ** *** -> (*, **) -> (***, (*, **))
+runState m s = m s
 
-td_evalState :: tardis * ** *** -> (*, **) -> ***
-td_evalState m s = td_runState m s |> fst
+evalState :: tardis * ** *** -> (*, **) -> ***
+evalState m s = runState m s |> fst
 
-td_execState :: tardis * ** *** -> (*, **) -> (*, **)
-td_execState m s = td_runState m s |> snd
+execState :: tardis * ** *** -> (*, **) -> (*, **)
+execState m s = runState m s |> snd
 
 
 || state access
-td_getPast :: tardis * ** **
-td_getPast = \s -> (snd s, s)
+getPast :: tardis * ** **
+getPast = \s -> (snd s, s)
 
-td_getFuture :: tardis * ** *
-td_getFuture = \s -> (fst s, s)
+getFuture :: tardis * ** *
+getFuture = \s -> (fst s, s)
 
-td_sendPast :: * -> tardis * ** ()
-td_sendPast bw = \s -> ((), setFst bw s)
+sendPast :: * -> tardis * ** ()
+sendPast bw = \s -> ((), setFst bw s)
 
-td_sendFuture :: ** -> tardis * ** ()
-td_sendFuture fw = \s -> ((), setSnd fw s)
+sendFuture :: ** -> tardis * ** ()
+sendFuture fw = \s -> ((), setSnd fw s)
 
 modifyForwards :: (** -> **) -> tardis * ** ()
 modifyForwards f = \s -> ((), mapSnd f s)
@@ -44,8 +44,8 @@ modifyBackwards f = \s -> ((), mapFst f s)
 
 || monad interface
 
-td_bind :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
-td_bind m f
+(>>=) :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
+(>>=) m f
     = go
       where
         go s = (x2, (bw1, fw2))
@@ -58,70 +58,70 @@ td_bind m f
                  (bw1, fw1) = s1
                  (bw2, fw2) = s2
 
-td_join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
-td_join ma = \s -> td_runState ma s |> uncurry td_runState
+join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
+join ma = \s -> runState ma s |> uncurry runState
 
-td_pure :: *** -> tardis * ** ***
-td_pure x = \s -> (x, s)
+pure :: *** -> tardis * ** ***
+pure x = \s -> (x, s)
 
-td_kbind :: (*** -> tardis * ** ****) -> (**** -> tardis * ** *****) -> *** -> tardis * ** *****
-td_kbind f g = \x -> f x $td_bind g
+(>=>) :: (*** -> tardis * ** ****) -> (**** -> tardis * ** *****) -> *** -> tardis * ** *****
+(>=>) f g = \x -> f x >>= g
 
 
-td_mapM :: (*** -> tardis * ** ****) -> [***] -> tardis * ** [****]
-td_mapM f xs = foldr (f .> td_liftA2 (:)) (td_pure []) xs
+mapM :: (*** -> tardis * ** ****) -> [***] -> tardis * ** [****]
+mapM f xs = foldr (f .> liftA2 (:)) (pure []) xs
 
-td_mapM_ :: (*** -> tardis * ** ****) -> [***] -> tardis * ** ()
-td_mapM_ f xs = foldr (f .> td_right) (td_pure ()) xs
+mapM_ :: (*** -> tardis * ** ****) -> [***] -> tardis * ** ()
+mapM_ f xs = foldr (f .> (>>)) (pure ()) xs
 
-td_forM :: [***] -> (*** -> tardis * ** ****) -> tardis * ** ()
-td_forM xs f = td_mapM_ f xs
+forM :: [***] -> (*** -> tardis * ** ****) -> tardis * ** ()
+forM xs f = mapM_ f xs
 
-td_filterM :: (*** -> tardis * ** bool) -> [***] -> tardis * ** [***]
-td_filterM p xs
-    = foldr check (td_pure []) xs
+filterM :: (*** -> tardis * ** bool) -> [***] -> tardis * ** [***]
+filterM p xs
+    = foldr check (pure []) xs
       where
-        check x       = td_liftA2 (cond x) (p x)
+        check x       = liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
 
-td_foldM :: (**** -> *** -> tardis * ** ****) -> **** -> [***] -> tardis * ** ****
-td_foldM f z0 xs
-    = foldr c td_pure xs z0
+foldM :: (**** -> *** -> tardis * ** ****) -> **** -> [***] -> tardis * ** ****
+foldM f z0 xs
+    = foldr c pure xs z0
       where
-        c x k z = f z x $td_bind k
+        c x k z = f z x >>= k
 
-td_sequence_ :: [tardis * ** ***] -> tardis * ** ()
-td_sequence_ xs = foldr td_right (td_pure ()) xs
+sequence_ :: [tardis * ** ***] -> tardis * ** ()
+sequence_ xs = foldr (>>) (pure ()) xs
 
 
 || functor interface
-td_fmap :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
-td_fmap f m = m $td_bind (f .> td_pure)
+(<$>) :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+(<$>) f m = m >>= (f .> pure)
 
-td_rfmap :: tardis * ** *** -> (*** -> ****) -> tardis * ** ****
-td_rfmap m f = td_fmap f m
+(<&>) :: tardis * ** *** -> (*** -> ****) -> tardis * ** ****
+(<&>) m f = (<$>) f m
 
 
 || applicative interface
-td_apply :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****
-td_apply mf ma = mf $td_bind ($td_fmap ma)
+(<*>) :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+(<*>) mf ma = mf >>= (<$> ma)
 
-td_liftA2 :: (*** -> **** -> *****) -> tardis * ** *** -> tardis * ** **** -> tardis * ** *****
-td_liftA2 f ma mb = (f $td_fmap ma) $td_apply mb
+liftA2 :: (*** -> **** -> *****) -> tardis * ** *** -> tardis * ** **** -> tardis * ** *****
+liftA2 f ma mb = (f <$> ma) <*> mb
 
-td_liftA3 :: (*** -> **** -> ***** -> ******) -> tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> tardis * ** ******
-td_liftA3 f ma mb mc = td_liftA2 f ma mb $td_apply mc
+liftA3 :: (*** -> **** -> ***** -> ******) -> tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> tardis * ** ******
+liftA3 f ma mb mc = liftA2 f ma mb <*> mc
 
-td_left :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***
-td_left ma mb = td_liftA2 const ma mb
+(<<) :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***
+(<<) ma mb = liftA2 const ma mb
 
-td_right :: tardis * ** *** -> tardis * ** **** -> tardis * ** ****
-td_right ma mb = td_liftA2 (converse const) ma mb
+(>>) :: tardis * ** *** -> tardis * ** **** -> tardis * ** ****
+(>>) ma mb = liftA2 (converse const) ma mb
 
 || lift multiple independent state actions and bind them to an N-ary function
-td_bind2 :: tardis * ** *** -> tardis * ** **** -> (*** -> **** -> tardis * ** *****) -> tardis * ** *****
-td_bind2 ma mb f = td_join (td_liftA2 f ma mb)
+bind2 :: tardis * ** *** -> tardis * ** **** -> (*** -> **** -> tardis * ** *****) -> tardis * ** *****
+bind2 ma mb f = join (liftA2 f ma mb)
 
-td_bind3 :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> (*** -> **** -> ***** -> tardis * ** *******) -> tardis * ** *******
-td_bind3 ma mb mc f = td_join (td_liftA3 f ma mb mc)
+bind3 :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> (*** -> **** -> ***** -> tardis * ** *******) -> tardis * ** *******
+bind3 ma mb mc f = join (liftA3 f ma mb mc)

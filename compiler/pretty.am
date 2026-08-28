@@ -4,8 +4,8 @@
 %export +
 
 %import <base>
-%import <bitSet>
-%import <map>
+%import <bitSet>        as bs           -null
+%import <map>           qualified as m
 %import "config"
 %import "grammar"
 %import "name"
@@ -38,7 +38,7 @@ showsAnno :: anno -> showS
 showsAnno (loc, rec, cpx, use, free, affine)
     = shows "{" . showsRec . showsint cpx . shows " " . showsUse use . shows " " .
       showsInBrackets (showsListMapped ", " showsName free)                      .
-      showsInBrackets (showsListMapped ", " showsint  (bs_toList affine)) . shows "}", if annoVerbose
+      showsInBrackets (showsListMapped ", " showsint  (bs.toList affine)) . shows "}", if annoVerbose
     = id,                                                                              otherwise
       where
         showsUse u = (showuseInfo u ++)
@@ -177,7 +177,7 @@ showsAstPrec d a
         go (Elet b fns pats e)
             = shows ("let" ++ sRec) . (showsInBraces $ showsExprList defs) . shows " in " . showsAstPrec 0 e
               where
-                defs = m_elems fns ++ pats
+                defs = m.elems fns ++ pats
                 sRec = "Rec ", if b
                      = " ",    otherwise
 

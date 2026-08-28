@@ -12,21 +12,20 @@
 %export analyze analyzeWarn analyzeDefns analyzeExprCpx analyzeExprFree
 
 %import <base>
-%import <bitSet>
+%import <bitSet>        as bs           -null
 %import <lens>
-%import <map>
-%import <maybe>                 (<|>)/mb_alt
-%import <maybe> qualified as mb (<&>)/mb_rfmap
-%import <state>                 (>>=)/st_bind (<&>)/st_rfmap (<<)/st_left (>>)/st_right
+%import <map>           qualified as m
+%import <maybe>         as mb           -pure -(>>=) -(<$>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <state>         as st
 %import "ast"
-%import "exception"
+%import "exception"     as ex           -pure -(>>=) -(<$>) -(<&>) -(<*>) -liftA2
 %import "grammar"
 %import "module"
 %import "name"
 %import "predef"
 
-affineMap  == m_map name bitSet
-useInfoMap == m_map name useInfo
+affineMap  == m.map name bitSet
+useInfoMap == m.map name useInfo
 
 appendUseInfo :: useInfo -> useInfo -> useInfo
 appendUseInfo Uone Uone = Umany                         || two single uses add to Umany
@@ -35,9 +34,9 @@ appendUseInfo ua   ub   = max2 cmpuseInfo ua ub         || all others add to max
 || merge useInfo maps using merge function
 mergeUsesWith :: (useInfo -> useInfo -> useInfo) -> useInfoMap -> useInfoMap -> useInfoMap
 mergeUsesWith f ma mb
-    = m_toList mb |> foldl mergeEntry ma
+    = m.toList mb |> foldl mergeEntry ma
       where
-        mergeEntry m (k, v) = m_insertWith cmpname f k v m
+        mergeEntry m (k, v) = m.insertWith cmpname f k v m
 
 
 || state passed through analyze:
@@ -71,44 +70,44 @@ azDefName   = composeLens azLex lensSnd
 azDefnPath  = composeLens azLoc locInfoDefnPath
 
 initAzSt :: globalEnv -> azSt
-initAzSt genv = ((genv, [], m_empty, m_empty, 0), (emptyLocInfo, Nothing))
+initAzSt genv = ((genv, [], m.empty, m.empty, 0), (emptyLocInfo, Nothing))
 
 addAzWarn :: exceptionInfo -> state azSt ()
-addAzWarn ei = st_view azLoc >>= \loc -> st_over azErrs ((Warn, ei, loc) :)
+addAzWarn ei = st.view azLoc >>= \loc -> st.over azErrs ((Warn, ei, loc) :)
 
 || check name for match with stdCaseFail to report non-exhaustive patterns in function definition
 checkFail :: name -> state azSt ()
 checkFail n
     = addAzWarn NonExhaustive, if _eq cmpname n stdCaseFailName
-    = st_pure (),              otherwise
+    = st.pure (),              otherwise
 
 clrUses, clrCpxUses :: state azSt ()
-clrUses    = st_set azUses m_empty
-clrCpxUses = st_set azCpx 0 >> st_set azUses m_empty
+clrUses    = st.set azUses m.empty
+clrCpxUses = st.set azCpx 0 >> st.set azUses m.empty
 
 incCpx :: state azSt ()
-incCpx = st_over azCpx (+ 1)
+incCpx = st.over azCpx (+ 1)
 
 addUse :: name -> useInfo -> state azSt ()
-addUse n u = st_over azUses (m_insertWith cmpname appendUseInfo n u)
+addUse n u = st.over azUses (m.insertWith cmpname appendUseInfo n u)
 
 || add a Tname use to the useInfoMap
 || required for detecting dependency cycles in type synonyms
 addTUse :: name -> state azSt ()
 addTUse n
-    = st_pure (),    if isConstructor n || ignore ctors encoded as Tname for builtinPack, builtinSel
+    = st.pure (),    if isConstructor n || ignore ctors encoded as Tname for builtinPack, builtinSel
     = addUse n Uone, otherwise
 
 || delete a list of names from the one of the maps in the anno (to remove variable
 || names after they go out of scope). Note that this can be done by deleting keys,
 || since renaming has guaranteed that all names are now unique, so we can keep them
 || in a single map, rather than lexically scope them
-delNames :: lens azSt (m_map name *) -> [name] -> state azSt ()
+delNames :: lens azSt (m.map name *) -> [name] -> state azSt ()
 delNames lns ns
-    = st_over lns delNames
+    = st.over lns delNames
       where
         delNames m  = foldl delName m ns
-        delName m n = m_delete cmpname n m
+        delName m n = m.delete cmpname n m
 
 || remove any uses of locally-bound Pvars for the ast when going out of scope
 removeLocalUses :: ast -> state azSt ()
@@ -125,36 +124,36 @@ removeLocalUses a
 
 lookupAffineInfo :: expr -> state azSt bitSet
 lookupAffineInfo (Evar n)
-    = st_liftA2 getInfo (st_view azAffine) (st_view azGenv)
+    = st.liftA2 getInfo (st.view azAffine) (st.view azGenv)
       where
         getInfo am genv
-            = fromMaybe bs_empty check
+            = fromMaybe bs.empty check
               where
                 check = Nothing,        if isConstructor n      || ctors don't use any args, but escape all of them, so mark as all non-affine
                       = checkBuiltin,   if isBuiltin n
                       = checkAffineMap, otherwise
 
-                checkAffineMap = m_lookup cmpname n am <|> lookupDefn genv n mb.<&> view astAnnoAffine
+                checkAffineMap = m.lookup cmpname n am mb.<|> lookupDefn genv n mb.<&> lens.view astAnnoAffine
                 checkBuiltin   = lookupArity genv n mb.<&> checkOp (getName n)
 
                 || builtins are Uone in all arguments except for array write operations,
                 || which are Umany in their last argument
                 checkOp ns aty
-                    = bs_all (aty - 1), if ns ==$ "writeArray#" \/ ns ==$ "fillArray#"
-                    = bs_all aty,       otherwise
+                    = bs.all (aty - 1), if ns ==$ "writeArray#" \/ ns ==$ "fillArray#"
+                    = bs.all aty,       otherwise
 
 || handle affineInfo for builtinSel and builtinPack
 lookupAffineInfo (Tname n args)
-    = st_pure $ bs_singleton 0, if _eq cmpname n builtinSelName || builtinSel uses its source arg once
-    = st_pure $ bs_empty,       otherwise                       || builtinPack doesn't use any of its args, but is only used in ctors, which
+    = st.pure $ bs.singleton 0, if _eq cmpname n builtinSelName || builtinSel uses its source arg once
+    = st.pure $ bs.empty,       otherwise                       || builtinPack doesn't use any of its args, but is only used in ctors, which
                                                                 || escape all the args, so just mark as all non-affine
-lookupAffineInfo _ = st_pure bs_empty
+lookupAffineInfo _ = st.pure bs.empty
 
 
 analyzeAst :: astRewriteTraverser azSt
 
 analyzeAst k (Evar n)
-    = addUse n Uone >> checkFail n >> incCpx >> st_pure (Evar n)
+    = addUse n Uone >> checkFail n >> incCpx >> st.pure (Evar n)
 
 analyzeAst k (Tname n args)
     = addTUse n >> incCpx >> k (Tname n args)
@@ -162,22 +161,22 @@ analyzeAst k (Tname n args)
 || an Ecase strictly evaluates its scrutinee expr, but will only evaluate one of the alts. Compute useInfo
 || by analyzing alts separately, then merging to find max use
 analyzeAst k (Ecase cs e alts an)
-    = st_bind4 (st_view azCpx) (st_view azUses) (analyzeSingle e) (st_mapM analyzeAlt alts) updateCase
+    = st.bind4 (st.view azCpx) (st.view azUses) (analyzeSingle e) (st.mapM analyzeAlt alts) updateCase
       where
-        analyzeSingle a = st_liftA3 triple (clrCpxUses >> astRewriteLex analyzeAst a) (st_view azCpx) (st_view azUses)
-        analyzeAlt    a = analyzeSingle a <&> updateAlt
+        analyzeSingle a = st.liftA3 triple (clrCpxUses >> astRewriteLex analyzeAst a) (st.view azCpx) (st.view azUses)
+        analyzeAlt    a = analyzeSingle a st.<&> updateAlt
 
-        updateAlt (a, c, u) = (set astAnnoCpx c a |> set astAnnoFree (m_keys u), c, u)
+        updateAlt (a, c, u) = (lens.set astAnnoCpx c a |> lens.set astAnnoFree (m.keys u), c, u)
 
         updateCase inCpx inUses (e', eCpx, eUse) altCpxUses
-            = st_set azCpx cpx >> st_set azUses uses >> st_pure (Ecase cs e' alts' an')
+            = st.set azCpx cpx >> st.set azUses uses >> st.pure (Ecase cs e' alts' an')
               where
                 (alts', altCpxs, altUses) = unzip3 altCpxUses
 
                 maxUses  = foldl1 (mergeUsesWith (max2 cmpuseInfo)) altUses
                 caseCpx  = eCpx + sum altCpxs + 1
                 caseUses = mergeUsesWith appendUseInfo maxUses eUse
-                an'      = set annoCpx caseCpx an |> set annoFree (m_keys caseUses)
+                an'      = lens.set annoCpx caseCpx an |> lens.set annoFree (m.keys caseUses)
                 cpx      = inCpx + caseCpx
                 uses     = mergeUsesWith appendUseInfo inUses caseUses
 
@@ -188,37 +187,37 @@ analyzeAst k a
     = k a << removeLocalUses a << incCpx, otherwise
       where
         || capture incoming cpx and uses to pass to updateDefn, then clearCpxUses and analyze def
-        setLexInfo  = st_set azDefName (Just $ defnName a) >> st_set azLoc (defnLocInfo a)
-        analyzeDefn = st_bind3 (st_view azCpx) (st_view azUses) (clrCpxUses >> checkTdef k a) updateDefn
+        setLexInfo  = st.set azDefName (Just $ defnName a) >> st.set azLoc (defnLocInfo a)
+        analyzeDefn = st.bind3 (st.view azCpx) (st.view azUses) (clrCpxUses >> checkTdef k a) updateDefn
 
 || type defns should not have their defn Tforms analyzed, as we can't tell defining Tnames vs used Tnames as with Pvar vs Evar
-checkTdef k (DefSyn  tf te an)    = astRewriteLex analyzeAst te           <&> \te' -> DefSyn tf te' an
-checkTdef k (DefData tf ts an)    = st_mapM (astRewriteLex analyzeAst) ts <&> \ts' -> DefData tf ts' an
-checkTdef k (DefSpec tf te an)    = astRewriteLex analyzeAst te           <&> \te' -> DefSpec tf te' an
-checkTdef k (DefAbs  tf ds te an) = astRewriteLex analyzeAst te           <&> \te' -> DefAbs tf ds te' an
+checkTdef k (DefSyn  tf te an)    = astRewriteLex analyzeAst te           st.<&> \te' -> DefSyn tf te' an
+checkTdef k (DefData tf ts an)    = st.mapM (astRewriteLex analyzeAst) ts st.<&> \ts' -> DefData tf ts' an
+checkTdef k (DefSpec tf te an)    = astRewriteLex analyzeAst te           st.<&> \te' -> DefSpec tf te' an
+checkTdef k (DefAbs  tf ds te an) = astRewriteLex analyzeAst te           st.<&> \te' -> DefAbs tf ds te' an
 checkTdef k a                     = k a || analyze full defn for non-type defns
 
 || update rec, cpx, free, and affineUse fields in astAnno, and merge inCpx and inUses
 updateDefn :: int -> useInfoMap -> defn -> state azSt defn
 updateDefn inCpx inUses d
-    = st_bind3 (st_view azCpx) (st_view azUses) (removeLocalUses d >> st_view azUses) updateAnno
+    = st.bind3 (st.view azCpx) (st.view azUses) (removeLocalUses d >> st.view azUses) updateAnno
       where
         updateAnno cpx uses free
-            = st_set azCpx (inCpx + cpx + 1)                           >>
-              st_set azUses (mergeUsesWith appendUseInfo inUses free') >>
-              st_over azAffine (m_insert cmpname n aff)                >> st_pure d'
+            = st.set azCpx (inCpx + cpx + 1)                           >>
+              st.set azUses (mergeUsesWith appendUseInfo inUses free') >>
+              st.over azAffine (m.insert cmpname n aff)                >> st.pure d'
               where
                 n   = defnName d
                 fvn = fnVars d |> concatMap patNames
-                fvu = map (\n -> m_findWithDefault cmpname Uzero n uses) fvn
-                aff = enumerate fvu |> filter (snd .> usedAffine) |> map fst |> bs_fromList
-                rec = m_member cmpname n free
-                d'  = set astAnno (view astAnnoLoc d, rec \/ view astAnnoRec d, cpx, Umany, m_keys free', aff) d
+                fvu = map (\n -> m.findWithDefault cmpname Uzero n uses) fvn
+                aff = enumerate fvu |> filter (snd .> usedAffine) |> map fst |> bs.fromList
+                rec = m.member cmpname n free
+                d'  = lens.set astAnno (lens.view astAnnoLoc d, rec \/ lens.view astAnnoRec d, cpx, Umany, m.keys free', aff) d
 
-                free' = m_fmap (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
+                free' = (m.<$>) (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
                       = free,                                     otherwise
 
-                adjustForFn = m_insert cmpname n Uzero, if isDefFn d    || count defn as Uzero for use in DefFn
+                adjustForFn = m.insert cmpname n Uzero, if isDefFn d    || count defn as Uzero for use in DefFn
                             = id,                       otherwise       || count defn as Umany for DefPat
 
 || check to see if Evar arguments passed to a function are usedAffine by the function,
@@ -226,14 +225,14 @@ updateDefn inCpx inUses d
 updateCall :: expr -> state azSt expr
 updateCall (Ecall f args)
     = lookupAffineInfo f >>= \ai ->
-      enumerate args |> st_mapM_ (checkAffine ai) >> incCpx >> st_pure (Ecall f args)
+      enumerate args |> st.mapM_ (checkAffine ai) >> incCpx >> st.pure (Ecall f args)
       where
         checkAffine ai (i, (Evar n))
-            = st_over azUses (m_insertWith cmpname (max2 cmpuseInfo) n use)
+            = st.over azUses (m.insertWith cmpname (max2 cmpuseInfo) n use)
               where
-                use = if' (bs_member i ai) Uone Umany
+                use = if' (bs.member i ai) Uone Umany
 
-        checkAffine ai _ = st_pure ()
+        checkAffine ai _ = st.pure ()
 
 updateCall _ = unreachable
 
@@ -241,20 +240,20 @@ updateCall _ = unreachable
 || if the expression e is an Evar, mark all the names that can escape as Umany
 updateLet :: expr -> state azSt expr
 updateLet (Elet rec defs pats e)
-    = st_view azUses >>= addEscapes .> \ui ->
+    = st.view azUses >>= addEscapes .> \ui ->
       astRewriteMap (checkUpdate ui) defs >>= \defs' ->
-      st_set azUses ui >> delNames azUses ns >> delNames azAffine ns >> incCpx >> st_pure (Elet rec defs' pats e)
+      st.set azUses ui >> delNames azUses ns >> delNames azAffine ns >> incCpx >> st.pure (Elet rec defs' pats e)
       where
-        ns     = m_keys defs
-        single = m_isSingleton defs    || multiple defs in a Let are mutually-recursive
+        ns     = m.keys defs
+        single = m.isSingleton defs    || multiple defs in a Let are mutually-recursive
 
         addEscapes m   = computeEscapes defs e |> foldl setUseMany m
-        setUseMany m n = m_insert cmpname n Umany m
+        setUseMany m n = m.insert cmpname n Umany m
 
         computeEscapes defs (Evar n)
-            = m_lookup cmpname n defs |> fromMaybef [] captured
+            = m.lookup cmpname n defs |> fromMaybef [] captured
               where
-                captured d = n : view astAnnoFree d
+                captured d = n : lens.view astAnnoFree d
         computeEscapes _ _ = []
 
         checkUpdate ui d
@@ -262,8 +261,8 @@ updateLet (Elet rec defs pats e)
             = update,                         otherwise
               where
                 n      = defnName d
-                u      = if' single (m_findWithDefault cmpname Uzero n ui) Umany
-                update = set astAnnoUse u d |> st_pure
+                u      = if' single (m.findWithDefault cmpname Uzero n ui) Umany
+                update = lens.set astAnnoUse u d |> st.pure
 
 updateLet _ = unreachable
 
@@ -274,38 +273,38 @@ analyze' :: globalEnv -> (globalEnv, azSt)
 analyze' genv
     = (genv', st)
       where
-        m           = view genvMod genv
-        defs        = view modDefns m
+        m           = lens.view genvMod genv
+        defs        = lens.view modDefns m
         (defs', st) = astRewriteMap (astRewriteLex analyzeAst) defs $ initAzSt genv
-        genv'       = over genvMod (set modDefns defs') genv
+        genv'       = lens.over genvMod (lens.set modDefns defs') genv
 
 || run analysis, and report any unused variable and non-exhaustive pattern warnings
 analyzeWarn :: globalEnv -> excpt globalEnv
 analyzeWarn genv
-    = ex_return genv' warns, if null errs
-    = ex_errs errs,          otherwise
+    = ex.return genv' warns, if null errs
+    = ex.errs errs,          otherwise
       where
         (genv', st)   = analyze' genv
-        (errs, warns) = view azErrs st |> partition isError
+        (errs, warns) = lens.view azErrs st |> partition isError
 
 || run analysis, ignoring any unused variable warnings
 analyze :: globalEnv -> excpt globalEnv
 analyze genv
-    = ex_return genv' []
+    = ex.return genv' []
       where
         genv' = analyze' genv |> fst
 
 || run analysis on a defnMap, but don't return any exceptions
 analyzeDefns :: defnMap -> globalEnv -> defnMap
 analyzeDefns defs genv
-    = st_evalState (astRewriteMap (astRewriteLex analyzeAst) defs) $ initAzSt genv
+    = st.evalState (astRewriteMap (astRewriteLex analyzeAst) defs) $ initAzSt genv
 
 || run analysis on a single expr, collecting only the cpx info
 analyzeExprCpx :: expr -> globalEnv -> int
 analyzeExprCpx e genv
-    = st_execState (astRewriteLex analyzeAst e) (initAzSt genv) |> view azCpx
+    = st.execState (astRewriteLex analyzeAst e) (initAzSt genv) |> lens.view azCpx
 
 || run analysis on a single expr, collecting only the free variable info
 analyzeExprFree :: expr -> globalEnv -> [name]
 analyzeExprFree e genv
-    = st_execState (astRewriteLex analyzeAst e) (initAzSt genv) |> view azUses |> m_keys
+    = st.execState (astRewriteLex analyzeAst e) (initAzSt genv) |> lens.view azUses |> m.keys

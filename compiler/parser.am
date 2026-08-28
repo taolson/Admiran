@@ -1,16 +1,17 @@
 || parser.am -- basic parser combinators for a stream of tokens with locations, based upon the maybeState monad
+||
+|| note: many parser function names shadow stdlib names, so parser should always be imported qualified
 
 
-%export + p_get p_put p_modify p_bind p_pure p_fail p_fmap p_rfmap p_apply p_liftA2 p_liftA3 p_liftA4 p_left p_right p_bind2 p_mapM p_foldM p_runState
+%export + get put modify pure fail (>>=) (<$>) (<&>) (<*>) (<<) (>>) liftA2 liftA3 liftA4 bind2 mapM foldM runState
 
 %import <base>
 %import <lens>
-%import <maybe>
-%import <maybeState>    p_get/mst_get p_put/mst_put p_modify/mst_modify p_bind/mst_bind p_pure/mst_pure p_fail/mst_fail p_fmap/mst_fmap
-                        p_rfmap/mst_rfmap p_apply/mst_apply p_liftA2/mst_liftA2 p_liftA3/mst_liftA3 p_liftA4/mst_liftA4 p_left/mst_left
-                        p_right/mst_right p_bind2/mst_bind2 p_mapM/mst_mapM p_foldM/mst_foldM p_runState/mst_runState
+%import <maybe>                 -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <maybeState>            -view -set -over
+%import <stdlib>        as std
 %import "name"
-%import "tokenizer"
+%import "tokenizer"     as tok
 
 
 || Basic Parsing
@@ -18,7 +19,7 @@
 psError == (string, int, int, int)              || err string, severity, line#, col#
 
 || custom comparison of psError that only looks at severity, line, and col
-|| used to choose the parse state with the deepest error in a p_alt
+|| used to choose the parse state with the deepest error in a (<|>)
 cmppsError :: ordI psError
 cmppsError (_, s1, l1, c1) (_, s2, l2, c2)
     = cmpint s1 s2 $thenCmp cmpint l1 l2 $thenCmp cmpint c1 c2
@@ -47,10 +48,10 @@ parser * == maybeState psSt *
 || report an error with a specified severity level and error string
 || the idea here is that in the case of multiple errors down different parse paths,
 || the most likely intended parse is either the one where we made unambiguous progress
-|| (severity 2 from a p_expected parse), or the one where we've made the most progress
+|| (severity 2 from a expected parse), or the one where we've made the most progress
 || (higher line/char index)
-p_error :: int -> string -> parser *
-p_error sv es ps
+error :: int -> string -> parser *
+error sv es ps
     = (Nothing, ps')
       where
         (_, il, ic) = hd $ view psToks ps
@@ -58,8 +59,8 @@ p_error sv es ps
 
 || add more info to the existing error, with severity 2 to indicate that
 || this error should have higher precedence than a regular error
-p_errorInfo :: string -> parser *
-p_errorInfo es ps
+errorInfo :: string -> parser *
+errorInfo es ps
     = (Nothing, ps')
       where
         sv  = view psErrSev ps
@@ -68,101 +69,101 @@ p_errorInfo es ps
 
 || show the current token, or a string indicating an exception condition
 || (end of input, offside)
-p_showCurrentToken :: parser string
-p_showCurrentToken
-    = p_get $p_bind go
+showCurrentToken :: parser string
+showCurrentToken
+    = get >>= go
       where
         go ps
-            = p_pure "end of input", if isTend t
-            = p_pure "OFFSIDE",      if _eq cmptoken t Toffside \/ offside
-            = p_pure $ showtoken t,  otherwise
+            = pure "end of input", if isTend t
+            = pure "OFFSIDE",      if _eq cmptoken t Toffside \/ offside
+            = pure $ showtoken t,  otherwise
               where
                 ls          = view psIndLev ps
                 (t, _, ic)  = hd $ view psToks ps
                 offside     = ~null ls & (isTend t \/ ic < hd ls)
 
 || report an error that we expected something that wasn't there
-|| uses higher severity than p_unexpected so that it has priority with multiple errors
-p_expected :: string -> parser *
-p_expected s  = p_errorInfo ("expected " ++ s ++ ", but got ")
+|| uses higher severity than unexpected so that it has priority with multiple errors
+expected :: string -> parser *
+expected s  = errorInfo ("expected " ++ s ++ ", but got ")
 
 || report an error that we got an unexpected token
-p_unexpected :: parser *
-p_unexpected = p_showCurrentToken $p_bind (p_error 1 . ("unexpected " ++))
+unexpected :: parser *
+unexpected = showCurrentToken >>= (error 1 . ("unexpected " ++))
 
 || alternative interface
-|| note: a simple alias to maybeState mst_alt can't be used, here, because we need to run the
+|| note: a simple alias to maybeState (mst.<|>) can't be used, here, because we need to run the
 || alternative leg with the error state of the primary leg to keep the deepest error
-p_alt :: parser * -> parser * -> parser *
-p_alt pa pb
+(<|>) :: parser * -> parser * -> parser *
+(<|>) pa pb
     = go
       where
         go ps
-            = alt $ p_runState pa ps
+            = alt $ runState pa ps
               where
-                alt (Nothing, psa) = p_runState pb (set psErr (view psErr psa) ps)
+                alt (Nothing, psa) = runState pb (set psErr (view psErr psa) ps)
                 alt ra             = ra
 
-|| p_peek and p_not check for the presence or absence of a token, but don't consume it
-p_peek, p_not :: parser * -> parser ()
-p_peek pa ps
+|| peek and not check for the presence or absence of a token, but don't consume it
+peek, not :: parser * -> parser ()
+peek pa ps
     = (Just (), ps), if isJust ra
     = (Nothing, ps), otherwise
       where
         ra = fst $ pa ps
 
-p_not pa ps
+not pa ps
     = (Just (), ps), if isNothing ra
     = (Nothing, ps), otherwise
       where
         ra = fst $ pa ps
 
-p_optional :: parser * -> parser (maybe *)
-p_optional pa = p_fmap Just pa $p_alt p_pure Nothing
+optional :: parser * -> parser (maybe *)
+optional pa = (<$>) Just pa <|> pure Nothing
 
 || run a parser and check the result against a guard predicate.  If the guard
-|| fails, rewind the parser to the original point (using p_alt) and report
+|| fails, rewind the parser to the original point (using (<|>)) and report
 || unexpected input
-p_guard :: parser * -> (* -> parser **) -> parser **
-p_guard p g
-    = (p $p_bind g) $p_alt p_unexpected
+guard :: parser * -> (* -> parser **) -> parser **
+guard p g
+    = (p >>= g) <|> unexpected
 
 || parser for a token which satifies a condition
-p_satisfy :: parser * -> (* -> bool) -> parser *
-p_satisfy p tst
-    = p $p_guard f
+satisfy :: parser * -> (* -> bool) -> parser *
+satisfy p tst
+    = p $guard f
       where
-        f x = p_pure x, if tst x
-            = p_fail,   otherwise
+        f x = pure x, if tst x
+            = fail,   otherwise
 
 || 1 or more p
-p_some :: parser * -> parser [*]
-p_some p = p_liftA2 (:) p (p_many p)
+some :: parser * -> parser [*]
+some p = liftA2 (:) p (many p)
 
 || 0 or more p
-p_many :: parser * -> parser [*]
-p_many p = p_some p $p_alt p_pure []
+many :: parser * -> parser [*]
+many p = some p <|> pure []
 
 || 1 or more p seperated by ps
-p_someSepBy :: parser * -> parser ** -> parser [**]
-p_someSepBy ps p = p_liftA2 (:) p (p_many (ps $p_right p))
+someSepBy :: parser * -> parser ** -> parser [**]
+someSepBy ps p = liftA2 (:) p (many (ps >> p))
 
 || 0 or more p seperated by ps
-p_manySepBy :: parser * -> parser ** -> parser [**]
-p_manySepBy ps p = p_someSepBy ps p $p_alt p_pure []
+manySepBy :: parser * -> parser ** -> parser [**]
+manySepBy ps p = someSepBy ps p <|> pure []
 
 
 || token parsers
 
 || parser which accepts any token
 || also handle offside detection by inserting a Toffside token into the token stream
-|| Note: since p_any always accepts a token, any subsequent guard or check for validity
-|| should use "p_fail" for the failure, and use a p_alt to rewind the token stream to the
+|| Note: since any always accepts a token, any subsequent guard or check for validity
+|| should use "fail" for the failure, and use a (<|>) to rewind the token stream to the
 || original position to correctly report the error location and token
-p_any :: parser token
-p_any ps
-    = p_unexpected ps,    if isTend t & null ls || end of token stream
-    = p_error 2 err ps,   if isTerror t         || error from lexer
+any :: parser tok.token
+any ps
+    = unexpected ps,    if isTend t & null ls || end of token stream
+    = error 2 err ps,   if isTerror t         || error from lexer
     = (Just t', ps'),     otherwise
       where
         ls                = view psIndLev ps
@@ -175,72 +176,72 @@ p_any ps
                           = set psToks ts' ps, otherwise
 
 || parser which passes only at end of input
-p_end :: parser ()
-p_end = p_not p_any
+end :: parser ()
+end = not any
 
 || parser which matches a specific token or posts an error
-p_token :: token -> parser token
-p_token t = p_any $p_satisfy (_eq cmptoken t)
+token :: tok.token -> parser tok.token
+token t = any $satisfy (_eq cmptoken t)
 
 || parser which matches a specific character
-p_char :: char -> parser token
-p_char c = p_token (Tchar c)
+char :: std.char -> parser tok.token
+char c = token (Tchar c)
 
 || parser which matches a specific identifier string
-p_ident :: string -> parser token
-p_ident s = p_token (Tident (Unqualified s))
+ident :: string -> parser tok.token
+ident s = token (Tident (Unqualified s))
 
 || parser which matches a specific symbol
-p_sym :: string -> parser token
-p_sym s = p_token (Tsymbol (Unqualified s))
+sym :: string -> parser tok.token
+sym s = token (Tsymbol (Unqualified s))
 
-p_semi, p_comma, p_equal, p_eqeq, p_minus, p_percent, p_colons, p_lArrow, p_rArrow, p_vBar, p_terminator :: parser token
-p_semi       = p_char ';'
-p_comma      = p_char ','
-p_equal      = p_sym "="
-p_eqeq       = p_sym "=="
-p_minus      = p_sym "-"
-p_percent    = p_sym "%"
-p_colons     = p_sym "::"
-p_lArrow     = p_sym "<-"
-p_rArrow     = p_sym "->"
-p_vBar       = p_sym "|"
-p_terminator = p_token Toffside $p_alt p_semi
+semi, comma, equal, eqeq, minus, percent, colons, lArrow, rArrow, vBar, terminator :: parser tok.token
+semi       = char ';'
+comma      = char ','
+equal      = sym "="
+eqeq       = sym "=="
+minus      = sym "-"
+percent    = sym "%"
+colons     = sym "::"
+lArrow     = sym "<-"
+rArrow     = sym "->"
+vBar       = sym "|"
+terminator = token Toffside <|> semi
 
 
 || structure parsers
 
 || ( parser )
-p_inParens :: parser * -> parser *
-p_inParens p = p_char '(' $p_right p $p_left p_char ')'
+inParens :: parser * -> parser *
+inParens p = char '(' >> p << char ')'
 
 || [ parser ]
-p_inBrackets :: parser * -> parser *
-p_inBrackets p = p_char '[' $p_right p $p_left p_char ']'
+inBrackets :: parser * -> parser *
+inBrackets p = char '[' >> p << char ']'
 
 || { parser }
-p_inBraces :: parser * -> parser *
-p_inBraces p = p_char '{' $p_right p $p_left p_char '}'
+inBraces :: parser * -> parser *
+inBraces p = char '{' >> p << char '}'
 
 || < parser >
-p_inAngles :: parser * -> parser *
-p_inAngles p = p_sym "<" $p_right p $p_left p_sym ">"
+inAngles :: parser * -> parser *
+inAngles p = sym "<" >> p << sym ">"
 
 || block layout parser
-p_inLayout :: parser * -> parser *
-p_inLayout p = p_indent $p_right p $p_left p_outdent
+inLayout :: parser * -> parser *
+inLayout p = indent >> p << outdent
 
 || push the current token column on the indent level stack in the parser state
-p_indent :: parser ()
-p_indent ps
+indent :: parser ()
+indent ps
     = (Just (), over psIndLev (ic :) ps)
       where
         (_, _, ic) = hd $ view psToks ps        || get current token indent column ic
 
 || check for separator and pop the indent level stack in the parser state
-p_outdent :: parser ()
-p_outdent
-    = (p_terminator $p_right p_get) $p_bind (p_put . over psIndLev popLev)
+outdent :: parser ()
+outdent
+    = (terminator >> get) >>= (put . over psIndLev popLev)
       where
         popLev []       = []
         popLev (x : xs) = xs

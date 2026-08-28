@@ -4,11 +4,11 @@
 %export +
 
 %import <base>
-%import <bitSet>
-%import <either>
-%import <map>
-%import <set>
-%import <state>                 (>>=)/st_bind (<$>)/st_fmap (<&>)/st_rfmap (<*>)/st_apply
+%import <bitSet>        as bs
+%import <either>                        -pure -(<&>) -(>>=) -(<$>) -(<*>) -liftA2
+%import <map>           qualified as m
+%import <set>           qualified as s
+%import <state>
 %import "grammar"
 %import "module"
 %import "name"
@@ -47,7 +47,7 @@ serialPosInt n
 
 deserialPosInt :: deserializer int
 deserialPosInt
-    = deserialCtor >>= splitAt >>= (st_pure . intval)
+    = deserialCtor >>= splitAt >>= (pure . intval)
 
 || serialize a signed integer
 serialInt :: serializer int
@@ -57,7 +57,7 @@ serialInt n
 
 deserialInt :: deserializer int
 deserialInt
-    = st_liftA2 mkInt deserialCtor deserialPosInt
+    = liftA2 mkInt deserialCtor deserialPosInt
       where
         mkInt 0 n = n
         mkInt 1 n = neg n
@@ -86,25 +86,25 @@ serialTup2 :: serializer * -> serializer ** -> serializer (*, **)
 serialTup2 sa sb (a, b) = sa a . sb b
 
 deserialTup2 :: deserializer * -> deserializer ** -> deserializer (*, **)
-deserialTup2 = st_liftA2 pair
+deserialTup2 = liftA2 pair
 
 serialTup3 :: serializer * -> serializer ** -> serializer *** -> serializer (*, **, ***)
 serialTup3 sa sb sc (a, b, c) = sa a . sb b . sc c
 
 deserialTup3 :: deserializer * -> deserializer ** -> deserializer *** -> deserializer (*, **, ***)
-deserialTup3 = st_liftA3 triple
+deserialTup3 = liftA3 triple
 
 serialTup4 :: serializer * -> serializer ** -> serializer *** -> serializer **** -> serializer (*, **, ***, ****)
 serialTup4 sa sb sc sd (a, b, c, d) = sa a . sb b . sc c . sd d
 
 deserialTup4 :: deserializer * -> deserializer ** -> deserializer *** -> deserializer **** -> deserializer (*, **, ***, ****)
-deserialTup4 = st_liftA4 mkTup4 where mkTup4 a b c d = (a, b, c, d)
+deserialTup4 = liftA4 mkTup4 where mkTup4 a b c d = (a, b, c, d)
 
 serialTup5 :: serializer * -> serializer ** -> serializer *** -> serializer **** -> serializer ***** -> serializer (*, **, ***, ****, *****)
 serialTup5 sa sb sc sd se (a, b, c, d, e) = sa a . sb b . sc c . sd d . se e
 
 deserialTup5 :: deserializer * -> deserializer ** -> deserializer *** -> deserializer **** -> deserializer ***** -> deserializer (*, **, ***, ****, *****)
-deserialTup5 = st_liftA5 mkTup5 where mkTup5 a b c d e = (a, b, c, d, e)
+deserialTup5 = liftA5 mkTup5 where mkTup5 a b c d e = (a, b, c, d, e)
 
 serialTup6 :: serializer * -> serializer ** -> serializer *** -> serializer **** -> serializer ***** -> serializer ****** ->
               serializer (*, **, ***, ****, *****, ******)
@@ -112,7 +112,7 @@ serialTup6 sa sb sc sd se sf (a, b, c, d, e, f) = sa a . sb b . sc c . sd d . se
 
 deserialTup6 :: deserializer * -> deserializer ** -> deserializer *** -> deserializer **** -> deserializer ***** -> deserializer ****** ->
                 deserializer (*, **, ***, ****, *****, ******)
-deserialTup6 = st_liftA6 mkTup6 where mkTup6 a b c d e f = (a, b, c, d, e, f)
+deserialTup6 = liftA6 mkTup6 where mkTup6 a b c d e f = (a, b, c, d, e, f)
 
 serialList :: serializer * -> serializer [*]
 serialList sx xs = serialPosInt (#xs) . converse (foldr sx) xs
@@ -121,14 +121,14 @@ deserialList :: deserializer * -> deserializer [*]
 deserialList ds
     = deserialPosInt >>= d_count
       where
-        d_count n = st_pure [],                         if n <= 0
-                  = st_liftA2 (:) ds (d_count (n - 1)), otherwise
+        d_count n = pure [],                         if n <= 0
+                  = liftA2 (:) ds (d_count (n - 1)), otherwise
 
-serialSet :: serializer * -> serializer (s_set *)
-serialSet ss = serialList ss . s_toList
+serialSet :: serializer * -> serializer (s.set *)
+serialSet ss = serialList ss . s.toList
 
-deserialSet :: ordI * -> deserializer * -> deserializer (s_set *)
-deserialSet cmp ds = deserialList ds >>= (st_pure . s_fromList cmp)
+deserialSet :: ordI * -> deserializer * -> deserializer (s.set *)
+deserialSet cmp ds = deserialList ds >>= s.fromList cmp .> pure
 
 serialEither :: serializer * -> serializer ** -> serializer (either * **)
 serialEither sl sr (Left x)  = serialCtor 0 . sl x
@@ -143,10 +143,10 @@ deserialEither dl dr
         dse _ = unreachable
 
 serialBitSet :: serializer bitSet
-serialBitSet s =  bs_toInt s |> serialInt
+serialBitSet s =  bs.toInt s |> serialInt
 
 deserialBitSet :: deserializer bitSet
-deserialBitSet = deserialInt >>= (st_pure . bs_fromInt)
+deserialBitSet = deserialInt >>= bs.fromInt .> pure
 
 || AST serialization
 
@@ -217,31 +217,31 @@ deserialName :: deserializer name
 deserialName
     = deserialCtor >>= ctor
       where
-        ctor 0 =           Unqualified <$> deserialString
-        ctor 1 = st_liftA2 Unresolved      deserialString deserialString
-        ctor 2 = st_liftA2 Qualified       deserialString deserialString
-        ctor 3 = st_liftA2 Private         deserialString deserialString
-        ctor 4 =           Builtin     <$> deserialString
-        ctor 5 = st_liftA2 Internal        deserialString deserialPosInt
+        ctor 0 =        Unqualified <$> deserialString
+        ctor 1 = liftA2 Unresolved      deserialString deserialString
+        ctor 2 = liftA2 Qualified       deserialString deserialString
+        ctor 3 = liftA2 Private         deserialString deserialString
+        ctor 4 =        Builtin     <$> deserialString
+        ctor 5 = liftA2 Internal        deserialString deserialPosInt
         ctor _ = unreachable
 
 serialDefnMap :: serializer defnMap
-serialDefnMap = serialList (serialTup2 serialName serialAst) . m_toList
+serialDefnMap = serialList (serialTup2 serialName serialAst) . m.toList
 
 deserialDefnMap :: deserializer defnMap
-deserialDefnMap = deserialList (deserialTup2 deserialName deserialAst) <&> m_fromList cmpname
+deserialDefnMap = deserialList (deserialTup2 deserialName deserialAst) <&> m.fromList cmpname
 
 serialNameMap :: serializer nameMap
-serialNameMap = serialList (serialTup2 serialName serialName) . m_toList
+serialNameMap = serialList (serialTup2 serialName serialName) . m.toList
 
 deserialNameMap :: deserializer nameMap
-deserialNameMap = deserialList (deserialTup2 deserialName deserialName) <&> m_fromList cmpname
+deserialNameMap = deserialList (deserialTup2 deserialName deserialName) <&> m.fromList cmpname
 
 serialEnvMap :: serializer envMap
-serialEnvMap = serialList (serialTup2 serialName (serialList serialName)) . m_toList
+serialEnvMap = serialList (serialTup2 serialName (serialList serialName)) . m.toList
 
 deserialEnvMap :: deserializer envMap
-deserialEnvMap = deserialList (deserialTup2 deserialName (deserialList deserialName)) <&> m_fromList cmpname
+deserialEnvMap = deserialList (deserialTup2 deserialName (deserialList deserialName)) <&> m.fromList cmpname
 
 serialAst :: serializer ast
 serialAst (Evar n)            = serialCtor  0 . serialName n
@@ -289,44 +289,44 @@ deserialAst
       where
         deserialAstList = deserialList deserialAst
 
-        ctor  0 =           Evar        <$> deserialName
-        ctor  1 =           Eint        <$> deserialInt
-        ctor  2 =           Echar       <$> deserialChar
-        ctor  3 =           Estring     <$> deserialString
-        ctor  4 = st_liftA2 Eap             deserialAst         deserialAst
-        ctor  5 = st_liftA2 Ecall           deserialAst         deserialAstList
-        ctor  6 =           Econd       <$> deserialAstList
-        ctor  7 = st_liftA4 Ecase           deserialCaseSel     deserialAst        deserialAstList    deserialAnno
-        ctor  8 =           Efail       <$> deserialAst
-        ctor  9 = st_liftA3 Efatbar         deserialAst         deserialAst        deserialAst
-        ctor 10 = st_liftA4 Elet            deserialBool        deserialDefnMap    deserialAstList    deserialAst
-        ctor 11 = st_liftA3 ElistComp       deserialAst         deserialAstList    deserialAnno
-        ctor 12 = st_liftA2 Cif             deserialAst         deserialAst
-        ctor 13 =           Cdefault    <$> deserialAst
-        ctor 14 = st_liftA3 CaseAlt         deserialAst         deserialAst        deserialAnno
-        ctor 15 = st_liftA2 Qgen            deserialAstList     deserialAst
-        ctor 16 = st_liftA3 Qrecur          deserialAst         deserialAst        deserialAst
-        ctor 17 =           Qguard      <$> deserialAst
-        ctor 18 =           Pvar        <$> deserialName
-        ctor 19 =           Plit        <$> deserialAst
-        ctor 20 = st_liftA2 Pctor           deserialName        deserialAstList
-        ctor 21 = st_pure   Pwildcard
-        ctor 22 = st_liftA2 Tname           deserialName        deserialAstList
-        ctor 23 =           Tvar        <$> deserialPosInt
-        ctor 24 =           Ttuple      <$> deserialAstList
-        ctor 25 =           Tlist       <$> deserialAst
-        ctor 26 = st_liftA2 Tarr            deserialAst         deserialAst
-        ctor 27 =           Tstrict     <$> deserialAst
-        ctor 28 = st_liftA4 DefFn           deserialName        deserialAstList    deserialAst       deserialAnno
-        ctor 29 = st_liftA2 DefMult         deserialMultSel     deserialAstList
-        ctor 30 = st_liftA3 DefPat          deserialAst         deserialAst        deserialAnno
-        ctor 31 = st_liftA3 DefSyn          deserialAst         deserialAst        deserialAnno
-        ctor 32 = st_liftA3 DefData         deserialAst         deserialAstList    deserialAnno
-        ctor 33 = st_liftA3 DefSpec         deserialAst         deserialAst        deserialAnno
-        ctor 34 = st_liftA4 DefAbs          deserialAst         deserialAstList    deserialAst       deserialAnno
-        ctor 35 =           EprimInt    <$> deserialInt
-        ctor 36 =           EprimChar   <$> deserialChar
-        ctor 37 =           EprimString <$> deserialString
+        ctor  0 =        Evar        <$> deserialName
+        ctor  1 =        Eint        <$> deserialInt
+        ctor  2 =        Echar       <$> deserialChar
+        ctor  3 =        Estring     <$> deserialString
+        ctor  4 = liftA2 Eap             deserialAst         deserialAst
+        ctor  5 = liftA2 Ecall           deserialAst         deserialAstList
+        ctor  6 =        Econd       <$> deserialAstList
+        ctor  7 = liftA4 Ecase           deserialCaseSel     deserialAst        deserialAstList    deserialAnno
+        ctor  8 =        Efail       <$> deserialAst
+        ctor  9 = liftA3 Efatbar         deserialAst         deserialAst        deserialAst
+        ctor 10 = liftA4 Elet            deserialBool        deserialDefnMap    deserialAstList    deserialAst
+        ctor 11 = liftA3 ElistComp       deserialAst         deserialAstList    deserialAnno
+        ctor 12 = liftA2 Cif             deserialAst         deserialAst
+        ctor 13 =        Cdefault    <$> deserialAst
+        ctor 14 = liftA3 CaseAlt         deserialAst         deserialAst        deserialAnno
+        ctor 15 = liftA2 Qgen            deserialAstList     deserialAst
+        ctor 16 = liftA3 Qrecur          deserialAst         deserialAst        deserialAst
+        ctor 17 =        Qguard      <$> deserialAst
+        ctor 18 =        Pvar        <$> deserialName
+        ctor 19 =        Plit        <$> deserialAst
+        ctor 20 = liftA2 Pctor           deserialName        deserialAstList
+        ctor 21 = pure   Pwildcard
+        ctor 22 = liftA2 Tname           deserialName        deserialAstList
+        ctor 23 =        Tvar        <$> deserialPosInt
+        ctor 24 =        Ttuple      <$> deserialAstList
+        ctor 25 =        Tlist       <$> deserialAst
+        ctor 26 = liftA2 Tarr            deserialAst         deserialAst
+        ctor 27 =        Tstrict     <$> deserialAst
+        ctor 28 = liftA4 DefFn           deserialName        deserialAstList    deserialAst       deserialAnno
+        ctor 29 = liftA2 DefMult         deserialMultSel     deserialAstList
+        ctor 30 = liftA3 DefPat          deserialAst         deserialAst        deserialAnno
+        ctor 31 = liftA3 DefSyn          deserialAst         deserialAst        deserialAnno
+        ctor 32 = liftA3 DefData         deserialAst         deserialAstList    deserialAnno
+        ctor 33 = liftA3 DefSpec         deserialAst         deserialAst        deserialAnno
+        ctor 34 = liftA4 DefAbs          deserialAst         deserialAstList    deserialAst       deserialAnno
+        ctor 35 =        EprimInt    <$> deserialInt
+        ctor 36 =        EprimChar   <$> deserialChar
+        ctor 37 =        EprimString <$> deserialString
         ctor _  = unreachable
 
 
@@ -336,7 +336,7 @@ serialFileSpec :: serializer fileSpec
 serialFileSpec (FileSpec ps n) = serialList serialString ps . serialString n
 
 deserialFileSpec :: deserializer fileSpec
-deserialFileSpec = st_liftA2 FileSpec (deserialList deserialString) deserialString
+deserialFileSpec = liftA2 FileSpec (deserialList deserialString) deserialString
 
 serialLibQual :: serializer libQual
 serialLibQual LibUnqualified = serialCtor 0
@@ -346,8 +346,8 @@ deserialLibQual :: deserializer libQual
 deserialLibQual
     = deserialCtor >>= ctor
       where
-        ctor 0 = st_pure LibUnqualified
-        ctor 1 = st_pure LibQualified
+        ctor 0 = pure LibUnqualified
+        ctor 1 = pure LibQualified
         ctor _ = unreachable
 
 serialLibPart :: serializer libPart
@@ -360,10 +360,10 @@ deserialLibPart :: deserializer libPart
 deserialLibPart
     = deserialCtor >>= ctor
       where
-        ctor 0 = st_liftA2 LibIdent     deserialName     deserialLoc
-        ctor 1 = st_liftA2 LibRemove    deserialName     deserialLoc
-        ctor 2 = st_liftA2 LibFile      deserialFileSpec deserialLoc
-        ctor 3 =           LibAll <$>   deserialLoc
+        ctor 0 = liftA2 LibIdent     deserialName     deserialLoc
+        ctor 1 = liftA2 LibRemove    deserialName     deserialLoc
+        ctor 2 = liftA2 LibFile      deserialFileSpec deserialLoc
+        ctor 3 =        LibAll <$>   deserialLoc
         ctor _ = unreachable
 
 serialLibAlias :: serializer libAlias
@@ -374,8 +374,8 @@ deserialLibAlias :: deserializer libAlias
 deserialLibAlias
     = deserialCtor >>= dla
       where
-        dla 0 = st_liftA2 Alias deserialName deserialName
-        dla 1 =           AliasRemove <$>    deserialName
+        dla 0 = liftA2 Alias deserialName deserialName
+        dla 1 =        AliasRemove <$>    deserialName
         dla _ = unreachable
 
 serialLibEnv :: serializer libEnv
@@ -410,7 +410,7 @@ serialModule (Module fs bs exs ins defs pats specs env)
       serialEnvMap env
 
 deserialModule :: deserializer module
-deserialModule = ((st_liftA6 Module
+deserialModule = ((liftA6 Module
                      deserialFileSpec
                      deserialBuildStatus
                      (deserialEither (deserialList deserialLibPart) deserialNameMap)

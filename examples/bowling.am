@@ -4,7 +4,7 @@
 
 %import <base>
 %import <io>
-%import <tardis>        (>>=)/td_bind (>>)/td_right
+%import <tardis> qualified as td
 
 frame ::=
     OpenFrame int int | || first roll, second roll, with some pins remaining; score = sum of both rolls
@@ -23,14 +23,14 @@ scoreFrame fa fb (Extra a)       = (0, a, fa)
 || tally a frame list's score and return the running score for each frame
 || the tardis state consists of a backward-traveling pair of the next two roll's pin counts,
 || and a forward-traveling running frame score
-tally :: frame -> tardis (int, int) int int
+tally :: frame -> td.tardis (int, int) int int
 tally f
-    = td_bind2 td_getPast td_getFuture go       || get the running frame score from the past and the
+    = td.bind2 td.getPast td.getFuture go       || get the running frame score from the past and the
       where                                     || next two roll's pin counts from the future
         go t (fa, fb)
-            = td_sendPast (a, b) >>     || send the current two roll's pin counts to the past
-              td_sendFuture t'   >>     || send the new running frame score to the future
-              td_pure t'                || and return the current running frame score
+            = td.sendPast (a, b) >>     || send the current two roll's pin counts to the past
+              td.sendFuture t'   >>     || send the new running frame score to the future
+              td.pure t'                || and return the current running frame score
               where
                 (s, a, b) = scoreFrame fa fb f
                 t'        = t + s
@@ -40,4 +40,4 @@ game133 = [OpenFrame 1 4, OpenFrame 4 5, Spare 6, Spare 5, Strike, OpenFrame 0 1
 game300 = rep 10 Strike ++ rep 2 (Extra 10)
 
 main :: io ()
-main = td_evalState (td_mapM tally game133) ((0, 0), 0) |> take 10 |> showlist showint |> putStrLn
+main = td.evalState (td.mapM tally game133) ((0, 0), 0) |> take 10 |> showlist showint |> putStrLn

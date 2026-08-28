@@ -2,7 +2,7 @@
 
 
 %import <base>
-%import <io>            (>>=)/io_bind (<&>)/io_rfmap
+%import <io>
 
 
 result == (string, [num])
@@ -23,6 +23,6 @@ processFile fn
 
 main :: io ()
 main
-    = getArgs >>= io_mapM processFile >>= report
+    = getArgs >>= mapM processFile >>= report
       where
-        report = filter (not . null . snd) .> map showresult .> io_mapM_ putStrLn
+        report = filter (not . null . snd) .> map showresult .> mapM_ putStrLn

@@ -1,6 +1,6 @@
 || fib.am -- Fibonacci sequence, implemented multiple ways
 
-%import <io>            (>>=)/io_bind (>>)/io_right
+%import <io>
 %import <memoTrie>
 
 || canonical recursive version, showing exponential runtime: O(1.6^n)
@@ -22,7 +22,7 @@ fib3 n = fibs ! n where fibs = [a | (a, b) <- (1, 1), (b, a + b) ..]
 
 || find the 37th Fibonacci number 3 ways
 main :: io ()
-main = io_mapM_ timeRun tests
+main = io.mapM_ timeRun tests
        where
          tests = [("recursive", fib1), ("memoized ", fib2), ("iterative", fib3)]
 

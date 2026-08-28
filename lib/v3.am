@@ -6,6 +6,7 @@
 %import <base>
 %import <lens>
 %import <maybe>
+%import <stdlib> as std
 
 
 v3 * ::= V3 * * *
@@ -18,71 +19,74 @@ viewV3_2 (V3 a b c) = c; overV3_2 fn (V3 a b c) = V3 a b (fn c); lensV3_2 = Lens
 
 || monad interface
 
-v3_bind :: v3 * -> (* -> v3 **) -> v3 **
-v3_bind (V3 a b c) f
+pure :: * -> v3 *
+pure x = V3 x x x
+
+(>>=) :: v3 * -> (* -> v3 **) -> v3 **
+(V3 a b c) >>= f
     = V3 a' b' c'
       where
         V3 a' _  _  = f a
         V3 _  b' _  = f b
         V3 _  _  c' = f c
 
-v3_pure :: * -> v3 *
-v3_pure x = V3 x x x
-
-v3_sequence :: [v3 *] -> v3 [*]
-v3_sequence xs = foldr (v3_liftA2 (:)) (v3_pure []) xs
+sequence :: [v3 *] -> v3 [*]
+sequence xs = std.foldr (liftA2 (:)) (pure []) xs
 
 
 || functor interface
-v3_fmap :: (* -> **) -> v3 * -> v3 **
-v3_fmap f (V3 a b c) = V3 (f a) (f b) (f c)
 
-v3_rfmap :: v3 * -> (* -> **) -> v3 **
-v3_rfmap v f = v3_fmap f v
+(<$>) :: (* -> **) -> v3 * -> v3 **
+f <$> (V3 a b c) = V3 (f a) (f b) (f c)
+
+(<&>) :: v3 * -> (* -> **) -> v3 **
+v <&> f = f <$> v
 
 
 || applicative interface
-v3_apply :: v3 (* -> **) -> v3 * -> v3 **
-v3_apply (V3 fa fb fc) (V3 a b c) = V3 (fa a) (fb b) (fc c)
 
-v3_liftA2 :: (* -> ** -> ***) -> v3 * -> v3 ** -> v3 ***
-v3_liftA2 f (V3 a b c) (V3 g h i) = V3 (f a g) (f b h) (f c i)
+(<*>) :: v3 (* -> **) -> v3 * -> v3 **
+(<*>) (V3 fa fb fc) (V3 a b c) = V3 (fa a) (fb b) (fc c)
+
+liftA2 :: (* -> ** -> ***) -> v3 * -> v3 ** -> v3 ***
+liftA2 f (V3 a b c) (V3 g h i) = V3 (f a g) (f b h) (f c i)
 
 
 || foldable interface
-v3_foldr :: (* -> ** -> **) -> ** -> v3 * -> **
-v3_foldr f z (V3 a b c) = f c z |> f b |> f a
 
-v3_foldl :: (** -> * -> **) -> ** -> v3 * -> **
-v3_foldl f z (V3 a b c) = f z a |> ($f b) |> ($f c)
+foldr :: (* -> ** -> **) -> ** -> v3 * -> **
+foldr f z (V3 a b c) = f c z |> f b |> f a
+
+foldl :: (** -> * -> **) -> ** -> v3 * -> **
+foldl f z (V3 a b c) = f z a |> ($f b) |> ($f c)
 
 
-v3_abs, v3_neg, v3_signum :: v3 int -> v3 int
-v3_abs    a = v3_fmap abs a
-v3_neg    a = v3_fmap neg a
-v3_signum a = v3_fmap signum a
+abs, neg, signum :: v3 int -> v3 int
+abs    a = std.abs     <$> a
+neg    a = std.neg     <$> a
+signum a = base.signum <$> a
 
-v3_add, v3_sub, v3_mul, v3_quot, v3_rem, v3_div, v3_mod :: v3 int -> v3 int -> v3 int
-v3_add  a b = v3_liftA2 (+)  a b
-v3_sub  a b = v3_liftA2 (-)  a b
-v3_mul  a b = v3_liftA2 (*)  a b
-v3_quot a b = v3_liftA2 quot a b
-v3_rem  a b = v3_liftA2 rem  a b
-v3_div  a b = v3_liftA2 div  a b
-v3_mod  a b = v3_liftA2 mod  a b
+add, sub, mul, quot, rem, div, mod :: v3 int -> v3 int -> v3 int
+add  a b = liftA2 (+)      a b
+sub  a b = liftA2 (-)      a b
+mul  a b = liftA2 (*)      a b
+quot a b = liftA2 std.quot a b
+rem  a b = liftA2 std.rem  a b
+div  a b = liftA2 std.div  a b
+mod  a b = liftA2 std.mod  a b
 
-v3_max, v3_min :: ordI * -> v3 * -> v3 * -> v3 *
-v3_max cmp a b = v3_liftA2 (max2 cmp) a b
-v3_min cmp a b = v3_liftA2 (min2 cmp) a b
+max, min :: ordI * -> v3 * -> v3 * -> v3 *
+max cmp a b = liftA2 (max2 cmp) a b
+min cmp a b = liftA2 (min2 cmp) a b
 
-v3_sum, v3_product :: v3 int -> int
-v3_sum     a = v3_foldl (+) 0 a
-v3_product a = v3_foldl (*) 1 a
+sum, product :: v3 int -> int
+sum     a = foldl (+) 0 a
+product a = foldl (*) 1 a
 
 || manhattan distance
-v3_dist :: v3 int -> v3 int -> int
-v3_dist a b = v3_sub a b |> v3_abs |> v3_sum
+dist :: v3 int -> v3 int -> int
+dist a b = sub a b |> abs |> sum
 
 || cross-product
-v3_cross :: v3 int -> v3 int -> v3 int
-v3_cross (V3 x1 y1 z1) (V3 x2 y2 z2) = V3 (y1 * z2 - z1 * y2) (z1 * x2 - x1 * z2) (x1 * y2 - y1 * x2)
+cross :: v3 int -> v3 int -> v3 int
+cross (V3 x1 y1 z1) (V3 x2 y2 z2) = V3 (y1 * z2 - z1 * y2) (z1 * x2 - x1 * z2) (x1 * y2 - y1 * x2)

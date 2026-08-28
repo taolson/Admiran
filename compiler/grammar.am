@@ -4,11 +4,12 @@
 %export +  -opPrecRepr -precAssocTable
 
 %import <base>
-%import <bitSet>
+%import <bitSet> as bs
 %import <lens>
-%import <map>
-%import <maybe>
-%import <set>
+%import <map>    as m
+%import <maybe>  as mb
+%import <set>    as s
+%import <stdlib> as std
 %import "name"
 
 
@@ -26,9 +27,9 @@ texpr   == ast
 tform   == ast
 defn    == ast
 
-nameMap == m_map name name              || map for renaming a name
-defnMap == m_map name defn              || map from Qualified name to top-level definition in module
-envMap  == m_map name [name]            || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
+nameMap == m.map name name              || map for renaming a name
+defnMap == m.map name defn              || map from Qualified name to top-level definition in module
+envMap  == m.map name [name]            || map from an Unqualified or Unresolved name to Qualified name(s) in modules where it is defined
 
 ast ::=
     || expr
@@ -162,10 +163,10 @@ annoFree   = lensTup6_4   || defn free vars
 annoAffine = lensTup6_5   || fn vars usedAffine, as a bitSet
 
 emptyAnno :: anno
-emptyAnno = (emptyLocation, False, 0, Uzero, [], bs_empty)
+emptyAnno = (emptyLocation, False, 0, Uzero, [], bs.empty)
 
 emptyAnnoLoc :: location -> anno
-emptyAnnoLoc loc = set annoLoc loc emptyAnno
+emptyAnnoLoc loc = lens.set annoLoc loc emptyAnno
 
 
 || module name, line no for error reporting
@@ -212,15 +213,15 @@ astAnnoFree   = composeLens astAnno annoFree
 astAnnoAffine = composeLens astAnno annoAffine
 
 
-reservedNames :: s_set string
-reservedNames = s_fromList cmpstring ["if", "otherwise", "type", "where", "abstype", "with", "case", "of", "=", "::", "::=", "..", "|", "<-", "->"]
+reservedNames :: s.set string
+reservedNames = s.fromList cmpstring ["if", "otherwise", "type", "where", "abstype", "with", "case", "of", "=", "::", "::=", "..", "|", "<-", "->"]
 
 
 || common name operations
 
 isConstructor, isTvarSymbol, isVar, isPrefix, isWildcard, isSymbol :: name -> bool
 isConstructor n = getName n |> safeHd |> fromMaybef False (\c -> c ==. ':' \/ isUpper c)
-isTvarSymbol  n = getName n |> all (==. '*')
+isTvarSymbol  n = getName n |> base.all (==. '*')
 isVar         n = ~isConstructor n
 isPrefix      n = opPrecAssoc n |> snd |> _eq cmpassoc AssocPrefix
 
@@ -538,10 +539,10 @@ flattenDefns
 || make definition name(s) at the top level qualified with the module name
 qualifyDefn :: string -> ast -> ast
 qualifyDefn modName (DefFn n vars e an)    = DefFn   (qualifyName modName n) vars e an
-qualifyDefn modName (DefMult m defs)       = DefMult m $ map (qualifyDefn modName) defs
+qualifyDefn modName (DefMult m defs)       = DefMult m $ std.map (qualifyDefn modName) defs
 qualifyDefn modName (DefPat p expr an)     = DefPat  (qualifyPat modName p) expr an
 qualifyDefn modName (DefSyn tf te an)      = DefSyn  (qualifyTform modName tf) te an
-qualifyDefn modName (DefData tf ctors an)  = DefData (qualifyTform modName tf) (map (qualifyTform modName) ctors) an
+qualifyDefn modName (DefData tf ctors an)  = DefData (qualifyTform modName tf) (std.map (qualifyTform modName) ctors) an
 qualifyDefn modName (DefSpec tf te an)     = DefSpec (qualifyTform modName tf) te an
 qualifyDefn modName (DefAbs tf ds t an)    = DefAbs  (qualifyTform modName tf) ds t an
 qualifyDefn modName d                      = d
@@ -607,12 +608,12 @@ opPrecRepr
 || dynamically-built precAssocTable and value for application precedence, built from
 || parsing the lines in opPrecRepr
 (precAssocTable, apPrec)
-    = foldl insLevel (m_empty, 0) opPrecRepr
+    = std.foldl insLevel (m.empty, 0) opPrecRepr
       where
-        insLevel (m, prec) (a : s) = (words s |> foldl (ins prec (toAssoc a)) m, prec + 1)
+        insLevel (m, prec) (a : s) = (words s |> std.foldl (ins prec (toAssoc a)) m, prec + 1)
         insLevel _         _       = unreachable
 
-        ins prec a m op = m_insert cmpstring op (prec, a) m
+        ins prec a m op = m.insert cmpstring op (prec, a) m
 
         toAssoc 'L' = AssocLeft
         toAssoc 'R' = AssocRight
@@ -623,4 +624,4 @@ opPrecRepr
 || look up operator in prec/assoc table, first removing any module qualifier
 opPrecAssoc :: name -> (int, assoc)
 opPrecAssoc op
-    = m_findWithDefault cmpstring (apPrec, AssocRight) (getName op) precAssocTable
+    = m.findWithDefault cmpstring (apPrec, AssocRight) (getName op) precAssocTable

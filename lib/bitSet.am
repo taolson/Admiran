@@ -1,51 +1,50 @@
 || bitSet.am -- representation of a set of small (< 64) natural numbers using an int, as an abstract type
 
-
 || interface
 abstype bitSet with
-    bs_empty     :: bitSet
-    bs_null      :: bitSet -> bool
-    bs_singleton :: int    -> bitSet
-    bs_all       :: int    -> bitSet
-    bs_size      :: bitSet -> int
-    bs_member    :: int    -> bitSet -> bool
-    bs_first     :: bitSet -> int
-    bs_last      :: bitSet -> int
-    bs_insert    :: int    -> bitSet -> bitSet
-    bs_delete    :: int    -> bitSet -> bitSet
-    bs_union     :: bitSet -> bitSet -> bitSet
-    bs_intersect :: bitSet -> bitSet -> bitSet
-    bs_fromList  :: [int]  -> bitSet
-    bs_toList    :: bitSet -> [int]
-    bs_toInt     :: bitSet -> int
-    bs_fromInt   :: int -> bitSet
+    empty     :: bitSet
+    null      :: bitSet -> bool
+    singleton :: int    -> bitSet
+    all       :: int    -> bitSet
+    size      :: bitSet -> int
+    member    :: int    -> bitSet -> bool
+    first     :: bitSet -> int
+    last      :: bitSet -> int
+    insert    :: int    -> bitSet -> bitSet
+    delete    :: int    -> bitSet -> bitSet
+    union     :: bitSet -> bitSet -> bitSet
+    intersect :: bitSet -> bitSet -> bitSet
+    fromList  :: [int]  -> bitSet
+    toList    :: bitSet -> [int]
+    toInt     :: bitSet -> int
+    fromInt   :: int -> bitSet
     showbitSet   :: bitSet -> string
     cmpbitSet    :: bitSet -> bitSet -> ordering
 
 || implementation
 bitSet == int
 
-bs_empty = 0
+empty = 0
 
-bs_null s = s == 0
+null s = s == 0
 
-bs_singleton n = 1 .<<. n
+singleton n = 1 .<<. n
 
 || a bitSet of size n with all bits set
-bs_all n = (1 .<<. n) - 1
+all n = (1 .<<. n) - 1
 
 || number of bits set in the bitSet (popcount)
-bs_size s
+size s
     = go 0 s
       where
         go n 0 = n
         go n s = case n + (s .&. 1) of n' -> go n' (s .>>. 1)
 
-bs_member n s = (s .&. (1 .<<. n)) ~= 0
+member n s = (s .&. (1 .<<. n)) ~= 0
 
 || find index of first set bit
 || returns (-1) if bitSet is empty
-bs_first s
+first s
     = go (-1) s
       where
         go i 0 = i
@@ -58,7 +57,7 @@ bs_first s
 
 || find index of last bit set
 || returns (-1) if bitSet is empty
-bs_last s
+last s
     = go (-1) s
       where
         go i 0 = i
@@ -67,19 +66,19 @@ bs_last s
               case s .>>. 1 of s' ->
               go i' s'
 
-bs_insert n s = s .|. (1 .<<. n)
-bs_delete n s = s .&. complement (1 .<<. n)
+insert n s = s .|. (1 .<<. n)
+delete n s = s .&. complement (1 .<<. n)
 
-bs_union s1 s2 = s1 .|. s2
+union s1 s2 = s1 .|. s2
 
-bs_difference :: bitSet -> bitSet -> bitSet
-bs_difference s1 s2 = s1 .&. complement s2
+difference :: bitSet -> bitSet -> bitSet
+difference s1 s2 = s1 .&. complement s2
 
-bs_intersect s1 s2 = s1 .&. s2
+intersect s1 s2 = s1 .&. s2
 
-bs_fromList xs = foldr bs_insert 0 xs
+fromList xs = foldr insert 0 xs
 
-bs_toList s
+toList s
     = go 0 s
       where
         go i 0 = []
@@ -90,8 +89,8 @@ bs_toList s
                 False -> i : go i' s'
                 True  ->     go i' s'
 
-bs_toInt   s = s
-bs_fromInt n = n
+toInt   s = s
+fromInt n = n
 
 showbitSet s   = showhex s
 cmpbitSet s1 s2 = cmpint s1 s2

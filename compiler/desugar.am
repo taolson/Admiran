@@ -6,13 +6,12 @@
 %import <base>
 %import <either>
 %import <lens>
-%import <map>
-%import <maybe>
-%import <maybe> qualified as mb (>>=)/mb_bind
-%import <state>                 (>>=)/st_bind
+%import <map>           qualified as m
+%import <maybe>         as mb
+%import <state>         as st           -view -set -over
 %import "ast"
 %import "config"
-%import "exception"
+%import "exception"     as ex
 %import "grammar"
 %import "module"
 %import "name"
@@ -29,7 +28,7 @@
 || lexical state:
 || loc:  location info from enclosing definition
 ||
-dsDynSt == (globalEnv, [exception], m_map expr name)
+dsDynSt == (globalEnv, [exception], m.map expr name)
 dsLexSt == locInfo
 dsSt    == (dsDynSt, dsLexSt)
 
@@ -46,7 +45,7 @@ dsGen      = composeLens dsGenv lensTup3_2
 dsModName  = dsGenv $composeLens genvMod $composeLens modName
 
 initDsSt :: globalEnv -> dsSt
-initDsSt genv = ((genv, [], m_empty), emptyLocInfo)
+initDsSt genv = ((genv, [], m.empty), emptyLocInfo)
 
 || add an exception to the desugar state
 addDsErr :: exceptionInfo -> dsSt -> dsSt
@@ -81,8 +80,8 @@ match [] eqns st
       where
         loc                    = view dsLocation st |> fromMaybe emptyLocation
         rhss                   = map addRenames eqns
-        addRenames (x, rhs, m) = rhs,                                            if m_null m
-                               = Elet True m_empty (map mkPat (m_toList m)) rhs, otherwise      || introduce a new Let binding to rename the vars
+        addRenames (x, rhs, m) = rhs,                                            if m.null m
+                               = Elet True m.empty (map mkPat (m.toList m)) rhs, otherwise      || introduce a new Let binding to rename the vars
         mkPat (k, v)           = DefPat (Pvar k) (Evar v) (emptyAnnoLoc loc)
 
 match (var : vars) eqns st
@@ -94,11 +93,11 @@ match (var : vars) eqns st
         seqEqnGroup eqns (e2, st) = (builtinFatbar e1 e2, st') where (e1, st') = handleEqnGroup eqns st
 
         handleEqnGroup eqns
-            = match         vars eqns',        if isPwildcard firstPat
-            = matchVar  var vars peqns,        if isPvar      firstPat
-            = matchLit  var vars peqns,        if isPlit      firstPat
-            = matchCtor var vars peqns,        if isPctor     firstPat
-            = unreachable,                     otherwise
+            = match         vars eqns', if isPwildcard firstPat
+            = matchVar  var vars peqns, if isPvar      firstPat
+            = matchLit  var vars peqns, if isPlit      firstPat
+            = matchCtor var vars peqns, if isPctor     firstPat
+            = unreachable,              otherwise
               where
                 peqns    = map extractFirstPat eqns
                 pats     = map fst peqns
@@ -121,14 +120,14 @@ match (var : vars) eqns st
 || if the name already exists in the rename map
 matchVar :: name -> [name] -> [(pat, equation)] -> state dsSt expr
 matchVar var vars peqns
-    = st_mapM (addRename var) peqns >>= match vars
+    = st.mapM (addRename var) peqns st.>>= match vars
       where
         addRename n' (Pvar n, (p, e, m))
-            = st_pure (p, e, m_insert cmpname n n' m),                        if isNothing mn
-            = st_fmap (const (p, e, m)) (st_modify (addDsErr (NameClash n))), otherwise
+            = st.pure (p, e, m.insert cmpname n n' m),                   if isNothing mn
+            = st.modify (addDsErr (NameClash n)) st.<&> const (p, e, m), otherwise
               where
-                mn = m_lookup cmpname n m
-        addRename n' (p, eqn) = st_pure eqn
+                mn = m.lookup cmpname n m
+        addRename n' (p, eqn) = st.pure eqn
 
 || match a group on the same literal (refutable)
 matchLit :: name -> [name] -> [(pat, equation)] -> state dsSt expr
@@ -211,8 +210,8 @@ patCaseTree :: [ctorEqn] -> nameMap -> state dsSt (expr, [name])
 patCaseTree [] mr st
     = ((makeTupleExpr evars, pvars), st)
       where
-        evars = m_elems mr |> map Evar
-        pvars = m_keys  mr
+        evars = m.elems mr |> map Evar
+        pvars = m.keys  mr
 
 || build a case tree, converting ctorEqns to Ecase exprs
 || works bidirectionally, building the rename map going down, then building the case tree coming back up
@@ -238,8 +237,8 @@ patCaseTree ((c, ps, rhs) : cs) mr st
                 go Pwildcard = (Pwildcard : vs, cs, mr, st)
 
                 go (Pvar n)
-                    = (vs, cs, mr, addDsErr (NameClash n) st),           if m_member cmpname n mr
-                    = (Pvar n' : vs, cs, m_insert cmpname n n' mr, st'), otherwise
+                    = (vs, cs, mr, addDsErr (NameClash n) st),           if m.member cmpname n mr
+                    = (Pvar n' : vs, cs, m.insert cmpname n n' mr, st'), otherwise
                       where
                         (n', st') = st_genName (getName n) st
 
@@ -306,7 +305,7 @@ desugarAst k (ElistComp e quals an) st
 
         || desugar a recurrence pattern generator e.g. (a, b) <- (1, 2), (a + b, b * 2) ...
         dsGenRecur be fe p c st nextQual
-            = (Elet True (m_singleton fn fnDef) [] (Eap (Evar fn) be), st')
+            = (Elet True (m.singleton fn fnDef) [] (Eap (Evar fn) be), st')
               where
                 (gen', fn) = genName "`gen" (view dsGen st)                             || name of generator function
                 (e, st')   = nextQual (Eap (Evar fn) fe) (set dsGen gen' st)            || pass (go fe) as the threaded list builder "c"
@@ -314,7 +313,7 @@ desugarAst k (ElistComp e quals an) st
 
         || desugar a single-pattern generator e.g. x <- xs;
         dsGenSingle ge p c st nextQual
-            = (Elet True (m_singleton fn fnDef) [] (Eap (Evar fn) ge), st')
+            = (Elet True (m.singleton fn fnDef) [] (Eap (Evar fn) ge), st')
               where
                 (gen1, fn) = genName "`gen" $ view dsGen st                             || name of generator function
                 (gen2, a1) = genName "var" gen1                                         || a1 is rest of list for (p : a1) pattern in cons case
@@ -343,7 +342,7 @@ desugarAst k (ElistComp e quals an) st
 
         || desugar a multiple-pattern generator e.g. x, y <- zs;
         dsGenMult ge ps c gen nextQual
-            = (Elet True (m_singleton n (DefPat (Pvar n) ge an)) [] e, st')
+            = (Elet True (m.singleton n (DefPat (Pvar n) ge an)) [] e, st')
               where
                 (gen', n) = genName "lst" $ view dsGen st               || define a common variable n for the generator ge to use on multiple quals
                 (e, st')  = go ps c $ set dsGen gen' st                 || generate for each pattern in a qualifier
@@ -436,7 +435,7 @@ desugarDef topLevel k (DefPat (Pctor c pats) rhs an) st
 
         ((caseTree, ns), st2)
             = ((rhs, map unPvar pats), st1),            if simpleCtor
-            = patCaseTree [(c, pats, rhs)] m_empty st1, otherwise
+            = patCaseTree [(c, pats, rhs)] m.empty st1, otherwise
 
         patMatch = Eap (builtinSel c 0) caseTree, if simpleCtor & singlePatVar & useSel
                  = makeSel c 0 caseTree,          if simpleCtor & singlePatVar
@@ -483,7 +482,7 @@ desugarDef topLevel k (DefMult Mfun defs) st
         an               = viewAnno d
         (gen', varNames) = genNames "var" gen [1 .. arity]
         st1              = set dsGen gen' st
-        (caseTree, st2)  = match varNames (zip3 pats rhss (repeat m_empty)) st1
+        (caseTree, st2)  = match varNames (zip3 pats rhss (repeat m.empty)) st1
         fail             = view annoLoc an |> genLoc |> Eap stdCaseFail
         caseExpr         = builtinFatbar caseTree fail
 
@@ -499,10 +498,10 @@ desugarLit k e st
       where
         mn         = view dsModName st
         gen        = view dsGen st
-        mv         = view dsLits st |> m_lookup cmplit e
+        mv         = view dsLits st |> m.lookup cmplit e
         v          = fromJust mv
         (gen', v') = genPrivateName mn "lit" gen
-        st'        = set dsGen gen' st |> over dsLits (m_insert cmplit e v')
+        st'        = set dsGen gen' st |> over dsLits (m.insert cmplit e v')
 
 || make a common definition for a literal expression
 mkLit :: string -> (expr, name) -> defn
@@ -524,15 +523,15 @@ mkLit mn (l, v)
 || merging the desugared patterns into the defnMap
 desugar :: globalEnv -> excpt globalEnv
 desugar genv
-    = ex_return genv' warns, if null errs
-    = ex_errs   errs,        otherwise
+    = ex.return genv' warns, if null errs
+    = ex.errs   errs,        otherwise
       where
         m                 = view genvMod genv
         mn                = view modName m
         defs              = view modDefns m
         pats              = view modPats m
         ((defs1, _), st') = astRewriteInLet (astRewriteLex desugarAst) defs pats $ initDsSt genv
-        litPats           = view dsLits st' |> m_toList |> map (mkLit mn)
+        litPats           = view dsLits st' |> m.toList |> map (mkLit mn)
         defs2             = foldr insDefnMapUnchecked defs1 litPats
         genv'             = view dsGenv st' |> over genvMod (set modDefns defs2 . set modPats [])
         (errs, warns)     = view dsErrs st' |> partition isError

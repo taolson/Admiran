@@ -9,14 +9,14 @@
 
 %import <base>
 %import <lens>
-%import <map>
-%import <maybe>
-%import <maybe> qualified as mb (>>=)/mb_bind
-%import <state>                 (>>=)/st_bind (<$>)/st_fmap (<&>)/st_rfmap (<<)/st_left (>>)/st_right
+%import <map>           qualified as m
+%import <maybe>                         -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>)
+%import <maybe>         qualified as mb
+%import <state>         as st
 %import "analyze"
 %import "config"
 %import "dependency"
-%import "exception"
+%import "exception"                     -(>>=) -(<$>) -(<&>) -(<*>) -error
 %import "grammar"
 %import "module"
 %import "name"
@@ -27,7 +27,7 @@
 || a code object is a locInfo and a list of STG instructions
 codeObj  == (locInfo, [stgInsn])                || source fn name and loc info, stg code
 codePtr  == int                                 || index into the stgCode map
-stgCode  == (m_map codePtr codeObj, codePtr)    || code map, next unused codePtr value
+stgCode  == (m.map codePtr codeObj, codePtr)    || code map, next unused codePtr value
 
 || a heap object consists of a heapInfo tag along with a list of free-variable environment values
 heapInfo ::=
@@ -48,7 +48,7 @@ heapObj     == (heapInfo, [value])
 closure     == heapObj                          || type synonym for a heapObj
 closureInfo == (codePtr, int, bool, bool)       || codePtr, arity, free vars empty, isDefFun
 heapPtr     == int                              || index into the stgHeap map
-stgHeap     == (m_map heapPtr heapObj, heapPtr) || heap map, next unused heapPtr value (and top of statically-allocated heap)
+stgHeap     == (m.map heapPtr heapObj, heapPtr) || heap map, next unused heapPtr value (and top of statically-allocated heap)
 
 || compute the number of 8-byte words each heap object requires, including the tag/info word
 heapObjWords :: heapObj -> int
@@ -212,8 +212,8 @@ cmpstgInsn = undef
 || caseAlt:   currently evaluating a caseAlt (used to qualify adding PopEnv to discard the continuation frames on a tail call)
 ||            Note: these are state variables because it would be more difficult to pass these little-used booleans thoroughout the
 ||            buildCode functions; they must be set correctly lexically any time we are building caseAlts
-localEnv == m_map name opr
-localCls == m_map name closureInfo
+localEnv == m.map name opr
+localCls == m.map name closureInfo
 bdDynSt  == (globalEnv, stgCode, stgHeap)
 bdLexSt  == (localEnv, localCls, locInfo, int, int, int, bool, bool)
 bdSt     == (bdDynSt, bdLexSt)
@@ -264,14 +264,14 @@ blackHolePtr  = 6      || fixed location for the blackhole update "trampoline" f
 
 || init resource allocation counters and status for building various AST types
 initResources :: state bdSt ()
-initResources = st_over bdLex $ set lexRegGen 3 . set lexFrmGen 0 . set lexStkGen 0 . set lexBuiltin False . set lexCaseAlt False
+initResources = st.over bdLex $ lens.set lexRegGen 3 . lens.set lexFrmGen 0 . lens.set lexStkGen 0 . lens.set lexBuiltin False . lens.set lexCaseAlt False
 
 initBdSt :: globalEnv -> bdSt
 initBdSt genv
-    = ((genv, code, heap), (m_empty, m_empty, emptyLocInfo, 3, 0, 0, False, False))
+    = ((genv, code, heap), (m.empty, m.empty, emptyLocInfo, 3, 0, 0, False, False))
       where
-        code = (m_fromList cmpcodePtr special, #special)    || code has special generic routines pre-installed
-        heap = (m_empty, 0)
+        code = (m.fromList cmpcodePtr special, #special)    || code has special generic routines pre-installed
+        heap = (m.empty, 0)
 
         || code for fixed code ptrs
         special  = [ (unpackPtr,     (builtinInfo "<unpack>",     [RetEnv]))                                                || unpack packed value to args
@@ -287,10 +287,10 @@ initBdSt genv
 || alloc a int resource in bdSt strictly
 allocResource :: lens bdSt int -> int -> state bdSt int
 allocResource lns n
-    = st_view lns >>= inc
+    = st.view lns >>= inc
       where
         inc r
-            = r' $seq st_set lns r' >> st_pure r
+            = r' $seq st.set lns r' >> st.pure r
               where r' = r + n
 
 || alloc a codePtr, to be updated later
@@ -299,12 +299,12 @@ allocCode = allocResource bdCodePtr 1
 
 || set stgCode[codePtr] to codeObj
 updateCode :: codePtr -> codeObj -> state bdSt codePtr
-updateCode cp obj = st_over bdCodeMap (m_insert cmpcodePtr cp obj) >> st_pure cp
+updateCode cp obj = st.over bdCodeMap (m.insert cmpcodePtr cp obj) >> st.pure cp
 
 || make a codeObj from a list of stgInsns
 makeCode :: [stgInsn] -> state bdSt codePtr
 makeCode ins
-    = st_bind2 (st_view bdLoc) allocCode mkObj
+    = st.bind2 (st.view bdLoc) allocCode mkObj
       where
         mkObj loc cp = updateCode cp (loc, ins)
 
@@ -314,10 +314,10 @@ allocHeap = allocResource bdHeapPtr
 
 || set stgHeap[heapPtr] to heapObj
 updateHeap :: heapPtr -> heapObj -> state bdSt heapPtr
-updateHeap hp obj = st_over bdHeapMap (m_insert cmpheapPtr hp obj) >> st_pure hp
+updateHeap hp obj = st.over bdHeapMap (m.insert cmpheapPtr hp obj) >> st.pure hp
 
 lookupHeap :: heapPtr -> state bdSt heapObj
-lookupHeap hp = st_view bdHeapMap <&> m_lookup cmpheapPtr hp .> fromJust
+lookupHeap hp = st.view bdHeapMap <&> m.lookup cmpheapPtr hp .> fromJust
 
 || alloc contiguous space in the stack and return its base value
 allocStack :: int -> state bdSt int
@@ -339,26 +339,26 @@ allocFrmSlots :: int -> state bdSt ref
 allocFrmSlots n = allocResource bdFrmGen (n + 2) <&> pair Frm
 
 lookupOpr :: name -> state bdSt opr
-lookupOpr n = st_view bdLenv <&> m_lookup cmpname n .> fromJust
+lookupOpr n = st.view bdLenv <&> m.lookup cmpname n .> fromJust
 
 || return the (name, opr) pairs for the names that have opr bindings matching the predicate
 lookupOprsMatching :: (opr -> bool) -> [name] -> state bdSt [(name, opr)]
 lookupOprsMatching p ns
-    = st_view bdLenv <&> doLookups <&> filter (snd .> p)
+    = st.view bdLenv <&> doLookups <&> filter (snd .> p)
       where
-        doLookups lenv = map (\n -> m_lookup cmpname n lenv |> fromJust |> pair n) ns
+        doLookups lenv = map (\n -> m.lookup cmpname n lenv |> fromJust |> pair n) ns
 
 || make an operand from an expr
 makeOpr :: expr -> state bdSt opr
 makeOpr (Evar n)      = lookupOpr n
-makeOpr (EprimInt n)  = Word n |> Imm |> st_pure
-makeOpr (EprimChar c) = code c |> Word |> Imm |> st_pure
+makeOpr (EprimInt n)  = Word n |> Imm |> st.pure
+makeOpr (EprimChar c) = code c |> Word |> Imm |> st.pure
 
 || create a byteStream heap object for primitive strings
 makeOpr (EprimString s)
     = allocHeap (stringWords s + 1) >>= mkByteStream
       where
-        mkByteStream hp = updateHeap hp (Hstream s, []) >> (st_pure . Imm . Haddr) hp
+        mkByteStream hp = updateHeap hp (Hstream s, []) >> (st.pure . Imm . Haddr) hp
 
 makeOpr _ = unreachable
 
@@ -371,54 +371,54 @@ makeOpr _ = unreachable
 || can't be determined.
 addVarArityInfo :: name -> [pat] -> state bdSt ()
 addVarArityInfo dn vars
-    = st_view bdGenv >>= go
+    = st.view bdGenv >>= go
       where
         go genv = lookupSpec genv dn |> addInfo
 
-        addInfo Nothing = st_pure ()                            || no DefSpec for the defn name, can't infer arity
+        addInfo Nothing = st.pure ()                            || no DefSpec for the defn name, can't infer arity
         addInfo (Just spec)
-            = map typeList ts |> zip2 vars |> st_mapM_ insInfo
+            = map typeList ts |> zip2 vars |> st.mapM_ insInfo
               where
-                ts = view defnType spec |> typeList |> fst
+                ts = lens.view defnType spec |> typeList |> fst
 
         || insert a dummy closureInfo for the arg n with inferred arity 0, if it is a value type that isn't universally qualified (Tvar)
         insInfo (Pvar n, ([], bt))
-            = st_over bdLcls $ m_insert cmpname n (0, 0, False, False), if ~isTvar bt
+            = st.over bdLcls $ m.insert cmpname n (0, 0, False, False), if ~isTvar bt
 
-        insInfo _ = st_pure ()
+        insInfo _ = st.pure ()
 
 || lookup possible closureInfo for an expr
 lookupClosureInfo :: expr -> state bdSt (maybe closureInfo)
-lookupClosureInfo (Evar n) = st_view bdLcls <&> m_lookup cmpname n
-lookupClosureInfo e        = st_pure Nothing
+lookupClosureInfo (Evar n) = st.view bdLcls <&> m.lookup cmpname n
+lookupClosureInfo e        = st.pure Nothing
 
 || allocate a new reg ref and bind a Pvar name to it, if the pat is a Pvar
 makeRef :: pat -> state bdSt ref
 makeRef p
     = allocReg >>= checkPat p
       where
-        checkPat Pwildcard r = st_pure r
-        checkPat (Pvar n)  r = st_pure r << st_over bdLenv (m_insert cmpname n (Ref r))
+        checkPat Pwildcard r = st.pure r
+        checkPat (Pvar n)  r = st.pure r << st.over bdLenv (m.insert cmpname n (Ref r))
         checkPat _         _ = unreachable
 
 || bind Pvar names to Arg references and install in the lenv
 || skip over any non-Pvar pats (e.g. Pwildcard) which don't provide a name to bind
 bindArgs :: [pat] -> state bdSt ()
 bindArgs ps
-    = st_over bdLenv $ \m -> foldl addBinding m binds
+    = st.over bdLenv $ \m -> foldl addBinding m binds
       where
         binds = enumerate ps |> filter (snd .> isPvar) .> map (\(i, p) -> (unPvar p, Ref (Arg, i)))
 
-        addBinding m (k, v) = m_insert cmpname k v m
+        addBinding m (k, v) = m.insert cmpname k v m
 
 || bind names to Env references and install in the lenv
 bindEnvs :: [name] -> state bdSt ()
 bindEnvs ns
-    = st_over bdLenv $ \m -> foldl addBinding m binds
+    = st.over bdLenv $ \m -> foldl addBinding m binds
       where
         binds = enumerate ns |> map (\(i, n) -> (n, Ref (Env, i)))
 
-        addBinding m (k, v) = m_insert cmpname k v m
+        addBinding m (k, v) = m.insert cmpname k v m
 
 || bind names to new Stk references and install in the lenv
 bindStks :: [name] -> state bdSt ()
@@ -426,11 +426,11 @@ bindStks ns
     = allocStack (#ns) >>= doBind
       where
         doBind sBase
-            = st_over bdLenv $ \lenv -> foldl addBinding lenv binds
+            = st.over bdLenv $ \lenv -> foldl addBinding lenv binds
               where
                 binds = zip2 [sBase ..] ns |> map (\(i, n) -> (n, Ref (Stk, i)))
 
-                addBinding m (k, v) = m_insert cmpname k v m
+                addBinding m (k, v) = m.insert cmpname k v m
 
 || rebind names that are currently bound to Oprs matching predicate p to new Reg references,
 || install in the lenv, and return a list of Mov insns that perform the runtime action of the rebinding
@@ -438,18 +438,18 @@ bindStks ns
 || a tail-call, or lose existing Frm-bound references when allocating a new Frame
 rebindToRegs :: (opr -> bool) -> [name] -> state bdSt [stgInsn]
 rebindToRegs p ns
-    = st_bind2 (st_view bdLenv) (lookupOprsMatching p ns) doAlloc
+    = st.bind2 (st.view bdLenv) (lookupOprsMatching p ns) doAlloc
       where
         doAlloc lenv nsOprs
-            = st_mapM (const allocReg) nsOprs >>= doBinds .> \(lenv', movs) -> st_set bdLenv lenv' >> st_pure movs
+            = st.mapM (const allocReg) nsOprs >>= doBinds .> \(lenv', movs) -> st.set bdLenv lenv' >> st.pure movs
               where
                 doBinds rs = zip2 nsOprs rs |> foldl addBinding (lenv, [])
 
-                addBinding (m, mvs) ((n, v), r) = (m_insert cmpname n (Ref r) m, Mov r v : mvs)
+                addBinding (m, mvs) ((n, v), r) = (m.insert cmpname n (Ref r) m, Mov r v : mvs)
 
 || run a build function in a new lexical environment, restoring the environment afterwards.
 inLexEnv :: state bdSt ** -> state bdSt **
-inLexEnv ma = st_view bdLex >>= \lex -> ma << st_set bdLex lex
+inLexEnv ma = st.view bdLex >>= \lex -> ma << st.set bdLex lex
 
 || run a build function in a new environment of Arg refs and Env refs for a Defn
 inDefEnv :: locInfo -> [pat] -> [name] -> state bdSt [stgInsn] -> state bdSt [stgInsn]
@@ -459,28 +459,28 @@ inDefEnv loc pvs fns ma
         initEnv = initResources >>
                   bindArgs pvs  >>
                   bindEnvs fns  >>
-                  st_over bdLoc (mergeLocInfo loc)
+                  st.over bdLoc (mergeLocInfo loc)
 
 || run a build function in a new environment of Stk refs for a continuation
 inContEnv :: [name] -> state bdSt [stgInsn] -> state bdSt [stgInsn]
 inContEnv fns ma
     = inLexEnv $ initRes >> bindStks fns >> ma
       where
-        initRes = st_over bdLex $ set lexRegGen 3 . set lexBuiltin False . set lexCaseAlt False
+        initRes = st.over bdLex $ lens.set lexRegGen 3 . lens.set lexBuiltin False . lens.set lexCaseAlt False
 
 || run a build function for a builtin function
 inBuiltinEnv :: state bdSt [stgInsn] -> state bdSt [stgInsn]
 inBuiltinEnv ma
     = inLexEnv $ initRes >> ma
       where
-        initRes = st_over bdLex $ set lexBuiltin True . set lexCaseAlt False
+        initRes = st.over bdLex $ lens.set lexBuiltin True . lens.set lexCaseAlt False
 
 || run a build function in a new environment of Arg refs for a caseAlt
 inAltEnv :: [pat] -> state bdSt [stgInsn] -> state bdSt [stgInsn]
 inAltEnv pvs ma
     = inLexEnv (initRes >> bindArgs pvs >> ma)
       where
-        initRes = st_over bdLex $ set lexFrmGen 0 . set lexCaseAlt True
+        initRes = st.over bdLex $ lens.set lexFrmGen 0 . lens.set lexCaseAlt True
 
 || run a build function in a new environment of Env refs for a fatbar alt
 inFbAltEnv :: [name] -> state bdSt [stgInsn] -> state bdSt [stgInsn]
@@ -492,12 +492,12 @@ unPrimInt (EprimInt n) = Just n
 unPrimInt _            = Nothing
 
 internalFreeNames :: ast -> [name]
-internalFreeNames a = view astAnnoFree a |> filter isInternal
+internalFreeNames a = lens.view astAnnoFree a |> filter isInternal
 
 || possibly add a popCont to remove a continuation env before a return or a tail call with no continuation
 popCont :: [stgInsn] -> state bdSt [stgInsn]
 popCont xs
-    = st_liftA2 check (st_view bdCaseAlt) (st_view bdStkGen)
+    = st.liftA2 check (st.view bdCaseAlt) (st.view bdStkGen)
       where
         check inCaseAlt sc
             = PopCont sc : xs, if inCaseAlt & sc > 0
@@ -511,7 +511,7 @@ buildCodeAlt :: caseAlt -> state bdSt [stgInsn]
 || Note: this code uses the bdBuiltin state var to determine if we are currently working inside a builtin; this
 || must be set lexically whenever we enter a new Ecase
 buildCodeAlt (CaseAlt (Pvar n) e an)
-    = inAltEnv [] $ st_view bdBuiltin >>= doAlt
+    = inAltEnv [] $ st.view bdBuiltin >>= doAlt
       where
         doAlt inBuiltin
             = popCont [Ret r0Opr r1Opr], if matchVar n e        || return result bound to the Pvar
@@ -523,7 +523,7 @@ buildCodeAlt (CaseAlt (Pvar n) e an)
 
         mkVclosure
             = allocReg >>= \reg ->
-              st_over bdLenv (m_insert cmpname n (Ref reg)) >>
+              st.over bdLenv (m.insert cmpname n (Ref reg)) >>
               buildCode e <&> \eins ->
               Vclosure reg unpackPtr : eins
 
@@ -544,19 +544,19 @@ buildCodeAlts Csingle topr [alt]
     = buildCodeAlt alt
 
 buildCodeAlts Cvectored topr alts
-    = st_mapM buildCodeAlt alts >>= st_mapM makeCode <&> \cps -> [CaseVec topr cps]
+    = st.mapM buildCodeAlt alts >>= st.mapM makeCode <&> \cps -> [CaseVec topr cps]
 
 || create a sequence of Jeq topr <tag> <codeptr> insns up to the first
 || irrefutable alt, then fall through to its insns
 buildCodeAlts Cpriority topr alts
-    = st_bind2 (st_view bdGenv) (st_mapM buildCodeAlt alts) go
+    = st.bind2 (st.view bdGenv) (st.mapM buildCodeAlt alts) go
       where
         go genv bbs
-            = foldr doAlt (st_pure [Jmp blackHolePtr]) (zip2 alts bbs)  || the Jmp blackHolePtr should never be encountered,
+            = foldr doAlt (st.pure [Jmp blackHolePtr]) (zip2 alts bbs)  || the Jmp blackHolePtr should never be encountered,
               where                                                     || but it is an easy insn to have as "bottom"
                 doAlt (a, bb) k
-                  = st_pure bb,          if isPvarOrWild p              || irrefutable (unconditional) case; early-outs
-                  = st_liftA2 (:) tst k, otherwise                      || refutable (conditional) case; add Jeq of tag
+                  = st.pure bb,          if isPvarOrWild p              || irrefutable (unconditional) case; early-outs
+                  = st.liftA2 (:) tst k, otherwise                      || refutable (conditional) case; add Jeq of tag
                     where
                       CaseAlt p _ _ = a
                       tst           = makeCode bb <&> Jeq topr (mkTagOpr p)
@@ -588,13 +588,13 @@ buildCodeCallBuiltin n args dsts
         dst0 = dsts ! 0
         dst1 = dsts ! 1
 
-        opD0  op = op dst0 r0Opr |> st_pure
+        opD0  op = op dst0 r0Opr |> st.pure
         opDS  op = op dst0       <$>        opr0
         opDZS op = op dst0 zero  <$>        opr0
-        opDSS op = st_liftA2 (op dst0)      opr0 opr1
-        opPSS op = st_liftA2 (op dst0 dst1) opr0 opr1
-        opSS  op = st_liftA2 op             opr0 opr1
-        opSSS op = st_liftA3 op             opr0 opr1 opr2
+        opDSS op = st.liftA2 (op dst0)      opr0 opr1
+        opPSS op = st.liftA2 (op dst0 dst1) opr0 opr1
+        opSS  op = st.liftA2 op             opr0 opr1
+        opSSS op = st.liftA3 op             opr0 opr1 opr2
 
         || primitive arithmetic operations on word#
         go "+#"       = opDSS Add
@@ -648,13 +648,13 @@ buildCodeCall (Evar f) args
     = buildCodeCallBuiltin f args [r0Ref] <&> singleton, if isBuiltin f & ~isConstructor f
 
 buildCodeCall fe args
-    = st_bind3 (makeOpr fe) (st_mapM makeOpr args) (lookupClosureInfo fe) mkCall
+    = st.bind3 (makeOpr fe) (st.mapM makeOpr args) (lookupClosureInfo fe) mkCall
       where
         mkCall fopr aoprs minfo
             = checkImm fopr >>= popCont
               where
                 || check the fopr for an immediate address (known code/heap ptr)
-                checkImm (Imm (Caddr cp)) = st_pure [Call cp aoprs]
+                checkImm (Imm (Caddr cp)) = st.pure [Call cp aoprs]
                 checkImm (Imm (Haddr hp)) = lookupHeap hp >>= checkHobj hp
                 checkImm _                = checkInfo minfo
 
@@ -675,12 +675,12 @@ buildCodeCall fe args
                         || Regs if they are Stk operands that might get destroyed by a subsequent push,
                         || before restarting tryBind, again
                         tryBind fopr aoprs
-                            = st_pure [Ret fopr (makeImmOpr 0)],    if noprs == 0 & arity > 0   || un-applied fn evaluates to self
+                            = st.pure [Ret fopr (makeImmOpr 0)],    if noprs == 0 & arity > 0   || un-applied fn evaluates to self
                             = mkOverApp tryBind fopr arity aoprs,   if noprs > arity            || over-applied fn split in two
-                            = st_pure [Apply fopr aoprs],           if noprs < arity            || under-applied fn handled at runtime with Apply
-                            = st_pure [Call cp aoprs],              if isFn & emptyEnv          || can call cp directly if it is a fn with empty env
-                            = st_pure [Enter (fromJust mhp) aoprs], if isJust mhp               || can enter a closure directly if heapPtr known
-                            = st_pure [EnterInd fopr aoprs],        otherwise                   || enter closure indirectly from fopr
+                            = st.pure [Apply fopr aoprs],           if noprs < arity            || under-applied fn handled at runtime with Apply
+                            = st.pure [Call cp aoprs],              if isFn & emptyEnv          || can call cp directly if it is a fn with empty env
+                            = st.pure [Enter (fromJust mhp) aoprs], if isJust mhp               || can enter a closure directly if heapPtr known
+                            = st.pure [EnterInd fopr aoprs],        otherwise                   || enter closure indirectly from fopr
                               where
                                 noprs = #aoprs
 
@@ -690,7 +690,7 @@ buildCodeCall fe args
                 || fe and args that are currently mapped to Stk oprs are remapped to Regs and Mov insns are
                 || generated to handle the remapping at runtime
                 mkOverApp tryBind fopr arity aoprs
-                    = st_view bdCaseAlt >>= splitRemap >>= doSplit
+                    = st.view bdCaseAlt >>= splitRemap >>= doSplit
                       where
                         varName (Evar n, _) = n
                         varName _           = unreachable
@@ -698,9 +698,9 @@ buildCodeCall fe args
                         mkRemap movs (fopr' : aoprs') = (movs, fopr', splitAt arity aoprs')
                         mkRemap _    _                = unreachable
 
-                        splitRemap False = st_pure ([], fopr, splitAt arity aoprs)
+                        splitRemap False = st.pure ([], fopr, splitAt arity aoprs)
                         splitRemap True
-                            = st_liftA2 mkRemap (rebindToRegs isStkOpr ns) (st_mapM makeOpr (fe : args))
+                            = st.liftA2 mkRemap (rebindToRegs isStkOpr ns) (st.mapM makeOpr (fe : args))
                               where
                                 ns = zip2 (fe : args) (fopr : aoprs) |> filter (snd .> isStkOpr) |> map varName
 
@@ -710,7 +710,7 @@ buildCodeCall fe args
                 || unknown closure; make a general Apply
                 || Note: even if we are calling with null aoprs (nominally a Thunk that could be EnterInd),
                 || we don't know the arity; it might have to return a partial application, so we always use Apply
-                mkGeneral = st_pure [Apply fopr aoprs]
+                mkGeneral = st.pure [Apply fopr aoprs]
 
 
 || convert an expr to a list of stgInsns that will evaluate that expr at runtime
@@ -725,35 +725,35 @@ buildCode (Evar n) = buildCodeCall (Evar n) []
 || convert an Elet into code/heap bindings for its defns, insns to make Hfun / Hthunk closures at runtime
 || for those bindings, and the insns for the Elet's expr
 buildCode (Elet _ defs _ e)
-    = st_view bdFrmGen >>= fFrm || get the current frm count to determine if we need to add an AllocFrame insn or not
+    = st.view bdFrmGen >>= fFrm || get the current frm count to determine if we need to add an AllocFrame insn or not
       where
-        defl = m_toList defs
+        defl = m.toList defs
 
         || defs converted in parallel in two phases: allocate & bind, then create and update,
         || so that mutually-recursive references can lookup their values in the bdLenv
-        fFrm fg = st_mapM allocObj defl >>= st_mapM createDefnCode >>= createExprCode fg e
+        fFrm fg = st.mapM allocObj defl >>= st.mapM createDefnCode >>= createExprCode fg e
 
         || allocate a codePtr and a frame slot ref, and insert the ref and closure info into the lenv for the name n
         allocObj (n, d)
-            = st_bind2 (allocFrmSlots nslots) allocCode mkObj
+            = st.bind2 (allocFrmSlots nslots) allocCode mkObj
               where
                 fns    = internalFreeNames d
                 nfns   = #fns
                 nslots = if' (isDefFn d) nfns (max2 cmpint nfns 1)      || always allocate at least 1 slot for use by Update
 
                 mkObj rf cp
-                    = st_pure (d, cp, rf, fns)                     <<
-                      st_over bdLenv (m_insert cmpname n (Ref rf)) <<
-                      st_over bdLcls (m_insert cmpname n clsInfo)
+                    = st.pure (d, cp, rf, fns)                     <<
+                      st.over bdLenv (m.insert cmpname n (Ref rf)) <<
+                      st.over bdLcls (m.insert cmpname n clsInfo)
                       where
                         clsInfo = (cp, fnArity d, null fns, isDefFn d)
 
         || create the code (stgInsns) and free var references for the defn and update the object's codePtr
         createDefnCode (d, cp, rf, fns)
-            = st_bind3 (buildCode d) (st_mapM (makeOpr . Evar) fns) (st_view bdLoc) updateObj
+            = st.bind3 (buildCode d) (st.mapM (makeOpr . Evar) fns) (st.view bdLoc) updateObj
               where
                 updateObj ins frs loc
-                    = st_pure (d, cp, rf, frs) << updateCode cp (loc', ins)
+                    = st.pure (d, cp, rf, frs) << updateCode cp (loc', ins)
                       where
                         loc' = mergeLocInfo (defnLocInfo d) loc
 
@@ -765,13 +765,13 @@ buildCode (Elet _ defs _ e)
                     = Fclosure rf cp (fnArity d) frs, if isDefFn d
                     = Tclosure rf cp frs,             otherwise
 
-                addInsns ins = st_liftA2 pair (st_pure $ map mkClosure objs ++ ins) (st_view bdFrmGen)
+                addInsns ins = st.liftA2 pair (st.pure $ map mkClosure objs ++ ins) (st.view bdFrmGen)
 
                 || add the AllocFrame insn for a set of allocations (only add to the top-level of a set of nested
                 || Elets by checking that the initial frmGen count is zero)
                 addFrame fg1 (ins, fg2)
-                    = st_pure (AllocFrame fg2 : ins), if fg1 == 0
-                    = st_pure ins,                    otherwise
+                    = st.pure (AllocFrame fg2 : ins), if fg1 == 0
+                    = st.pure ins,                    otherwise
 
 || match case evaluation of (non constructor) builtin primitives to an stgInsn, and bind the result
 || to a newly-allocated ref or multiple refs. Evaluation of the scrutinee is a single instruction with word#
@@ -782,7 +782,7 @@ buildCode (Elet _ defs _ e)
 || if any caseAlt will perform an AllocFrm due to an Elet, rebind any existing Frm-bound free vars to Regs
 || so that they may be referenced correctly
 buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
-    = st_bind2 (rebindToRegs isFrmOpr fns) (mkDsts sel alts) mkCode, if isBuiltin fn & ~isConstructor fn
+    = st.bind2 (rebindToRegs isFrmOpr fns) (mkDsts sel alts) mkCode, if isBuiltin fn & ~isConstructor fn
       where
         fns = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
 
@@ -790,11 +790,11 @@ buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
         needsFrm _                            = False
 
         mkDsts Csingle [CaseAlt p e an]            =         makeRef p  <&> singleton .> pair (Just e), if isPvarOrWild p
-        mkDsts Csingle [CaseAlt (Pctor c ps) e an] = st_mapM makeRef ps <&>              pair (Just e), if isBuiltinTuple c & all isPvarOrWild ps
-        mkDsts _       _                           = st_pure [r0Ref]    <&>              pair Nothing   || multiple alts (cmp#)
+        mkDsts Csingle [CaseAlt (Pctor c ps) e an] = st.mapM makeRef ps <&>              pair (Just e), if isBuiltinTuple c & all isPvarOrWild ps
+        mkDsts _       _                           = st.pure [r0Ref]    <&>              pair Nothing   || multiple alts (cmp#)
 
         mkCode movs (me, dsts)
-            = st_liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
+            = st.liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
               where
                 buildAlts Nothing  = buildCodeAlts sel r0Opr alts
                 buildAlts (Just e) = buildCode e
@@ -813,10 +813,10 @@ buildCode (Ecase sel e alts an)
         addSetEnv n ins = SetEnv n : ins
 
         mkCode nOprs
-            = st_bind3 (st_view bdStkGen) buildScrut buildAlts insStkAdj
+            = st.bind3 (st.view bdStkGen) buildScrut buildAlts insStkAdj
               where
                 (fns', foprs') = unzip2 nOprs
-                buildScrut     = st_set bdCaseAlt False >> buildCode e
+                buildScrut     = st.set bdCaseAlt False >> buildCode e
                 buildAlts      = inContEnv fns' (buildCodeAlts sel r0Opr alts)
 
                 insStkAdj sg eis ais
@@ -829,7 +829,7 @@ buildCode (Ecase sel e alts an)
 || array.  Actual packing of these in a new Hthunk heapObj is left to the Update instruction,
 || which allows thunks that don't require updates to leave it out.
 buildCode (Tname f as)
-    = st_pure [Ret (cvtArg 1) (cvtArg 2)], if _eq cmpname f builtinPackName
+    = st.pure [Ret (cvtArg 1) (cvtArg 2)], if _eq cmpname f builtinPackName
       where
         cvtArg i = as !? i mb.>>= unPrimInt |> fromMaybe 0 |> makeImmOpr
 
@@ -837,7 +837,7 @@ buildCode (Tname f as)
 || NOTE: if the inliner is allowed to inline constructors, the <pack> will get inlined to
 || an Ecall Tname like for <sel>, which is handled here, as well
 buildCode (Ecall (Tname f as) args)
-    = st_liftA2 mkSel (st_view bdGenv) (buildCode e), if _eq cmpname f builtinSelName
+    = st.liftA2 mkSel (st.view bdGenv) (buildCode e), if _eq cmpname f builtinSelName
     = buildCodeCall (Evar cn) args,                   otherwise
       where
         e  = safeHd args |> fromMaybe builtinFail
@@ -847,7 +847,7 @@ buildCode (Ecall (Tname f as) args)
         mkSel genv eis
             = PushCont selPtr [makeImmOpr i] : eis
               where
-                t       = lookupSpec genv cn |> fromJust |> view defnType |> nthType i  || get the individual types of the ctor
+                t       = lookupSpec genv cn |> fromJust |> lens.view defnType |> nthType i  || get the individual types of the ctor
                 selPtr  = selRetPtr,   if _eq cmptexpr t builtinTypeWord                || if we are selecting a word#, use Sel followed by a Ret
                         = selApplyPtr, otherwise                                        || otherwise it is a thunk; use Sel followed by an Apply
 
@@ -860,14 +860,14 @@ buildCode (Ecall f args) = buildCodeCall f args
 || current stkGen value to perform the effect of the required PopCont if the closure is invoked.
 || then bind the closure to the fatbar's Pvar and generate the insns for the primary
 buildCode (Efatbar (Pvar n) e1 e2)
-    = st_bind3 (st_view bdGenv) (st_view bdFrmGen) (st_view bdStkGen) build
+    = st.bind3 (st.view bdGenv) (st.view bdFrmGen) (st.view bdStkGen) build
       where
         build genv fg sg
-            = allocClosure >>= \cls -> st_liftA3 mkClosure (st_mapM lookupOpr fns) (mkPrim cls) mkAlt
+            = allocClosure >>= \cls -> st.liftA3 mkClosure (st.mapM lookupOpr fns) (mkPrim cls) mkAlt
               where
                 fns        = analyzeExprFree e2 genv |> filter isInternal
                 mkAlt      = inFbAltEnv fns (buildCode e2) >>= makeCode
-                mkPrim cls = st_over bdLenv (m_insert cmpname n (Ref cls)) >> buildCode e1 <&> pair cls
+                mkPrim cls = st.over bdLenv (m.insert cmpname n (Ref cls)) >> buildCode e1 <&> pair cls
 
                 allocClosure
                     = allocReg,                 if fg == 0      || no existing frame, so alloc to a reg
@@ -904,7 +904,7 @@ buildCode d
               where
                 bhInst     = Update r2Opr (Imm (Caddr blackHolePtr))            || update thunk to blackHole trampoline during evaluation
                 contInst   = PushCont updatePtr [r2Opr]                         || push a continuation to update thunk with result
-                noUpdate   = isCtorCall e \/ usedAffine (view annoUse an)
+                noUpdate   = isCtorCall e \/ usedAffine (lens.view annoUse an)
 
                 || don't perform updates on thunks that are simple constructor calls
                 || since constructors are WHNF already and don't evaluate their args
@@ -924,7 +924,7 @@ buildGroup :: globalEnv -> [name] -> state bdSt [value]
 buildGroup genv ns
       || defs converted in parallel in two phases: allocate & bind, then create and update,
       || so that recursive references can lookup their values in the bdLenv
-    = st_mapM allocObj ns >>= st_mapM createCode
+    = st.mapM allocObj ns >>= st.mapM createCode
       where
 
         || allocate a codePtr and heapPtr, create a heapObj and insert it in the heap and environment
@@ -932,50 +932,50 @@ buildGroup genv ns
         || close over, because they may be passed as higher-order functions to other functions.  Any direct
         || use will be optimized to a direct call, though.
         allocObj n
-            = st_bind2 allocCode (allocHeap nslots) (mkObj d) >>= insObj
+            = st.bind2 allocCode (allocHeap nslots) (mkObj d) >>= insObj
               where
                 d      = makeBuiltinCtorDef n,         if isBuiltin n
                        = fromJust (lookupDefn genv n), otherwise
                 nslots = if' (isDefFn d) 2 3    || allocate an extra slot for use by Update
 
                 mkObj d cp hp
-                    = st_pure (n, cp, hp, d) << updateHeap hp (mkInfo d, [])
+                    = st.pure (n, cp, hp, d) << updateHeap hp (mkInfo d, [])
                       where
                         mkInfo (DefFn n args e an) = Hfun cp (fromJust (lookupArity genv n))    || not #args, because ctors have empty arg fields
                         mkInfo (DefPat p e an)     = Hthunk cp
                         mkInfo _                   = unreachable
 
                 insObj (n, cp, hp, d)
-                    = st_pure (cp, v, d) << st_over bdLenv (m_insert cmpname n (Imm v))
+                    = st.pure (cp, v, d) << st.over bdLenv (m.insert cmpname n (Imm v))
                       where
                         v = Haddr hp
 
         || create the code (stgInsns) for the defn and update the object's codePtr
         createCode (cp, v, d)
-            = st_bind2 (buildCode d) (st_view bdLoc) updateObj
+            = st.bind2 (buildCode d) (st.view bdLoc) updateObj
               where
                 updateObj ins loc
-                    = st_pure v << updateCode cp (loc', ins)
+                    = st.pure v << updateCode cp (loc', ins)
                       where
                         loc' = mergeLocInfo (defnLocInfo d) loc
 
 || collect all top-level defs and their top-level dependencies reachable from a starting list of names
 || also include stdlib.blackHole, since DefPat thunks implicitly use them during evaluation.
-reachableFrom :: [name] -> globalEnv -> m_map name [name]
+reachableFrom :: [name] -> globalEnv -> m.map name [name]
 reachableFrom ns genv
-    = walk m_empty (stdBlackHoleName : ns)
+    = walk m.empty (stdBlackHoleName : ns)
       where
         walk seen [] = seen
         walk seen (n : ns)
-            = walk seen ns,             if m_member cmpname n seen
+            = walk seen ns,             if m.member cmpname n seen
             = walk seen' (ns ++ deps'), if isBuiltin n \/ isJust md
             = errNotFound n,            otherwise
               where
                 md            = lookupDefn genv n
                 d             = fromJust md
-                deps          = view astAnnoFree d |> filter topLevel   || find all top-level and builtin constructor dependencies
+                deps          = lens.view astAnnoFree d |> filter topLevel   || find all top-level and builtin constructor dependencies
                 deps'         = if' (isBuiltin n) [] deps               || no deps for builtins
-                seen'         = m_insert cmpname n deps' seen
+                seen'         = m.insert cmpname n deps' seen
                 errNotFound n = error ("buildStg: " ++ showName n ++ " not found")
 
                 topLevel n = isConstructor n \/ ~isInternal n & ~isBuiltin n
@@ -989,15 +989,15 @@ makeStart n genv
     = (start, genv'), otherwise
       where
         mspec      = lookupSpec genv n
-        spec       = fromJust mspec |> view defnType
+        spec       = fromJust mspec |> lens.view defnType
         errNoSpec  = error ("entry function " ++ showName n ++ " not found")
         errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
         start      = Qualified (getModName n) "!start"
         fns        = [n, worldName, builtinExitName]
-        anno       = set annoFree fns (genvAnno genv)
+        anno       = lens.set annoFree fns (genvAnno genv)
         startFn    = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0]) emptyAnno] emptyAnno
         def        = DefPat (Pvar start) startFn anno
-        genv'      = over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
+        genv'      = lens.over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
 
         || world type and World token used by io to sequence io actions
         tWorld     = Tname (Qualified "io" "world") []
@@ -1013,13 +1013,13 @@ makeStart n genv
 || localEnv map, along with the stg code and heap
 buildStg :: name -> globalEnv -> (localEnv, stgCode, stgHeap)
 buildStg n genv
-    = (view bdLenv st', view bdCode st', view bdHeap st')
+    = (lens.view bdLenv st', lens.view bdCode st', lens.view bdHeap st')
       where
         (start', genv') = makeStart n genv
         topLevel        = reachableFrom [start'] genv'
-        sccs            = m_toList topLevel |> makeDependencyGraph cmpname |> findSCCs cmpname
-        (_, st)         = st_mapM_ (buildGroup genv') sccs (initBdSt genv')
-        Imm (Haddr bhp) = view bdLenv st |> m_lookup cmpname stdBlackHoleName |> fromJust
-        bhTramp         = view bdCodeMap st |> m_lookup cmpcodePtr blackHolePtr |> fromJust     || get existing blackHole trampoline code obj
+        sccs            = m.toList topLevel |> makeDependencyGraph cmpname |> findSCCs cmpname
+        (_, st)         = st.mapM_ (buildGroup genv') sccs (initBdSt genv')
+        Imm (Haddr bhp) = lens.view bdLenv st |> m.lookup cmpname stdBlackHoleName |> fromJust
+        bhTramp         = lens.view bdCodeMap st |> m.lookup cmpcodePtr blackHolePtr |> fromJust     || get existing blackHole trampoline code obj
         bhTramp'        = setSnd [Enter bhp []] bhTramp                                         || update trampoline to enter actual blackHole closure
-        st'             = over bdCodeMap (m_insert cmpcodePtr blackHolePtr bhTramp') st         || replace with new trampoline code
+        st'             = lens.over bdCodeMap (m.insert cmpcodePtr blackHolePtr bhTramp') st         || replace with new trampoline code

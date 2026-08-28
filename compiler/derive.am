@@ -5,9 +5,9 @@
 
 %import <base>
 %import <lens>
-%import <map>
-%import <maybe>
-%import "exception"             (>>=)/ex_bind (<&>)/ex_rfmap
+%import <map>           qualified as m
+%import <maybe>         as mb           -(<&>) -(>>=)
+%import "exception"     as ex
 %import "grammar"
 %import "module"
 %import "name"
@@ -28,7 +28,7 @@ deriveShow d
         go        = Unqualified "go"
         ctors     = view dataCtors d
         goDefs    = map genDef ctors
-        goDict    = DefMult Mfun goDefs |> m_singleton go
+        goDict    = DefMult Mfun goDefs |> m.singleton go
 
         e = Elet False goDict [] (Evar go), if isDefData d
           = showForType (view defnType d),  otherwise
@@ -50,7 +50,7 @@ deriveShow d
 
         showForType _ = unreachable
 
-        findInstName te = find (fst .> (_eq cmptexpr te)) instNames |> mb_fmap snd
+        findInstName te = find (fst .> (_eq cmptexpr te)) instNames |> (mb.<$>) snd
 
         genDef (Tname n tas)
             = DefFn go [Pctor n (map Pvar vars)] showExpr an
@@ -81,13 +81,13 @@ deriveOrd d
         tfd       = view defnTform d
         tvs       = tformVars tfd
         instNames = map (Internal "cmptv") [0 ..] |> zip2 tvs
-        spec      = foldr (Tarr . cmpSpec) (cmpSpec tfd) tvs
+        spec      = foldr (cmpSpec .> Tarr) (cmpSpec tfd) tvs
         go        = Unqualified "go"
         ctors     = view dataCtors d
-        nullary   = null . tformVars
+        nullary   = tformVars .> null
         vars      = map Unqualified ["a", "b"]
         tagCmp    = DefFn go (map Pvar vars) (Ecall stdCmpTags (map Evar vars)) an
-        goDict    = DefMult Mfun goDefs |> m_singleton go
+        goDict    = DefMult Mfun goDefs |> m.singleton go
 
         goDefs = [genDef a b | a, b <- zip2 ctors [0 ..]],          if #ctors <= 5
                = [genDef a a | a <- zip2 ctors [0 ..]] ++ [tagCmp], otherwise
@@ -97,10 +97,10 @@ deriveOrd d
           = cmpForType (view defnType d),   otherwise
 
         defSpec   = DefSpec (Tname fn []) spec an
-        defFn     = DefFn fn (map (Pvar . snd) instNames) e an
+        defFn     = DefFn fn (map (snd .> Pvar) instNames) e an
         cmpSpec t = t $Tarr t $Tarr stdOrdering
 
-        cmpForType (Tvar n)     = fromMaybef builtinFail Evar . findInstName . Tvar $ n
+        cmpForType (Tvar n)     = Tvar n |> findInstName |> fromMaybef builtinFail Evar
         cmpForType (Ttuple ts)  = map cmpForType ts |> foldl Eap (makeTupleCmp $ #ts)
         cmpForType (Tlist t)    = cmpForType t |> Eap stdCmpList
         cmpForType (Tarr t1 t2) = stdCmpFn
@@ -115,7 +115,7 @@ deriveOrd d
 
         cmpForType _ = unreachable
 
-        findInstName te = find (fst .> (_eq cmptexpr te)) instNames |> mb_fmap snd
+        findInstName te = find (fst .> (_eq cmptexpr te)) instNames |> (mb.<$>) snd
 
         genDef (c1, tag1) (c2, tag2)
             = DefFn go [genPat c1 "a", genPat c2 "b"] cmpExpr an
@@ -140,21 +140,21 @@ deriveOrd d
 || derive any missing instances for ord, show for the dataDefs
 deriveInstances :: globalEnv -> excpt globalEnv
 deriveInstances genv
-    = ex_foldM insInstance m (shows ++ ords) <&> \m -> set genvMod m genv
+    = ex.foldM insInstance m (shows ++ ords) <&> \m -> set genvMod m genv
       where
         m             = view genvMod genv
         defs          = view modDefns m
         pats          = view modPats m
-        ddefs         = filter isDerivable . m_elems $ defs
-        shows         = map deriveShow . filter (missing "show") $ ddefs
-        ords          = map deriveOrd .  filter (missing "cmp")  $ ddefs
+        ddefs         = m.elems defs |> filter isDerivable
+        shows         = filter (missing "show") ddefs |> map deriveShow
+        ords          = filter (missing "cmp")  ddefs |> map deriveOrd
         isDerivable d = isDefData d & (not . null . view dataCtors) d \/ isDefSyn d
 
         insInstance m (ds, df)
             = modInsSpec ds m >>= modInsDef df
 
         missing s d
-            = isNothing (m_lookup cmpname n' defs) & ~any (match n') pats
+            = isNothing (m.lookup cmpname n' defs) & ~any (match n') pats
               where
                 n  = defnName d
                 n' = Qualified (getModName n) (s ++ getName n)

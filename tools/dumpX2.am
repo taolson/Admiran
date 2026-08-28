@@ -2,9 +2,9 @@
 
 
 %import <base>
-%import <either>
-%import <io>                    (>>=)/io_bind
-%import <maybe>
+%import <either>        -pure -(>>=)
+%import <io>
+%import <maybe>         -pure -(>>=)
 %import <state>
 
 %import "../compiler/module"
@@ -13,24 +13,22 @@
 || located in the compiler directory; we explicitly import them here, because
 || the build system currently doesn't have a way of specifying a library directory
 || for module lookup other than the current directory or the system directory
-%import "../compiler/ast"
-%import "../compiler/config"
-%import "../compiler/dependency"
-%import "../compiler/exception"
-%import "../compiler/grammar"
-%import "../compiler/name"
-%import "../compiler/parser"
-%import "../compiler/predef"
-%import "../compiler/pretty"
+%import "../compiler/config"            qualified
+%import "../compiler/exception"         qualified
+%import "../compiler/grammar"           qualified
+%import "../compiler/name"              qualified
+%import "../compiler/parser"            qualified
+%import "../compiler/predef"            qualified
+%import "../compiler/pretty"            qualified
 %import "../compiler/serialize"
-%import "../compiler/tokenizer"
+%import "../compiler/tokenizer"         qualified
 
 deserialize :: string -> io module
 deserialize fn
     = mtimeFile fx >>= exists
       where
         fx         = withSuffix "x2" fn
-        doDeserial = io_pure . st_evalState deserialModule
+        doDeserial = pure . evalState deserialModule
 
         exists tsm
             = error (fx ++ " required, but not found"), if tsm < 0

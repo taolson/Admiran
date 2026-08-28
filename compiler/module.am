@@ -6,11 +6,11 @@
 %import <base>
 %import <either>
 %import <lens>
-%import <map>
-%import <maybe>                 (<&>)/mb_rfmap
-%import <maybe> qualified as mb (>>=)/mb_bind
+%import <map>           qualified as m
+%import <maybe>         as mb
+%import <stdlib>        as std
 %import "config"
-%import "exception"             (>>=)/ex_bind
+%import "exception"     as ex
 %import "grammar"
 %import "name"
 %import "predef"
@@ -84,11 +84,11 @@ module ::=
 
 showmodule :: showI module
 showmodule m
-    = m_keys defns |> map showDefn |> lay
+    = m.keys defns |> map showDefn |> lay
       where
         defns          = view modDefns m
         specs          = view modSpecs m
-        showDefn n     = mshow (m_lookup cmpname n specs) ++ mshow (m_lookup cmpname n defns)
+        showDefn n     = mshow (m.lookup cmpname n specs) ++ mshow (m.lookup cmpname n defns)
         mshow Nothing  = ""
         mshow (Just a) = showAst a ++ "\n"
 
@@ -97,7 +97,7 @@ cmpmodule = undef
 
 || create an empty module with a name and initial environment
 emptyModule :: fileSpec -> envMap -> module
-emptyModule fs env = Module fs Unbuilt (Left []) [] m_empty [] m_empty env
+emptyModule fs env = Module fs Unbuilt (Left []) [] m.empty [] m.empty env
 
 || lenses for module components
 modFile :: lens module fileSpec
@@ -113,7 +113,7 @@ modName
     = Lens getf overf
       where
         getf (Module fs bs exs ins defs pats specs env)     = fileSpecName fs
-        overf fn (Module fs bs exs ins defs pats specs env) = error "cannot modify modName"
+        overf fn (Module fs bs exs ins defs pats specs env) = std.error "cannot modify modName"
 
 modBuildStatus :: lens module buildStatus
 modBuildStatus
@@ -127,7 +127,7 @@ modExportParts :: lens module [libPart]
 modExportParts
     = Lens getf overf
       where
-        err = error "modExportParts: exports is not a parts list"
+        err = std.error "modExportParts: exports is not a parts list"
 
         getf (Module fs bs (Left exs) ins defs pats specs env) = exs
         getf  _ = err
@@ -142,7 +142,7 @@ modExportMap :: lens module nameMap
 modExportMap
     = Lens getf overf
       where
-        err = error "modExportMap: exports not a map"
+        err = std.error "modExportMap: exports not a map"
 
         getf (Module fs bs (Right exs) ins defs pats specs env) = exs
         getf _ = err
@@ -197,26 +197,26 @@ modEnv
 
 || insert a name -> defn into a defnMap without checking for name clash or merging with a DefMult
 insDefnMapUnchecked :: defn -> defnMap -> defnMap
-insDefnMapUnchecked d m = m_insert cmpname (defnName d) d m
+insDefnMapUnchecked d m = m.insert cmpname (defnName d) d m
 
 || insert a Qualified name -> defn into a defnMap, or report a name clash
 insDefnMap :: defn -> defnMap -> excpt defnMap
 insDefnMap d m
-    = ex_error (NameClash n) (defnLocInfo d), if m_member cmpname n m
-    = ex_pure (m_insert cmpname n d m),       otherwise
+    = ex.error (NameClash n) (defnLocInfo d), if m.member cmpname n m
+    = ex.pure (m.insert cmpname n d m),       otherwise
       where
-        n    = defnName d
+        n = defnName d
 
 || insert a DefFn into a DefnMap by merging it into an existing DefMult, or create one
 insDefMult :: defn -> defnMap -> excpt defnMap
 insDefMult d m
-    = ex_pure (m_insertWith cmpname addMult n dm m), if isNothing md' \/ isDefMult d'
-    = ex_error (NameClash n) (defnLocInfo d),        otherwise
+    = ex.pure (m.insertWith cmpname addMult n dm m), if isNothing md' \/ isDefMult d'
+    = ex.error (NameClash n) (defnLocInfo d),        otherwise
       where
-        n    = defnName d
-        md'  = m_lookup cmpname n m
-        d'   = fromJust md'
-        dm   = DefMult Mfun [d]
+        n   = defnName d
+        md' = m.lookup cmpname n m
+        d'  = fromJust md'
+        dm  = DefMult Mfun [d]
 
         addMult (DefMult _ defs2) (DefMult _ defs1)
             = DefMult Mfun (defs1 ++ defs2) || add new def after any existing defs to maintain pattern order
@@ -230,24 +230,24 @@ insDefnMapMerge d m
     = insDefMult d  m,                  if isDefFn d
     = insDefAbs  d  d',                 if isDefAbs d & isJust md'      || abstract type defined before implementation synonym
     = insDefAbs  d' d,                  if isDefSyn d & isJust md'      || implementation synonym defined before abstract type
-    = ex_pure (m_insert cmpname n d m), if isNothing md'
+    = ex.pure (m.insert cmpname n d m), if isNothing md'
     = ncError,                          otherwise
       where
         n       = defnName d
-        md'     = m_lookup cmpname n m
+        md'     = m.lookup cmpname n m
         d'      = fromJust md'
-        ncError = ex_error (NameClash (defnName d)) (defnLocInfo d)
+        ncError = ex.error (NameClash (defnName d)) (defnLocInfo d)
 
         || merge an implementation type synonym into a DefAbs
         insDefAbs (DefAbs tf ds t an) (DefSyn tf' t' an')
-            = ex_error Arity (defnLocInfo d),                      if #tformVars tf ~= #tformVars tf'
-            = ex_pure (m_insert cmpname n (DefAbs tf ds t' an) m), if _eq cmptexpr t builtinTypeType  || check for previous merging of implementation type
+            = ex.error Arity (defnLocInfo d),                      if #tformVars tf ~= #tformVars tf'
+            = ex.pure (m.insert cmpname n (DefAbs tf ds t' an) m), if _eq cmptexpr t builtinTypeType  || check for previous merging of implementation type
 
         insDefAbs d d' = ncError        || all other cases are a name clash
 
 || make a list of dependencies of each defn on the others in a defnMap, based upon the annotation's freeVar info
 makeDefnDependencyList :: defnMap -> [(name, [name])]
-makeDefnDependencyList defs = m_fmap (view astAnnoFree .> filter (\n -> m_member cmpname n defs)) defs |> m_toList
+makeDefnDependencyList defs = (m.<$>) (view astAnnoFree .> filter (\n -> m.member cmpname n defs)) defs |> m.toList
 
 || functions to insert a top-level declaration into the correct part of a module, or report an error
 modInserter == module -> excpt module
@@ -255,20 +255,20 @@ modInserter == module -> excpt module
 || insert an %export declaration
 modInsExp :: [libPart] -> modInserter
 modInsExp pts m
-    = ex_pure (over modExportParts (pts ++) m)
+    = ex.pure (over modExportParts (pts ++) m)
 
 || insert an %import declaration
 modInsImp :: libEnv -> modInserter
-modInsImp lenv m = over modImports (lenv :) m |> ex_pure
+modInsImp lenv m = over modImports (lenv :) m |> ex.pure
 
 || insert a %free declaration
 modInsFre :: [defn] -> modInserter
-modInsFre specs m = ex_error (Unsupported "%free") emptyLocInfo
+modInsFre specs m = ex.error (Unsupported "%free") emptyLocInfo
 
 || insert a top-level definition
 modInsDef :: defn -> modInserter
 modInsDef d m
-    = view modDefns m |> insDefnMapMerge qd |> ex_fmap setDefs
+    = view modDefns m |> insDefnMapMerge qd |> (ex.<$>) setDefs
       where
         qd = qualifyDefn (view modName m) d
 
@@ -277,7 +277,7 @@ modInsDef d m
 || insert a top-level pattern
 modInsPat :: defn -> modInserter
 modInsPat d m
-    = ex_pure (over modPats (qd :) m)
+    = ex.pure (over modPats (qd :) m)
       where
         qd = qualifyDefn (view modName m) d
 
@@ -285,7 +285,7 @@ modInsPat d m
 || fields before performing builtinPack
 makeStrictCtor :: name -> int -> [texpr] -> anno -> defn
 makeStrictCtor n tag cts an
-    = DefFn n pvs (Elet False (m_singleton sc d) [] (foldr mkStrict (Ecall (Evar sc) evs) (zip2 evs cts))) an
+    = DefFn n pvs (Elet False (m.singleton sc d) [] (foldr mkStrict (Ecall (Evar sc) evs) (zip2 evs cts))) an
       where
         sc        = (Internal "Sc" 0)           || name for internal constructor to call after fields made strict
         (_, vs )  = genNames "var" 0 cts        || generate names for the constructor vars
@@ -303,11 +303,11 @@ makeStrictCtor n tag cts an
 modInsData :: defn -> modInserter
 modInsData d m
     = case d of
-        DefData dt ctors an -> ex_foldM (insFn dt an) m (enumerate ctors) >>= modInsDef d
-        _                   -> ex_pure m
+        DefData dt ctors an -> ex.foldM (insFn dt an) m (enumerate ctors) ex.>>= modInsDef d
+        _                   -> ex.pure m
       where
         insFn dt an m (tag, (Tname n cts))
-            = modInsSpec spec m >>= modInsDef fn
+            = modInsSpec spec m ex.>>= modInsDef fn
               where
                 t      = foldr Tarr dt $ map unStrict cts
                 spec   = DefSpec (Tname n []) t an
@@ -318,7 +318,7 @@ modInsData d m
 || insert a type specification
 modInsSpec :: defn -> modInserter
 modInsSpec d m
-    = view modSpecs m |> insDefnMap qd |> ex_fmap setSpecs
+    = view modSpecs m |> insDefnMap qd |> (ex.<$>) setSpecs
       where
         qd             = qualifyDefn (view modName m) d
         setSpecs specs = set modSpecs specs m
@@ -327,13 +327,13 @@ modInsSpec d m
 modInsAbs :: defn -> modInserter
 modInsAbs d m
     = case d of
-        DefAbs _ ds _ _ -> ex_foldM (converse modInsSpec) m ds >>= modInsDef d
-        _               -> ex_pure m
+        DefAbs _ ds _ _ -> ex.foldM (converse modInsSpec) m ds ex.>>= modInsDef d
+        _               -> ex.pure m
 
 || make a module from an initial module and a sequence of modInserter functions
 makeModule :: module -> [modInserter] -> excpt module
 makeModule m insrs
-    = ex_foldM (|>) m insrs >>= checkStdlib
+    = ex.foldM (|>) m insrs ex.>>= checkStdlib
       where
         mn     = view modName m
         stdlib = FileSpec stdlibPath stdlibModuleName
@@ -341,7 +341,7 @@ makeModule m insrs
 
         || add implicit stdlib import if module isn't stdlib and doesn't explicitly import it
         checkStdlib m
-            = ex_pure m,   if mn ==$ stdlibModuleName \/ member cmpfileSpec (modImportFiles m) stdlib
+            = ex.pure m,   if mn ==$ stdlibModuleName \/ member cmpfileSpec (modImportFiles m) stdlib
             = m |> stdImp, otherwise
 
 
@@ -349,7 +349,7 @@ makeModule m insrs
 || the global environment is a state passed through the various module-modifying passes of the compiler; it
 || holds the current module being modified, a module map of all the modules in the build for cross-module
 || lookups for typechecking and inlining, and a counter sourcing ints for generating unique internal variable names
-moduleMap == m_map string module        || map from module name to module
+moduleMap == m.map string module        || map from module name to module
 globalEnv == (module, moduleMap, int)   || global environment is current module, the moduleMap, and a generator number
 
 || lenses for globalEnv
@@ -364,26 +364,26 @@ genvGen = lensTup3_2
 
 || update moduleMap with current module
 updateEnv :: globalEnv -> globalEnv
-updateEnv (m, mm, gen) = (m, m_insert cmpstring (view modName m) m mm, gen)
+updateEnv (m, mm, gen) = (m, m.insert cmpstring (view modName m) m mm, gen)
 
 lookupModule :: globalEnv -> string -> maybe module
 lookupModule genv n
     = Just m,                                      if n ==$ view modName m      || m is "cached version" of the module in mm; it may be more up-to-date
-    = m_lookup cmpstring n (view genvModMap genv), otherwise
+    = m.lookup cmpstring n (view genvModMap genv), otherwise
       where
         m  = view genvMod genv
 
 || look up a name in the current module of the globalEnv, and
 || return Nothing if lookupEnvMap returns an exceptInfo
 lookupName :: globalEnv -> name -> maybe name
-lookupName genv n = view genvMod genv |> view modEnv |> lookupEnvMap n |> eitherf (const Nothing) Just 
+lookupName genv n = view genvMod genv |> view modEnv |> lookupEnvMap n |> eitherf (const Nothing) Just
 
 || lookup the definition of a Qualified name, using a lens to specify the defnMap to use
 lookupDefnWithLens :: globalEnv -> lens module defnMap -> name -> maybe defn
 lookupDefnWithLens genv l n
     = Nothing,                                if isUnqualified n \/ isBuiltin n
     = lookupModule genv (getModName n) mb.>>=
-      view l .> m_lookup cmpname n,           otherwise
+      view l .> m.lookup cmpname n,           otherwise
 
 lookupDefn :: globalEnv -> name -> maybe defn
 lookupDefn genv n
@@ -396,7 +396,7 @@ lookupSpec genv n
     = lookupName genv n mb.>>= getSpec
       where
         getSpec qn = Just (makeTupleSpec qn),             if isBuiltinTuple qn
-                   = m_lookup cmpname qn builtinSpecs,    if isBuiltin qn
+                   = m.lookup cmpname qn builtinSpecs,    if isBuiltin qn
                    = lookupDefnWithLens genv modSpecs qn, otherwise
 
         makeTupleSpec qn = DefSpec (Tname qn []) (makeTupleCtorType qn) (genvAnno genv)
@@ -404,10 +404,10 @@ lookupSpec genv n
 || lookup an exportMap from a fileSpec
 lookupExportMap :: locInfo -> globalEnv -> fileSpec -> excpt nameMap
 lookupExportMap loci genv fs
-    = lookupModule genv mn |> fromMaybef err (view modExportMap .> ex_pure)
+    = lookupModule genv mn |> fromMaybef err (view modExportMap .> ex.pure)
       where
         mn  = fileSpecName fs
-        err = ex_error (Info $ "module " ++ mn ++ " not found") loci
+        err = ex.error (Info $ "module " ++ mn ++ " not found") loci
 
 || lookup all the constructor names associated with a constructor name
 || generate name list for builtin constructors directly, since they aren't stored anywhere else
@@ -424,16 +424,15 @@ lookupCtorNames genv n
 
        || lookup spec for ctor, which should be a $Tarr b ... $Tarr (data type Tform)
        || then use the baseName to lookup all the ctors of the data type
-        doLookup = lookupSpec genv n mb.>>= baseName .> lookupDefn genv <&> view dataCtors .> map tformName
-
+        doLookup = lookupSpec genv n mb.>>= baseName .> lookupDefn genv mb.<&> view dataCtors .> map tformName
 
 || lookup the arity for a function reference in the global environment
 || since constuctor definitions use the poly-arity "pack" builtin, they don't have arguments,
 || so the arity for them is determined from their specs
 lookupArity :: globalEnv -> name -> maybe int
 lookupArity genv n
-    = lookupSpec genv n <&> fnArity, if isConstructor n \/ isBuiltin n
-    = lookupDefn genv n <&> fnArity, otherwise
+    = lookupSpec genv n mb.<&> fnArity, if isConstructor n \/ isBuiltin n
+    = lookupDefn genv n mb.<&> fnArity, otherwise
 
 || create an anno for top-level defns from genv
 genvAnno :: globalEnv -> anno
@@ -448,13 +447,13 @@ genvAnno genv = view genvMod genv |> view modName |> initLocation |> emptyAnnoLo
 || insert a mapping into a nameMap, or report a name clash
 insNameMap :: locInfo -> name -> name -> nameMap -> excpt nameMap
 insNameMap loci k v nm
-    = ex_error (NameClash k) loci,       if m_member cmpname k nm
-    = ex_pure (m_insert cmpname k v nm), otherwise
+    = ex.error (NameClash k) loci,       if m.member cmpname k nm
+    = ex.pure (m.insert cmpname k v nm), otherwise
 
 || insert a  mapping into a name map, inserting all of the associated constructors if it is a data defn
 insNameMapDefn :: locInfo -> name -> defn -> nameMap -> excpt nameMap
 insNameMapDefn loci n d nm
-    = insNameMap loci (unqualifyName n) n' nm >>= \nm' -> ex_foldM insName nm' ns
+    = insNameMap loci (unqualifyName n) n' nm ex.>>= \nm' -> ex.foldM insName nm' ns
       where
         n'   = defnName d
         ns   = map tformName (view dataCtors d), if isDefData d
@@ -465,17 +464,17 @@ insNameMapDefn loci n d nm
 || delete a name mapping from a nameMap, or report an undefined error
 delNameMap :: locInfo -> name -> nameMap -> excpt nameMap
 delNameMap loci k nm
-    = ex_pure (m_delete cmpname k nm), if m_member cmpname k nm
-    = ex_error (Undefined k) loci,     otherwise
+    = ex.pure (m.delete cmpname k nm), if m.member cmpname k nm
+    = ex.error (Undefined k) loci,     otherwise
 
 || replace a key name in the nameMap
 || used for aliasing names during import
 replaceNameMapKey :: locInfo -> name -> name -> nameMap -> excpt nameMap
 replaceNameMapKey loci k k' nm
-    = m_lookup cmpname k nm |> fromMaybef err repl
+    = m.lookup cmpname k nm |> fromMaybef err repl
       where
-        err       = ex_error (Undefined k) loci
-        repl prev = delNameMap loci k nm >>= insNameMap loci k' prev
+        err       = ex.error (Undefined k) loci
+        repl prev = delNameMap loci k nm ex.>>= insNameMap loci k' prev
 
 
 || envMap operations
@@ -487,7 +486,7 @@ replaceNameMapKey loci k k' nm
 lookupEnvMap :: name -> envMap -> either exceptionInfo name
 lookupEnvMap n em
     = Right n,                        if isQualified n \/ isBuiltin n \/ isPrivate n
-    = m_lookup cmpname n em |> check, otherwise
+    = m.lookup cmpname n em |> check, otherwise
       where
         check Nothing    = Left (Undefined n)
         check (Just [n]) = Right n
@@ -496,7 +495,7 @@ lookupEnvMap n em
 || insert a mapping into an envMap, possibly adding to existing mappings for that name
 insEnvMap :: name -> name -> envMap -> envMap
 insEnvMap n n' em
-    = m_alter cmpname insSingle n em
+    = m.alter cmpname insSingle n em
       where
         insSingle Nothing   = singleton n'          |> Just     || n didn't exist; insert as singleton
         insSingle (Just ns) = nub cmpname (n' : ns) |> Just     || merge with existing mappings
@@ -515,7 +514,7 @@ insEnvMapDefn d em
         insName m n
             = foldl ins m [unresolveName n, unqualifyName n]
               where
-                ins m n' = m_insert cmpname n' [n] m
+                ins m n' = m.insert cmpname n' [n] m
 
 || merge nameMap nm into envMap em, qualifying names based upon the "as" module string and libQual
 || used to import another module's export map
@@ -523,7 +522,7 @@ mergeIntoEnvMap :: libQual -> string -> nameMap -> envMap -> envMap
 mergeIntoEnvMap qual as nm em
     = mergeQuals |> mergeUnquals qual
       where
-        nml = m_toList nm
+        nml = m.toList nm
 
         mergeQuals = foldl (\m (k, v) -> insEnvMap (Unresolved as (getName k)) v m) em nml
 
@@ -534,18 +533,17 @@ mergeIntoEnvMap qual as nm em
 || used to create an export nameMap from an envMap
 mergeIntoNameMap :: locInfo -> string -> envMap -> nameMap -> excpt nameMap
 mergeIntoNameMap loci mn em nm
-    = m_keys em |> ex_foldM tryMatch nm
+    = m.keys em |> ex.foldM tryMatch nm
       where
         tryMatch nm n
-            = ex_pure nm,                         if ~isUnresolved n \/ getModName n ~=$ mn
+            = ex.pure nm,                         if ~isUnresolved n \/ getModName n ~=$ mn
             = unqualifyName n |> findMatching nm, otherwise
 
         findMatching nm n
-            = m_lookup cmpname n em |> fromMaybef (ex_pure nm) (add n)
+            = m.lookup cmpname n em |> fromMaybef (ex.pure nm) (add n)
               where
                 add n [n'] = insNameMap loci n n' nm
-                add n ns   = ex_error (AmbiguousName n ns) loci
-
+                add n ns   = ex.error (AmbiguousName n ns) loci
 
 
 

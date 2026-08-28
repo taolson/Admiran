@@ -1,143 +1,146 @@
 || maybeState.am -- functor / applicative / monad / alternative for a state monad augmented with maybe
 ||
 || Note: the strictness of this implementation somewhat relies upon the inlining optimizations
-|| in the compiler (e.g. inlining mst_runState, mst_bind, etc.) If this is compiled with inlining
+|| in the compiler (e.g. inlining runState, (>>=), etc.) If this is compiled with inlining
 || disabled, then extra thunks are created which may cause space leaks
 
 
-%export + mst_runState mst_evalState mst_execState
+%export + runState evalState execState
 
-%import <maybe>
+%import <maybe> as mb
 %import <lens>
-%import <state>                 mst_runState/st_runState mst_evalState/st_evalState mst_execState/st_execState
+%import <state> as st
 
 
 maybeState * ** == state * (maybe **)
 
 || state access
-mst_get :: maybeState * *
-mst_get = mb_pure $st_fmap st_get
+get :: maybeState * *
+get = mb.pure st.<$> st.get
 
-mst_put :: * -> maybeState * ()
-mst_put s' = mb_pure $st_fmap st_put s'
+put :: * -> maybeState * ()
+put s' = mb.pure st.<$> st.put s'
 
-mst_modify :: (* -> *) -> maybeState * ()
-mst_modify f = mb_pure $st_fmap st_modify f
+modify :: (* -> *) -> maybeState * ()
+modify f = mb.pure st.<$> st.modify f
 
-mst_pure :: ** -> maybeState * **
-mst_pure a = a |> mb_pure |> st_pure
+liftMaybe :: maybe ** -> maybeState * **
+liftMaybe m = st.pure m
 
-mst_fail :: maybeState * **
-mst_fail = st_pure Nothing
-
-mst_maybe :: maybe ** -> maybeState * **
-mst_maybe m = st_pure m
-
-mst_lift :: state * ** -> maybeState * **
-mst_lift m = mb_pure $st_fmap m
+liftState :: state * ** -> maybeState * **
+liftState m = mb.pure st.<$> m
 
 || lift lens operations into state
-mst_view :: lens * ** -> maybeState * **
-mst_view lns = view lns $mst_fmap mst_get
+view :: lens * ** -> maybeState * **
+view lns = lens.view lns <$> get
 
-mst_over :: lens * ** -> (** -> **) -> maybeState * ()
-mst_over lns f = mst_modify (over lns f)
+over :: lens * ** -> (** -> **) -> maybeState * ()
+over lns f = modify (lens.over lns f)
 
-mst_set :: lens * ** -> ** -> maybeState * ()
-mst_set lns x = mst_modify (set lns x)
+set :: lens * ** -> ** -> maybeState * ()
+set lns x = modify (lens.set lns x)
 
 
 || monad interface
-mst_bind :: maybeState * ** -> (** -> maybeState * ***) -> maybeState * ***
-mst_bind m f = m $st_bind fromMaybef mst_fail f
 
-mst_join :: maybeState * (maybeState * **) -> maybeState * **
-mst_join m = m $st_bind fromMaybef mst_fail mst_runState
+pure :: ** -> maybeState * **
+pure a = a |> mb.pure |> st.pure
 
-mst_kbind :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> maybeState * ****
-mst_kbind f g = \x -> f x $mst_bind g
+fail :: maybeState * **
+fail = st.pure Nothing
 
-mst_mapM :: (** -> maybeState * ***) -> [**] -> maybeState * [***]
-mst_mapM f xs = foldr (f .> mst_liftA2 (:)) (mst_pure []) xs
+(>>=) :: maybeState * ** -> (** -> maybeState * ***) -> maybeState * ***
+m >>= f = m st.>>= fromMaybef fail f
 
-mst_mapM_ :: (** -> maybeState * ***) -> [**] -> maybeState * ()
-mst_mapM_ f xs = foldr (f .> mst_right) (mst_pure ()) xs
+(>=>) :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> maybeState * ****
+f >=> g = \x -> f x >>= g
 
-mst_forM :: [**] -> (** -> maybeState * ***) -> maybeState * ()
-mst_forM xs f = mst_mapM_ f xs
+join :: maybeState * (maybeState * **) -> maybeState * **
+join m = m st.>>= fromMaybef fail runState
 
-mst_filterM :: (** -> maybeState * bool) -> [**] -> maybeState * [**]
-mst_filterM p xs
-    = foldr check (mst_pure []) xs
+mapM :: (** -> maybeState * ***) -> [**] -> maybeState * [***]
+mapM f xs = foldr (f .> liftA2 (:)) (pure []) xs
+
+mapM_ :: (** -> maybeState * ***) -> [**] -> maybeState * ()
+mapM_ f xs = foldr (f .> (>>)) (pure ()) xs
+
+forM :: [**] -> (** -> maybeState * ***) -> maybeState * ()
+forM xs f = mapM_ f xs
+
+filterM :: (** -> maybeState * bool) -> [**] -> maybeState * [**]
+filterM p xs
+    = foldr check (pure []) xs
       where
-        check x       = mst_liftA2 (cond x) (p x)
+        check x       = liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
 
-mst_foldM :: (*** -> ** -> maybeState * ***) -> *** -> [**] -> maybeState * ***
-mst_foldM f z0 xs
-    = foldr c mst_pure xs z0
+foldM :: (*** -> ** -> maybeState * ***) -> *** -> [**] -> maybeState * ***
+foldM f z0 xs
+    = foldr c pure xs z0
       where
-        c x k z = f z x $mst_bind k
+        c x k z = f z x >>= k
 
-mst_sequence :: [maybeState * **] -> maybeState * [**]
-mst_sequence xs = foldr (mst_liftA2 (:)) (mst_pure []) xs
+sequence :: [maybeState * **] -> maybeState * [**]
+sequence xs = foldr (liftA2 (:)) (pure []) xs
 
-mst_sequence_ :: [maybeState * **] -> maybeState * ()
-mst_sequence_ xs = foldr mst_right (mst_pure ()) xs
+sequence_ :: [maybeState * **] -> maybeState * ()
+sequence_ xs = foldr (>>) (pure ()) xs
 
 
 || functor interface
-mst_fmap :: (** -> ***) -> maybeState * ** -> maybeState * ***
-mst_fmap f m = m $mst_bind (f .> mst_pure)
 
-mst_rfmap :: maybeState * ** -> (** -> ***) -> maybeState * ***
-mst_rfmap m f = mst_fmap f m
+(<$>) :: (** -> ***) -> maybeState * ** -> maybeState * ***
+f <$> m = m >>= (f .> pure)
+
+(<&>) :: maybeState * ** -> (** -> ***) -> maybeState * ***
+m <&> f =  f<$> m
 
 || applicative interface
-mst_apply :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***
-mst_apply mf ma = mf $mst_bind ($mst_fmap ma)
+(<*>) :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***
+mf <*> ma = mf >>= (<$> ma)
 
-mst_liftA2 :: (** -> *** -> ****) -> maybeState * ** -> maybeState * *** -> maybeState * ****
-mst_liftA2 f ma mb = mst_fmap f ma $mst_apply mb
+liftA2 :: (** -> *** -> ****) -> maybeState * ** -> maybeState * *** -> maybeState * ****
+liftA2 f ma mb = f <$> ma <*> mb
 
-mst_liftA3 :: (** -> *** -> **** -> *****) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * *****
-mst_liftA3 f ma mb mc = mst_liftA2 f ma mb $mst_apply mc
+liftA3 :: (** -> *** -> **** -> *****) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * *****
+liftA3 f ma mb mc = liftA2 f ma mb <*> mc
 
-mst_liftA4 :: (** -> *** -> **** -> ***** -> ******) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> maybeState * ******
-mst_liftA4 f ma mb mc md = mst_liftA3 f ma mb mc $mst_apply md
+liftA4 :: (** -> *** -> **** -> ***** -> ******) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> maybeState * ******
+liftA4 f ma mb mc md = liftA3 f ma mb mc <*> md
 
-mst_left :: maybeState * ** -> maybeState * *** -> maybeState * **
-mst_left ma mb = mst_liftA2 const ma mb
+(<<) :: maybeState * ** -> maybeState * *** -> maybeState * **
+(<<) ma mb = liftA2 const ma mb
 
-mst_right :: maybeState * ** -> maybeState * *** -> maybeState * ***
-mst_right ma mb = mst_liftA2 (converse const) ma mb
+(>>) :: maybeState * ** -> maybeState * *** -> maybeState * ***
+(>>) ma mb = liftA2 (converse const) ma mb
 
 
 || lift multiple independent state actions and bind them to an N-ary function
-mst_bind2 :: maybeState * ** -> maybeState * *** -> (** -> *** -> maybeState * ****) -> maybeState * ****
-mst_bind2 ma mb f = mst_join (mst_liftA2 f ma mb)
+bind2 :: maybeState * ** -> maybeState * *** -> (** -> *** -> maybeState * ****) -> maybeState * ****
+bind2 ma mb f = join (liftA2 f ma mb)
 
-mst_bind3 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> (** -> *** -> **** -> maybeState * *****) -> maybeState * *****
-mst_bind3 ma mb mc f = mst_join (mst_liftA3 f ma mb mc)
+bind3 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> (** -> *** -> **** -> maybeState * *****) -> maybeState * *****
+bind3 ma mb mc f = join (liftA3 f ma mb mc)
 
-mst_bind4 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> (** -> *** -> **** -> ***** ->
+bind4 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> (** -> *** -> **** -> ***** ->
              maybeState * ******) -> maybeState * ******
-mst_bind4 ma mb mc md f = mst_join (mst_liftA4 f ma mb mc md)
+bind4 ma mb mc md f = join (liftA4 f ma mb mc md)
 
 
 || alternative interface
-mst_alt :: maybeState * ** -> maybeState * ** -> maybeState * **
-mst_alt ma mb
+
+(<|>) :: maybeState * ** -> maybeState * ** -> maybeState * **
+ma <|> mb
     = go
       where
-        go s = alt $ mst_runState ma s
+        go s = alt $ runState ma s
                where
-                 alt (Nothing, _) = mst_runState mb s
+                 alt (Nothing, _) = runState mb s
                  alt ra           = ra
 
-mst_some :: maybeState * ** -> maybeState * [**]
-mst_some ma = mst_liftA2 (:) ma (mst_many ma)
+some :: maybeState * ** -> maybeState * [**]
+some ma = liftA2 (:) ma (many ma)
 
-mst_many :: maybeState * ** -> maybeState * [**]
-mst_many ma = mst_some ma $mst_alt mst_pure []
+many :: maybeState * ** -> maybeState * [**]
+many ma = some ma <|> pure []

@@ -6,14 +6,13 @@
 %import <base>
 %import <either>
 %import <lens>
-%import <map>
+%import <map>           qualified as m
 %import <maybe>
-%import <maybe> qualified as mb (>>=)/mb_bind
-%import <set>
-%import <state>                 (>>=)/st_bind (<&>)/st_rfmap
+%import <set>           qualified as s
+%import <state>         as st           -view -set -over
 %import "ast"
 %import "dependency"
-%import "exception"
+%import "exception"     as ex
 %import "grammar"
 %import "module"
 %import "name"
@@ -30,7 +29,7 @@
 || env:  nameMap defining the lexical environment
 || tenv: set of tvars in scope
 rnDynSt   == (globalEnv, [exception], string)
-rnLexSt   == (locInfo, envMap, s_set int)
+rnLexSt   == (locInfo, envMap, s.set int)
 rnSt      == (rnDynSt, rnLexSt)
 
 || lenses for rnSt fields
@@ -45,7 +44,7 @@ rnTenv   = composeLens rnLex  lensTup3_2
 rnGen    = composeLens rnGenv lensTup3_2
 
 initRnSt :: globalEnv -> rnSt
-initRnSt genv = ((genv, [], ""), (emptyLocInfo, view modEnv (view genvMod genv), s_empty))
+initRnSt genv = ((genv, [], ""), (emptyLocInfo, view modEnv (view genvMod genv), s.empty))
 
 || add an exception to the rename state
 addRnErr :: exceptionInfo -> rnSt -> rnSt
@@ -53,7 +52,7 @@ addRnErr ei st = over rnErrs ((Error, ei, view rnLoc st) :) st
 
 || add a rename to the rnEnv
 addRnEnv :: name -> name -> rnSt -> rnSt
-addRnEnv n n' = over rnEnv $ m_insert cmpname n [n']
+addRnEnv n n' = over rnEnv $ m.insert cmpname n [n']
 
 || lookup a name in the rnEnv and ensure it is a singleton
 lookupRnEnv :: name -> rnSt -> either exceptionInfo name
@@ -78,15 +77,15 @@ renameAst :: astRewriteTraverser rnSt
 || being able to perform all of these, so it is better to take care of it here, which also reduces the work that the inlining
 || pass has to do.
 renameAst k (Elet rec defs ps e) st
-    = renameAst k e st2,           if m_null defs'                      || all defs were converted to rename entries
+    = renameAst k e st2,           if m.null defs'                      || all defs were converted to rename entries
     = k (Elet rec defs' ps e) st2, otherwise
       where
-        (rdefs, ddefs) = partition isRenamePat $ m_toList defs
+        (rdefs, ddefs) = partition isRenamePat $ m.toList defs
         g              = makeDependencyGraph cmpname $ map mkDep rdefs
         morder         = dependencyOrder cmpname g                      || rdefs must be handled in dependency-order
         ddefs'         = ddefs,          if isRight morder              || rdefs are linear
                        = rdefs ++ ddefs, otherwise                      || circular dependency detected; perform renameEntry for all defs
-        (defs', st1)   = foldl renameEntry (m_empty, st) ddefs'         || install non-renamePat defns in the rename map first
+        (defs', st1)   = foldl renameEntry (m.empty, st) ddefs'         || install non-renamePat defns in the rename map first
         st2            = foldl renamePat st1 (fromEither [] morder)     || add renamePat defns as entries in the rename map
 
         isRenamePat (n, (DefPat (Pvar n1) (Evar n2) an)) = ~(isQualified n2 \/ isUnresolved n2) || can't do direct substitution with qualified names
@@ -105,7 +104,7 @@ renameAst k (Elet rec defs ps e) st
         || rename other defns by running renameDef to get a new name, then install that in the defnMap
         || the rest of the defn will be renamed through the continuation
         renameEntry (defs, st) (n, d)
-            = (m_insert cmpname n' d defs, st')
+            = (m.insert cmpname n' d defs, st')
               where
                 (n', st') = renameDef n st
 
@@ -123,41 +122,41 @@ renameAst k (Efatbar (Pvar n) e1 e2) st
 || rename name references in an ast, or report an error if they are not found in the env
 || use the default continuation to rewrite sub-asts
 renameAst k a st
-    = (go a >>= k) st
+    = (go a st.>>= k) st
       where
-        go (CaseAlt p e an) = st_liftA2 update (renamePat p)   (st_pure e) where update p' e' = CaseAlt p' e' an
-        go (Qgen ps e)      = st_liftA2 Qgen   (renamePats ps) (st_pure e)
-        go (Qrecur p e1 e2) = st_liftA3 Qrecur (renamePat p)   (st_pure e1)  (st_pure e2)
-        go (Evar n)         = st_fmap   Evar   (renameRef n)
-        go (Tname n tes)    = st_liftA2 Tname  (renameRef n)   (st_pure tes)
+        go (CaseAlt p e an) = st.liftA2 update (renamePat p)   (st.pure e) where update p' e' = CaseAlt p' e' an
+        go (Qgen ps e)      = st.liftA2 Qgen   (renamePats ps) (st.pure e)
+        go (Qrecur p e1 e2) = st.liftA3 Qrecur (renamePat p)   (st.pure e1)  (st.pure e2)
+        go (Evar n)         = (st.<$>)  Evar   (renameRef n)
+        go (Tname n tes)    = st.liftA2 Tname  (renameRef n)   (st.pure tes)
 
         go a = over rnLoc (mergeLocInfo (defnLocInfo a)) .> goDefn a, if isDefn a
-             = st_pure a,                                             otherwise
+             = st.pure a,                                             otherwise
 
         || The enclosing Elet has added renames for the defn names to the env, so to rename the defn itself, it's name
         || component is renamed as a ref, while any arg patterns are renamed as defs
-        goDefn (DefFn n vars e an) = st_liftA4 DefFn   (renameRef n)    (renamePats vars) (st_pure e) (renameAnno an)
-        goDefn (DefPat p e an)     = st_liftA3 DefPat  (renamePatRef p) (st_pure e)                   (renameAnno an)
-        goDefn (DefSyn tf te an)   = st_liftA3 DefSyn  (tvarDefs tf)    (tvarRefs te)                 (renameAnno an)
-        goDefn (DefData tf tes an) = st_liftA3 DefData (tvarDefs tf)    (st_mapM tvarRefs tes)        (renameAnno an)
-        goDefn d                   = st_fmap (\a -> set astAnno a d)    (renameAnno (view astAnno d))
+        goDefn (DefFn n vars e an) = st.liftA4 DefFn   (renameRef n)    (renamePats vars) (st.pure e) (renameAnno an)
+        goDefn (DefPat p e an)     = st.liftA3 DefPat  (renamePatRef p) (st.pure e)                   (renameAnno an)
+        goDefn (DefSyn tf te an)   = st.liftA3 DefSyn  (tvarDefs tf)    (tvarRefs te)                 (renameAnno an)
+        goDefn (DefData tf tes an) = st.liftA3 DefData (tvarDefs tf)    (st.mapM tvarRefs tes)        (renameAnno an)
+        goDefn d                   = (st.<$>)  (\a -> set astAnno a d)  (renameAnno (view astAnno d))
 
-        renamePat (Pvar n)         = st_fmap Pvar $ renameDef n
-        renamePat (Pctor n vars)   = st_liftA2 Pctor (renameRef n) (renamePats vars)
-        renamePat p                = st_pure p
-        renamePats                 = st_mapM renamePat
+        renamePat (Pvar n)         = renameDef n st.<&> Pvar
+        renamePat (Pctor n vars)   = st.liftA2 Pctor (renameRef n) (renamePats vars)
+        renamePat p                = st.pure p
+        renamePats                 = st.mapM renamePat
 
-        renamePatRef (Pvar n)      = st_fmap Pvar $ renameRef n
-        renamePatRef p             = st_pure p
+        renamePatRef (Pvar n)      = renameRef n st.<&> Pvar
+        renamePatRef p             = st.pure p
 
-        tvarDefs (Tname n tvs)     = st_fmap (Tname n) (st_mapM tvarDef tvs)
+        tvarDefs (Tname n tvs)     = st.mapM tvarDef tvs st.<&> Tname n
         tvarDefs _                 = unreachable
 
         tvarRefs te                = astRewriteLex tvarRef te
 
         || rename the name references in the free set of an anno -- required because beta-reduction
         || during inlining calls renameExpr to rename the defn vars
-        renameAnno an = view annoFree an |> st_mapM renameRef <&> \fns -> set annoFree fns an
+        renameAnno an = view annoFree an |> st.mapM renameRef st.<&> \fns -> set annoFree fns an
 
 
 || rename a name reference or report an undefinedName error
@@ -188,7 +187,7 @@ tvarRef :: astRewriteTraverser rnSt
 tvarRef k (Tvar n) st
     = (Tvar n, st')
       where
-        st' = addRnErr (UnboundTvar n) st, if ~s_member cmpint n (view rnTenv st)
+        st' = addRnErr (UnboundTvar n) st, if ~s.member cmpint n (view rnTenv st)
             = st,                          otherwise
 
 tvarRef k te st = k te st
@@ -198,8 +197,8 @@ tvarDef :: texpr -> state rnSt texpr
 tvarDef (Tvar n) st
     = (Tvar n, st')
       where
-        st' = addRnErr (RepeatedTvar n) st,       if s_member cmpint n $ view rnTenv st
-            = over rnTenv (s_insert cmpint n) st, otherwise
+        st' = addRnErr (RepeatedTvar n) st,       if s.member cmpint n $ view rnTenv st
+            = over rnTenv (s.insert cmpint n) st, otherwise
 
 tvarDef te st = (te, st)
 
@@ -208,8 +207,8 @@ tvarDef te st = (te, st)
 || or creating new Internal names for names defined in Elets and patterns
 rename :: globalEnv -> excpt globalEnv
 rename genv
-    = ex_return genv' warns, if null errs
-    = ex_errs   errs,        otherwise
+    = ex.return genv' warns, if null errs
+    = ex.errs   errs,        otherwise
       where
         m             = view genvMod genv
         defs          = view modDefns m

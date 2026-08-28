@@ -1,12 +1,11 @@
 || interface.am -- print the type specifications of a module's exported definitions
 
 %import <base>
-%import <either>
+%import <either>        qualified as e
 %import <io>
 %import <lens>
-%import <map>
-%import <maybe>
-%import <state>         (>>=)/st_bind (>>)/st_right
+%import <map>           qualified as m
+%import <maybe>         qualified as mb
 
 %import "../compiler/admiranParser"
 %import "../compiler/module"
@@ -15,14 +14,14 @@
 || located in the compiler directory; we explicitly import them here, because
 || the build system currently doesn't have a way of specifying a library directory
 || for module lookup other than the current directory or the system directory
-%import "../compiler/config"
-%import "../compiler/exception"
+%import "../compiler/config"    qualified
+%import "../compiler/exception" qualified
 %import "../compiler/grammar"
-%import "../compiler/name"
-%import "../compiler/parser"
-%import "../compiler/predef"
+%import "../compiler/name"      qualified
+%import "../compiler/parser"    qualified
+%import "../compiler/predef"    qualified
 %import "../compiler/pretty"
-%import "../compiler/tokenizer"
+%import "../compiler/tokenizer" qualified
 
 indent :: int -> string -> string
 indent n s = rep n ' ' ++ s
@@ -31,12 +30,12 @@ printSpecs :: string -> module -> io ()
 printSpecs comment m
     = putStrLn ("### " ++ mn)     >>
       putStrLn (comment  ++ "\n") >>
-      io_forM defStrings putStrLn >>
+      forM defStrings putStrLn >>
       putStrLn ""
       where
         mn         = view modName m
-        specs      = view modSpecs m |> m_elems
-        defs       = view modDefns m |> m_elems
+        specs      = view modSpecs m |> m.elems
+        defs       = view modDefns m |> m.elems
         dataDefs   = filter isDefData defs
         synDefs    = filter isDefSyn  defs
         defStrings = concatMap (map showAst .> sortBy cmpstring .> map (indent 4)) [dataDefs, synDefs, specs]
@@ -45,17 +44,17 @@ process :: string -> io ()
 process s
     = readFile fn >>= doParse
       where
-        fs         = fileSpecFromString s |> fromMaybe (error $ "bad file name: " ++ s)
+        fs         = fileSpecFromString s |> mb.fromMaybe (error $ "bad file name: " ++ s)
         fn         = fullFileName fs |> withSuffix "am"
-        initModule = emptyModule fs m_empty
+        initModule = emptyModule fs m.empty
 
         doParse s = extractComment s |> mapSnd (parse initModule .> check) |> uncurry printSpecs
 
         extractComment ('|' : '|' : ' ' : xs) = break (==. '\n') xs
         extractComment xs               = ([], xs)
 
-        check (Left _)       = error ("parsing " ++ showfileSpec fs)
-        check (Right (m, _)) = m
+        check (e.Left _)       = error ("parsing " ++ showfileSpec fs)
+        check (e.Right (m, _)) = m
 
 main :: io ()
-main = getArgs >>= io_mapM_ process
+main = getArgs >>= mapM_ process

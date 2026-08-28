@@ -1,12 +1,13 @@
-|| ast.am -- Abstract Syntax Tree Accumulations / Traversals
+|| aam -- Abstract Syntax Tree Accumulations / Traversals
 
 
 %export +
 
 %import <avl>
 %import <base>
-%import <map>
-%import <state>                 (>>=)/st_bind (<&>)/st_rfmap (<<)/st_left (>>)/st_right
+%import <map>           qualified as m
+%import <state>
+%import <stdlib>        as std
 %import "grammar"
 
 
@@ -74,10 +75,10 @@ astAccumSubs t (DefAbs tf ds t1 a) = t t1 . astAccumList t ds . t tf
 astAccumSubs _ _                   = id
 
 astAccumList :: astAccum * -> [ast] -> * -> *
-astAccumList t = converse (foldr t)
+astAccumList t = converse (std.foldr t)
 
-astAccumMap :: astAccum * -> m_map ** ast -> * -> *
-astAccumMap t = converse (m_foldr t)
+astAccumMap :: astAccum * -> m.map ** ast -> * -> *
+astAccumMap t = converse (m.foldr t)
 
 || universe returns the root ast and all its children flattened into a list
 || to allow a list comprehension to be used to collect a list of matching items
@@ -114,50 +115,50 @@ astRewriteTDCont r = r (astRewriteSubs (astRewriteTDCont r))
 || a separate Reader monad
 astRewriteLex :: astRewriteTraverser (*, **) -> astRewriter (*, **)
 astRewriteLex r a
-    = st_get >>= doLex
+    = get >>= doLex
       where
-        doLex (ds, ls) = r (astRewriteSubs (astRewriteLex r)) a << st_modify (setSnd ls)
+        doLex (ds, ls) = r (astRewriteSubs (astRewriteLex r)) a << modify (setSnd ls)
 
 || rewrite all sub-asts of an ast using the given astRewriteTraverser
 astRewriteSubs :: astRewriteTraverser *
-astRewriteSubs t (Eap e1 e2)         = st_liftA2 Eap         (t e1)                (t e2)
-astRewriteSubs t (Ecall e args)      = st_liftA2 Ecall       (t e)                 (st_mapM t args)
-astRewriteSubs t (Econd cs)          = st_fmap   Econd       (st_mapM t cs)
-astRewriteSubs t (Ecase s e as a)    = st_liftA2 update      (t e)                 (st_mapM t as)       where update e' as'      = Ecase s e' as' a
-astRewriteSubs t (Efail e)           = st_fmap   Efail       (t e)
-astRewriteSubs t (Efatbar p e1 e2)   = st_liftA2 (Efatbar p) (t e1)               (t e2)
-astRewriteSubs t (Elet b ds ps e)    = st_liftA3 (Elet b)    (astRewriteMap t ds) (st_mapM t ps) (t e)
-astRewriteSubs t (ElistComp e qs a)  = st_liftA2 update      (t e)                (st_mapM t qs)        where update e' qs'      = ElistComp e' qs' a
-astRewriteSubs t (Cif e1 e2)         = st_liftA2 Cif         (t e1)               (t e2)
-astRewriteSubs t (Cdefault e)        = st_fmap   Cdefault    (t e)
-astRewriteSubs t (CaseAlt p e a)     = st_liftA2 update      (t p)                (t e)                 where update p' e'       = CaseAlt p' e' a
-astRewriteSubs t (Qgen ps e)         = st_liftA2 Qgen        (st_mapM t ps)       (t e)
-astRewriteSubs t (Qrecur p e1 e2)    = st_liftA3 Qrecur      (t p)                (t e1)         (t e2)
-astRewriteSubs t (Qguard e)          = st_fmap   Qguard      (t e)
-astRewriteSubs t (Pctor n as)        = st_fmap   (Pctor n)   (st_mapM t as)
-astRewriteSubs t (Tname n as)        = st_fmap   (Tname n)   (st_mapM t as)
-astRewriteSubs t (Ttuple ts)         = st_fmap   Ttuple      (st_mapM t ts)
-astRewriteSubs t (Tlist t1)          = st_fmap   Tlist       (t t1)
-astRewriteSubs t (Tarr t1 t2)        = st_liftA2 Tarr        (t t1)               (t t2)
-astRewriteSubs t (Tstrict t1)        = st_fmap   Tstrict     (t t1)
-astRewriteSubs t (DefFn n as e a)    = st_liftA2 update      (st_mapM t as)       (t e)                 where update as' e'      = DefFn n as' e' a
-astRewriteSubs t (DefMult m ds)      = st_fmap   (DefMult m) (st_mapM t ds)
-astRewriteSubs t (DefPat p e a)      = st_liftA2 update      (t p)                (t e)                 where update p' e'       = DefPat p' e' a
-astRewriteSubs t (DefSyn tf t1 a)    = st_liftA2 update      (t tf)               (t t1)                where update tf' t1'     = DefSyn tf' t1' a
-astRewriteSubs t (DefData tf cs a)   = st_liftA2 update      (t tf)               (st_mapM t cs)        where update tf' cs'     = DefData tf' cs' a
-astRewriteSubs t (DefSpec tf t1 a)   = st_liftA2 update      (t tf)               (t t1)                where update tf' t1'     = DefSpec tf' t1' a
-astRewriteSubs t (DefAbs tf ds t1 a) = st_liftA3 update      (t tf)               (st_mapM t ds) (t t1) where update tf' ds' t1' = DefAbs tf' ds' t1' a
-astRewriteSubs _ a                   = st_pure a
+astRewriteSubs t (Eap e1 e2)         = liftA2 Eap         (t e1)               (t e2)
+astRewriteSubs t (Ecall e args)      = liftA2 Ecall       (t e)                (mapM t args)
+astRewriteSubs t (Econd cs)          = (<$>)  Econd       (mapM t cs)
+astRewriteSubs t (Ecase s e as a)    = liftA2 update      (t e)                (mapM t as)       where update e' as'      = Ecase s e' as' a
+astRewriteSubs t (Efail e)           = (<$>)  Efail       (t e)
+astRewriteSubs t (Efatbar p e1 e2)   = liftA2 (Efatbar p) (t e1)               (t e2)
+astRewriteSubs t (Elet b ds ps e)    = liftA3 (Elet b)    (astRewriteMap t ds) (mapM t ps) (t e)
+astRewriteSubs t (ElistComp e qs a)  = liftA2 update      (t e)                (mapM t qs)       where update e' qs'      = ElistComp e' qs' a
+astRewriteSubs t (Cif e1 e2)         = liftA2 Cif         (t e1)               (t e2)
+astRewriteSubs t (Cdefault e)        = (<$>)  Cdefault    (t e)
+astRewriteSubs t (CaseAlt p e a)     = liftA2 update      (t p)                (t e)             where update p' e'       = CaseAlt p' e' a
+astRewriteSubs t (Qgen ps e)         = liftA2 Qgen        (mapM t ps)          (t e)
+astRewriteSubs t (Qrecur p e1 e2)    = liftA3 Qrecur      (t p)                (t e1)      (t e2)
+astRewriteSubs t (Qguard e)          = (<$>)  Qguard      (t e)
+astRewriteSubs t (Pctor n as)        = (<$>)  (Pctor n)   (mapM t as)
+astRewriteSubs t (Tname n as)        = (<$>)  (Tname n)   (mapM t as)
+astRewriteSubs t (Ttuple ts)         = (<$>)  Ttuple      (mapM t ts)
+astRewriteSubs t (Tlist t1)          = (<$>)  Tlist       (t t1)
+astRewriteSubs t (Tarr t1 t2)        = liftA2 Tarr        (t t1)               (t t2)
+astRewriteSubs t (Tstrict t1)        = (<$>)  Tstrict     (t t1)
+astRewriteSubs t (DefFn n as e a)    = liftA2 update      (mapM t as)          (t e)              where update as' e'      = DefFn n as' e' a
+astRewriteSubs t (DefMult m ds)      = (<$>)  (DefMult m) (mapM t ds)
+astRewriteSubs t (DefPat p e a)      = liftA2 update      (t p)                (t e)              where update p' e'       = DefPat p' e' a
+astRewriteSubs t (DefSyn tf t1 a)    = liftA2 update      (t tf)               (t t1)             where update tf' t1'     = DefSyn tf' t1' a
+astRewriteSubs t (DefData tf cs a)   = liftA2 update      (t tf)               (mapM t cs)        where update tf' cs'     = DefData tf' cs' a
+astRewriteSubs t (DefSpec tf t1 a)   = liftA2 update      (t tf)               (t t1)             where update tf' t1'     = DefSpec tf' t1' a
+astRewriteSubs t (DefAbs tf ds t1 a) = liftA3 update      (t tf)               (mapM t ds) (t t1) where update tf' ds' t1' = DefAbs tf' ds' t1' a
+astRewriteSubs _ a                   = pure a
 
 || rewrite a list of asts
 astRewriteList :: astRewriter * -> [ast] -> state * [ast]
-astRewriteList t xs = st_mapM t xs
+astRewriteList t xs = mapM t xs
 
 || rewrite a map of ast elements
-astRewriteMap :: astRewriter * -> m_map ** ast -> state * (m_map ** ast)
-astRewriteMap t AVLLeaf = st_pure AVLLeaf
+astRewriteMap :: astRewriter * -> m.map ** ast -> state * (m.map ** ast)
+astRewriteMap t AVLLeaf = pure AVLLeaf
 astRewriteMap t (AVLNode (k, v) l r h)
-    = st_liftA3 mkNode (t v) (astRewriteMap t l) (astRewriteMap t r)
+    = liftA3 mkNode (t v) (astRewriteMap t l) (astRewriteMap t r)
       where
         mkNode v l r = AVLNode (k, v) l r h
 

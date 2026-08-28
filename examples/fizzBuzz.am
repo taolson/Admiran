@@ -29,4 +29,4 @@ fizzBuzz rs
         default  (i, s) = if' (null s) (showint i) s
 
 main :: io ()
-main = fizzBuzz [(3, "Fizz"), (5, "Buzz"), (7, "Baz")] |> take 106 |> io_mapM_ putStrLn
+main = fizzBuzz [(3, "Fizz"), (5, "Buzz"), (7, "Baz")] |> take 106 |> io.mapM_ putStrLn

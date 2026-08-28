@@ -16,7 +16,8 @@
 
 %import <base>
 %import <either>
-%import <maybe>                 (<&>)/mb_rfmap (<|>)/mb_alt
+%import <maybe>  as mb
+%import <stdlib> as std
 
 
 || a trieBranch holds a prefix key and its associated sub-trie
@@ -36,15 +37,15 @@ tb_match cmp ks (ps, t)
       where
         go (k : ks) (p : ps) m = go ks ps (k : m), if _eq cmp k p
         go ks' ps' ms
-            = Mfail,                        if null ms
-            = Mkey  t ks' ps,               if null ps'
-            = Mpre  t ks  ps',              if null ks'
+            = Mfail,                        if std.null ms
+            = Mkey  t ks' ps,               if std.null ps'
+            = Mpre  t ks  ps',              if std.null ks'
             = Mpart t ks' ps' (reverse ms), otherwise
 
 || find a trieBranch prefix-matching the key
 tb_find :: ordI * -> [*] -> [trieBranch * **] -> matchResult * **
 tb_find cmp k bs
-    = foldr find Mfail bs
+    = std.foldr find Mfail bs
       where
         find b cont
             = case tb_match cmp k b of
@@ -61,22 +62,22 @@ tb_modify cmp check k bs
         go k [] = Nothing                       || no match found
         go k (b : bs)
             = case check $ tb_match cmp k b of
-                Nothing -> go k bs <&> (b :)    || branch didn't match or failed check; merge this branch with the result of checking the remaining
+                Nothing -> go k bs mb.<&> (b :) || branch didn't match or failed check; merge this branch with the result of checking the remaining
                 Just b' -> Just (b' : bs)       || branch passed check; return modified branch along with remaining unexamined branches
 
 || a trie is a list of trieBranches to continue prefix matching and a possible value stored at this trie level
 trie * ** ::= Trie [trieBranch * **] (maybe **)
 
-t_empty :: trie * **
-t_empty = Trie [] Nothing
+empty :: trie * **
+empty = Trie [] Nothing
 
-t_null :: trie * ** -> bool
-t_null (Trie [] _) = True
-t_null _           = False
+null :: trie * ** -> bool
+null (Trie [] _) = True
+null _           = False
 
 || lookup the value for a key, returning Nothing if the key is not present
-t_lookup :: ordI * -> [*] -> trie * ** -> maybe **
-t_lookup cmp k t
+lookup :: ordI * -> [*] -> trie * ** -> maybe **
+lookup cmp k t
     = go k t
       where
         go [] (Trie bs mv) = mv
@@ -85,13 +86,13 @@ t_lookup cmp k t
                 Mkey t k _ -> go k t    || matched full prefix; continue with remaining key and matching trieBranch
                 _          -> Nothing   || no match for all other cases
 
-t_findWithDefault :: ordI * -> ** -> [*] -> trie * ** -> **
-t_findWithDefault cmp d xs t
-    = fromMaybe d $ t_lookup cmp xs t
+findWithDefault :: ordI * -> ** -> [*] -> trie * ** -> **
+findWithDefault cmp d xs t
+    = fromMaybe d $ lookup cmp xs t
 
 || lookup the first value that matches a prefix of the key
-t_prefix :: ordI * -> [*] -> trie * ** -> maybe **
-t_prefix cmp k t
+prefix :: ordI * -> [*] -> trie * ** -> maybe **
+prefix cmp k t
     = go k t
       where
         go [] (Trie bs mv) = mv
@@ -103,8 +104,8 @@ t_prefix cmp k t
                 _          -> Nothing
 
 || insert a key-value pair
-t_insert :: ordI * -> [*] -> ** -> trie * ** -> trie * **
-t_insert cmp k v t
+insert :: ordI * -> [*] -> ** -> trie * ** -> trie * **
+insert cmp k v t
     = go k t
       where
         tNew bs = v $seq Trie bs (Just v)               || create a new Trie with an existing trieBranch list and the value
@@ -123,8 +124,8 @@ t_insert cmp k v t
         check (Mpart t k p m) = case tNew []       of t' -> Just (m, Trie [(k, t'), (p, t)] Nothing)    || split, insert remaining k and p under new
 
 || insert a key-value pair using supplied insertion function
-t_insertWith :: ordI * -> (** -> ** -> **) -> [*] -> ** -> trie * ** -> trie * **
-t_insertWith cmp f k v t
+insertWith :: ordI * -> (** -> ** -> **) -> [*] -> ** -> trie * ** -> trie * **
+insertWith cmp f k v t
     = go k t
       where
         tNew bs = v $seq Trie bs (Just v)               || create a new Trie with an existing trieBranch list and the value
@@ -147,31 +148,31 @@ t_insertWith cmp f k v t
         check (Mpart t k p m) = case tNew []       of t' -> Just (m, Trie [(k, t'), (p, t)] Nothing)    || split, insert remaining k and p under new
 
 || delete a key-value pair in the trieMap (simply replace the value with Nothing, leaving the key intact)
-t_delete :: ordI * -> [*] -> trie * ** -> trie * **
-t_delete cmp k t
+delete :: ordI * -> [*] -> trie * ** -> trie * **
+delete cmp k t
     = fromMaybe t $ go k t
       where
         go [] (Trie bs mv) = Just $ Trie bs Nothing     || trie matches key -- remove value
-        go k  (Trie bs mv) = tb_modify cmp check k bs <&> converse Trie mv
+        go k  (Trie bs mv) = tb_modify cmp check k bs mb.<&> converse Trie mv
 
-        check (Mkey t k p) = go k t <&> pair p          || continue matching k, return modified trieBranch if a deletion occurred
+        check (Mkey t k p) = go k t mb.<&> pair p       || continue matching k, return modified trieBranch if a deletion occurred
         check _            = Nothing
 
-t_adjust :: ordI * -> (** -> **) -> [*] -> trie * ** -> trie * **
-t_adjust cmp f k t
+adjust :: ordI * -> (** -> **) -> [*] -> trie * ** -> trie * **
+adjust cmp f k t
     = fromMaybe t $ go k t
       where
-        go [] (Trie bs mv) = mv <&> (f .> Just .> Trie bs)      || trie matches key -- perform adjustment if value exists
-        go k  (Trie bs mv) = tb_modify cmp check k bs <&> converse Trie mv
+        go [] (Trie bs mv) = mv mb.<&> (f .> Just .> Trie bs)   || trie matches key -- perform adjustment if value exists
+        go k  (Trie bs mv) = tb_modify cmp check k bs mb.<&> converse Trie mv
 
-        check (Mkey t k p) = go k t <&> pair p  || continue matching k, return modified trieBranch if an adjust occurred
+        check (Mkey t k p) = go k t mb.<&> pair p       || continue matching k, return modified trieBranch if an adjust occurred
         check _            = Nothing
 
 || filter the elements of a trieMap with a predicate function and return the filtered trieMap
 || this can be done by simply deleting the elements that don't pass the predicate function, keeping the same
 || trie structure
-t_filter :: (** -> bool) -> trie * ** -> trie * **
-t_filter f t
+filter :: (** -> bool) -> trie * ** -> trie * **
+filter f t
     = go t
       where
         go (Trie bs mv)
@@ -183,14 +184,14 @@ t_filter f t
                                       True  -> Trie bs' (Just v)
         goNext (p, t) = case go t of t' -> (p, t')
 
-t_union :: ordI * -> trie * ** -> trie * ** -> trie * **
-t_union cmp t1 t2
-    = foldl ins t1 $ t_toList t2
+union :: ordI * -> trie * ** -> trie * ** -> trie * **
+union cmp t1 t2
+    = std.foldl ins t1 $ toList t2
       where
-        ins t (k, v) = t_insert cmp k v t
+        ins t (k, v) = insert cmp k v t
 
-t_toList :: trie * ** -> [([*], **)]
-t_toList t
+toList :: trie * ** -> [([*], **)]
+toList t
     = go [] t
       where
         go p1 (Trie bs mv)
@@ -202,47 +203,47 @@ t_toList t
 
                 goNext (p2, t') = go (p1 ++ p2) t'
 
-t_fromList :: ordI * -> [([*], **)] -> trie * **
-t_fromList cmp
-    = foldl ins t_empty
+fromList :: ordI * -> [([*], **)] -> trie * **
+fromList cmp
+    = std.foldl ins empty
       where
-        ins t (k, v) = t_insert cmp k v t
+        ins t (k, v) = insert cmp k v t
 
-t_keys :: trie * ** -> [[*]]
-t_keys t = map fst $ t_toList t
+keys :: trie * ** -> [[*]]
+keys t = map fst $ toList t
 
-t_elems :: trie * ** -> [**]
-t_elems t = map snd $ t_toList t
+elems :: trie * ** -> [**]
+elems t = map snd $ toList t
 
 
 || functor interace
-t_fmap :: (** -> ***) -> trie * ** -> trie * ***
-t_fmap f t
+(<$>) :: (** -> ***) -> trie * ** -> trie * ***
+f <$> t
     = go t
       where
-        go (Trie bs mv) = case map goNext bs of bs' -> case mv <&> f of mv' -> Trie bs' mv'
+        go (Trie bs mv) = case map goNext bs of bs' -> case mv mb.<&> f of mv' -> Trie bs' mv'
         goNext (p, t)   = case go t of t' -> (p, t')
 
-t_rfmap :: trie * ** -> (** -> ***) -> trie * ***
-t_rfmap t f = t_fmap f t
+(<&>) :: trie * ** -> (** -> ***) -> trie * ***
+t <&> f =  f <$> t
 
 
 || foldable interace
-t_foldr :: (** -> *** -> ***) -> *** -> trie * ** -> ***
-t_foldr f z
+foldr :: (** -> *** -> ***) -> *** -> trie * ** -> ***
+foldr f z
     = go z
       where
-        go z' (Trie bs mv) = foldr ftb z' bs |> check mv
+        go z' (Trie bs mv) = std.foldr ftb z' bs |> check mv
 
         ftb (p, t) z' = go z' t
 
         check Nothing z'   = z'
         check (Just v) z'  = f v z'
 
-t_foldl :: (*** -> ** -> ***) -> *** -> trie * ** -> ***
-t_foldl f z
+foldl :: (*** -> ** -> ***) -> *** -> trie * ** -> ***
+foldl f z
     = go z
       where
-        go z' (Trie bs mv) = fromMaybef z' (f z') mv |> converse (foldl ftb) bs
+        go z' (Trie bs mv) = fromMaybef z' (f z') mv |> converse (std.foldl ftb) bs
 
         ftb z' (p, t) = go z' t

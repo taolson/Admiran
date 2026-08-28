@@ -5,13 +5,13 @@
 
 %import <base>
 %import <lens>
-%import <map>
-%import <maybe>
-%import <state>                 (>>=)/st_bind
+%import <map>           qualified as m
+%import <maybe>                         -(>>=)
+%import <state>                         -view -set -over
 %import "ast"
 %import "config"
 %import "dependency"
-%import "exception"
+%import "exception"     as ex           -(>>=)
 %import "grammar"
 %import "module"
 %import "name"
@@ -155,19 +155,19 @@ rewriteAst k (Elet _ defs _ e) st
 
         || make a let with a single defn, discovering and marking its recursive status
         mkLet [n] e
-            = Elet rec (m_singleton n d) [] e
+            = Elet rec (m.singleton n d) [] e
               where
-                d   = fromJust $ m_lookup cmpname n defs'
+                d   = fromJust $ m.lookup cmpname n defs'
                 rec = view astAnnoRec d
 
         || make a let with multiple, mutually-recursive defns
         mkLet ns e
-            = Elet True (foldl addRecEntry m_empty ns) [] e
+            = Elet True (foldl addRecEntry m.empty ns) [] e
               where
                 addRecEntry m n
-                    = m_insert cmpname n d' m
+                    = m.insert cmpname n d' m
                       where
-                        d' = set astAnnoRec True . fromJust . m_lookup cmpname n $ defs'
+                        d' = set astAnnoRec True . fromJust . m.lookup cmpname n $ defs'
 
 || handle extra info around rewriting defns
 rewriteAst k a st
@@ -195,8 +195,8 @@ rewriteAst k a st
 ||   add recursion info to top-level defs
 rewrite :: globalEnv -> excpt globalEnv
 rewrite genv
-    = ex_return genv' warns, if null errs
-    = ex_errs   errs,        otherwise
+    = ex.return genv' warns, if null errs
+    = ex.errs   errs,        otherwise
       where
         m             = view genvMod genv
         defs          = view modDefns m
@@ -208,10 +208,10 @@ rewrite genv
 
         || mark a single defn with its discovered recursive status
         markRec defs [n]
-            = m_adjust cmpname setRec n defs
+            = m.adjust cmpname setRec n defs
               where
                 setRec d = set astAnnoRec (member cmpname (view astAnnoFree d) n) d
 
         || mark mutally-recursive defns as recursive
         markRec defs ns
-            = foldr (m_adjust cmpname (set astAnnoRec True)) defs ns
+            = foldr (m.adjust cmpname (set astAnnoRec True)) defs ns

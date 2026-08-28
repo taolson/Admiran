@@ -34,44 +34,49 @@ isRight (Left  _) = False
 
 
 || monad interface
-e_bind :: either * ** -> (** -> either * ***) -> either * ***
-e_bind (Left e)  f = Left e
-e_bind (Right x) f = f x
 
-e_pure :: ** -> either * **
-e_pure x = Right x
+pure :: ** -> either * **
+pure x = Right x
 
-e_kbind :: (* -> either ** ***) -> (*** -> either ** ****) -> * -> either ** ****
-e_kbind f g = \x -> f x $e_bind g
+(>>=) :: either * ** -> (** -> either * ***) -> either * ***
+Left e  >>= f = Left e
+Right x >>= f = f x
 
-e_mapM :: (* -> either ** ***) -> [*] -> either ** [***]
-e_mapM f xs = foldr (f .> e_liftA2 (:)) (e_pure []) xs
+(>=>) :: (* -> either ** ***) -> (*** -> either ** ****) -> * -> either ** ****
+f >=> g = \x -> f x >>= g
 
-e_foldM :: (** -> * -> either *** **) -> ** -> [*] -> either *** **
-e_foldM f z0 xs
-    = foldr c e_pure xs z0
+mapM :: (* -> either ** ***) -> [*] -> either ** [***]
+mapM f xs = foldr (f .> liftA2 (:)) (pure []) xs
+
+foldM :: (** -> * -> either *** **) -> ** -> [*] -> either *** **
+foldM f z0 xs
+    = foldr c pure xs z0
       where
-        c x k z = f z x $e_bind k
+        c x k z = f z x >>= k
 
-e_sequence :: [either * **] -> either * [**]
-e_sequence xs = foldr (e_liftA2 (:)) (e_pure []) xs
+sequence :: [either * **] -> either * [**]
+sequence xs = foldr (liftA2 (:)) (pure []) xs
+
 
 || functor interface
-e_fmap :: (** -> ***) -> either * ** -> either * ***
-e_fmap f ma = ma $e_bind (f .> e_pure)
 
-e_rfmap :: either * ** -> (** -> ***) -> either * ***
-e_rfmap ma f = e_fmap f ma
+(<$>) :: (** -> ***) -> either * ** -> either * ***
+f <$> ma = ma >>= (f .> pure)
+
+(<&>) :: either * ** -> (** -> ***) -> either * ***
+ma <&> f = f <$> ma
+
 
 || applicative interface
-e_apply :: either * (** -> ***) -> either * ** -> either * ***
-e_apply mf ma = mf $e_bind ($e_fmap ma)
 
-e_liftA2 :: (** -> *** -> ****) -> either * ** -> either * *** -> either * ****
-e_liftA2 f ma mb = e_fmap f ma $e_apply mb
+(<*>) :: either * (** -> ***) -> either * ** -> either * ***
+mf <*> ma = mf >>= (<$> ma)
 
-e_left :: either * ** -> either * *** -> either * **
-e_left ma mb = e_liftA2 const ma mb
+liftA2 :: (** -> *** -> ****) -> either * ** -> either * *** -> either * ****
+liftA2 f ma mb = f <$> ma <*> mb
 
-e_right :: either * ** -> either * *** -> either * ***
-e_right ma mb = e_liftA2 (converse const) ma mb
+(<<) :: either * ** -> either * *** -> either * **
+ma << mb = liftA2 const ma mb
+
+(>>) :: either * ** -> either * *** -> either * ***
+ma >> mb = liftA2 (converse const) ma mb

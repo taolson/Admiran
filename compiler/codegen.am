@@ -4,10 +4,10 @@
 %export codegen
 
 %import <base>
-%import <map>
+%import <map>           qualified as m
 %import <maybe>
 %import "config"
-%import "exception"
+%import "exception"     -error
 %import "name"
 %import "pretty"
 %import "stg"
@@ -382,7 +382,7 @@ genMove d a
 || relocate any Arg about to be overwritten to the ArgState area, if it is still needed for subsequent moves
 genMoveToArgs :: [opr] -> showS
 genMoveToArgs oprs
-    = genMoves m_empty . enumerate $ oprs
+    = genMoves m.empty . enumerate $ oprs
       where
         genMoves alts [] = id
         genMoves alts ((i, v) : vs)
@@ -392,12 +392,12 @@ genMoveToArgs oprs
                 xd       = cvtRef d
                 doReloc  = member cmpopr (map snd vs) (Ref d)
                 xdAlt    = cvtArgState i                        || alt location for arg, if it is still needed
-                xv       = m_findWithDefault cmpopr (cvtOpr v) v alts
+                xv       = m.findWithDefault cmpopr (cvtOpr v) v alts
 
                 moveArg  = id,                                  if _eq cmpx86Opr xv xd   || don't move if already there
                          = genOpcode (movOpForOpr v) [xv, xd],  otherwise
 
-                alts'    = m_insert cmpopr (Ref d) xdAlt alts,  if doReloc
+                alts'    = m.insert cmpopr (Ref d) xdAlt alts,  if doReloc
                          = alts,                                otherwise
 
                 relocate = genOpcode "movq" [xd, xdAlt],        if doReloc
@@ -1418,14 +1418,14 @@ genGenerics
 
 || generate the code section, emitting the string for each codeObj as it is generated
 genCode :: stgCode -> string
-genCode cd = genSection "text" "" ++ (cd |> fst |> m_toList |> concatMap ($genCodeObj "\n"))
+genCode cd = genSection "text" "" ++ (cd |> fst |> m.toList |> concatMap ($genCodeObj "\n"))
 
 || generate the heap section, emitting the string for each heapObj as it is generated
 genHeap :: stgHeap -> string
 genHeap hp
     = genSection "data" ""                                    ++
       genCGlobal "GlobalBase" ""                              ++
-      (hp |> fst |> m_toList |> concatMap ($genHeapObj "\n")) ++
+      (hp |> fst |> m.toList |> concatMap ($genHeapObj "\n")) ++
       genCGlobal "GlobalTop" ""
 
 codegen :: name -> (localEnv, stgCode, stgHeap) -> string
@@ -1435,4 +1435,4 @@ codegen start (lenv, cd, hp)
       genCode cd         ++
       genHeap hp
       where
-        ha = fromJust (m_lookup cmpname start lenv)
+        ha = fromJust (m.lookup cmpname start lenv)

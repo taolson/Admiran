@@ -35,60 +35,64 @@ mapMaybe f = map f .> catMaybes
 
 
 || monad interface
-mb_bind :: maybe * -> (* -> maybe **) -> maybe **
-mb_bind Nothing f  = Nothing
-mb_bind (Just x) f = f x
 
-mb_pure :: * -> maybe *
-mb_pure x = Just x
+pure :: * -> maybe *
+pure x = Just x
 
-mb_kbind :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
-mb_kbind f g = \x -> f x $mb_bind g
+(>>=) :: maybe * -> (* -> maybe **) -> maybe **
+Nothing >>= f = Nothing
+Just x  >>= f = f x
 
-mb_mapM :: (* -> maybe **) -> [*] -> maybe [**]
-mb_mapM f xs = foldr (f .> mb_liftA2 (:)) (mb_pure []) xs
+(>=>) :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
+f >=> g = \x -> f x >>= g
 
-mb_filterM :: (* -> maybe bool) -> [*] -> maybe [*]
-mb_filterM p xs
-    = foldr check (mb_pure []) xs
+mapM :: (* -> maybe **) -> [*] -> maybe [**]
+mapM f xs = foldr (f .> liftA2 (:)) (pure []) xs
+
+filterM :: (* -> maybe bool) -> [*] -> maybe [*]
+filterM p xs
+    = foldr check (pure []) xs
       where
-        check x       = mb_liftA2 (cond x) (p x)
+        check x       = liftA2 (cond x) (p x)
         cond  x False = id
         cond  x True  = (x :)
 
-mb_foldM :: (** -> * -> maybe **) -> ** -> [*] -> maybe **
-mb_foldM f z0 xs
-    = foldr c mb_pure xs z0
+foldM :: (** -> * -> maybe **) -> ** -> [*] -> maybe **
+foldM f z0 xs
+    = foldr c pure xs z0
       where
-        c x k z = f z x $mb_bind k
+        c x k z = f z x >>= k
 
-mb_sequence :: [maybe *] -> maybe [*]
-mb_sequence xs = foldr (mb_liftA2 (:)) (mb_pure []) xs
+sequence :: [maybe *] -> maybe [*]
+sequence xs = foldr (liftA2 (:)) (pure []) xs
 
 
 || functor interface
-mb_fmap :: (* -> **) -> maybe * -> maybe **
-mb_fmap f ma = ma $mb_bind (f .> mb_pure)
 
-mb_rfmap :: maybe * -> (* -> **) -> maybe **
-mb_rfmap ma f = mb_fmap f ma
+(<$>) :: (* -> **) -> maybe * -> maybe **
+f <$> ma = ma >>= (f .> pure)
+
+(<&>) :: maybe * -> (* -> **) -> maybe **
+ma <&> f = f <$> ma
 
 
 || applicative interface
-mb_apply :: maybe (* -> **) -> maybe * -> maybe **
-mb_apply mf ma = mf $mb_bind ($mb_fmap ma)
 
-mb_liftA2 :: (* -> ** -> ***) -> maybe * -> maybe ** -> maybe ***
-mb_liftA2 f ma mb = mb_fmap f ma $mb_apply mb
+(<*>) :: maybe (* -> **) -> maybe * -> maybe **
+mf <*> ma = mf >>= (<$> ma)
 
-mb_left :: maybe * -> maybe ** -> maybe *
-mb_left ma mb = mb_liftA2 const ma mb
+liftA2 :: (* -> ** -> ***) -> maybe * -> maybe ** -> maybe ***
+liftA2 f ma mb = f <$> ma <*> mb
 
-mb_right :: maybe * -> maybe ** -> maybe **
-mb_right ma mb = mb_liftA2 (converse const) ma mb
+(<<) :: maybe * -> maybe ** -> maybe *
+ma << mb = liftA2 const ma mb
+
+(>>) :: maybe * -> maybe ** -> maybe **
+ma >> mb = liftA2 (converse const) ma mb
 
 
 || alternative interface
-mb_alt :: maybe * -> maybe * -> maybe *
-mb_alt Nothing mr = mr
-mb_alt ml      mr = ml
+
+(<|>) :: maybe * -> maybe * -> maybe *
+Nothing <|> mr = mr
+ml      <|> mr = ml

@@ -1,33 +1,30 @@
 || bag.am -- implementation of a strict multiset using AVL trees
 
 
-%export + b_empty b_null b_size b_member b_first b_last b_lookup b_findWithDefault b_elems b_keys b_keysSet b_toList b_deleteKey
-          b_adjust b_alter
+%export + m.empty m.null m.size m.member m.first m.last m.lookup m.findWithDefault m.elems m.keys m.keysSet m.toList m.deleteKey
+          m.adjust m.alter
 
 %import <avl>
-%import <map>   b_empty/m_empty b_null/m_null b_size/m_size b_member/m_member b_first/m_first b_last/m_last b_lookup/m_lookup
-                b_findWithDefault/m_findWithDefault b_elems/m_elems b_keys/m_keys b_keysSet/m_keysSet b_toList/m_toList
-                b_deleteKey/m_delete b_adjust/m_adjust b_alter/m_alter
+%import <map>    qualified as m   deleteKey/delete
+%import <maybe>
+%import <stdlib> as std
 
-%import <maybe> (<&>)/mb_rfmap
+bag * == m.map * int
 
+singleton :: * -> bag *
+singleton x = m.singleton x 1
 
-b_bag * == m_map * int
+insert :: ordI * -> * -> bag * -> bag *
+insert cmp key = m.insertWith cmp (+) key 1
 
-b_singleton :: * -> b_bag *
-b_singleton x = m_singleton x 1
+insertTimes :: ordI * -> * -> int -> bag * -> bag *
+insertTimes cmp = m.insertWith cmp (+)
 
-b_insert :: ordI * -> * -> b_bag * -> b_bag *
-b_insert cmp key = m_insertWith cmp (+) key 1
+delete :: ordI * -> * -> bag * -> bag *
+delete cmp key = deleteTimes cmp key 1
 
-b_insertTimes :: ordI * -> * -> int -> b_bag * -> b_bag *
-b_insertTimes cmp = m_insertWith cmp (+)
-
-b_delete :: ordI * -> * -> b_bag * -> b_bag *
-b_delete cmp key = b_deleteTimes cmp key 1
-
-b_deleteTimes :: ordI * -> * -> int -> b_bag * -> b_bag *
-b_deleteTimes cmp k n b
+deleteTimes :: ordI * -> * -> int -> bag * -> bag *
+deleteTimes cmp k n b
     = fromMaybe b $ go b
       where
         go AVLLeaf = Nothing
@@ -35,35 +32,35 @@ b_deleteTimes cmp k n b
             = case p of
                 (k', n') -> case cmp k k' of
                               EQ -> case nd > 0 of
-                                      False -> Just $ a_moveR l r
+                                      False -> Just $ moveR l r
                                       True  -> Just $ AVLNode (k, nd) l r h
                               LT -> go l <&> insL
                               GT -> go r <&> insR
                             where
                               nd = n' - n
               where
-                insL l' = a_balance $ AVLNode p l' r h
-                insR r' = a_balance $ AVLNode p l r' h
+                insL l' = balance $ AVLNode p l' r h
+                insR r' = balance $ AVLNode p l r' h
 
 
-b_fromList :: ordI * -> [*] -> b_bag *
-b_fromList cmp = foldl (converse (b_insert cmp)) b_empty
+fromList :: ordI * -> [*] -> bag *
+fromList cmp = std.foldl (converse (insert cmp)) empty
 
-b_fromCountList :: ordI * -> [(*, int)] -> b_bag *
-b_fromCountList cmp
-    = foldl addEntry b_empty
+fromCountList :: ordI * -> [(*, int)] -> bag *
+fromCountList cmp
+    = std.foldl addEntry empty
       where
-        addEntry b (k, v) = b_insertTimes cmp k v b
+        addEntry b (k, v) = insertTimes cmp k v b
 
 || make a bag from a list of keys, with zero counts
-b_withKeys :: ordI * -> [*] -> b_bag *
-b_withKeys cmp
-    = foldl ins b_empty
+withKeys :: ordI * -> [*] -> bag *
+withKeys cmp
+    = std.foldl ins empty
       where
-        ins b k = b_insertTimes cmp k 0 b
+        ins b k = insertTimes cmp k 0 b
 
-b_union :: ordI * -> b_bag * -> b_bag * -> b_bag *
-b_union cmp b1 b2
-    = foldl addEntry b1 (b_toList b2)
+union :: ordI * -> bag * -> bag * -> bag *
+union cmp b1 b2
+    = std.foldl addEntry b1 (toList b2)
       where
-        addEntry b (k, v) = b_insertTimes cmp k v b
+        addEntry b (k, v) = insertTimes cmp k v b

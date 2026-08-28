@@ -1,0 +1,88 @@
+|| qualMigration.am -- replace prefix-underscore names with qualified versions, removing prefixes at the beginning of a line
+
+
+%import <base>
+%import <map>   qualified as m
+%import <maybe>                 -(>>=)
+%import <io>
+
+knownPrefixes :: m.map string string
+knownPrefixes = m.fromList cmpstring
+                    [ ("a", "avl")
+                    , ("b", "bag")
+                    , ("bs", "bitSet")
+                    , ("dq", "dequeue")
+                    , ("e", "either")
+                    , ("ex", "exception")
+                    , ("h", "heap")
+                    , ("io", "io")
+                    , ("m", "map")
+                    , ("mb", "maybe")
+                    , ("mst", "maybeState")
+                    , ("p", "parser")
+                    , ("rws", "rws")
+                    , ("s", "set")
+                    , ("st", "state")
+                    , ("td", "tardis")
+                    , ("t", "trieMap")
+                    , ("v2", "v2")
+                    , ("v3", "v3")
+                    , ("v", "vector")
+                    , ("z", "zipper")
+                    ]
+
+knownOperators :: m.map string string
+knownOperators = m.fromList cmpstring
+                     [ ("kbind", ">=>")
+                     , ("bind", ">>=")
+                     , ("fmap", "<$>")
+                     , ("rfmap", "<&>")
+                     , ("apply", "<*>")
+                     , ("left", "<<")
+                     , ("right", ">>")
+                     , ("alt", "<|>")
+                     ]
+
+identChar, identDigitChar :: char -> bool
+identChar      c = letter c \/ c ==. '_' \/ c ==. '$'
+identDigitChar c = identChar c \/ digit c \/ c ==. '#'
+
+handle :: string -> bool -> string -> string
+handle mn isInfix s
+    = go (isInfix, null mn', null opr)
+      where
+        (s0, s1)     = break (==. '_') s
+        (pre, ident) = ([], s),     if null s1 \/ null (tl s1)
+                     = (s0, tl s1), otherwise
+
+        mn'   = m.findWithDefault cmpstring "" pre knownPrefixes
+        opr   = m.findWithDefault cmpstring "" ident knownOperators
+
+        go (False, False, False) = "(" ++ if' (mn' ==$ mn) opr (pre ++ "." ++ opr) ++ ")"
+        go (False, False, True)  = if' (mn' ==$ mn) ident (pre ++ "." ++ ident)
+        go (False, True,  _)     = s
+        go (True,  False, False) = if' (mn' ==$ mn) opr (pre ++ "." ++ opr)
+        go (True,  False, True)  = "$" ++ if' (mn' ==$ mn) ident (pre ++ "." ++ ident)
+        go (True,  True,  _)     = "$" ++ s
+
+|| process a line of the file
+process :: string -> string -> string
+process mn s
+    = go s
+      where
+        go [] = []
+        go s  = s0 ++ handle mn isInfix s' ++ go s3
+                where
+                  (s0, s1) = break identChar s
+                  (s2, s3) = span  identDigitChar s1
+                  isInfix  = ~null s2 & hd s2 ==. '$'
+                  s'       = if' isInfix (tl s2) s2
+main :: io ()
+main
+    = getArgs >>= mapM_ processFile
+      where
+        processFile fn
+            || note: use readFile' for strict read to ensure all contents are read before attempting to write over the file
+            = readFile' fn >>= lines .> map (process mn) .> intercalate "\n" .> writeFile fn
+              where
+                mn = withoutSuffix "am" fn

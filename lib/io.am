@@ -1,12 +1,10 @@
 || io.am -- the IO monad for sequencing access to the outside world, based upon the state monad
 
 
-%export + -World io_bind io_pure io_kbind io_mapM io_mapM_ io_forM io_foldM io_fmap io_rfmap io_apply io_liftA2 io_liftA3 io_left io_right io_bind2 io_bind3
-                 io_sequence io_sequence_
+%export + -World pure (>>=) (>=>) mapM mapM_ forM foldM (<$>) (<&>) (<*>) liftA2 liftA3 (<<) (>>) bind2 bind3
+           sequence sequence_
 
-%import <state> io_bind/st_bind io_pure/st_pure io_kbind/st_kbind io_mapM/st_mapM io_mapM_/st_mapM_ io_forM/st_forM
-                io_foldM/st_foldM io_fmap/st_fmap io_rfmap/st_rfmap io_apply/st_apply io_liftA2/st_liftA2 io_liftA3/st_liftA3
-                io_left/st_left io_right/st_right io_bind2/st_bind2 io_bind3/st_bind3 io_sequence/st_sequence io_sequence_/st_sequence_
+%import <state>
 
 || "world" is an abstract type with an unexported constructor "World" which is used as
 || a token to sequence actions in the io monad. Since "World" is not exported, the io
@@ -19,7 +17,7 @@ io * == state world *
 
 || perform the io effect e without having to be in the io monad
 unsafePerformIO :: io * -> *
-unsafePerformIO e = st_evalState e World
+unsafePerformIO e = evalState e World
 
 || a wrapper on a byteStream# (which is just a word# that represents the raw heapAddr of an allocated byteStream#)
 || which allows for top-level handle thunks like stdin
@@ -104,15 +102,18 @@ writeFileStream (Handle fs#) s world
                 || buffer full; write the buffer out to the file, then continue with the unwritten portion of the string
                 s' -> case writeFile# fs# of _ -> restart s'
 
-|| read the contents of a file named by fn as a string
-readFile :: string -> io string
+|| lazy read of the contents of a file named by fn
+readFile, readFile' :: string -> io string
 readFile fn world
     = case allocByteStream# 256# of                     || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
         s# -> case writeByteStream s# fn of             || write the fn (an arbitrary Admiran string) to the byteStream
                 _ -> case openFileRead# s# of           || openFile returns the fileStream with the contents
                        fs# -> readFileStream (Handle fs#) world
 
-|| write to an existing file or create a new one
+|| strict read of the contents of a file named by fn
+readFile' fn = readFile fn >>= \s -> (last s) $seq (pure s)
+
+|| strict write to an existing file or create a new one
 writeFile :: string -> string -> io ()
 writeFile fn s world
     = case allocByteStream# 256# of                     || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
@@ -150,7 +151,7 @@ clock world = case clock# 0# of r# -> (I# r#, world)
 
 || time a function with a single argument, and report its result and execution time in usec
 time :: (* -> **) -> * -> io (**, int)
-time f x = clock $io_bind \start -> case f x of r -> clock $io_bind \stop -> io_pure (r, stop - start)
+time f x = clock >>= \start -> case f x of r -> clock >>= \stop -> pure (r, stop - start)
 
 || operations on stdin, stdout, stderr
 
@@ -200,6 +201,6 @@ getContents world = hGetContents stdin world
 getArgs :: io [string]
 getArgs
     = case getArg# 0# of                                || getArg 0# returns the number of args in the argv vector (argc)
-        n# -> io_pure $ map getArg [1 .. I# n#]         || convert each arg lazily into a Admiran list of byteStreams
+        n# -> pure $ map getArg [1 .. I# n#]         || convert each arg lazily into a Admiran list of byteStreams
       where
         getArg (I# n#) = case getArg# n# of s# -> readByteStream s#

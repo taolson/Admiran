@@ -1,19 +1,19 @@
 || map.am -- implementation of a strict map from key to value, using AVL trees
 
 
-%export + m_empty m_null m_isSingleton m_size m_first m_last m_toList
+%export + avl.empty avl.null avl.isSingleton avl.size avl.first avl.last avl.toList
 
-%import <avl>   m_empty/a_empty m_null/a_null m_size/a_size m_isSingleton/a_isSingleton m_first/a_first m_last/a_last m_toList/a_toList
-%import <maybe> (<&>)/mb_rfmap
+%import <avl>
+%import <maybe>  as mb
+%import <stdlib> as std
 
+map * ** == avlTree (*, **)
 
-m_map * ** == avlTree (*, **)
+singleton :: * -> ** -> map * **
+singleton k v = v $seq avl.singleton (k, v)     || strict value
 
-m_singleton :: * -> ** -> m_map * **
-m_singleton k v = v $seq a_singleton (k, v)     || strict value
-
-m_member :: ordI * -> * -> m_map * ** -> bool
-m_member cmp k
+member :: ordI * -> * -> map * ** -> bool
+member cmp k
     = go
       where
         go AVLLeaf = False
@@ -23,58 +23,58 @@ m_member cmp k
                 LT -> go l
                 GT -> go r
 
-m_insert :: ordI * -> * -> ** -> m_map * ** -> m_map * **
-m_insert cmp k v
+insert :: ordI * -> * -> ** -> map * ** -> map * **
+insert cmp k v
     = go
       where
-        go AVLLeaf = m_singleton k v
+        go AVLLeaf = singleton k v
         go (AVLNode p l r h)
             = case fst p of k' ->
               case cmp k k' of
                 EQ -> case v of v' -> AVLNode (k, v') l r h       || strict value
-                LT -> case go l of l' -> a_balance $ AVLNode p l' r h
-                GT -> case go r of r' -> a_balance $ AVLNode p l r' h
+                LT -> case go l of l' -> balance $ AVLNode p l' r h
+                GT -> case go r of r' -> balance $ AVLNode p l r' h
 
 || combination of insertWith / adjust / delete, depending upon result of f:
 || f Nothing  = Nothing -> no modification (i.e. delete absent key)
 || f Nothing  = Just v  -> insert k v
 || f (Just v) = Nothing -> delete k
 || f (Just v) = Just v' -> adjust k v
-m_alter :: ordI * -> (maybe ** -> maybe **) -> * -> m_map * ** -> m_map * **
-m_alter cmp f k
+alter :: ordI * -> (maybe ** -> maybe **) -> * -> map * ** -> map * **
+alter cmp f k
     = \m -> fromMaybe m $ go m
       where
-        go AVLLeaf = f Nothing <&> m_singleton k
+        go AVLLeaf = f Nothing mb.<&> singleton k
         go (AVLNode p l r h)
             = case p of (k', v') ->
                   case cmp k k' of
                     EQ -> case f (Just v') of
-                            Nothing -> Just $ a_moveR l r     || delete the node
+                            Nothing -> Just $ moveR l r     || delete the node
                             Just v  -> Just $ AVLNode (k, v) l r h
-                    LT -> go l <&> insL
-                    GT -> go r <&> insR
+                    LT -> go l mb.<&> insL
+                    GT -> go r mb.<&> insR
               where
-                insL l' = a_balance $ AVLNode p l' r h
-                insR r' = a_balance $ AVLNode p l r' h
+                insL l' = balance $ AVLNode p l' r h
+                insR r' = balance $ AVLNode p l r' h
 
 || insert v if k not found in the map, otherwise insert the result of applying
 || f to the existing value and v
-m_insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> m_map * ** -> m_map * **
-m_insertWith cmp f k v
-    = m_alter cmp f' k
+insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> map * ** -> map * **
+insertWith cmp f k v
+    = alter cmp f' k
       where
         f' Nothing   = Just v
         f' (Just v') = Just $ f v v'
 
-m_delete :: ordI * -> * -> m_map * ** -> m_map * **
-m_delete cmp k = m_alter cmp (const Nothing) k
+delete :: ordI * -> * -> map * ** -> map * **
+delete cmp k = alter cmp (const Nothing) k
 
 || return the original map if the key wasn't found, otherwise return the adjusted map
-m_adjust :: ordI * -> (** -> **) -> * -> m_map * ** -> m_map * **
-m_adjust cmp f k = m_alter cmp (<&> f) k
+adjust :: ordI * -> (** -> **) -> * -> map * ** -> map * **
+adjust cmp f k = alter cmp (mb.<&> f) k
 
-m_lookup :: ordI * -> * -> m_map * ** -> maybe **
-m_lookup cmp k
+lookup :: ordI * -> * -> map * ** -> maybe **
+lookup cmp k
     = go
       where
         go AVLLeaf = Nothing
@@ -84,53 +84,53 @@ m_lookup cmp k
               LT -> go l
               GT -> go r
 
-m_findWithDefault :: ordI * -> ** -> * -> m_map * ** -> **
-m_findWithDefault cmp d k = m_lookup cmp k .> fromMaybe d
+findWithDefault :: ordI * -> ** -> * -> map * ** -> **
+findWithDefault cmp d k = lookup cmp k .> fromMaybe d
 
-m_fromList :: ordI * -> [(*, **)] -> m_map * **
-m_fromList cmp
-    = foldl ins m_empty
+fromList :: ordI * -> [(*, **)] -> map * **
+fromList cmp
+    = std.foldl ins empty
       where
-        ins m (k, v) = m_insert cmp k v m
+        ins m (k, v) = insert cmp k v m
 
-m_elems :: m_map * ** -> [**]
-m_elems AVLLeaf = []
-m_elems (AVLNode (k, v) l r h)
-    = m_elems l ++ [v] ++ m_elems r
+elems :: map * ** -> [**]
+elems AVLLeaf = []
+elems (AVLNode (k, v) l r h)
+    = elems l ++ [v] ++ elems r
 
-m_keys :: m_map * ** -> [*]
-m_keys AVLLeaf = []
-m_keys (AVLNode (k, v) l r h)
-    = m_keys l ++ [k] ++ m_keys r
+keys :: map * ** -> [*]
+keys AVLLeaf = []
+keys (AVLNode (k, v) l r h)
+    = keys l ++ [k] ++ keys r
 
 || extract the map's keys as a set
 || note that it extracts to an avlTree (parent of set) to prevent
 || having a dependency on the set module.  Since the map's keys
 || are guaranteed to be unique, they naturally form a set
-m_keysSet :: m_map * ** -> avlTree *
-m_keysSet AVLLeaf = AVLLeaf
-m_keysSet (AVLNode (k, v) l r h)
-    = case m_keysSet l of ls ->
-      case m_keysSet r of rs ->
+keysSet :: map * ** -> avlTree *
+keysSet AVLLeaf = AVLLeaf
+keysSet (AVLNode (k, v) l r h)
+    = case keysSet l of ls ->
+      case keysSet r of rs ->
       AVLNode k ls rs h
 
-m_union :: ordI * -> m_map * ** -> m_map * ** -> m_map * **
-m_union cmp m1 m2
-    = foldl addEntry m1 $ m_toList m2
+union :: ordI * -> map * ** -> map * ** -> map * **
+union cmp m1 m2
+    = std.foldl addEntry m1 $ toList m2
       where
-        addEntry m (k, v) = m_insert cmp k v m
+        addEntry m (k, v) = insert cmp k v m
 
-m_filter :: ordI * -> (** -> bool) -> m_map * ** -> m_map * **
-m_filter cmp p
-    = m_filterWithKey cmp (ignoreKey p)
+filter :: ordI * -> (** -> bool) -> map * ** -> map * **
+filter cmp p
+    = filterWithKey cmp (ignoreKey p)
       where
         ignoreKey p (k, x) = p x
 
-m_filterWithKey :: ordI * -> ((*, **) -> bool) -> m_map * ** -> m_map * **
-m_filterWithKey cmp p = m_toList .> filter p .> m_fromList cmp
+filterWithKey :: ordI * -> ((*, **) -> bool) -> map * ** -> map * **
+filterWithKey cmp p = toList .> std.filter p .> fromList cmp
 
-m_mapAccumL :: (**** -> ** -> (****, ***)) -> **** -> m_map * ** -> (****, m_map * ***)
-m_mapAccumL f s
+mapAccumL :: (**** -> ** -> (****, ***)) -> **** -> map * ** -> (****, map * ***)
+mapAccumL f s
     = go
       where
         go AVLLeaf = (s, AVLLeaf)
@@ -143,8 +143,8 @@ m_mapAccumL f s
 || functor interface
 || note: lazy operation here, because some computations
 || like loeb depend upon that
-m_fmap :: (** -> ***) -> m_map * ** -> m_map * ***
-m_fmap f
+(<$>) :: (** -> ***) -> map * ** -> map * ***
+(<$>) f
     = go
       where
         go  AVLLeaf = AVLLeaf
@@ -155,11 +155,11 @@ m_fmap f
                 l' = go l
                 r' = go r
 
-m_rfmap :: m_map * ** -> (** -> ***) -> m_map * ***
-m_rfmap m f = m_fmap f m
+(<&>) :: map * ** -> (** -> ***) -> map * ***
+(<&>) m f =  f <$> m
 
-m_fmapWithKey :: (* -> ** -> ***) -> m_map * ** -> m_map * ***
-m_fmapWithKey f
+fmapWithKey :: (* -> ** -> ***) -> map * ** -> map * ***
+fmapWithKey f
     = go
       where
         go AVLLeaf = AVLLeaf
@@ -171,15 +171,15 @@ m_fmapWithKey f
                 r' = go r
 
 || foldable interface
-m_foldr :: (** -> *** -> ***) -> *** -> m_map * ** -> ***
-m_foldr f z
+foldr :: (** -> *** -> ***) -> *** -> map * ** -> ***
+foldr f z
     = go z
       where
         go z' AVLLeaf                = z'
         go z' (AVLNode (k, v) l r h) = go z' r |> f v |> ($go l)
 
-m_foldl :: (*** -> ** -> ***) -> *** -> m_map * ** -> ***
-m_foldl f z
+foldl :: (*** -> ** -> ***) -> *** -> map * ** -> ***
+foldl f z
     = go z
       where
         go z1 AVLLeaf                = z1

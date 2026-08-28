@@ -1,8 +1,8 @@
 || dumpSTG -- extract and dump the STG Instructions from a .s file comments
 
 %import <base>
-%import <io>                    (>>=)/io_bind
-%import <maybe>
+%import <io>
+%import <maybe>         -(>>=)
 
 stg ::= Insn string | Label string | Comment string
 
@@ -36,7 +36,7 @@ process fn
             = error (fs ++ " required, but not found"), if tsm < 0
             = readFile fs >>= dumpSTG,                  otherwise
 
-        dumpSTG = lines .> map classify .> catMaybes .> io_mapM_ (showstg .> putStrLn)
+        dumpSTG = lines .> map classify .> catMaybes .> mapM_ (showstg .> putStrLn)
 
 main :: io ()
 main = getArgs >>= go

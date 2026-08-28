@@ -275,7 +275,7 @@ count p = foldl (\n x -> if' (p x) (n + 1) n) 0
 || return the index of the first element matching predicate, or return Nothing
 elemIndex :: (* -> bool) -> [*] -> maybe int
 elemIndex p
-    = enumerate .> find (snd .> p) .> mb_fmap fst
+    = enumerate .> find (snd .> p) .> (<&> fst)
 
 enumerate :: [*] -> [(int, *)]
 enumerate xs = zip2 [0 ..] xs

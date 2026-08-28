@@ -1,33 +1,34 @@
 || parser.am -- a parser combinator library for strings, based upon the maybeState monad, which tracks line and column position for error reporting
+||
+|| note: many parser function names shadow stdlib names, so parser should be imported qualified
 
 
-%export + p_get p_put p_modify p_bind p_pure p_fail p_fmap p_rfmap p_apply p_liftA2 p_liftA3 p_liftA4 p_left p_right p_mapM p_foldM
+%export + get put modify pure fail (>>=) (<$>) (<&>) (<*>) (<<) (>>) liftA2 liftA3 liftA4 mapM foldM
 
 %import <base>
-%import <maybe>
-%import <maybeState> p_get/mst_get p_put/mst_put p_modify/mst_modify p_bind/mst_bind p_pure/mst_pure p_fail/mst_fail p_fmap/mst_fmap
-                     p_rfmap/mst_rfmap p_apply/mst_apply p_liftA2/mst_liftA2 p_liftA3/mst_liftA3 p_liftA4/mst_liftA4 p_left/mst_left
-                     p_right/mst_right p_mapM/mst_mapM p_foldM/mst_foldM
+%import <maybe>         -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <maybeState>
+%import <stdlib>        as std
 
 
 || state passed through parser is current line and column numbers, and the list of chars not yet parsed
 || the line and column numbers are kept as unboxed word# values to optimize maintaining them during parsing
-|| (allows better inlining of p_any and p_satisfy)
+|| (allows better inlining of any and satisfy)
 
-psSt     == (word#, word#, [char])       || current line#, col#, string yet to parse
+psSt     == (word#, word#, [std.char])       || current line#, col#, string yet to parse
 parser * == maybeState psSt *
 
-parse :: parser * -> [char] -> (maybe *, psSt)
+parse :: parser * -> [std.char] -> (maybe *, psSt)
 parse p cs = p (1#, 1#, cs)
 
-p_error :: psSt -> [char]
-p_error (il, ic, cs) = "parse failed near line " ++ showint (I# il) ++ " col " ++ showint (I# ic)
+error :: psSt -> [std.char]
+error (il, ic, cs) = "parse failed near line " ++ showint (I# il) ++ " col " ++ showint (I# ic)
 
 || alternative interface
-|| note: a simple alias to maybeState mst_alt can't be used, here, because we need to return the
+|| note: a simple alias to maybeState (<|>) can't be used, here, because we need to return the
 || one with the the deepest progress of the two parses, if both fail
-p_alt :: parser * -> parser * -> parser *
-p_alt pa pb
+(<|>) :: parser * -> parser * -> parser *
+(<|>) pa pb
     = go
       where
         go ps
@@ -35,144 +36,144 @@ p_alt pa pb
             = rb,                if isJust $ fst rb
             = max2 cmploc ra rb, otherwise
               where
-                ra = mst_runState pa ps
-                rb = mst_runState pb ps
+                ra = runState pa ps
+                rb = runState pb ps
 
                 cmploc (_, (l1, c1, _)) (_, (l2, c2, _))
                     = cmpword# l1 l2 $thenCmp cmpword# c1 c2
 
-|| p_peek and p_not check for the presence or absence of a token, but don't consume it
-p_peek, p_not :: parser * -> parser ()
-p_peek pa ps
+|| peek and not check for the presence or absence of a token, but don't consume it
+peek, not :: parser * -> parser ()
+peek pa ps
     = (Just (), ps), if isJust ra
     = (Nothing, ps), otherwise
       where
         (ra, _) = pa ps
 
-p_not pa ps
+not pa ps
     = (Just (), ps), if isNothing ra
     = (Nothing, ps), otherwise
       where
         (ra, _) = pa ps
 
-p_optional :: parser * -> parser (maybe *)
-p_optional pa ps
+optional :: parser * -> parser (maybe *)
+optional pa ps
     = (Just (Just a), psa), if isJust ra
     = (Just Nothing, ps),   otherwise
       where
         (ra, psa) = pa ps
         Just a    = ra
 
-p_cons :: parser * -> parser [*] -> parser [*]
-p_cons pa pb = p_liftA2 (:) pa pb
+cons :: parser * -> parser [*] -> parser [*]
+cons pa pb = liftA2 (:) pa pb
 
-p_some :: parser * -> parser [*]
-p_some p = p $p_cons p_many p
+some :: parser * -> parser [*]
+some p = p $cons many p
 
-p_many :: parser * -> parser [*]
-p_many p = p_some p $p_alt p_pure []
+many :: parser * -> parser [*]
+many p = some p <|> pure []
 
 || fixed count of p
-p_count :: int -> parser * -> parser [*]
-p_count n p = p_mapM (const p) [1 .. n]
+count :: std.int -> parser * -> parser [*]
+count n p = mapM (const p) [1 .. n]
 
 || 1 or more p seperated by ps
-p_someSepBy :: parser * -> parser ** -> parser [**]
-p_someSepBy ps p = p $p_cons p_many (ps $p_right p)
+someSepBy :: parser * -> parser ** -> parser [**]
+someSepBy ps p = p $cons many (ps >> p)
 
 || 0 or more p seperated by ps
-p_manySepBy :: parser * -> parser ** -> parser [**]
-p_manySepBy ps p = p_someSepBy ps p $p_alt p_pure []
+manySepBy :: parser * -> parser ** -> parser [**]
+manySepBy ps p = someSepBy ps p <|> pure []
 
 || 0 or more pa until pb, keeping the list of pas
-p_manyUntil :: parser * -> parser ** -> parser [*]
-p_manyUntil pa pb = (pb $p_right p_pure []) $p_alt (pa $p_cons p_manyUntil pa pb)
+manyUntil :: parser * -> parser ** -> parser [*]
+manyUntil pa pb = (pb >> pure []) <|> (pa $cons manyUntil pa pb)
 
 || 0 or more pa until pb, keeping pb
-p_skipUntil :: parser * -> parser ** -> parser **
-p_skipUntil pa pb = pb $p_alt (pa $p_right p_skipUntil pa pb)
+skipUntil :: parser * -> parser ** -> parser **
+skipUntil pa pb = pb <|> (pa >> skipUntil pa pb)
 
 || parser which passes only at end of input
-p_end :: parser ()
-p_end (il, ic, []) = (Just (), (il, ic, []))
-p_end ps = (Nothing, ps)
+end :: parser ()
+end (il, ic, []) = (Just (), (il, ic, []))
+end ps = (Nothing, ps)
 
 || parser which accepts any character
-p_any :: parser char
-p_any (il, ic, []) = (Nothing, (il, ic, []))
-p_any (il, ic, (c : cs))
+any :: parser std.char
+any (il, ic, []) = (Nothing, (il, ic, []))
+any (il, ic, (c : cs))
     = case c ==. '\n' of
         False -> case ic +# 1# of ic' -> (Just c, (il, ic', cs))
         True  -> case il +# 1# of il' -> (Just c, (il', 1#, cs))
 
 || parser for a character which satifies a condition
-p_satisfy :: (char -> bool) -> parser char
-p_satisfy f
-    = p_any $p_bind fsat
+satisfy :: (std.char -> bool) -> parser std.char
+satisfy f
+    = any >>= fsat
       where
-        fsat c = p_pure c, if f c
-               = p_fail,   otherwise
+        fsat c = pure c, if f c
+               = fail,   otherwise
 
 || parser which matches a specific character
-p_char :: char -> parser char
-p_char c = p_satisfy (c ==.)
+char :: std.char -> parser std.char
+char c = satisfy (c ==.)
 
-p_notChar :: char -> parser char
-p_notChar c = p_satisfy (c ~=.)
+notChar :: std.char -> parser std.char
+notChar c = satisfy (c ~=.)
 
-p_digit :: parser char
-p_digit = p_satisfy digit
+digit :: parser std.char
+digit = satisfy std.digit
 
-p_letter :: parser char
-p_letter = p_satisfy letter
+letter :: parser std.char
+letter = satisfy std.letter
 
-p_space :: parser char
-p_space = p_satisfy (member cmpchar " \t\n")
+space :: parser std.char
+space = satisfy (member cmpchar " \t\n")
 
-p_spaces :: parser [char]
-p_spaces = p_many p_space
+spaces :: parser [std.char]
+spaces = many space
 
-p_comma :: parser char
-p_comma = p_char ','
+comma :: parser std.char
+comma = char ','
 
-p_anyOf :: [char] -> parser char
-p_anyOf s = p_satisfy (member cmpchar s)
+anyOf :: [std.char] -> parser std.char
+anyOf s = satisfy (member cmpchar s)
 
-p_noneOf :: [char] -> parser char
-p_noneOf s = p_satisfy (member cmpchar s .> not)
+noneOf :: [std.char] -> parser std.char
+noneOf s = satisfy (member cmpchar s .> base.not)
 
 || structure parsers
-p_inParens, p_inBrackets, p_inBraces, p_inAngles :: parser * -> parser *
-p_inParens   p = p_char '(' $p_right p $p_left p_char ')'
-p_inBrackets p = p_char '[' $p_right p $p_left p_char ']'
-p_inBraces   p = p_char '{' $p_right p $p_left p_char '}'
-p_inAngles   p = p_char '<' $p_right p $p_left p_char '>'
+inParens, inBrackets, inBraces, inAngles :: parser * -> parser *
+inParens   p = char '(' >> p << char ')'
+inBrackets p = char '[' >> p << char ']'
+inBraces   p = char '{' >> p << char '}'
+inAngles   p = char '<' >> p << char '>'
 
 || parser which matches a specific string
-p_string :: [char] -> parser [char]
-p_string s = foldr (p_char .> p_right) (p_pure s) s
+string :: [std.char] -> parser [std.char]
+string s = foldr (char .> (>>)) (pure s) s
 
-p_posint :: parser int
-p_posint = p_fmap intval (p_some p_digit)
+posint :: parser std.int
+posint = (<$>) intval (some digit)
 
-p_int :: parser int
-p_int = p_liftA2 mkint (p_optional (p_char '-')) p_posint
+int :: parser std.int
+int = liftA2 mkint (optional (char '-')) posint
         where
           mkint mn n =  n, if isNothing mn
                      = -n, otherwise
 
 || parse a word
-p_word :: parser [char]
-p_word = p_some p_letter
+word :: parser [std.char]
+word = some letter
 
 || parse a list of ints separated by a comma
-p_intlist :: parser [int]
-p_intlist = p_someSepBy p_comma p_int
+intlist :: parser [std.int]
+intlist = someSepBy comma int
 
 || read an intlist from a string, or report an error
-readIntlist :: string -> [int]
+readIntlist :: std.string -> [std.int]
 readIntlist s
     = fromMaybe err mns
       where
-        (mns, ps) = parse p_intlist s
-        err       = error (p_error ps)
+        (mns, ps) = parse intlist s
+        err       = std.error (error ps)

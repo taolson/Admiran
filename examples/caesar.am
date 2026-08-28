@@ -3,8 +3,8 @@
 %import <base>
 %import <io>
 %import <fix16>
-%import <state>         (>>)/st_right
-%import <vector>
+%import <state>
+%import <vector> as v   -foldl -sum -zipWith
 
 || encode a string by substituting a rotated alphabet
 encode :: int -> string -> string
@@ -36,14 +36,14 @@ rotate n xs = case splitAt n xs of (ys, zs) -> zs ++ ys
 || generate a frequency-of-occurrence table for a string
 freqs :: string -> [fix16]
 freqs s
-    = v_rep 26 0 |> runSTVector go |> v_toList |> mkTable
+    = v.rep 26 0 |> runSTVector go |> toList |> mkTable
       where
         mkTable xs = map ($percent tot) xs where tot = sum xs
-        go mv = st_mapM_ ins s
+        go mv = mapM_ ins s
                 where
                   ins c
-                      = v_unsafeModify mv (+1) i, if 0 <= i <= 25
-                      = st_pure (),               otherwise
+                      = unsafeModify mv (+1) i, if 0 <= i <= 25
+                      = pure (),                otherwise
                         where
                           i = code c - code 'a'
 
@@ -66,7 +66,7 @@ uncaesar s
         shift  = minBy cmpfix16 snd chitab |> fst
 
 main :: io ()
-main = io_mapM_ print [("plain", id), ("encoded", caesar), ("cracked", uncaesar . caesar)]
+main = io.mapM_ print [("plain", id), ("encoded", caesar), ("cracked", uncaesar . caesar)]
        where
          s = "Admiran is a lazy functional language"
 

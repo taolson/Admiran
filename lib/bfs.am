@@ -4,21 +4,20 @@
 %export bfsSolve
 
 %import <base>
-%import <avl>
-%import <map>
+%import <map>   qualified as m
 %import <maybe>
-%import <set>
+%import <set>   qualified as s
 
 
 || produce a list of positions as the solution to the shortest path, along with the final expansion state
-backtrace :: ordI * -> * -> ** -> m_map * * -> ([*], **)
+backtrace :: ordI * -> * -> ** -> m.map * * -> ([*], **)
 backtrace cmp move xs pm
     = (path, xs)
       where
         path       = ([], Just move) |> iterate bt |> dropWhile (snd .> isJust) |> hd |> fst
         bt (p, mm) = (m : p, lu)
                      where
-                       lu       = m_lookup cmp m pm
+                       lu       = m.lookup cmp m pm
                        (Just m) = mm
 
 || solve for the shortest path from start to an end goal, given:
@@ -29,7 +28,7 @@ backtrace cmp move xs pm
 ||     xs:    expansion state, which is passed to the expansion function
 bfsSolve :: ordI * -> * -> (* -> bool) -> ((*, **) -> ([*], **)) -> ** -> ([*], **)
 bfsSolve cmp start gf xf xs
-    = go [start] (s_singleton start) m_empty xs
+    = go [start] (s.singleton start) m.empty xs
       where
         go []       cs pm xs = ([], xs)
         go (v : vs) cs pm xs
@@ -40,12 +39,11 @@ bfsSolve cmp start gf xf xs
                 (adj, xs')    = xf (v, xs)
                 (adj', cs')   = foldl addMove ([], cs) adj
                 pm'           = foldl addPath pm adj'
-                addPath pm v' = m_insert cmp v' v pm
+                addPath pm v' = m.insert cmp v' v pm
 
                 addMove (adj, cs) v'
-                    = (adj, cs),   if s_member cmp v' cs
+                    = (adj, cs),   if s.member cmp v' cs
                     = (adj', cs'), otherwise
                       where
                         adj' = v' : adj
-                        cs'  = s_insert cmp v' cs
-
+                        cs'  = s.insert cmp v' cs

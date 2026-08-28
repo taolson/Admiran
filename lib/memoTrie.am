@@ -2,7 +2,7 @@
 ||                based upon Haskell's Data.MemoTrie written by Conal Elliot
 
 
-%export + -tree -t_fmap
+%export + -tree -(<$>)
 
 %import <base>
 %import <maybe>
@@ -10,8 +10,8 @@
 
 tree * ::= Tree (tree *) * (tree *)
 
-t_fmap :: (* -> **) -> tree * -> tree **
-t_fmap f (Tree l m r) = Tree (t_fmap f l) (f m) (t_fmap f r)
+(<$>) :: (* -> **) -> tree * -> tree **
+f <$> (Tree l m r) = Tree (f <$> l) (f m) (f <$> r)
 
 || memoize a function using a lazy trie of nats
 || first  arg is a conversion function from the domain to an int
@@ -22,7 +22,7 @@ memo toInt fromInt f
     = memof
       where
         memof n = toInt n |> index treef
-        treef   = t_fmap (fromInt .> f) nats
+        treef   = (fromInt .> f) <$> nats
 
         nats = go 0 1
                where

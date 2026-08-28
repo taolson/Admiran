@@ -2,10 +2,10 @@
 
 
 %import <base>
-%import <bitSet>
-%import <maybe>                 (<&>)/mb_rfmap (<|>)/mb_alt
+%import <bitSet>        as bs
+%import <maybe>         as mb
 %import <io>
-%import <vector>
+%import <vector>        as v    -foldl -foldr -length
 
 
 || puzzle config
@@ -48,22 +48,22 @@ findCatValue s
         err = error ("could not find the category and value indices for '" ++ s ++ "'")
 
         checkCat (i, (_, ns)) k
-             = elemIndex (==$ s) ns <&> pair i <|> k
+             = elemIndex (==$ s) ns mb.<&> pair i mb.<|> k
 
 loc      == vector bitSet
 solution == vector loc
 
 showSolution :: solution -> string
 showSolution s
-    = v_toList s |> map showLoc |> lay
+    = v.toList s |> map showLoc |> lay
       where
-        showLoc b = v_toList b |> enumerate |> showlist showCat
+        showLoc b = v.toList b |> enumerate |> showlist showCat
 
         showCat (i, bs)
             = hd vs,                  if #vs == 1
             = showlist showstring vs, otherwise
               where
-                vs = [v | (j, v) <- categories ! i |> snd |> enumerate; bs_member j bs]
+                vs = [v | (j, v) <- categories ! i |> snd |> enumerate; bs.member j bs]
 
 constraint ::=
     LocIndex    int    catVal |         || location at fixed index must have catVal
@@ -77,8 +77,8 @@ constraint ::=
     SomeBetween catVal catVal catVal    || location with catVal2 is somewhere between the location with catVal1 and the location with catVal3
 
 || don't auto-derive showI and cmpI for constraint, since they are unused
-showconstraint = undef
-cmpconstraint  = undef
+||showconstraint = undef
+||cmpconstraint  = undef
 
 || constraint creation from strings
 
@@ -111,12 +111,12 @@ locsRightOf i = [i + 1 .. nLocs - 1]
 constrain :: constraint -> solution -> [solution]
 
 constrain (LocIndex bi (ci, v)) s
-    = [],                        if ~bs_member v (s !! bi !! ci)
-    = [v_fmapWithIndex cnstr s], otherwise
+    = [],                        if ~bs.member v (s !! bi !! ci)
+    = [v.fmapWithIndex cnstr s], otherwise
       where
         cnstr i b
-            = b // [(ci, bs_singleton v)],        if i == bi   || loc bi, category ci must be v
-            = b // [(ci, bs_delete v (b !! ci))], otherwise    || loc i,  category ci cannot be v
+            = b // [(ci, bs.singleton v)],        if i == bi   || loc bi, category ci must be v
+            = b // [(ci, bs.delete v (b !! ci))], otherwise    || loc i,  category ci cannot be v
 
 constrain (SameLoc cv1 cv2) s
     = [s2 | i <- allLocs; s1 <- constrain (LocIndex i cv2) s;
@@ -131,7 +131,7 @@ constrain (ImmRight cv1 cv2) s
 
 constrain (SomeLeft cv1 cv2) s
     = [s2 | i <- allButFirstLoc; s1 <- constrain (LocIndex i cv2) s;
-            j <- locsLeftOf i;  s2 <- constrain (LocIndex j cv1) s1]
+            j <- locsLeftOf i;   s2 <- constrain (LocIndex j cv1) s1]
 
 constrain (SomeRight cv1 cv2) s
     = constrain (SomeLeft cv2 cv1) s
@@ -153,7 +153,7 @@ solve :: [constraint] -> [solution]
 solve cs
     = foldl go [init] cs
       where
-        init    = bs_all nLocs |> v_rep (#categories) |> v_rep nLocs
+        init    = bs.all nLocs |> v.rep (#categories) |> v.rep nLocs
         go ss c = [s1 | s <- ss; s1 <- constrain c s]
 
 
@@ -162,4 +162,4 @@ main
     = solve givens |> go
       where
         go []  = putStrLn "no solutions found!"
-        go ss  = io_mapM_ (showSolution .> putStrLn) ss
+        go ss  = io.mapM_ (showSolution .> putStrLn) ss

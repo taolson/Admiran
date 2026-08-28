@@ -3,8 +3,8 @@
 
 %export + -height -computeHeight -delta -rotL -rotR -balanceL -balanceR
 
-%import <maybe> (<&>)/mb_rfmap
-
+%import <maybe>
+%import <stdlib> as std
 
 avlTree * ::= AVLLeaf | AVLNode * (avlTree *) (avlTree *) int
 
@@ -14,7 +14,7 @@ cmpavlTree :: ordI * -> ordI (avlTree *)
 cmpavlTree cmp'
     = cmp
       where
-        cmp ta tb = cmplist cmp' (a_toList ta) (a_toList tb)
+        cmp ta tb = cmplist cmp' (toList ta) (toList tb)
 
 height :: avlTree * -> int
 height AVLLeaf           = 0
@@ -30,24 +30,24 @@ delta (AVLNode _ l r _) = height l - height r
 
 rotL :: avlTree * -> avlTree *
 rotL (AVLNode v l (AVLNode vr lr rr hr) h)
-    = case a_balance $ AVLNode v l lr h of lr' -> a_balance $ AVLNode vr lr' rr hr
+    = case balance $ AVLNode v l lr h of lr' -> balance $ AVLNode vr lr' rr hr
 
 rotL n = n
 
 rotR :: avlTree * -> avlTree *
 rotR (AVLNode v (AVLNode vl ll rl hl) r h)
-    = case a_balance $ AVLNode v rl r h of rl' -> a_balance $ AVLNode vl ll rl' hl
+    = case balance $ AVLNode v rl r h of rl' -> balance $ AVLNode vl ll rl' hl
 
 rotR n = n
 
-a_moveR :: avlTree * -> avlTree * -> avlTree *
-a_moveR (AVLLeaf)         rn = rn
-a_moveR (AVLNode v l r h) rn
-    = case a_moveR r rn of r' -> a_balance $ AVLNode v l r' h
+moveR :: avlTree * -> avlTree * -> avlTree *
+moveR (AVLLeaf)         rn = rn
+moveR (AVLNode v l r h) rn
+    = case moveR r rn of r' -> balance $ AVLNode v l r' h
 
-a_balance :: avlTree * -> avlTree *
-a_balance AVLLeaf = AVLLeaf
-a_balance n
+balance :: avlTree * -> avlTree *
+balance AVLLeaf = AVLLeaf
+balance n
     = balanceR n,      if d < -1
     = balanceL n,      if d >  1
     = computeHeight n, otherwise
@@ -78,26 +78,26 @@ balanceL n
 
         go AVLLeaf = unreachable
 
-a_empty :: avlTree *
-a_empty = AVLLeaf
+empty :: avlTree *
+empty = AVLLeaf
 
-a_null :: avlTree * -> bool
-a_null AVLLeaf = True
-a_null _       = False
+null :: avlTree * -> bool
+null AVLLeaf = True
+null _       = False
 
-a_singleton :: * -> avlTree *
-a_singleton v = AVLNode v AVLLeaf AVLLeaf 1
+singleton :: * -> avlTree *
+singleton v = AVLNode v AVLLeaf AVLLeaf 1
 
-a_isSingleton :: avlTree * -> bool
-a_isSingleton (AVLNode _ AVLLeaf AVLLeaf _) = True
-a_isSingleton _                             = False
+isSingleton :: avlTree * -> bool
+isSingleton (AVLNode _ AVLLeaf AVLLeaf _) = True
+isSingleton _                             = False
 
-a_size :: avlTree * -> int
-a_size AVLLeaf           = 0
-a_size (AVLNode v l r h) = a_size l + a_size r + 1
+size :: avlTree * -> int
+size AVLLeaf           = 0
+size (AVLNode v l r h) = size l + size r + 1
 
-a_member :: ordI * -> * -> avlTree * -> bool
-a_member cmp v
+member :: ordI * -> * -> avlTree * -> bool
+member cmp v
     = go
       where
         go  AVLLeaf = False
@@ -107,71 +107,71 @@ a_member cmp v
                 LT -> go l
                 GT -> go r
 
-a_first :: avlTree * -> *
-a_first AVLLeaf = error "a_first: null tree"
-a_first (AVLNode v l r h)
-    = v,         if a_null l
-    = a_first l, otherwise
+first :: avlTree * -> *
+first AVLLeaf = error "first: null tree"
+first (AVLNode v l r h)
+    = v,         if null l
+    = first l, otherwise
 
-a_last :: avlTree * -> *
-a_last AVLLeaf = error "a_last: null tree"
-a_last (AVLNode v l r h)
-    = v,        if a_null r
-    = a_last r, otherwise
+last :: avlTree * -> *
+last AVLLeaf = error "last: null tree"
+last (AVLNode v l r h)
+    = v,        if null r
+    = last r, otherwise
 
-a_insert :: ordI * -> * -> avlTree * -> avlTree *
-a_insert cmp v
+insert :: ordI * -> * -> avlTree * -> avlTree *
+insert cmp v
     = go
       where
-        go AVLLeaf = a_singleton v
+        go AVLLeaf = singleton v
         go (AVLNode v' l r h)
             = case cmp v v' of
-                LT -> case go l of l' -> a_balance $ AVLNode v' l' r h
-                _  -> case go r of r' -> a_balance $ AVLNode v' l r' h  || EQ case same as GT case, to allow multiple insertions of the same value
+                LT -> case go l of l' -> balance $ AVLNode v' l' r h
+                _  -> case go r of r' -> balance $ AVLNode v' l r' h  || EQ case same as GT case, to allow multiple insertions of the same value
 
 || delete v from tree if present, or return the original tree
-a_delete :: ordI * -> * -> avlTree * -> avlTree *
-a_delete cmp v n
+delete :: ordI * -> * -> avlTree * -> avlTree *
+delete cmp v n
     = fromMaybe n $ go n
       where
         go AVLLeaf = Nothing
         go (AVLNode v' l r h)
             = case cmp v v' of
-                EQ -> Just $ a_moveR l r
+                EQ -> Just $ moveR l r
                 LT -> go l <&> insL
                 GT -> go r <&> insR
               where
-                insL l' = a_balance $ AVLNode v' l' r h
-                insR r' = a_balance $ AVLNode v' l r' h
+                insL l' = balance $ AVLNode v' l' r h
+                insR r' = balance $ AVLNode v' l r' h
 
-a_fromList :: ordI * -> [*] -> avlTree *
-a_fromList cmp = foldl (converse (a_insert cmp)) a_empty
+fromList :: ordI * -> [*] -> avlTree *
+fromList cmp = std.foldl (converse (insert cmp)) empty
 
-a_toList :: avlTree * -> [*]
-a_toList AVLLeaf           = []
-a_toList (AVLNode v l r h) = a_toList l ++ [v] ++ a_toList r
+toList :: avlTree * -> [*]
+toList AVLLeaf           = []
+toList (AVLNode v l r h) = toList l ++ [v] ++ toList r
 
-a_union :: ordI * -> avlTree * -> avlTree * -> avlTree *
-a_union cmp a1 a2 = foldr (a_insert cmp) a1 (a_toList a2)
+union :: ordI * -> avlTree * -> avlTree * -> avlTree *
+union cmp a1 a2 = std.foldr (insert cmp) a1 (toList a2)
 
 
 || functor interface
-a_fmap :: ordI ** -> (* -> **) -> avlTree * -> avlTree **
-a_fmap cmp f = a_toList .> map f .> a_fromList cmp      || mapping can change value order, so rebuild from mapped list
+fmap :: ordI ** -> (* -> **) -> avlTree * -> avlTree **
+fmap cmp f = toList .> map f .> fromList cmp      || mapping can change value order, so rebuild from mapped list
 
-a_rfmap :: ordI ** -> avlTree * -> (* -> **) -> avlTree **
-a_rfmap cmp m f = a_fmap cmp f m
+rfmap :: ordI ** -> avlTree * -> (* -> **) -> avlTree **
+rfmap cmp m f = fmap cmp f m
 
 || foldable interface
-a_foldr :: (* -> ** -> **) -> ** -> avlTree * -> **
-a_foldr f z
+foldr :: (* -> ** -> **) -> ** -> avlTree * -> **
+foldr f z
     = go z
       where
         go z' AVLLeaf           = z'
         go z' (AVLNode v l r h) = go z' r |> f v |> ($go l)
 
-a_foldl :: (** -> * -> **) -> ** -> avlTree * -> **
-a_foldl f z
+foldl :: (** -> * -> **) -> ** -> avlTree * -> **
+foldl f z
     = go z
       where
         go z1 AVLLeaf           = z1

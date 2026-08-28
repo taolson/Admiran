@@ -1,65 +1,66 @@
 || set.am -- implementation of a strict set using AVL trees
 
 
-%export + s_empty s_null s_singleton s_isSingleton s_size s_member s_first s_last s_delete s_toList s_foldr s_foldl
+%export + avl.empty avl.null avl.singleton avl.isSingleton avl.size avl.member avl.first avl.last avl.delete avl.toList avl.foldr avl.foldl
 
-%import <avl>   s_empty/a_empty s_null/a_null s_singleton/a_singleton s_isSingleton/a_isSingleton s_size/a_size s_member/a_member
-                s_first/a_first s_last/a_last s_delete/a_delete s_toList/a_toList s_foldr/a_foldr s_foldl/a_foldl
-%import <maybe> (<&>)/mb_rfmap
+%import <avl>
+%import <maybe>  as mb
+%import <stdlib> as std
 
-s_set * == avlTree *
 
-s_insert :: ordI * -> * -> s_set * -> s_set *
-s_insert cmp v
+set * == avlTree *
+
+insert :: ordI * -> * -> set * -> set *
+insert cmp v
     = go
       where
-        go  AVLLeaf = s_singleton v
+        go  AVLLeaf = singleton v
         go (AVLNode v' l r h)
             = case cmp v v' of
                 EQ -> AVLNode v l r h                   || same value maps to single node
-                LT -> case go l of l' -> a_balance $ AVLNode v' l' r h
-                GT -> case go r of r' -> a_balance $ AVLNode v' l r' h
+                LT -> case go l of l' -> balance $ AVLNode v' l' r h
+                GT -> case go r of r' -> balance $ AVLNode v' l r' h
 
 || insert a value into the set only if it is not already a member of the set,
 || otherwise return Nothing
 || allows a single traversal to both check for set membership and insert a value
-s_insertIfAbsent :: ordI * -> * -> s_set * -> maybe (s_set *)
-s_insertIfAbsent cmp v
+insertIfAbsent :: ordI * -> * -> set * -> maybe (set *)
+insertIfAbsent cmp v
     = go
       where
-        go  AVLLeaf = Just $ s_singleton v
+        go  AVLLeaf = Just $ singleton v
         go (AVLNode v' l r h)
             = case cmp v v' of
                 EQ -> Nothing
-                LT -> go l <&> insL
-                GT -> go r <&> insR
+                LT -> go l mb.<&> insL
+                GT -> go r mb.<&> insR
               where
-                insL l' = a_balance $ AVLNode v' l' r h
-                insR r' = a_balance $ AVLNode v' l r' h
+                insL l' = balance $ AVLNode v' l' r h
+                insR r' = balance $ AVLNode v' l r' h
 
 || return the minimum element and the rest of the set, or Nothing if the set is empty
-s_viewMin :: s_set * -> maybe (*, s_set *)
-s_viewMin AVLLeaf = Nothing
-s_viewMin (AVLNode v l r h)
-    = case s_null l of
-        False -> s_viewMin l <&> balanceL
+viewMin :: set * -> maybe (*, set *)
+viewMin AVLLeaf = Nothing
+viewMin (AVLNode v l r h)
+    = case avl.null l of
+        False -> viewMin l mb.<&> balanceL
         True  -> Just (v, r)
       where
-        balanceL (v', l') = case a_balance $ AVLNode v l' r h of n' -> (v', n')
+        balanceL (v', l') = case balance $ AVLNode v l' r h of n' -> (v', n')
 
 || return the maximum element and the rest of the set, or Nothing if the set is empty
-s_viewMax :: s_set * -> maybe (*, s_set *)
-s_viewMax AVLLeaf = Nothing
-s_viewMax (AVLNode v l r h)
-    = case s_null r of
-        False -> s_viewMax r <&> balanceR
+viewMax :: set * -> maybe (*, set *)
+viewMax AVLLeaf = Nothing
+viewMax (AVLNode v l r h)
+    = case avl.null r of
+        False -> viewMax r mb.<&> balanceR
         True  -> Just (v, l)
       where
-        balanceR (v', r') = case a_balance $ AVLNode v l r' h of n' -> (v', n')
+        balanceR (v', r') = case balance $ AVLNode v l r' h of n' -> (v', n')
 
 || find the closest value in the set that is <= the given value
-s_lookupLE :: ordI * -> * -> s_set * -> maybe *
-s_lookupLE cmp v
+lookupLE :: ordI * -> * -> set * -> maybe *
+lookupLE cmp v
     = go Nothing
       where
         go b AVLLeaf = b
@@ -70,8 +71,8 @@ s_lookupLE cmp v
                 GT -> go b l
 
 || find the closest value in the set that is >= the given value
-s_lookupGE :: ordI * -> * -> s_set * -> maybe *
-s_lookupGE cmp v
+lookupGE :: ordI * -> * -> set * -> maybe *
+lookupGE cmp v
     = go Nothing
       where
         go b AVLLeaf = b
@@ -81,18 +82,18 @@ s_lookupGE cmp v
                 LT -> go b r
                 GT -> go (Just v') l
 
-s_fromList :: ordI * -> [*] -> s_set *
-s_fromList cmp = foldl (converse (s_insert cmp)) s_empty
+fromList :: ordI * -> [*] -> set *
+fromList cmp = std.foldl (converse (insert cmp)) empty
 
-s_union :: ordI * -> s_set * -> s_set * -> s_set *
-s_union cmp s1 s2 = foldl (converse (s_insert cmp)) s1 $ s_toList s2
+union :: ordI * -> set * -> set * -> set *
+union cmp s1 s2 = std.foldl (converse (insert cmp)) s1 $ toList s2
 
-s_difference :: ordI * -> s_set * -> s_set * -> s_set *
-s_difference cmp s1 s2 = foldl (converse (s_delete cmp)) s1 $ s_toList s2
+difference :: ordI * -> set * -> set * -> set *
+difference cmp s1 s2 = std.foldl (converse (delete cmp)) s1 $ toList s2
 
-s_intersect :: ordI * -> s_set * -> s_set * -> s_set *
-s_intersect cmp s1 s2
-    = s_fromList cmp (go (s_toList s1) (s_toList s2))
+intersect :: ordI * -> set * -> set * -> set *
+intersect cmp s1 s2
+    = fromList cmp (go (toList s1) (toList s2))
       where
         go (x : xs) (y : ys)
             = case cmp x y of
@@ -101,15 +102,15 @@ s_intersect cmp s1 s2
                 GT ->     go (x : xs) ys
         go xs ys = []
 
-s_filter :: ordI * -> (* -> bool) -> s_set * -> s_set *
-s_filter cmp p = s_toList .> filter p .> s_fromList cmp
+filter :: ordI * -> (* -> bool) -> set * -> set *
+filter cmp p = toList .> std.filter p .> fromList cmp
 
 
 || functor interface
-|| s_fmap changes the key value that is used in the AVL tree, so the easiest
+|| (<$>) changes the key value that is used in the AVL tree, so the easiest
 || way to do it is to serialize to a list, map, then deserialize to the new set
-s_fmap :: ordI ** -> (* -> **) -> s_set * -> s_set **
-s_fmap cmp f = s_toList .> map f .> s_fromList cmp
+(<$>) :: ordI ** -> (* -> **) -> set * -> set **
+(<$>) cmp f = toList .> map f .> fromList cmp
 
-s_rfmap :: ordI ** -> s_set * -> (* -> **) -> s_set **
-s_rfmap cmp m f = s_fmap cmp f m
+(<&>) :: ordI ** -> set * -> (* -> **) -> set **
+(<&>) cmp m f = (<$>) cmp f m

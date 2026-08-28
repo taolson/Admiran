@@ -1,7 +1,5 @@
 || fixed-point representation with 16-bit fractional part, as a substitute for floats
 
-%export +
-
 abstype fix16 with
     (+%)            :: fix16  -> fix16 -> fix16
     (-%)            :: fix16  -> fix16 -> fix16
