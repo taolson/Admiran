@@ -59,13 +59,13 @@ shown here, tuples of any arity are dynamically created and implicitly defined.
 ### astar
 astar.am -- implementation of the A-Star search algorithm
 
-    astar.mstate * ** == (**, s_set ((int, *)), m_map * int, m_map * int, m_map * *)
+    astar.mstate * ** == (**, s.set ((int, *)), m.map * int, m.map * int, m.map * *)
     astar.rstate * ** == (ordI *, ordI ((int, *)), * -> bool, (*, **) -> ([*], **), * -> * -> int, * -> int)
-    astar.aStarReachable :: ordI * -> * -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> m_map * *
+    astar.aStarReachable :: ordI * -> * -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> m.map * *
     astar.aStarSolve :: ordI * -> * -> (* -> bool) -> ((*, **) -> ([*], **)) -> ** -> (* -> * -> int) -> (* -> int) -> ([*], **)
     astar.addMoves :: rstate * ** -> mstate * ** -> * -> [*] -> mstate * **
     astar.backtrace :: rstate * ** -> mstate * ** -> * -> ([*], mstate * **)
-    astar.getCost :: ordI * -> * -> m_map * int -> int
+    astar.getCost :: ordI * -> * -> m.map * int -> int
     astar.maxCost :: int
     astar.solve :: rstate * ** -> mstate * ** -> ([*], mstate * **)
 
@@ -75,50 +75,58 @@ avl.am -- AVL tree
     avl.avlTree * ::= avl.AVLLeaf | avl.AVLNode * (avlTree *) (avlTree *) int
     avl.AVLLeaf :: avlTree *
     avl.AVLNode :: * -> avlTree * -> avlTree * -> int -> avlTree *
-    avl.a_balance :: avlTree * -> avlTree *
-    avl.a_delete :: ordI * -> * -> avlTree * -> avlTree *
-    avl.a_empty :: avlTree *
-    avl.a_first :: avlTree * -> *
-    avl.a_fmap :: ordI ** -> (* -> **) -> avlTree * -> avlTree **
-    avl.a_foldl :: (** -> * -> **) -> ** -> avlTree * -> **
-    avl.a_foldr :: (* -> ** -> **) -> ** -> avlTree * -> **
-    avl.a_fromList :: ordI * -> [*] -> avlTree *
-    avl.a_insert :: ordI * -> * -> avlTree * -> avlTree *
-    avl.a_last :: avlTree * -> *
-    avl.a_member :: ordI * -> * -> avlTree * -> bool
-    avl.a_moveR :: avlTree * -> avlTree * -> avlTree *
-    avl.a_null :: avlTree * -> bool
-    avl.a_singleton :: * -> avlTree *
-    avl.a_size :: avlTree * -> int
-    avl.a_toList :: avlTree * -> [*]
-    avl.a_union :: ordI * -> avlTree * -> avlTree * -> avlTree *
+    avl.balance :: avlTree * -> avlTree *
     avl.balanceL :: avlTree * -> avlTree *
     avl.balanceR :: avlTree * -> avlTree *
     avl.cmpavlTree :: ordI * -> ordI (avlTree *)
     avl.computeHeight :: avlTree * -> avlTree *
+    avl.delete :: ordI * -> * -> avlTree * -> avlTree *
     avl.delta :: avlTree * -> int
+    avl.empty :: avlTree *
+    avl.first :: avlTree * -> *
+    avl.fmap :: ordI ** -> (* -> **) -> avlTree * -> avlTree **
+    avl.foldl :: (** -> * -> **) -> ** -> avlTree * -> **
+    avl.foldr :: (* -> ** -> **) -> ** -> avlTree * -> **
+    avl.fromList :: ordI * -> [*] -> avlTree *
     avl.height :: avlTree * -> int
+    avl.insert :: ordI * -> * -> avlTree * -> avlTree *
+    avl.isSingleton :: avlTree * -> bool
+    avl.last :: avlTree * -> *
+    avl.member :: ordI * -> * -> avlTree * -> bool
+    avl.moveR :: avlTree * -> avlTree * -> avlTree *
+    avl.null :: avlTree * -> bool
+    avl.rfmap :: ordI ** -> avlTree * -> (* -> **) -> avlTree **
     avl.rotL :: avlTree * -> avlTree *
     avl.rotR :: avlTree * -> avlTree *
+    avl.singleton :: * -> avlTree *
+    avl.size :: avlTree * -> int
+    avl.toList :: avlTree * -> [*]
+    avl.union :: ordI * -> avlTree * -> avlTree * -> avlTree *
 
 ### bag
 bag.am -- implementation of a strict multiset using AVL trees
 
-    bag.b_bag * == m_map * int
-    bag.b_delete :: ordI * -> * -> b_bag * -> b_bag *
-    bag.b_deleteTimes :: ordI * -> * -> int -> b_bag * -> b_bag *
-    bag.b_fromCountList :: ordI * -> [(*, int)] -> b_bag *
-    bag.b_fromList :: ordI * -> [*] -> b_bag *
-    bag.b_insert :: ordI * -> * -> b_bag * -> b_bag *
-    bag.b_insertTimes :: ordI * -> * -> int -> b_bag * -> b_bag *
-    bag.b_singleton :: * -> b_bag *
-    bag.b_union :: ordI * -> b_bag * -> b_bag * -> b_bag *
-    bag.b_withKeys :: ordI * -> [*] -> b_bag *
+    bag.bag * == m.map * int
+    bag.delete :: ordI * -> * -> bag * -> bag *
+    bag.deleteTimes :: ordI * -> * -> int -> bag * -> bag *
+    bag.fromCountList :: ordI * -> [(*, int)] -> bag *
+    bag.fromList :: ordI * -> [*] -> bag *
+    bag.insert :: ordI * -> * -> bag * -> bag *
+    bag.insertTimes :: ordI * -> * -> int -> bag * -> bag *
+    bag.singleton :: * -> bag *
+    bag.union :: ordI * -> bag * -> bag * -> bag *
+    bag.withKeys :: ordI * -> [*] -> bag *
+
+`bag` also re-exports the following from `map`:
+
+    empty null size member first last lookup findWithDefault elems keys keysSet toList deleteKey
+    adjust alter
 
 ### base
 base.am -- common extensions to Admiran's standard library
 
     (base.!>) :: * -> (* -> **) -> **
+    (base.!?) :: [*] -> int -> maybe *
     (base.$!) :: (* -> **) -> * -> **
     (base.&&&) :: (* -> **) -> (* -> ***) -> * -> (**, ***)
     (base.***) :: (* -> **) -> (*** -> ****) -> (*, ***) -> (**, ****)
@@ -164,6 +172,7 @@ base.am -- common extensions to Admiran's standard library
     base.isInfixOf :: ordI * -> [*] -> [*] -> bool
     base.isLower :: char -> bool
     base.isPrefixOf :: ordI * -> [*] -> [*] -> bool
+    base.isSingleton :: [*] -> bool
     base.isSpace :: char -> bool
     base.isUpper :: char -> bool
     base.iterate' :: (* -> *) -> * -> [*]
@@ -181,13 +190,17 @@ base.am -- common extensions to Admiran's standard library
     base.nub :: ordI * -> [*] -> [*]
     base.odd :: int -> bool
     base.on :: (** -> ** -> ***) -> (* -> **) -> * -> * -> ***
-    base.padl :: int -> string -> string
-    base.padr :: int -> string -> string
+    base.padL :: int -> string -> string
+    base.padR :: int -> string -> string
     base.pair :: * -> ** -> (*, **)
     base.partition :: (* -> bool) -> [*] -> ([*], [*])
     base.permutations :: [*] -> [[*]]
     base.permutationsWithRep :: [*] -> [[*]]
     base.replicate :: int -> * -> [*]
+    base.safeHd :: [*] -> maybe *
+    base.safeInit :: [*] -> maybe ([*])
+    base.safeLast :: [*] -> maybe *
+    base.safeTl :: [*] -> maybe ([*])
     base.scanl :: (* -> ** -> *) -> * -> [**] -> [*]
     base.scanr :: (** -> * -> *) -> * -> [**] -> [*]
     base.setAt :: int -> * -> [*] -> [*]
@@ -234,31 +247,31 @@ base.am -- common extensions to Admiran's standard library
 ### bfs
 bfs.am -- implementation of a shortest path finder using a breadth-first search
 
-    bfs.backtrace :: ordI * -> * -> ** -> m_map * * -> ([*], **)
+    bfs.backtrace :: ordI * -> * -> ** -> m.map * * -> ([*], **)
     bfs.bfsSolve :: ordI * -> * -> (* -> bool) -> ((*, **) -> ([*], **)) -> ** -> ([*], **)
 
 ### bitSet
 bitSet.am -- representation of a set of small (< 64) natural numbers using an int, as an abstract type
 
-    bitSet.bs_all :: int -> bitSet
-    bitSet.bs_delete :: int -> bitSet -> bitSet
-    bitSet.bs_difference :: bitSet -> bitSet -> bitSet
-    bitSet.bs_empty :: bitSet
-    bitSet.bs_first :: bitSet -> int
-    bitSet.bs_fromInt :: int -> bitSet
-    bitSet.bs_fromList :: [int] -> bitSet
-    bitSet.bs_insert :: int -> bitSet -> bitSet
-    bitSet.bs_intersect :: bitSet -> bitSet -> bitSet
-    bitSet.bs_last :: bitSet -> int
-    bitSet.bs_member :: int -> bitSet -> bool
-    bitSet.bs_null :: bitSet -> bool
-    bitSet.bs_singleton :: int -> bitSet
-    bitSet.bs_size :: bitSet -> int
-    bitSet.bs_toInt :: bitSet -> int
-    bitSet.bs_toList :: bitSet -> [int]
-    bitSet.bs_union :: bitSet -> bitSet -> bitSet
+    bitSet.all :: int -> bitSet
     bitSet.cmpbitSet :: bitSet -> bitSet -> ordering
+    bitSet.delete :: int -> bitSet -> bitSet
+    bitSet.difference :: bitSet -> bitSet -> bitSet
+    bitSet.empty :: bitSet
+    bitSet.first :: bitSet -> int
+    bitSet.fromInt :: int -> bitSet
+    bitSet.fromList :: [int] -> bitSet
+    bitSet.insert :: int -> bitSet -> bitSet
+    bitSet.intersect :: bitSet -> bitSet -> bitSet
+    bitSet.last :: bitSet -> int
+    bitSet.member :: int -> bitSet -> bool
+    bitSet.null :: bitSet -> bool
     bitSet.showbitSet :: bitSet -> string
+    bitSet.singleton :: int -> bitSet
+    bitSet.size :: bitSet -> int
+    bitSet.toInt :: bitSet -> int
+    bitSet.toList :: bitSet -> [int]
+    bitSet.union :: bitSet -> bitSet -> bitSet
 
 ### dequeue
 dequeue.am -- a double-ended queue of elements that allows quick insertion / deletion at both ends
@@ -269,51 +282,62 @@ dequeue.am -- a double-ended queue of elements that allows quick insertion / del
     dequeue.FT2 :: * -> * -> dequeue *
     dequeue.FT3 :: * -> * -> * -> dequeue *
     dequeue.FTN :: dequeue * -> dequeue (dequeue *) -> dequeue * -> dequeue *
-    dequeue.dq_addL :: * -> dequeue * -> dequeue *
-    dequeue.dq_addR :: * -> dequeue * -> dequeue *
-    dequeue.dq_empty :: dequeue *
-    dequeue.dq_fromList :: [*] -> dequeue *
-    dequeue.dq_null :: dequeue * -> bool
-    dequeue.dq_singleton :: * -> dequeue *
-    dequeue.dq_size :: dequeue * -> int
-    dequeue.dq_toList :: dequeue * -> [*]
-    dequeue.dq_viewL :: dequeue * -> maybe ((*, dequeue *))
-    dequeue.dq_viewR :: dequeue * -> maybe ((*, dequeue *))
+    dequeue.addL :: * -> dequeue * -> dequeue *
+    dequeue.addR :: * -> dequeue * -> dequeue *
+    dequeue.empty :: dequeue *
+    dequeue.fromList :: [*] -> dequeue *
     dequeue.isSat :: dequeue * -> bool
+    dequeue.null :: dequeue * -> bool
+    dequeue.singleton :: * -> dequeue *
+    dequeue.size :: dequeue * -> int
+    dequeue.toList :: dequeue * -> [*]
+    dequeue.viewL :: dequeue * -> maybe ((*, dequeue *))
+    dequeue.viewR :: dequeue * -> maybe ((*, dequeue *))
 
 ### either
 either.am -- sum type of two distinct types
 
     either.either * ** ::= either.Left * | either.Right **
+    (either.<$>) :: (** -> ***) -> either * ** -> either * ***
+    (either.<&>) :: either * ** -> (** -> ***) -> either * ***
+    (either.<*>) :: either * (** -> ***) -> either * ** -> either * ***
+    (either.<<) :: either * ** -> either * *** -> either * **
+    (either.>=>) :: (* -> either ** ***) -> (*** -> either ** ****) -> * -> either ** ****
+    (either.>>) :: either * ** -> either * *** -> either * ***
+    (either.>>=) :: either * ** -> (** -> either * ***) -> either * ***
     either.Left :: * -> either * **
     either.Right :: ** -> either * **
-    either.e_apply :: either * (** -> ***) -> either * ** -> either * ***
-    either.e_bind :: either * ** -> (** -> either * ***) -> either * ***
-    either.e_fmap :: (** -> ***) -> either * ** -> either * ***
-    either.e_foldM :: (** -> * -> either *** **) -> ** -> [*] -> either *** **
-    either.e_kbind :: (* -> either ** ***) -> (*** -> either ** ****) -> * -> either ** ****
-    either.e_liftA2 :: (** -> *** -> ****) -> either * ** -> either * *** -> either * ****
-    either.e_mapM :: (* -> either ** ***) -> [*] -> either ** ([***])
-    either.e_pure :: ** -> either * **
-    either.e_sequence :: [either * **] -> either * ([**])
     either.eitherf :: (* -> ***) -> (** -> ***) -> either * ** -> ***
+    either.foldM :: (** -> * -> either *** **) -> ** -> [*] -> either *** **
     either.fromEither :: ** -> either * ** -> **
     either.isLeft :: either * ** -> bool
     either.isRight :: either * ** -> bool
+    either.liftA2 :: (** -> *** -> ****) -> either * ** -> either * *** -> either * ****
+    either.mapM :: (* -> either ** ***) -> [*] -> either ** ([***])
     either.partitionEithers :: [either * **] -> ([*], [**])
+    either.pure :: ** -> either * **
+    either.sequence :: [either * **] -> either * ([**])
 
 ### fix16
 fixed-point representation with 16-bit fractional part, as a substitute for floats
 
-    (fix16.*.) :: fix16 -> fix16 -> fix16
-    (fix16.+.) :: fix16 -> fix16 -> fix16
-    (fix16.-.) :: fix16 -> fix16 -> fix16
-    (fix16./.) :: fix16 -> fix16 -> fix16
+    (fix16.*%) :: fix16 -> fix16 -> fix16
+    (fix16.+%) :: fix16 -> fix16 -> fix16
+    (fix16.-%) :: fix16 -> fix16 -> fix16
+    (fix16./%) :: fix16 -> fix16 -> fix16
+    (fix16.<%) :: fix16 -> fix16 -> bool
+    (fix16.<=%) :: fix16 -> fix16 -> bool
+    (fix16.==%) :: fix16 -> fix16 -> bool
+    (fix16.>%) :: fix16 -> fix16 -> bool
+    (fix16.>=%) :: fix16 -> fix16 -> bool
+    (fix16.~=%) :: fix16 -> fix16 -> bool
     fix16.cmpfix16 :: fix16 -> fix16 -> ordering
     fix16.fix16Frac :: fix16 -> int
     fix16.fix16Int :: fix16 -> int
     fix16.fix16val :: string -> fix16
+    fix16.showFracDigits :: int -> fix16 -> (int, string)
     fix16.showfix16 :: fix16 -> string
+    fix16.showfix16Digits :: int -> fix16 -> string
     fix16.toFix16Frac :: int -> fix16
     fix16.toFix16Int :: int -> fix16
 
@@ -326,30 +350,30 @@ heap.am -- tree-based priority queue
     heap.HTnode :: int -> * -> hforest * -> htree *
     heap.Heap :: int -> htree * -> heap *
     heap.Hempty :: heap *
-    heap.h_empty :: heap *
-    heap.h_fromList :: ordI * -> [*] -> heap *
-    heap.h_insert :: ordI * -> * -> heap * -> heap *
-    heap.h_null :: heap * -> bool
-    heap.h_singleton :: * -> heap *
-    heap.h_size :: heap * -> int
-    heap.h_toList :: heap * -> [*]
-    heap.h_union :: ordI * -> heap * -> heap * -> heap *
-    heap.h_viewMin :: ordI * -> heap * -> maybe ((*, heap *))
+    heap.empty :: heap *
+    heap.f_viewMin :: ordI * -> hforest * -> maybe ((htree *, hforest *))
+    heap.fromList :: ordI * -> [*] -> heap *
     heap.ins :: ordI * -> htree * -> hforest * -> hforest *
+    heap.insert :: ordI * -> * -> heap * -> heap *
     heap.link :: ordI * -> htree * -> htree * -> htree *
+    heap.null :: heap * -> bool
     heap.rank :: htree * -> int
     heap.root :: htree * -> *
+    heap.singleton :: * -> heap *
+    heap.size :: heap * -> int
     heap.skewInsert :: ordI * -> htree * -> hforest * -> hforest *
     heap.skewLink :: ordI * -> htree * -> htree * -> htree * -> htree *
     heap.skewMeld :: ordI * -> hforest * -> hforest * -> hforest *
     heap.splitForest :: int -> hforest * -> hforest * -> hforest * -> (hforest *, hforest *, hforest *)
     heap.t_toList :: htree * -> [*]
+    heap.toList :: heap * -> [*]
+    heap.union :: ordI * -> heap * -> heap * -> heap *
     heap.unionUniq :: ordI * -> hforest * -> hforest * -> hforest *
     heap.uniqify :: ordI * -> hforest * -> hforest *
-    heap.viewMin :: ordI * -> hforest * -> maybe ((htree *, hforest *))
+    heap.viewMin :: ordI * -> heap * -> maybe ((*, heap *))
 
 ### io
-io.am -- the IO monad for sequencing access to the outside world
+io.am -- the IO monad for sequencing access to the outside world, based upon the state monad
 
     io.handle ::= io.Handle word#
     io.world ::= io.World
@@ -374,6 +398,7 @@ io.am -- the IO monad for sequencing access to the outside world
     io.putStr :: string -> io builtin.unit
     io.putStrLn :: string -> io builtin.unit
     io.readFile :: string -> io string
+    io.readFile' :: string -> io string
     io.readFileStream :: handle -> io string
     io.stderr :: handle
     io.stdin :: handle
@@ -383,6 +408,11 @@ io.am -- the IO monad for sequencing access to the outside world
     io.unsafePerformIO :: io * -> *
     io.writeFile :: string -> string -> io builtin.unit
     io.writeFileStream :: handle -> string -> io builtin.unit
+
+`io` also re-exports the following from `state`:
+
+    pure (>>=) (>=>) mapM mapM_ forM foldM (<$>) (<&>) (<*>) liftA2 liftA3 (<<) (>>) bind2 bind3
+    sequence sequence_
 
 ### ioStream
 ioStream.am -- io with streams
@@ -412,101 +442,118 @@ and `<field>` is the index of the tuple field being specified, e.g.
 ### map
 map.am -- implementation of a strict map from key to value, using AVL trees
 
-    map.m_map * ** == avlTree ((*, **))
-    map.m_adjust :: ordI * -> (** -> **) -> * -> m_map * ** -> m_map * **
-    map.m_alter :: ordI * -> (maybe ** -> maybe **) -> * -> m_map * ** -> m_map * **
-    map.m_delete :: ordI * -> * -> m_map * ** -> m_map * **
-    map.m_elems :: m_map * ** -> [**]
-    map.m_filter :: ordI * -> (** -> bool) -> m_map * ** -> m_map * **
-    map.m_filterWithKey :: ordI * -> ((*, **) -> bool) -> m_map * ** -> m_map * **
-    map.m_findWithDefault :: ordI * -> ** -> * -> m_map * ** -> **
-    map.m_fmap :: (** -> ***) -> m_map * ** -> m_map * ***
-    map.m_fmapWithKey :: (* -> ** -> ***) -> m_map * ** -> m_map * ***
-    map.m_foldl :: (*** -> ** -> ***) -> *** -> m_map * ** -> ***
-    map.m_foldr :: (** -> *** -> ***) -> *** -> m_map * ** -> ***
-    map.m_fromList :: ordI * -> [(*, **)] -> m_map * **
-    map.m_insert :: ordI * -> * -> ** -> m_map * ** -> m_map * **
-    map.m_insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> m_map * ** -> m_map * **
-    map.m_keys :: m_map * ** -> [*]
-    map.m_keysSet :: m_map * ** -> avlTree *
-    map.m_lookup :: ordI * -> * -> m_map * ** -> maybe **
-    map.m_mapAccumL :: (**** -> ** -> (****, ***)) -> **** -> m_map * ** -> (****, m_map * ***)
-    map.m_member :: ordI * -> * -> m_map * ** -> bool
-    map.m_singleton :: * -> ** -> m_map * **
-    map.m_union :: ordI * -> m_map * ** -> m_map * ** -> m_map * **
+    map.map * ** == avlTree ((*, **))
+    (map.<$>) :: (** -> ***) -> map * ** -> map * ***
+    (map.<&>) :: map * ** -> (** -> ***) -> map * ***
+    map.adjust :: ordI * -> (** -> **) -> * -> map * ** -> map * **
+    map.alter :: ordI * -> (maybe ** -> maybe **) -> * -> map * ** -> map * **
+    map.delete :: ordI * -> * -> map * ** -> map * **
+    map.elems :: map * ** -> [**]
+    map.filter :: ordI * -> (** -> bool) -> map * ** -> map * **
+    map.filterWithKey :: ordI * -> ((*, **) -> bool) -> map * ** -> map * **
+    map.findWithDefault :: ordI * -> ** -> * -> map * ** -> **
+    map.fmapWithKey :: (* -> ** -> ***) -> map * ** -> map * ***
+    map.foldl :: (*** -> ** -> ***) -> *** -> map * ** -> ***
+    map.foldr :: (** -> *** -> ***) -> *** -> map * ** -> ***
+    map.fromList :: ordI * -> [(*, **)] -> map * **
+    map.insert :: ordI * -> * -> ** -> map * ** -> map * **
+    map.insertWith :: ordI * -> (** -> ** -> **) -> * -> ** -> map * ** -> map * **
+    map.keys :: map * ** -> [*]
+    map.keysSet :: map * ** -> avlTree *
+    map.lookup :: ordI * -> * -> map * ** -> maybe **
+    map.mapAccumL :: (**** -> ** -> (****, ***)) -> **** -> map * ** -> (****, map * ***)
+    map.member :: ordI * -> * -> map * ** -> bool
+    map.singleton :: * -> ** -> map * **
+    map.union :: ordI * -> map * ** -> map * ** -> map * **
+
+`map` also re-exports the following from `avl`:
+
+    empty null isSingleton size first last toList
+
+
 
 ### maybe
 maybe.am -- sum type of "Nothing" and another type
 
     maybe.maybe * ::= maybe.Nothing | maybe.Just *
+    (maybe.<$>) :: (* -> **) -> maybe * -> maybe **
+    (maybe.<&>) :: maybe * -> (* -> **) -> maybe **
+    (maybe.<*>) :: maybe (* -> **) -> maybe * -> maybe **
+    (maybe.<<) :: maybe * -> maybe ** -> maybe *
+    (maybe.<|>) :: maybe * -> maybe * -> maybe *
+    (maybe.>=>) :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
+    (maybe.>>) :: maybe * -> maybe ** -> maybe **
+    (maybe.>>=) :: maybe * -> (* -> maybe **) -> maybe **
     maybe.Just :: * -> maybe *
     maybe.Nothing :: maybe *
     maybe.catMaybes :: [maybe *] -> [*]
+    maybe.filterM :: (* -> maybe bool) -> [*] -> maybe ([*])
+    maybe.foldM :: (** -> * -> maybe **) -> ** -> [*] -> maybe **
     maybe.fromJust :: maybe * -> *
     maybe.fromMaybe :: * -> maybe * -> *
     maybe.fromMaybef :: ** -> (* -> **) -> maybe * -> **
     maybe.isJust :: maybe * -> bool
     maybe.isNothing :: maybe * -> bool
+    maybe.liftA2 :: (* -> ** -> ***) -> maybe * -> maybe ** -> maybe ***
+    maybe.mapM :: (* -> maybe **) -> [*] -> maybe ([**])
     maybe.mapMaybe :: (* -> maybe **) -> [*] -> [**]
-    maybe.mb_alt :: maybe * -> maybe * -> maybe *
-    maybe.mb_apply :: maybe (* -> **) -> maybe * -> maybe **
-    maybe.mb_bind :: maybe * -> (* -> maybe **) -> maybe **
-    maybe.mb_filterM :: (* -> maybe bool) -> [*] -> maybe ([*])
-    maybe.mb_fmap :: (* -> **) -> maybe * -> maybe **
-    maybe.mb_foldM :: (** -> * -> maybe **) -> ** -> [*] -> maybe **
-    maybe.mb_kbind :: (* -> maybe **) -> (** -> maybe ***) -> * -> maybe ***
-    maybe.mb_left :: maybe * -> maybe ** -> maybe *
-    maybe.mb_liftA2 :: (* -> ** -> ***) -> maybe * -> maybe ** -> maybe ***
-    maybe.mb_mapM :: (* -> maybe **) -> [*] -> maybe ([**])
-    maybe.mb_pure :: * -> maybe *
-    maybe.mb_right :: maybe * -> maybe ** -> maybe **
-    maybe.mb_sequence :: [maybe *] -> maybe ([*])
+    maybe.pure :: * -> maybe *
+    maybe.sequence :: [maybe *] -> maybe ([*])
 
 ### maybeState
 maybeState.am -- functor / applicative / monad / alternative for a state monad augmented with maybe
 
     maybeState.maybeState * ** == state * (maybe **)
-    maybeState.mst_alt :: maybeState * ** -> maybeState * ** -> maybeState * **
-    maybeState.mst_apply :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***
-    maybeState.mst_bind :: maybeState * ** -> (** -> maybeState * ***) -> maybeState * ***
-    maybeState.mst_bind2 :: maybeState * ** -> maybeState * *** -> (** -> *** -> maybeState * ****) -> maybeState * ****
-    maybeState.mst_bind3 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> (** -> *** -> **** -> maybeState * *****) -> maybeState * *****
-    maybeState.mst_bind4 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> (** -> *** -> **** -> ***** -> maybeState * *6) -> maybeState * *6
-    maybeState.mst_fail :: maybeState * **
-    maybeState.mst_filterM :: (** -> maybeState * bool) -> [**] -> maybeState * ([**])
-    maybeState.mst_fmap :: (** -> ***) -> maybeState * ** -> maybeState * ***
-    maybeState.mst_foldM :: (*** -> ** -> maybeState * ***) -> *** -> [**] -> maybeState * ***
-    maybeState.mst_forM :: [**] -> (** -> maybeState * ***) -> maybeState * builtin.unit
-    maybeState.mst_get :: maybeState * *
-    maybeState.mst_join :: maybeState * (maybeState * **) -> maybeState * **
-    maybeState.mst_kbind :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> maybeState * ****
-    maybeState.mst_left :: maybeState * ** -> maybeState * *** -> maybeState * **
-    maybeState.mst_lift :: state * ** -> maybeState * **
-    maybeState.mst_liftA2 :: (** -> *** -> ****) -> maybeState * ** -> maybeState * *** -> maybeState * ****
-    maybeState.mst_liftA3 :: (** -> *** -> **** -> *****) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * *****
-    maybeState.mst_liftA4 :: (** -> *** -> **** -> ***** -> *6) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> maybeState * *6
-    maybeState.mst_many :: maybeState * ** -> maybeState * ([**])
-    maybeState.mst_mapM :: (** -> maybeState * ***) -> [**] -> maybeState * ([***])
-    maybeState.mst_mapM_ :: (** -> maybeState * ***) -> [**] -> maybeState * builtin.unit
-    maybeState.mst_maybe :: maybe ** -> maybeState * **
-    maybeState.mst_modify :: (* -> *) -> maybeState * builtin.unit
-    maybeState.mst_pure :: ** -> maybeState * **
-    maybeState.mst_put :: * -> maybeState * builtin.unit
-    maybeState.mst_right :: maybeState * ** -> maybeState * *** -> maybeState * ***
-    maybeState.mst_sequence :: [maybeState * **] -> maybeState * ([**])
-    maybeState.mst_sequence_ :: [maybeState * **] -> maybeState * builtin.unit
-    maybeState.mst_some :: maybeState * ** -> maybeState * ([**])
+    (maybeState.<$>) :: (** -> ***) -> maybeState * ** -> maybeState * ***
+    (maybeState.<&>) :: maybeState * ** -> (** -> ***) -> maybeState * ***
+    (maybeState.<*>) :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***
+    (maybeState.<<) :: maybeState * ** -> maybeState * *** -> maybeState * **
+    (maybeState.<|>) :: maybeState * ** -> maybeState * ** -> maybeState * **
+    (maybeState.>=>) :: (** -> maybeState * ***) -> (*** -> maybeState * ****) -> ** -> maybeState * ****
+    (maybeState.>>) :: maybeState * ** -> maybeState * *** -> maybeState * ***
+    (maybeState.>>=) :: maybeState * ** -> (** -> maybeState * ***) -> maybeState * ***
+    maybeState.bind2 :: maybeState * ** -> maybeState * *** -> (** -> *** -> maybeState * ****) -> maybeState * ****
+    maybeState.bind3 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> (** -> *** -> **** -> maybeState * *****) -> maybeState * *****
+    maybeState.bind4 :: maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> (** -> *** -> **** -> ***** -> maybeState * *6) -> maybeState * *6
+    maybeState.fail :: maybeState * **
+    maybeState.filterM :: (** -> maybeState * bool) -> [**] -> maybeState * ([**])
+    maybeState.foldM :: (*** -> ** -> maybeState * ***) -> *** -> [**] -> maybeState * ***
+    maybeState.forM :: [**] -> (** -> maybeState * ***) -> maybeState * builtin.unit
+    maybeState.get :: maybeState * *
+    maybeState.join :: maybeState * (maybeState * **) -> maybeState * **
+    maybeState.liftA2 :: (** -> *** -> ****) -> maybeState * ** -> maybeState * *** -> maybeState * ****
+    maybeState.liftA3 :: (** -> *** -> **** -> *****) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * *****
+    maybeState.liftA4 :: (** -> *** -> **** -> ***** -> *6) -> maybeState * ** -> maybeState * *** -> maybeState * **** -> maybeState * ***** -> maybeState * *6
+    maybeState.liftMaybe :: maybe ** -> maybeState * **
+    maybeState.liftState :: state * ** -> maybeState * **
+    maybeState.many :: maybeState * ** -> maybeState * ([**])
+    maybeState.mapM :: (** -> maybeState * ***) -> [**] -> maybeState * ([***])
+    maybeState.mapM_ :: (** -> maybeState * ***) -> [**] -> maybeState * builtin.unit
+    maybeState.modify :: (* -> *) -> maybeState * builtin.unit
+    maybeState.over :: lens * ** -> (** -> **) -> maybeState * builtin.unit
+    maybeState.pure :: ** -> maybeState * **
+    maybeState.put :: * -> maybeState * builtin.unit
+    maybeState.sequence :: [maybeState * **] -> maybeState * ([**])
+    maybeState.sequence_ :: [maybeState * **] -> maybeState * builtin.unit
+    maybeState.set :: lens * ** -> ** -> maybeState * builtin.unit
+    maybeState.some :: maybeState * ** -> maybeState * ([**])
+    maybeState.view :: lens * ** -> maybeState * **
+
+`maybeState` also re-exports the following from `state`:
+
+    runState evalState execState`
 
 ### memo
 memo.am -- memoization of a single-argument function with a state map
 
-    memo.memoSt * ** == state ((ordI *, m_map * **)) **
+    memo.memoSt * ** == state ((ordI *, m.map * **)) **
     memo.memo :: (* -> memoSt * **) -> * -> memoSt * **
 
 ### memoTrie
 memoTrie.am -- memoization of functions using a lazy mapping of indices in a trie
 
     memoTrie.tree * ::= memoTrie.Tree (tree *) * (tree *)
+    (memoTrie.<$>) :: (* -> **) -> tree * -> tree **
     memoTrie.Tree :: tree * -> * -> tree * -> tree *
     memoTrie.memo :: (* -> int) -> (int -> *) -> (* -> **) -> * -> **
     memoTrie.memochar :: (char -> *) -> char -> *
@@ -515,136 +562,152 @@ memoTrie.am -- memoization of functions using a lazy mapping of indices in a tri
     memoTrie.memolist :: ((* -> [*] -> **) -> * -> [*] -> **) -> ([*] -> **) -> [*] -> **
     memoTrie.memopair :: ((* -> ** -> ***) -> * -> ** -> ***) -> ((** -> ***) -> ** -> ***) -> ((*, **) -> ***) -> (*, **) -> ***
     memoTrie.memostring :: (string -> *) -> string -> *
-    memoTrie.t_fmap :: (* -> **) -> tree * -> tree **
 
 ### parser
 parser.am -- a parser combinator library for strings, based upon the maybeState monad, which tracks line and column position for error reporting
 
     parser.parser * == maybeState psSt *
-    parser.psSt == (word#, word#, [char])
-    parser.p_alt :: parser * -> parser * -> parser *
-    parser.p_any :: parser char
-    parser.p_anyOf :: [char] -> parser char
-    parser.p_char :: char -> parser char
-    parser.p_comma :: parser char
-    parser.p_cons :: parser * -> parser ([*]) -> parser ([*])
-    parser.p_count :: int -> parser * -> parser ([*])
-    parser.p_digit :: parser char
-    parser.p_end :: parser builtin.unit
-    parser.p_error :: psSt -> [char]
-    parser.p_inAngles :: parser * -> parser *
-    parser.p_inBraces :: parser * -> parser *
-    parser.p_inBrackets :: parser * -> parser *
-    parser.p_inParens :: parser * -> parser *
-    parser.p_int :: parser int
-    parser.p_intlist :: parser ([int])
-    parser.p_letter :: parser char
-    parser.p_many :: parser * -> parser ([*])
-    parser.p_manySepBy :: parser * -> parser ** -> parser ([**])
-    parser.p_manyUntil :: parser * -> parser ** -> parser ([*])
-    parser.p_noneOf :: [char] -> parser char
-    parser.p_not :: parser * -> parser builtin.unit
-    parser.p_notChar :: char -> parser char
-    parser.p_optional :: parser * -> parser (maybe *)
-    parser.p_peek :: parser * -> parser builtin.unit
-    parser.p_posint :: parser int
-    parser.p_satisfy :: (char -> bool) -> parser char
-    parser.p_skipUntil :: parser * -> parser ** -> parser **
-    parser.p_some :: parser * -> parser ([*])
-    parser.p_someSepBy :: parser * -> parser ** -> parser ([**])
-    parser.p_space :: parser char
-    parser.p_spaces :: parser ([char])
-    parser.p_string :: [char] -> parser ([char])
-    parser.p_word :: parser ([char])
-    parser.parse :: parser * -> [char] -> (maybe *, psSt)
-    parser.readIntlist :: string -> [int]
+    parser.psSt == (word#, word#, [std.char])
+    (parser.<|>) :: parser * -> parser * -> parser *
+    parser.any :: parser std.char
+    parser.anyOf :: [std.char] -> parser std.char
+    parser.char :: std.char -> parser std.char
+    parser.comma :: parser std.char
+    parser.cons :: parser * -> parser ([*]) -> parser ([*])
+    parser.count :: std.int -> parser * -> parser ([*])
+    parser.digit :: parser std.char
+    parser.end :: parser builtin.unit
+    parser.error :: psSt -> [std.char]
+    parser.inAngles :: parser * -> parser *
+    parser.inBraces :: parser * -> parser *
+    parser.inBrackets :: parser * -> parser *
+    parser.inParens :: parser * -> parser *
+    parser.int :: parser std.int
+    parser.intlist :: parser ([std.int])
+    parser.letter :: parser std.char
+    parser.many :: parser * -> parser ([*])
+    parser.manySepBy :: parser * -> parser ** -> parser ([**])
+    parser.manyUntil :: parser * -> parser ** -> parser ([*])
+    parser.noneOf :: [std.char] -> parser std.char
+    parser.not :: parser * -> parser builtin.unit
+    parser.notChar :: std.char -> parser std.char
+    parser.optional :: parser * -> parser (maybe *)
+    parser.parse :: parser * -> [std.char] -> (maybe *, psSt)
+    parser.peek :: parser * -> parser builtin.unit
+    parser.posint :: parser std.int
+    parser.readIntlist :: std.string -> [std.int]
+    parser.satisfy :: (std.char -> bool) -> parser std.char
+    parser.skipUntil :: parser * -> parser ** -> parser **
+    parser.some :: parser * -> parser ([*])
+    parser.someSepBy :: parser * -> parser ** -> parser ([**])
+    parser.space :: parser std.char
+    parser.spaces :: parser ([std.char])
+    parser.string :: [std.char] -> parser ([std.char])
+    parser.word :: parser ([std.char])
+
+`parser` also re-exports the following from maybeState
+
+    get put modify pure fail (>>=) (<$>) (<&>) (<*>) (<<) (>>) liftA2 liftA3 liftA4 mapM foldM bind2 bind3
 
 ### rws
 rws.am -- reader+writer+state functor/applicative/monad with strict writer and state
 
     rws.rws * ** *** **** == * -> *** -> [**] -> (****, ***, [**])
-    rws.rws_apply :: rws * ** *** (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
-    rws.rws_ask :: rws * ** *** *
-    rws.rws_asks :: (* -> ****) -> rws * ** *** ****
-    rws.rws_bind :: rws * ** *** **** -> (**** -> rws * ** *** *****) -> rws * ** *** *****
-    rws.rws_bind2 :: rws * ** *** **** -> rws * ** *** ***** -> (**** -> ***** -> rws * ** *** *6) -> rws * ** *** *6
-    rws.rws_bind3 :: rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6 -> (**** -> ***** -> *6 -> rws * ** *** *7) -> rws * ** *** *7
-    rws.rws_evalRWS :: rws * ** *** **** -> * -> *** -> [**] -> (****, [**])
-    rws.rws_execRWS :: rws * ** *** **** -> * -> *** -> [**] -> (***, [**])
-    rws.rws_filterM :: (**** -> rws * ** *** bool) -> [****] -> rws * ** *** ([****])
-    rws.rws_fmap :: (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
-    rws.rws_foldM :: (***** -> **** -> rws * ** *** *****) -> ***** -> [****] -> rws * ** *** *****
-    rws.rws_forM :: [****] -> (**** -> rws * ** *** *****) -> rws * ** *** builtin.unit
-    rws.rws_get :: rws * ** *** ***
-    rws.rws_join :: rws * ** *** (rws * ** *** ****) -> rws * ** *** ****
-    rws.rws_kbind :: (**** -> rws * ** *** *****) -> (***** -> rws * ** *** *6) -> **** -> rws * ** *** *6
-    rws.rws_left :: rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** ****
-    rws.rws_liftA2 :: (**** -> ***** -> *6) -> rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6
-    rws.rws_liftA3 :: (**** -> ***** -> *6 -> *7) -> rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6 -> rws * ** *** *7
-    rws.rws_liftA4 :: (**** -> ***** -> *6 -> *7 -> *8) -> rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6 -> rws * ** *** *7 -> rws * ** *** *8
-    rws.rws_local :: (* -> *) -> rws * ** *** **** -> rws * ** *** ****
-    rws.rws_mapM :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ([*****])
-    rws.rws_mapM_ :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** builtin.unit
-    rws.rws_modify :: (*** -> ***) -> rws * ** *** builtin.unit
-    rws.rws_pure :: **** -> rws * ** *** ****
-    rws.rws_put :: *** -> rws * ** *** builtin.unit
-    rws.rws_right :: rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *****
-    rws.rws_runRWS :: rws * ** *** **** -> * -> *** -> [**] -> (****, ***, [**])
-    rws.rws_sequence :: [rws * ** *** ****] -> rws * ** *** ([****])
-    rws.rws_tell :: ** -> rws * ** *** builtin.unit
-    rws.rws_tells :: ([**] -> [**]) -> rws * ** *** builtin.unit
+    (rws.<$>) :: (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
+    (rws.<&>) :: rws * ** *** **** -> (**** -> *****) -> rws * ** *** *****
+    (rws.<*>) :: rws * ** *** (**** -> *****) -> rws * ** *** **** -> rws * ** *** *****
+    (rws.<<) :: rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** ****
+    (rws.>=>) :: (**** -> rws * ** *** *****) -> (***** -> rws * ** *** *6) -> **** -> rws * ** *** *6
+    (rws.>>) :: rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *****
+    (rws.>>=) :: rws * ** *** **** -> (**** -> rws * ** *** *****) -> rws * ** *** *****
+    rws.ask :: rws * ** *** *
+    rws.asks :: (* -> ****) -> rws * ** *** ****
+    rws.bind2 :: rws * ** *** **** -> rws * ** *** ***** -> (**** -> ***** -> rws * ** *** *6) -> rws * ** *** *6
+    rws.bind3 :: rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6 -> (**** -> ***** -> *6 -> rws * ** *** *7) -> rws * ** *** *7
+    rws.evalRWS :: rws * ** *** **** -> * -> *** -> [**] -> (****, [**])
+    rws.execRWS :: rws * ** *** **** -> * -> *** -> [**] -> (***, [**])
+    rws.filterM :: (**** -> rws * ** *** bool) -> [****] -> rws * ** *** ([****])
+    rws.foldM :: (***** -> **** -> rws * ** *** *****) -> ***** -> [****] -> rws * ** *** *****
+    rws.forM :: [****] -> (**** -> rws * ** *** *****) -> rws * ** *** builtin.unit
+    rws.get :: rws * ** *** ***
+    rws.join :: rws * ** *** (rws * ** *** ****) -> rws * ** *** ****
+    rws.liftA2 :: (**** -> ***** -> *6) -> rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6
+    rws.liftA3 :: (**** -> ***** -> *6 -> *7) -> rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6 -> rws * ** *** *7
+    rws.liftA4 :: (**** -> ***** -> *6 -> *7 -> *8) -> rws * ** *** **** -> rws * ** *** ***** -> rws * ** *** *6 -> rws * ** *** *7 -> rws * ** *** *8
+    rws.local :: (* -> *) -> rws * ** *** **** -> rws * ** *** ****
+    rws.mapM :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** ([*****])
+    rws.mapM_ :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** builtin.unit
+    rws.modify :: (*** -> ***) -> rws * ** *** builtin.unit
+    rws.over :: lens *** **** -> (**** -> ****) -> rws * ** *** builtin.unit
+    rws.pure :: **** -> rws * ** *** ****
+    rws.put :: *** -> rws * ** *** builtin.unit
+    rws.runRWS :: rws * ** *** **** -> * -> *** -> [**] -> (****, ***, [**])
+    rws.sequence :: [rws * ** *** ****] -> rws * ** *** ([****])
+    rws.set :: lens *** **** -> **** -> rws * ** *** builtin.unit
+    rws.tell :: ** -> rws * ** *** builtin.unit
+    rws.tells :: ([**] -> [**]) -> rws * ** *** builtin.unit
+    rws.view :: lens *** **** -> rws * ** *** ****
 
 ### set
 set.am -- implementation of a strict set using AVL trees
 
-    set.s_set * == avlTree *
-    set.s_difference :: ordI * -> s_set * -> s_set * -> s_set *
-    set.s_filter :: ordI * -> (* -> bool) -> s_set * -> s_set *
-    set.s_fmap :: ordI ** -> (* -> **) -> s_set * -> s_set **
-    set.s_fromList :: ordI * -> [*] -> s_set *
-    set.s_insert :: ordI * -> * -> s_set * -> s_set *
-    set.s_insertIfAbsent :: ordI * -> * -> s_set * -> maybe (s_set *)
-    set.s_intersect :: ordI * -> s_set * -> s_set * -> s_set *
-    set.s_lookupGE :: ordI * -> * -> s_set * -> maybe *
-    set.s_lookupLE :: ordI * -> * -> s_set * -> maybe *
-    set.s_union :: ordI * -> s_set * -> s_set * -> s_set *
-    set.s_viewMax :: s_set * -> maybe ((*, s_set *))
-    set.s_viewMin :: s_set * -> maybe ((*, s_set *))
+    set.set * == avlTree *
+    (set.<$>) :: ordI ** -> (* -> **) -> set * -> set **
+    (set.<&>) :: ordI ** -> set * -> (* -> **) -> set **
+    set.difference :: ordI * -> set * -> set * -> set *
+    set.filter :: ordI * -> (* -> bool) -> set * -> set *
+    set.fromList :: ordI * -> [*] -> set *
+    set.insert :: ordI * -> * -> set * -> set *
+    set.insertIfAbsent :: ordI * -> * -> set * -> maybe (set *)
+    set.intersect :: ordI * -> set * -> set * -> set *
+    set.lookupGE :: ordI * -> * -> set * -> maybe *
+    set.lookupLE :: ordI * -> * -> set * -> maybe *
+    set.union :: ordI * -> set * -> set * -> set *
+    set.viewMax :: set * -> maybe ((*, set *))
+    set.viewMin :: set * -> maybe ((*, set *))
+
+`set` also re-exports the following from `avl`:
+
+    empty null singleton isSingleton size member first last delete toList foldr foldl
 
 ### state
 state.am -- strict state functor / applicative / monad
 
     state.state * ** == * -> (**, *)
-    state.st_apply :: state * (** -> ***) -> state * ** -> state * ***
-    state.st_bind :: state * ** -> (** -> state * ***) -> state * ***
-    state.st_bind2 :: state * ** -> state * *** -> (** -> *** -> state * ****) -> state * ****
-    state.st_bind3 :: state * ** -> state * *** -> state * **** -> (** -> *** -> **** -> state * *****) -> state * *****
-    state.st_bind4 :: state * ** -> state * *** -> state * **** -> state * ***** -> (** -> *** -> **** -> ***** -> state * *6) -> state * *6
-    state.st_bind5 :: state * ** -> state * *** -> state * **** -> state * ***** -> state * *6 -> (** -> *** -> **** -> ***** -> *6 -> state * *7) -> state * *7
-    state.st_evalState :: state * ** -> * -> **
-    state.st_execState :: state * ** -> * -> *
-    state.st_filterM :: (** -> state * bool) -> [**] -> state * ([**])
-    state.st_fmap :: (** -> ***) -> state * ** -> state * ***
-    state.st_foldM :: (*** -> ** -> state * ***) -> *** -> [**] -> state * ***
-    state.st_forM :: [**] -> (** -> state * ***) -> state * builtin.unit
-    state.st_get :: state * *
-    state.st_join :: state * (state * **) -> state * **
-    state.st_kbind :: (** -> state * ***) -> (*** -> state * ****) -> ** -> state * ****
-    state.st_left :: state * ** -> state * *** -> state * **
-    state.st_liftA2 :: (** -> *** -> ****) -> state * ** -> state * *** -> state * ****
-    state.st_liftA3 :: (** -> *** -> **** -> *****) -> state * ** -> state * *** -> state * **** -> state * *****
-    state.st_liftA4 :: (** -> *** -> **** -> ***** -> *6) -> state * ** -> state * *** -> state * **** -> state * ***** -> state * *6
-    state.st_liftA5 :: (** -> *** -> **** -> ***** -> *6 -> *7) -> state * ** -> state * *** -> state * **** -> state * ***** -> state * *6 -> state * *7
-    state.st_liftA6 :: (** -> *** -> **** -> ***** -> *6 -> *7 -> *8) -> state * ** -> state * *** -> state * **** -> state * ***** -> state * *6 -> state * *7 -> state * *8
-    state.st_mapM :: (** -> state * ***) -> [**] -> state * ([***])
-    state.st_mapM_ :: (** -> state * ***) -> [**] -> state * builtin.unit
-    state.st_modify :: (* -> *) -> state * builtin.unit
-    state.st_pure :: ** -> state * **
-    state.st_put :: * -> state * builtin.unit
-    state.st_right :: state * ** -> state * *** -> state * ***
-    state.st_runState :: state * ** -> * -> (**, *)
-    state.st_sequence :: [state * **] -> state * ([**])
-    state.st_sequence_ :: [state * **] -> state * builtin.unit
+    (state.<$>) :: (** -> ***) -> state * ** -> state * ***
+    (state.<&>) :: state * ** -> (** -> ***) -> state * ***
+    (state.<*>) :: state * (** -> ***) -> state * ** -> state * ***
+    (state.<<) :: state * ** -> state * *** -> state * **
+    (state.>=>) :: (** -> state * ***) -> (*** -> state * ****) -> ** -> state * ****
+    (state.>>) :: state * ** -> state * *** -> state * ***
+    (state.>>=) :: state * ** -> (** -> state * ***) -> state * ***
+    state.bind2 :: state * ** -> state * *** -> (** -> *** -> state * ****) -> state * ****
+    state.bind3 :: state * ** -> state * *** -> state * **** -> (** -> *** -> **** -> state * *****) -> state * *****
+    state.bind4 :: state * ** -> state * *** -> state * **** -> state * ***** -> (** -> *** -> **** -> ***** -> state * *6) -> state * *6
+    state.bind5 :: state * ** -> state * *** -> state * **** -> state * ***** -> state * *6 -> (** -> *** -> **** -> ***** -> *6 -> state * *7) -> state * *7
+    state.evalState :: state * ** -> * -> **
+    state.execState :: state * ** -> * -> *
+    state.filterM :: (** -> state * bool) -> [**] -> state * ([**])
+    state.foldM :: (*** -> ** -> state * ***) -> *** -> [**] -> state * ***
+    state.forM :: [**] -> (** -> state * ***) -> state * builtin.unit
+    state.get :: state * *
+    state.join :: state * (state * **) -> state * **
+    state.liftA2 :: (** -> *** -> ****) -> state * ** -> state * *** -> state * ****
+    state.liftA3 :: (** -> *** -> **** -> *****) -> state * ** -> state * *** -> state * **** -> state * *****
+    state.liftA4 :: (** -> *** -> **** -> ***** -> *6) -> state * ** -> state * *** -> state * **** -> state * ***** -> state * *6
+    state.liftA5 :: (** -> *** -> **** -> ***** -> *6 -> *7) -> state * ** -> state * *** -> state * **** -> state * ***** -> state * *6 -> state * *7
+    state.liftA6 :: (** -> *** -> **** -> ***** -> *6 -> *7 -> *8) -> state * ** -> state * *** -> state * **** -> state * ***** -> state * *6 -> state * *7 -> state * *8
+    state.mapM :: (** -> state * ***) -> [**] -> state * ([***])
+    state.mapM_ :: (** -> state * ***) -> [**] -> state * builtin.unit
+    state.modify :: (* -> *) -> state * builtin.unit
+    state.over :: lens * ** -> (** -> **) -> state * builtin.unit
+    state.pure :: ** -> state * **
+    state.put :: * -> state * builtin.unit
+    state.runState :: state * ** -> * -> (**, *)
+    state.sequence :: [state * **] -> state * ([**])
+    state.sequence_ :: [state * **] -> state * builtin.unit
+    state.set :: lens * ** -> ** -> state * builtin.unit
+    state.view :: lens * ** -> state * **
 
 ### stdlib
 stdlib.am -- standard environment
@@ -768,7 +831,6 @@ stdlib.am -- standard environment
     stdlib.reverse :: [*] -> [*]
     stdlib.seq :: * -> ** -> **
     stdlib.show :: showI * -> * -> string
-    stdlib.showCharEscaped :: char -> string
     stdlib.showCharUnquoted :: char -> string
     stdlib.showFn :: showI (* -> **)
     stdlib.showbin :: int -> string
@@ -823,6 +885,7 @@ stdlib.am -- standard environment
     stream.cmpstream :: ordI * -> ordI (stream * **)
     stream.concatMapS :: (* -> stream ** ***) -> stream * **** -> stream ** ((****, smaybe (stream ** ***)))
     stream.concatMap_ :: (* -> [**]) -> [*] -> [**]
+    stream.cycleS :: stream * ** -> stream * **
     stream.dropS :: int -> stream * ** -> stream * ((int, **))
     stream.dropWhileS :: (* -> bool) -> stream * ** -> stream * ((bool, **))
     stream.dropWhile_ :: (* -> bool) -> [*] -> [*]
@@ -830,8 +893,10 @@ stdlib.am -- standard environment
     stream.enumerateS :: stream * ** -> stream ((int, *)) ((int, **))
     stream.filterS :: (* -> bool) -> stream * ** -> stream * **
     stream.filter_ :: (* -> bool) -> [*] -> [*]
+    stream.foldl1S :: (* -> * -> *) -> stream * ** -> *
     stream.foldlS :: (* -> *** -> *) -> * -> stream *** ** -> *
     stream.foldl_ :: (* -> ** -> *) -> * -> [**] -> *
+    stream.foldr1S :: (* -> * -> *) -> stream * ** -> *
     stream.foldrS :: (* -> *** -> ***) -> *** -> stream * ** -> ***
     stream.foldr_ :: (* -> ** -> **) -> ** -> [*] -> **
     stream.fromStream :: stream * ** -> [*]
@@ -847,6 +912,9 @@ stdlib.am -- standard environment
     stream.lines_ :: [char] -> [[char]]
     stream.mapS :: (* -> ***) -> stream * ** -> stream *** **
     stream.map_ :: (* -> **) -> [*] -> [**]
+    stream.maxS :: ordI * -> stream * ** -> *
+    stream.minS :: ordI * -> stream * ** -> *
+    stream.productS :: stream int * -> int
     stream.rangeByFromS :: int -> int -> stream int word#
     stream.rangeByFrom_ :: int -> int -> [int]
     stream.rangeByS :: int -> int -> int -> stream int word#
@@ -857,6 +925,9 @@ stdlib.am -- standard environment
     stream.range_ :: int -> int -> [int]
     stream.readByteStreamS :: word# -> stream char word#
     stream.readByteStream_ :: word# -> [char]
+    stream.repS :: int -> * -> stream * word#
+    stream.repeatS :: * -> stream * builtin.unit
+    stream.sumS :: stream int * -> int
     stream.suncurry :: (* -> ** -> ***) -> (*, **) -> ***
     stream.takeS :: int -> stream * ** -> stream * ((int, **))
     stream.takeWhileS :: (* -> bool) -> stream * ** -> stream * **
@@ -876,33 +947,34 @@ stdlib.am -- standard environment
 tardis.am -- lazy bidirectional state monad
 
     tardis.tardis * ** *** == (*, **) -> (***, (*, **))
+    (tardis.<$>) :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+    (tardis.<&>) :: tardis * ** *** -> (*** -> ****) -> tardis * ** ****
+    (tardis.<*>) :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****
+    (tardis.<<) :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***
+    (tardis.>=>) :: (*** -> tardis * ** ****) -> (**** -> tardis * ** *****) -> *** -> tardis * ** *****
+    (tardis.>>) :: tardis * ** *** -> tardis * ** **** -> tardis * ** ****
+    (tardis.>>=) :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
+    tardis.bind2 :: tardis * ** *** -> tardis * ** **** -> (*** -> **** -> tardis * ** *****) -> tardis * ** *****
+    tardis.bind3 :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> (*** -> **** -> ***** -> tardis * ** *7) -> tardis * ** *7
+    tardis.evalState :: tardis * ** *** -> (*, **) -> ***
+    tardis.execState :: tardis * ** *** -> (*, **) -> (*, **)
+    tardis.filterM :: (*** -> tardis * ** bool) -> [***] -> tardis * ** ([***])
+    tardis.foldM :: (**** -> *** -> tardis * ** ****) -> **** -> [***] -> tardis * ** ****
+    tardis.forM :: [***] -> (*** -> tardis * ** ****) -> tardis * ** builtin.unit
+    tardis.getFuture :: tardis * ** *
+    tardis.getPast :: tardis * ** **
+    tardis.join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
+    tardis.liftA2 :: (*** -> **** -> *****) -> tardis * ** *** -> tardis * ** **** -> tardis * ** *****
+    tardis.liftA3 :: (*** -> **** -> ***** -> *6) -> tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> tardis * ** *6
+    tardis.mapM :: (*** -> tardis * ** ****) -> [***] -> tardis * ** ([****])
+    tardis.mapM_ :: (*** -> tardis * ** ****) -> [***] -> tardis * ** builtin.unit
     tardis.modifyBackwards :: (* -> *) -> tardis * ** builtin.unit
     tardis.modifyForwards :: (** -> **) -> tardis * ** builtin.unit
-    tardis.td_apply :: tardis * ** (*** -> ****) -> tardis * ** *** -> tardis * ** ****
-    tardis.td_bind :: tardis * ** *** -> (*** -> tardis * ** ****) -> tardis * ** ****
-    tardis.td_bind2 :: tardis * ** *** -> tardis * ** **** -> (*** -> **** -> tardis * ** *****) -> tardis * ** *****
-    tardis.td_bind3 :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> (*** -> **** -> ***** -> tardis * ** *7) -> tardis * ** *7
-    tardis.td_evalState :: tardis * ** *** -> (*, **) -> ***
-    tardis.td_execState :: tardis * ** *** -> (*, **) -> (*, **)
-    tardis.td_filterM :: (*** -> tardis * ** bool) -> [***] -> tardis * ** ([***])
-    tardis.td_fmap :: (*** -> ****) -> tardis * ** *** -> tardis * ** ****
-    tardis.td_foldM :: (**** -> *** -> tardis * ** ****) -> **** -> [***] -> tardis * ** ****
-    tardis.td_forM :: [***] -> (*** -> tardis * ** ****) -> tardis * ** builtin.unit
-    tardis.td_getFuture :: tardis * ** *
-    tardis.td_getPast :: tardis * ** **
-    tardis.td_join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
-    tardis.td_kbind :: (*** -> tardis * ** ****) -> (**** -> tardis * ** *****) -> *** -> tardis * ** *****
-    tardis.td_left :: tardis * ** *** -> tardis * ** **** -> tardis * ** ***
-    tardis.td_liftA2 :: (*** -> **** -> *****) -> tardis * ** *** -> tardis * ** **** -> tardis * ** *****
-    tardis.td_liftA3 :: (*** -> **** -> ***** -> *6) -> tardis * ** *** -> tardis * ** **** -> tardis * ** ***** -> tardis * ** *6
-    tardis.td_mapM :: (*** -> tardis * ** ****) -> [***] -> tardis * ** ([****])
-    tardis.td_mapM_ :: (*** -> tardis * ** ****) -> [***] -> tardis * ** builtin.unit
-    tardis.td_pure :: *** -> tardis * ** ***
-    tardis.td_right :: tardis * ** *** -> tardis * ** **** -> tardis * ** ****
-    tardis.td_runState :: tardis * ** *** -> (*, **) -> (***, (*, **))
-    tardis.td_sendFuture :: ** -> tardis * ** builtin.unit
-    tardis.td_sendPast :: * -> tardis * ** builtin.unit
-    tardis.td_sequence_ :: [tardis * ** ***] -> tardis * ** builtin.unit
+    tardis.pure :: *** -> tardis * ** ***
+    tardis.runState :: tardis * ** *** -> (*, **) -> (***, (*, **))
+    tardis.sendFuture :: ** -> tardis * ** builtin.unit
+    tardis.sendPast :: * -> tardis * ** builtin.unit
+    tardis.sequence_ :: [tardis * ** ***] -> tardis * ** builtin.unit
 
 ### trieMap
 trieMap.am -- strict map from a key to a value, where the key is a list of elements
@@ -910,91 +982,95 @@ trieMap.am -- strict map from a key to a value, where the key is a list of eleme
     trieMap.matchResult * ** ::= trieMap.Mfail | trieMap.Mkey (trie * **) ([*]) ([*]) | trieMap.Mpre (trie * **) ([*]) ([*]) | trieMap.Mpart (trie * **) ([*]) ([*]) ([*])
     trieMap.trie * ** ::= trieMap.Trie ([trieBranch * **]) (maybe **)
     trieMap.trieBranch * ** == ([*], trie * **)
+    (trieMap.<$>) :: (** -> ***) -> trie * ** -> trie * ***
+    (trieMap.<&>) :: trie * ** -> (** -> ***) -> trie * ***
     trieMap.Mfail :: matchResult * **
     trieMap.Mkey :: trie * ** -> [*] -> [*] -> matchResult * **
     trieMap.Mpart :: trie * ** -> [*] -> [*] -> [*] -> matchResult * **
     trieMap.Mpre :: trie * ** -> [*] -> [*] -> matchResult * **
     trieMap.Trie :: [trieBranch * **] -> maybe ** -> trie * **
-    trieMap.t_adjust :: ordI * -> (** -> **) -> [*] -> trie * ** -> trie * **
-    trieMap.t_delete :: ordI * -> [*] -> trie * ** -> trie * **
-    trieMap.t_elems :: trie * ** -> [**]
-    trieMap.t_empty :: trie * **
-    trieMap.t_filter :: (** -> bool) -> trie * ** -> trie * **
-    trieMap.t_findWithDefault :: ordI * -> ** -> [*] -> trie * ** -> **
-    trieMap.t_fmap :: (** -> ***) -> trie * ** -> trie * ***
-    trieMap.t_foldl :: (*** -> ** -> ***) -> *** -> trie * ** -> ***
-    trieMap.t_foldr :: (** -> *** -> ***) -> *** -> trie * ** -> ***
-    trieMap.t_fromList :: ordI * -> [([*], **)] -> trie * **
-    trieMap.t_insert :: ordI * -> [*] -> ** -> trie * ** -> trie * **
-    trieMap.t_insertWith :: ordI * -> (** -> ** -> **) -> [*] -> ** -> trie * ** -> trie * **
-    trieMap.t_keys :: trie * ** -> [[*]]
-    trieMap.t_lookup :: ordI * -> [*] -> trie * ** -> maybe **
-    trieMap.t_null :: trie * ** -> bool
-    trieMap.t_prefix :: ordI * -> [*] -> trie * ** -> maybe **
-    trieMap.t_toList :: trie * ** -> [([*], **)]
-    trieMap.t_union :: ordI * -> trie * ** -> trie * ** -> trie * **
+    trieMap.adjust :: ordI * -> (** -> **) -> [*] -> trie * ** -> trie * **
+    trieMap.delete :: ordI * -> [*] -> trie * ** -> trie * **
+    trieMap.elems :: trie * ** -> [**]
+    trieMap.empty :: trie * **
+    trieMap.filter :: (** -> bool) -> trie * ** -> trie * **
+    trieMap.findWithDefault :: ordI * -> ** -> [*] -> trie * ** -> **
+    trieMap.foldl :: (*** -> ** -> ***) -> *** -> trie * ** -> ***
+    trieMap.foldr :: (** -> *** -> ***) -> *** -> trie * ** -> ***
+    trieMap.fromList :: ordI * -> [([*], **)] -> trie * **
+    trieMap.insert :: ordI * -> [*] -> ** -> trie * ** -> trie * **
+    trieMap.insertWith :: ordI * -> (** -> ** -> **) -> [*] -> ** -> trie * ** -> trie * **
+    trieMap.keys :: trie * ** -> [[*]]
+    trieMap.lookup :: ordI * -> [*] -> trie * ** -> maybe **
+    trieMap.null :: trie * ** -> bool
+    trieMap.prefix :: ordI * -> [*] -> trie * ** -> maybe **
     trieMap.tb_find :: ordI * -> [*] -> [trieBranch * **] -> matchResult * **
     trieMap.tb_match :: ordI * -> [*] -> trieBranch * ** -> matchResult * **
     trieMap.tb_modify :: ordI * -> (matchResult * ** -> maybe (trieBranch * **)) -> [*] -> [trieBranch * **] -> maybe ([trieBranch * **])
+    trieMap.toList :: trie * ** -> [([*], **)]
+    trieMap.union :: ordI * -> trie * ** -> trie * ** -> trie * **
 
 ### v2
  v2.am -- 2D vectors and associated operations
 
     v2.v2 * ::= v2.V2 * *
+    (v2.<$>) :: (* -> **) -> v2 * -> v2 **
+    (v2.<&>) :: v2 * -> (* -> **) -> v2 **
+    (v2.<*>) :: v2 (* -> **) -> v2 * -> v2 **
+    (v2.>>=) :: v2 * -> (* -> v2 **) -> v2 **
     v2.V2 :: * -> * -> v2 *
-    v2.v2_abs :: v2 int -> v2 int
-    v2.v2_add :: v2 int -> v2 int -> v2 int
-    v2.v2_apply :: v2 (* -> **) -> v2 * -> v2 **
-    v2.v2_bind :: v2 * -> (* -> v2 **) -> v2 **
-    v2.v2_cmul :: v2 int -> v2 int -> v2 int
-    v2.v2_dist :: v2 int -> v2 int -> int
-    v2.v2_div :: v2 int -> v2 int -> v2 int
-    v2.v2_fmap :: (* -> **) -> v2 * -> v2 **
-    v2.v2_foldl :: (** -> * -> **) -> ** -> v2 * -> **
-    v2.v2_foldr :: (* -> ** -> **) -> ** -> v2 * -> **
-    v2.v2_liftA2 :: (* -> ** -> ***) -> v2 * -> v2 ** -> v2 ***
-    v2.v2_max :: ordI * -> v2 * -> v2 * -> v2 *
-    v2.v2_min :: ordI * -> v2 * -> v2 * -> v2 *
-    v2.v2_mod :: v2 int -> v2 int -> v2 int
-    v2.v2_mul :: v2 int -> v2 int -> v2 int
-    v2.v2_neg :: v2 int -> v2 int
-    v2.v2_product :: v2 int -> int
-    v2.v2_pure :: * -> v2 *
-    v2.v2_quot :: v2 int -> v2 int -> v2 int
-    v2.v2_rem :: v2 int -> v2 int -> v2 int
-    v2.v2_sequence :: [v2 *] -> v2 ([*])
-    v2.v2_signum :: v2 int -> v2 int
-    v2.v2_sub :: v2 int -> v2 int -> v2 int
-    v2.v2_sum :: v2 int -> int
+    v2.abs :: v2 int -> v2 int
+    v2.add :: v2 int -> v2 int -> v2 int
+    v2.cmul :: v2 int -> v2 int -> v2 int
+    v2.dist :: v2 int -> v2 int -> int
+    v2.div :: v2 int -> v2 int -> v2 int
+    v2.foldl :: (** -> * -> **) -> ** -> v2 * -> **
+    v2.foldr :: (* -> ** -> **) -> ** -> v2 * -> **
+    v2.liftA2 :: (* -> ** -> ***) -> v2 * -> v2 ** -> v2 ***
+    v2.max :: ordI * -> v2 * -> v2 * -> v2 *
+    v2.min :: ordI * -> v2 * -> v2 * -> v2 *
+    v2.mod :: v2 int -> v2 int -> v2 int
+    v2.mul :: v2 int -> v2 int -> v2 int
+    v2.neg :: v2 int -> v2 int
+    v2.product :: v2 int -> int
+    v2.pure :: * -> v2 *
+    v2.quot :: v2 int -> v2 int -> v2 int
+    v2.rem :: v2 int -> v2 int -> v2 int
+    v2.sequence :: [v2 *] -> v2 ([*])
+    v2.signum :: v2 int -> v2 int
+    v2.sub :: v2 int -> v2 int -> v2 int
+    v2.sum :: v2 int -> int
 
 ### v3
  v3.am -- 3D vectors and associated operations
 
     v3.v3 * ::= v3.V3 * * *
+    (v3.<$>) :: (* -> **) -> v3 * -> v3 **
+    (v3.<&>) :: v3 * -> (* -> **) -> v3 **
+    (v3.<*>) :: v3 (* -> **) -> v3 * -> v3 **
+    (v3.>>=) :: v3 * -> (* -> v3 **) -> v3 **
     v3.V3 :: * -> * -> * -> v3 *
-    v3.v3_abs :: v3 int -> v3 int
-    v3.v3_add :: v3 int -> v3 int -> v3 int
-    v3.v3_apply :: v3 (* -> **) -> v3 * -> v3 **
-    v3.v3_bind :: v3 * -> (* -> v3 **) -> v3 **
-    v3.v3_dist :: v3 int -> v3 int -> int
-    v3.v3_div :: v3 int -> v3 int -> v3 int
-    v3.v3_fmap :: (* -> **) -> v3 * -> v3 **
-    v3.v3_foldl :: (** -> * -> **) -> ** -> v3 * -> **
-    v3.v3_foldr :: (* -> ** -> **) -> ** -> v3 * -> **
-    v3.v3_liftA2 :: (* -> ** -> ***) -> v3 * -> v3 ** -> v3 ***
-    v3.v3_max :: ordI * -> v3 * -> v3 * -> v3 *
-    v3.v3_min :: ordI * -> v3 * -> v3 * -> v3 *
-    v3.v3_mod :: v3 int -> v3 int -> v3 int
-    v3.v3_mul :: v3 int -> v3 int -> v3 int
-    v3.v3_neg :: v3 int -> v3 int
-    v3.v3_product :: v3 int -> int
-    v3.v3_pure :: * -> v3 *
-    v3.v3_quot :: v3 int -> v3 int -> v3 int
-    v3.v3_rem :: v3 int -> v3 int -> v3 int
-    v3.v3_sequence :: [v3 *] -> v3 ([*])
-    v3.v3_signum :: v3 int -> v3 int
-    v3.v3_sub :: v3 int -> v3 int -> v3 int
-    v3.v3_sum :: v3 int -> int
+    v3.abs :: v3 int -> v3 int
+    v3.add :: v3 int -> v3 int -> v3 int
+    v3.cross :: v3 int -> v3 int -> v3 int
+    v3.dist :: v3 int -> v3 int -> int
+    v3.div :: v3 int -> v3 int -> v3 int
+    v3.foldl :: (** -> * -> **) -> ** -> v3 * -> **
+    v3.foldr :: (* -> ** -> **) -> ** -> v3 * -> **
+    v3.liftA2 :: (* -> ** -> ***) -> v3 * -> v3 ** -> v3 ***
+    v3.max :: ordI * -> v3 * -> v3 * -> v3 *
+    v3.min :: ordI * -> v3 * -> v3 * -> v3 *
+    v3.mod :: v3 int -> v3 int -> v3 int
+    v3.mul :: v3 int -> v3 int -> v3 int
+    v3.neg :: v3 int -> v3 int
+    v3.product :: v3 int -> int
+    v3.pure :: * -> v3 *
+    v3.quot :: v3 int -> v3 int -> v3 int
+    v3.rem :: v3 int -> v3 int -> v3 int
+    v3.sequence :: [v3 *] -> v3 ([*])
+    v3.signum :: v3 int -> v3 int
+    v3.sub :: v3 int -> v3 int -> v3 int
+    v3.sum :: v3 int -> int
 
 ### vector
 vector.am -- immutable and mutable vectors, and the ST monad for sequencing in-place modification
@@ -1005,84 +1081,85 @@ vector.am -- immutable and mutable vectors, and the ST monad for sequencing in-p
     vector.stRef * == mvector *
     (vector.!!) :: vector * -> int -> *
     (vector.//) :: vector * -> [(int, *)] -> vector *
+    (vector.<$>) :: (* -> **) -> vector * -> vector **
+    (vector.<&>) :: vector * -> (* -> **) -> vector **
     vector.MVector :: int -> word# -> mvector *
     vector.Vector :: int -> word# -> vector *
+    vector.all :: (* -> bool) -> vector * -> bool
+    vector.any :: (* -> bool) -> vector * -> bool
+    vector.append :: vector * -> vector * -> vector *
+    vector.clone :: mvector * -> state ** (mvector *)
     vector.cmpvector :: ordI * -> vector * -> vector * -> ordering
+    vector.fill :: mvector * -> * -> state ** builtin.unit
+    vector.filter :: (* -> bool) -> vector * -> vector *
+    vector.find :: (* -> bool) -> vector * -> maybe *
+    vector.first :: vector * -> *
+    vector.fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
+    vector.foldl :: (** -> * -> **) -> ** -> vector * -> **
+    vector.foldr :: (* -> ** -> **) -> ** -> vector * -> **
+    vector.freeze :: mvector * -> state ** (vector *)
+    vector.fromList :: [*] -> vector *
+    vector.fromStream :: int -> stream * ** -> vector *
+    vector.generate :: int -> (int -> *) -> vector *
+    vector.index :: vector * -> int -> *
+    vector.iterateN :: int -> (* -> *) -> * -> vector *
+    vector.last :: vector * -> *
+    vector.length :: vector * -> int
+    vector.max :: ordI * -> vector * -> *
+    vector.min :: ordI * -> vector * -> *
+    vector.mlength :: mvector * -> int
+    vector.modify :: mvector * -> (* -> *) -> int -> state ** builtin.unit
     vector.modifySTRef :: stRef * -> (* -> *) -> st builtin.unit
     vector.newSTRef :: * -> st (stRef *)
+    vector.product :: vector int -> int
+    vector.read :: mvector * -> int -> state ** *
     vector.readSTRef :: stRef * -> st *
+    vector.rep :: int -> * -> vector *
+    vector.replace :: vector * -> [(int, *)] -> vector *
     vector.runST :: st * -> *
     vector.runSTVector :: (mvector * -> st **) -> vector * -> vector *
     vector.safeIndex :: int -> int -> int
+    vector.search :: (* -> * -> ordering) -> vector * -> * -> maybe ((int, *))
     vector.showvector :: showI * -> vector * -> string
-    vector.v_all :: (* -> bool) -> vector * -> bool
-    vector.v_any :: (* -> bool) -> vector * -> bool
-    vector.v_append :: vector * -> vector * -> vector *
-    vector.v_clone :: mvector * -> state ** (mvector *)
-    vector.v_fill :: mvector * -> * -> state ** builtin.unit
-    vector.v_filter :: (* -> bool) -> vector * -> vector *
-    vector.v_find :: (* -> bool) -> vector * -> maybe *
-    vector.v_first :: vector * -> *
-    vector.v_fmap :: (* -> **) -> vector * -> vector **
-    vector.v_fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
-    vector.v_foldl :: (** -> * -> **) -> ** -> vector * -> **
-    vector.v_foldr :: (* -> ** -> **) -> ** -> vector * -> **
-    vector.v_freeze :: mvector * -> state ** (vector *)
-    vector.v_fromList :: [*] -> vector *
-    vector.v_fromStream :: int -> stream * ** -> vector *
-    vector.v_generate :: int -> (int -> *) -> vector *
-    vector.v_index :: vector * -> int -> *
-    vector.v_iterateN :: int -> (* -> *) -> * -> vector *
-    vector.v_last :: vector * -> *
-    vector.v_length :: vector * -> int
-    vector.v_max :: ordI * -> vector * -> *
-    vector.v_min :: ordI * -> vector * -> *
-    vector.v_mlength :: mvector * -> int
-    vector.v_modify :: mvector * -> (* -> *) -> int -> state ** builtin.unit
-    vector.v_product :: vector int -> int
-    vector.v_read :: mvector * -> int -> state ** *
-    vector.v_rep :: int -> * -> vector *
-    vector.v_replace :: vector * -> [(int, *)] -> vector *
-    vector.v_search :: (* -> ordering) -> vector * -> maybe ((int, *))
-    vector.v_singleton :: * -> vector *
-    vector.v_sortBy :: ordI * -> vector * -> vector *
-    vector.v_sum :: vector int -> int
-    vector.v_thaw :: vector * -> mvector *
-    vector.v_toList :: vector * -> [*]
-    vector.v_toStream :: vector * -> stream * int
-    vector.v_unsafeFreeze :: mvector * -> state ** (vector *)
-    vector.v_unsafeIndex :: vector * -> int -> *
-    vector.v_unsafeModify :: mvector * -> (* -> *) -> int -> state ** builtin.unit
-    vector.v_unsafeRead :: mvector * -> int -> state ** *
-    vector.v_unsafeReplace :: mvector * -> [(int, *)] -> state ** builtin.unit
-    vector.v_unsafeThaw :: vector * -> mvector *
-    vector.v_unsafeWrite :: mvector * -> int -> * -> state ** builtin.unit
-    vector.v_write :: mvector * -> int -> * -> state ** builtin.unit
-    vector.v_zipWith :: (* -> ** -> ***) -> vector * -> vector ** -> vector ***
+    vector.singleton :: * -> vector *
+    vector.sortBy :: ordI * -> vector * -> vector *
+    vector.sum :: vector int -> int
+    vector.thaw :: vector * -> mvector *
+    vector.toList :: vector * -> [*]
+    vector.toStream :: vector * -> stream * int
+    vector.unsafeFreeze :: mvector * -> state ** (vector *)
+    vector.unsafeIndex :: vector * -> int -> *
+    vector.unsafeModify :: mvector * -> (* -> *) -> int -> state ** builtin.unit
+    vector.unsafeRead :: mvector * -> int -> state ** *
+    vector.unsafeReplace :: mvector * -> [(int, *)] -> state ** builtin.unit
+    vector.unsafeThaw :: vector * -> mvector *
+    vector.unsafeWrite :: mvector * -> int -> * -> state ** builtin.unit
+    vector.write :: mvector * -> int -> * -> state ** builtin.unit
     vector.writeSTRef :: stRef * -> * -> st builtin.unit
+    vector.zipWith :: (* -> ** -> ***) -> vector * -> vector ** -> vector ***
 
 ### zipper
 zipper.am -- implementation of a list with a cursor
 
     zipper.zipper * ::= zipper.Zipper ([*]) ! ([*]) !
+    (zipper.<$>) :: (* -> **) -> zipper * -> zipper **
+    (zipper.<&>) :: zipper * -> (* -> **) -> zipper **
     zipper.Zipper :: [*] -> [*] -> zipper *
-    zipper.z_begin :: zipper * -> zipper *
-    zipper.z_beginp :: zipper * -> bool
-    zipper.z_cursor :: zipper * -> *
-    zipper.z_delete :: zipper * -> zipper *
-    zipper.z_empty :: zipper *
-    zipper.z_end :: zipper * -> zipper *
-    zipper.z_endp :: zipper * -> bool
-    zipper.z_fmap :: (* -> **) -> zipper * -> zipper **
-    zipper.z_fold :: (** -> * -> **) -> ** -> zipper * -> **
-    zipper.z_fromList :: [*] -> zipper *
-    zipper.z_insert :: * -> zipper * -> zipper *
-    zipper.z_left :: zipper * -> zipper *
-    zipper.z_modify :: (* -> *) -> zipper * -> zipper *
-    zipper.z_null :: zipper * -> bool
-    zipper.z_pop :: zipper * -> zipper *
-    zipper.z_push :: * -> zipper * -> zipper *
-    zipper.z_right :: zipper * -> zipper *
-    zipper.z_singleton :: * -> zipper *
-    zipper.z_toList :: zipper * -> [*]
-
+    zipper.begin :: zipper * -> zipper *
+    zipper.beginp :: zipper * -> bool
+    zipper.cursor :: zipper * -> *
+    zipper.delete :: zipper * -> zipper *
+    zipper.empty :: zipper *
+    zipper.end :: zipper * -> zipper *
+    zipper.endp :: zipper * -> bool
+    zipper.fold :: (** -> * -> **) -> ** -> zipper * -> **
+    zipper.fromList :: [*] -> zipper *
+    zipper.insert :: * -> zipper * -> zipper *
+    zipper.left :: zipper * -> zipper *
+    zipper.modify :: (* -> *) -> zipper * -> zipper *
+    zipper.null :: zipper * -> bool
+    zipper.pop :: zipper * -> zipper *
+    zipper.push :: * -> zipper * -> zipper *
+    zipper.right :: zipper * -> zipper *
+    zipper.singleton :: * -> zipper *
+    zipper.toList :: zipper * -> [*]
