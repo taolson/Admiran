@@ -3,7 +3,7 @@
 || note: many parser function names shadow stdlib names, so parser should be imported qualified
 
 
-%export + get put modify pure fail (>>=) (<$>) (<&>) (<*>) (<<) (>>) liftA2 liftA3 liftA4 mapM foldM
+%export + get put modify pure fail (>>=) (<$>) (<&>) (<*>) (<<) (>>) liftA2 liftA3 liftA4 mapM foldM bind2 bind3
 
 %import <base>
 %import <maybe>         -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
