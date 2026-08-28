@@ -1000,13 +1000,27 @@ is of the form *newName* / *oldName*, where *newName* is the new identifier or o
 in place of the exported name *oldName*. This can be used to modify a name that would otherwise conflict
 with one already in scope, or to change a function identifier into an operator, e.g.:
 
-    %import <state> (>>=)/st_bind -st_fmap
+    %import <parser>    (<?>)/guard -intList
 
-would import the `state` module, changing the name of the module's `st_bind` function to the operator
-`>>=`, and removing the name `st_fmap` from the import.
+would import the `parser` module, changing the name of the module's `guard` function to the operator
+`<?>`, and removing the name `intList` from the import.
 
 An import directive can extend over multiple lines, as long as subsequent lines are indented past the
 column where the *fileSpec* begins.
+
+Modules can be imported multiple times with different parameters, to allow various forms of conflict
+resolution.  For example, if code imports two modules that both implement a conflicting set of operators
+`>>= <$> >>`, they could both be used qualified, or, if one module's versions are used much more frequently,
+the other module could be imported unqualified first, removing the operators, then imported a second time
+as qualified, restoring the qualified versions of those operators:
+
+    %import module1 as m1           -(>>=) -(<&>) -(>>)
+    %import module1 qualified as m1
+    %import module2 as m2
+
+    foo1 = m m1.>>= f m1.<&> g
+    foo2 = m >>= f <&> g
+
 
 #### `stdlib`
 
