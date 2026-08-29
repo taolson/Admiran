@@ -543,6 +543,23 @@ maybeState.am -- functor / applicative / monad / alternative for a state monad a
 
     runState evalState execState`
 
+### md5
+md5.m -- MD5 Hash Algorithm
+
+    md5.md5State ::= md5.MD5 int int int int
+    md5.buffer == vector int
+    (md5.!?) :: vector * -> int -> *
+    md5.MD5 :: int -> int -> int -> int -> md5State
+    md5.addMsgLen :: int -> buffer -> buffer
+    md5.emptyBuffer :: buffer
+    md5.makeBuffer :: string -> buffer
+    md5.md5Add :: md5State -> md5State -> md5State
+    md5.md5Hash :: string -> md5State
+    md5.md5Hex :: md5State -> string
+    md5.md5InitState :: md5State
+    md5.md5Rotate :: md5State -> int -> int -> int -> md5State
+    md5.md5Round :: md5State -> buffer -> md5State
+
 ### memo
 memo.am -- memoization of a single-argument function with a state map
 
