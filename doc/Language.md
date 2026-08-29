@@ -1021,6 +1021,11 @@ as qualified, restoring the qualified versions of those operators:
     foo1 = m m1.>>= f m1.<&> g
     foo2 = m >>= f <&> g
 
+During name resolution, any top-level definition in the current module will "shadow" any imported definition
+name, much like a nested definition shadows any outer definition of the same name.  Thus, any unqualified use
+of a top-level definition is always the current module's definition; imported definitions with that same name
+must be qualified.
+
 
 #### `stdlib`
 
