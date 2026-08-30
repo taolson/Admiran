@@ -4,10 +4,10 @@
 %export reifyImports reifyDefns reifyDefAbs reifyExports reifySyns reifyTypes
 
 %import <base>
-%import <either>                        -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <either>                        -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -pure -liftA2 -mapM -foldM
 %import <lens>
 %import <map>           qualified as m
-%import <maybe>                         -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <maybe>                         -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -pure -liftA2 -mapM -foldM
 %import "ast"
 %import "dependency"
 %import "exception"     as ex

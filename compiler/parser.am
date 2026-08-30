@@ -7,7 +7,7 @@
 
 %import <base>
 %import <lens>
-%import <maybe>                 -pure -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <maybe>                 -(>>=) -(<$>) -(<&>) -(<*>) -(<<) -(>>) -pure -liftA2 -mapM -foldM
 %import <maybeState>            -view -set -over
 %import <stdlib>        as std
 %import "name"

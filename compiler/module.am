@@ -8,9 +8,9 @@
 %import <lens>
 %import <map>           qualified as m
 %import <maybe>         as mb
-%import <stdlib>        as std
 %import "config"
-%import "exception"     as ex
+%import "exception"     as ex           -error
+%import "exception"     qualified as ex
 %import "grammar"
 %import "name"
 %import "predef"
@@ -113,7 +113,7 @@ modName
     = Lens getf overf
       where
         getf (Module fs bs exs ins defs pats specs env)     = fileSpecName fs
-        overf fn (Module fs bs exs ins defs pats specs env) = std.error "cannot modify modName"
+        overf fn (Module fs bs exs ins defs pats specs env) = error "cannot modify modName"
 
 modBuildStatus :: lens module buildStatus
 modBuildStatus
@@ -127,7 +127,7 @@ modExportParts :: lens module [libPart]
 modExportParts
     = Lens getf overf
       where
-        err = std.error "modExportParts: exports is not a parts list"
+        err = error "modExportParts: exports is not a parts list"
 
         getf (Module fs bs (Left exs) ins defs pats specs env) = exs
         getf  _ = err
@@ -142,7 +142,7 @@ modExportMap :: lens module nameMap
 modExportMap
     = Lens getf overf
       where
-        err = std.error "modExportMap: exports not a map"
+        err = error "modExportMap: exports not a map"
 
         getf (Module fs bs (Right exs) ins defs pats specs env) = exs
         getf _ = err

@@ -10,8 +10,8 @@
 os ::= MacOS | Linux
 
 || these parameters must be set when installing the compiler
-hostOS                = Linux
-admiranLibPath        = "../lib"
+hostOS                = Linux           || set to Linux or MacOS
+admiranLibPath        = "../lib"        || set to the absolute path of the admiran lib directory
 
 || os-dependant configuration parameters
 (codegenCsymbolPrefix, ccOpts)

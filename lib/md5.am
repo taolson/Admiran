@@ -69,7 +69,7 @@ md5Hex (MD5 a b c d)
     = concatMap toHex [a, b, c, d]
       where
         toHex n
-            = foldr go [] [0 .. 3] 
+            = foldr go [] [0 .. 3]
               where
                 code0      = code '0'
                 codeA      = code 'a'

@@ -4,18 +4,18 @@
 %export +
 
 %import <base>
-%import <either>                        -pure -(>>=) -(>>) -foldM
+%import <either>                        -(>>=) -(>>) -pure -foldM
 %import <io>
 %import <lens>
 %import <map>           qualified as m
-%import <maybe>                         -(>>=) -pure -(>>) -foldM
+%import <maybe>                         -(>>=) -(>>) -pure -foldM
 %import "analyze"
 %import "codegen"
 %import "config"
 %import "dependency"
 %import "derive"
 %import "desugar"
-%import "exception"     as ex           -pure -(>>=) -foldM
+%import "exception"     as ex           -(>>=) -pure -foldM
 %import "grammar"
 %import "inline"
 %import "admiranParser"

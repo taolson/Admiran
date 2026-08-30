@@ -15,10 +15,10 @@
 %import <bitSet>        as bs           -null
 %import <lens>
 %import <map>           qualified as m
-%import <maybe>         as mb           -pure -(>>=) -(<$>) -(<*>) -(<<) -(>>) -liftA2 -mapM -foldM
+%import <maybe>         as mb           -(>>=) -(<$>) -(<*>) -(<<) -(>>) -pure -liftA2 -mapM -foldM
 %import <state>         as st
 %import "ast"
-%import "exception"     as ex           -pure -(>>=) -(<$>) -(<&>) -(<*>) -liftA2
+%import "exception"     as ex           -(>>=) -(<$>) -(<&>) -(<*>) -pure -liftA2
 %import "grammar"
 %import "module"
 %import "name"
@@ -214,8 +214,8 @@ updateDefn inCpx inUses d
                 rec = m.member cmpname n free
                 d'  = lens.set astAnno (lens.view astAnnoLoc d, rec \/ lens.view astAnnoRec d, cpx, Umany, m.keys free', aff) d
 
-                free' = (m.<$>) (const Umany) free |> adjustForFn, if rec                || recursive defs capture all free vars
-                      = free,                                     otherwise
+                free' = free m.<&> const Umany |> adjustForFn, if rec   || recursive defs capture all free vars
+                      = free,                                  otherwise
 
                 adjustForFn = m.insert cmpname n Uzero, if isDefFn d    || count defn as Uzero for use in DefFn
                             = id,                       otherwise       || count defn as Umany for DefPat

@@ -5,7 +5,7 @@
 
 %import <base>                          -any
 %import <map>           qualified as m
-%import <maybe>                         -pure -(>>=) -(<$>) -(<&>) -(<<) -(>>) -(<|>) -liftA2
+%import <maybe>                         -(>>=) -(<$>) -(<&>) -(<<) -(>>) -(<|>) -pure -liftA2
 %import "config"
 %import "grammar"
 %import "name"

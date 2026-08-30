@@ -94,7 +94,7 @@ sequence_ xs = foldr (>>) (pure ()) xs
 f <$> m = m >>= (f .> pure)
 
 (<&>) :: maybeState * ** -> (** -> ***) -> maybeState * ***
-m <&> f =  f<$> m
+m <&> f =  f <$> m
 
 || applicative interface
 (<*>) :: maybeState * (** -> ***) -> maybeState * ** -> maybeState * ***

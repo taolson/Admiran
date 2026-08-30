@@ -6,10 +6,9 @@
 %import <base>
 %import <bitSet> as bs
 %import <lens>
-%import <map>    as m
+%import <map>    qualified as m
 %import <maybe>  as mb
-%import <set>    as s
-%import <stdlib> as std
+%import <set>    qualified as s
 %import "name"
 
 
@@ -539,10 +538,10 @@ flattenDefns
 || make definition name(s) at the top level qualified with the module name
 qualifyDefn :: string -> ast -> ast
 qualifyDefn modName (DefFn n vars e an)    = DefFn   (qualifyName modName n) vars e an
-qualifyDefn modName (DefMult m defs)       = DefMult m $ std.map (qualifyDefn modName) defs
+qualifyDefn modName (DefMult m defs)       = DefMult m $ map (qualifyDefn modName) defs
 qualifyDefn modName (DefPat p expr an)     = DefPat  (qualifyPat modName p) expr an
 qualifyDefn modName (DefSyn tf te an)      = DefSyn  (qualifyTform modName tf) te an
-qualifyDefn modName (DefData tf ctors an)  = DefData (qualifyTform modName tf) (std.map (qualifyTform modName) ctors) an
+qualifyDefn modName (DefData tf ctors an)  = DefData (qualifyTform modName tf) (map (qualifyTform modName) ctors) an
 qualifyDefn modName (DefSpec tf te an)     = DefSpec (qualifyTform modName tf) te an
 qualifyDefn modName (DefAbs tf ds t an)    = DefAbs  (qualifyTform modName tf) ds t an
 qualifyDefn modName d                      = d
@@ -608,9 +607,9 @@ opPrecRepr
 || dynamically-built precAssocTable and value for application precedence, built from
 || parsing the lines in opPrecRepr
 (precAssocTable, apPrec)
-    = std.foldl insLevel (m.empty, 0) opPrecRepr
+    = foldl insLevel (m.empty, 0) opPrecRepr
       where
-        insLevel (m, prec) (a : s) = (words s |> std.foldl (ins prec (toAssoc a)) m, prec + 1)
+        insLevel (m, prec) (a : s) = (words s |> foldl (ins prec (toAssoc a)) m, prec + 1)
         insLevel _         _       = unreachable
 
         ins prec a m op = m.insert cmpstring op (prec, a) m

@@ -3,11 +3,11 @@
 
 %export +
 
-%import <avl>
+%import <avl>                           -foldr
 %import <base>
 %import <map>           qualified as m
 %import <state>
-%import <stdlib>        as std
+%import <stdlib>
 %import "grammar"
 
 
@@ -75,7 +75,7 @@ astAccumSubs t (DefAbs tf ds t1 a) = t t1 . astAccumList t ds . t tf
 astAccumSubs _ _                   = id
 
 astAccumList :: astAccum * -> [ast] -> * -> *
-astAccumList t = converse (std.foldr t)
+astAccumList t = converse (foldr t)
 
 astAccumMap :: astAccum * -> m.map ** ast -> * -> *
 astAccumMap t = converse (m.foldr t)
