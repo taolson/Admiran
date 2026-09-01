@@ -4,6 +4,7 @@
 %export + -World pure (>>=) (>=>) mapM mapM_ forM foldM (<$>) (<&>) (<*>) liftA2 liftA3 (<<) (>>) bind2 bind3
            sequence sequence_
 
+%import <base>
 %import <state>
 
 || "world" is an abstract type with an unexported constructor "World" which is used as
@@ -111,7 +112,7 @@ readFile fn world
                        fs# -> readFileStream (Handle fs#) world
 
 || strict read of the contents of a file named by fn
-readFile' fn = readFile fn >>= \s -> (last s) $seq (pure s)
+readFile' fn = readFile fn >>= \s -> safeLast s $seq pure s
 
 || strict write to an existing file or create a new one
 writeFile :: string -> string -> io ()
