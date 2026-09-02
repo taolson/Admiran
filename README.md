@@ -85,6 +85,10 @@ understandable by someone studying it.
 * Multiple analysis passes to analyze definitions for free variables, usage, complexity,
   and escape status for let-bound definitions
 * Hindley-Milner type inference and checking
+
+  - uses bidirectional typing and supports polymorphic recursion
+    for definitions with explicit type specifications
+
 * Multi-pass AST optimizer, including:
 
   - inter-module inlining
