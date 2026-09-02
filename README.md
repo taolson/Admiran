@@ -43,7 +43,7 @@ Admiran is an "extended subset" of Miranda, an ML-like language,
 and has all its basic features:
 
 * Call-By-Need (Lazy) evaluation by default
-* Strong, static type system (nominally-typed) with parametric polymorphism
+* Hindley-Milner type system
 * Curried, higher-order functions
 * Algebraic Data Types
 * Abstract types
