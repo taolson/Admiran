@@ -268,7 +268,7 @@ modInsFre specs m = ex.error (Unsupported "%free") emptyLocInfo
 || insert a top-level definition
 modInsDef :: defn -> modInserter
 modInsDef d m
-    = view modDefns m |> insDefnMapMerge qd |> (ex.<$>) setDefs
+    = view modDefns m |> insDefnMapMerge qd ex.<&> setDefs
       where
         qd = qualifyDefn (view modName m) d
 
@@ -318,7 +318,7 @@ modInsData d m
 || insert a type specification
 modInsSpec :: defn -> modInserter
 modInsSpec d m
-    = view modSpecs m |> insDefnMap qd |> (ex.<$>) setSpecs
+    = view modSpecs m |> insDefnMap qd ex.<&> setSpecs
       where
         qd             = qualifyDefn (view modName m) d
         setSpecs specs = set modSpecs specs m
