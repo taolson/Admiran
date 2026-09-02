@@ -213,7 +213,7 @@ lookupScheme :: name -> tcState scheme
 lookupScheme n st
     = liftMaybe msl st,          if isJust msl
     = liftMaybe msd st,          if isJust msd
-    = pure  scm st',             if isJust msp
+    = pure scm st',              if isJust msp
     = tc_error (Undefined n) st, if isNothing mtd & isNothing mtb
     = tc_error (TypeIdent n) st, if isJust mtd & (isDefSyn def \/ isDefData def \/ isDefAbs def) \/ isJust mtb
     = tc_error (WrongType n) st, otherwise      || inferred spec for an un-spec'd defn was not installed prior
@@ -307,7 +307,7 @@ typesFromSpec n vars
       where
         nvars         = #vars
         getSpec genv  = lookupSpec genv n |> fromMaybef fail genScm         || find the typeSpec for a name
-        genScm s      = mkScheme s |> instantiate >>= genTs                     || generate a new scheme from the spec
+        genScm s      = mkScheme s |> instantiate >>= genTs                 || generate a new scheme from the spec
         genTs (s, _)  = typeList s |> fst |> take nvars |> pure             || collect the individual var types
         addMissing ts = mapM (const newTvar) [1 .. nvars - #ts] <&> (ts ++) ||  if spec is missing or has fewer types, pad with newTvars
 
@@ -401,7 +401,7 @@ infer (CaseAlt (Pctor n vars) e an)
     = infer (Evar n) >>= f1     || infer the type of the constructor
       where
         f1 (spec, sm)
-            = tc_error (CtorArity n),              if #vars ~= #ts || ctor patterns must be saturated
+            = tc_error (CtorArity n),             if #vars ~= #ts || ctor patterns must be saturated
             = lexMono tdefs infer e >>= f2 bt sm, otherwise        || infer e in new monomorphic environment of arg types
               where
                 (ts, bt) = typeList spec
@@ -556,9 +556,9 @@ extend um sm tvn t
     = mst.view tcFvars >>= f
       where
         f oFvars
-            = pure sm,               if _eq cmptexpr t tv                   || no extension for equal texprs
-            = tc_error (Occurs tvn' t'), if s.member cmpint tvn $ fvars um  || tvn occurs in free vars of t, which implies an infinite type
-            = pure  extended,        otherwise                              || extend sm with tvn ~ t
+            = pure sm,                   if _eq cmptexpr t tv                   || no extension for equal texprs
+            = tc_error (Occurs tvn' t'), if s.member cmpint tvn $ fvars um      || tvn occurs in free vars of t, which implies an infinite type
+            = pure  extended,            otherwise                              || extend sm with tvn ~ t
               where
                 sm'         = m.singleton tvn t
                 mapped      = sm m.<&> t_subst sm'
