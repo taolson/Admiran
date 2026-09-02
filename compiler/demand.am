@@ -120,7 +120,7 @@ demandAst k (Ecase sel e alts)
     = st.liftA2 (Ecase sel) (astRewriteTDCont demandAst e) (st.view dmNames >>= doAlts)
       where
         || compute each alt separately, then combine the separately-discovered dmNames
-        doAlts dns = st.mapM (doAlt dns) alts >>= (combineAlts . unzip2)
+        doAlts dns = st.mapM (doAlt dns) alts >>= unzip2 .> combineAlts
 
         || peform demand analysis on the alt, then return it, along with its dmNames as a pair
         doAlt dns alt

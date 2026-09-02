@@ -211,7 +211,7 @@ foldM f z0 xs
 || functor interface
 
 (<$>) :: (* -> **) -> excpt * -> excpt **
-f <$> m = m >>= (pure . f)
+f <$> m = m >>= f .> pure
 
 (<&>) :: excpt * -> (* -> **) -> excpt **
 m <&> f = f <$> m

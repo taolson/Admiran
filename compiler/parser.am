@@ -89,7 +89,7 @@ expected s  = errorInfo ("expected " ++ s ++ ", but got ")
 
 || report an error that we got an unexpected token
 unexpected :: parser *
-unexpected = showCurrentToken >>= (error 1 . ("unexpected " ++))
+unexpected = showCurrentToken >>= ("unexpected " ++) .> error 1
 
 || alternative interface
 || note: a simple alias to maybeState (mst.<|>) can't be used, here, because we need to run the
@@ -241,7 +241,7 @@ indent ps
 || check for separator and pop the indent level stack in the parser state
 outdent :: parser ()
 outdent
-    = (terminator >> get) >>= (put . over psIndLev popLev)
+    = terminator >> get >>= over psIndLev popLev .> put
       where
         popLev []       = []
         popLev (x : xs) = xs

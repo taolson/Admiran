@@ -47,7 +47,7 @@ serialPosInt n
 
 deserialPosInt :: deserializer int
 deserialPosInt
-    = deserialCtor >>= splitAt >>= (pure . intval)
+    = deserialCtor >>= splitAt >>= intval .> pure
 
 || serialize a signed integer
 serialInt :: serializer int
