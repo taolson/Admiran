@@ -1,0 +1,17 @@
+|| wordHistogram.am -- count the occurrences of unique words in all of the files specified on the command line, and print
+|| them in descending order
+
+%import <bag>
+%import <base>
+%import <io>
+
+|| given a string, create a histogram of the unique words in the string, and sort by descending number of occurrences
+|| using a bag to count the occurrences (fromList, toList)
+wordHistogram :: string -> [(string, int)]
+wordHistogram s = words s |> filter (all letter) |> fromList cmpstring |> toList |> sortBy (descending cmpint snd)
+
+printEntry :: (string, int) -> io ()
+printEntry (s, n) = showint n |> padL 5 |> (++ " " ++ s) |> putStrLn
+
+main :: io ()
+main = getArgs >>= mapM readFile <&> concat >>= wordHistogram .> mapM_ printEntry
