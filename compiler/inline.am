@@ -704,17 +704,27 @@ inlineGroup defs ns st
                 stLim         = st2 |> set inSimplified False |> addInfo "*** inlineMaxIterations limit reached ***", if i >= inlineMaxIterations
                               = st2 |> set inSimplified False |> addInfo "*** inlineMaxComplexity limit reached ***", otherwise
 
-inline :: globalEnv -> excpt globalEnv
-inline genv
-    = ex.return genv  [],    if ~useInlining
+|| perform the actual inlining passes
+|| note: this contains an extraneous recursive call to itself (never reached) to ensure that it isn't
+|| inlined by the inline function below. This allows inline to remove the call to doInline and reduce to a single
+|| return, if useInlining is False, which in turn causes all of the inlining code
+|| to be removed during the reachability analysis of the stg pass.
+doInline :: globalEnv -> excpt globalEnv
+doInline genv
     = ex.return genv' warns, if null errs
-    = ex.errs errs,          otherwise
+    = ex.errs errs,          if ~null errs
+    = doInline genv,         otherwise          || unreachable case branch
       where
         m              = view genvMod genv
         sccs           = view modDefns m |> makeDefnDependencyList |> makeDependencyGraph cmpname |> findSCCs cmpname
         (defs', st)    = st.foldM inlineGroup m.empty sccs (initInSt genv m.empty)
         genv'          = over genvMod (set modDefns defs') (view inGenv st)
         (errs, warns)  = partition isError (view inErrs st)
+
+inline :: globalEnv -> excpt globalEnv
+inline genv
+    = ex.return genv  [], if ~useInlining
+    = doInline genv,      otherwise    
 
 
 || make the stream function substitution map, by finding all of the stream functions that end with a single quote ('),
@@ -731,15 +741,15 @@ mkStreamSubstMap genv
 
         isSubChar c = c ==. '_' \/ c ==. '@'
 
-|| stream substitution and fusion
-|| replace selected list functions with compatible stream versions, then use the inlining
-|| mechanism (restricted to only stream functions) to further inline those operations and
-|| fuse paired toStream/fromStream functions
-streamSubst :: globalEnv -> excpt globalEnv
-streamSubst genv
-    = ex.return genv  [],    if ~useStreamFusion
-    = ex.return genv' warns, if null errs
-    = ex.errs errs,          otherwise
+|| perform the actual stream substitution
+|| note: this contains an extraneous recursive call to itself (never reached) to ensure that it isn't
+|| inlined by streamSubst.  This allows streamSubst to remove the call to doStreamSubst and reduce to a single
+|| return, if useStreamFusion is False (the default setting), which in turn causes all of the streamSubst code
+|| to be removed during the reachability analysis of the stg pass.
+doStreamSubst genv
+    = ex.return genv' warns, if null  errs
+    = ex.errs errs,          if ~null errs
+    = doStreamSubst genv,    otherwise
       where
         m             = view genvMod genv
         subst         = mkStreamSubstMap genv
@@ -747,3 +757,12 @@ streamSubst genv
         (defs', st)   = st.foldM inlineGroup m.empty sccs (initInSt genv subst)
         genv'         = over genvMod (set modDefns defs') (view inGenv st)
         (errs, warns) = partition isError (view inErrs st)
+
+|| stream substitution and fusion
+|| replace selected list functions with compatible stream versions, then use the inlining
+|| mechanism (restricted to only stream functions) to further inline those operations and
+|| fuse paired toStream/fromStream functions
+streamSubst :: globalEnv -> excpt globalEnv
+streamSubst genv
+    = ex.return genv  [], if ~useStreamFusion
+    = doStreamSubst genv, otherwise
