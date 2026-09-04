@@ -434,7 +434,7 @@ genQuotRem xa xb
       genOpcode "cqto"  []                           .  || sign-extend to %rdx for upper 64 bits of dividend
       genOpcode "idivq" [x86Tmp1]                       || perform 128b/64b divide; quotient in %rax, remainder in %rdx
 
-|| generate code to check if a write barrier is required and perform it
+|| generate code to check if a write barrier is required
 || second argument is the label to jump to if a write barrier isn't required
 genWriteBarrierCheck :: x86Opr -> string -> showS
 genWriteBarrierCheck upd lbl
@@ -442,7 +442,7 @@ genWriteBarrierCheck upd lbl
       genJmpOpcode "jae"   (cvtJmpAddr lbl)                     || skip if upd >= gcNewBase (unsigned)
       || fall through to code after write barrier check
 
-|| generate code to perform a write barrier on upd, by adding it to the roots list
+|| generate code to perform a write barrier on upd by adding it to the roots list
 genWriteBarrier :: x86Opr -> showS
 genWriteBarrier upd
     = genOpcode    "movq"  [cvtCMemAddr "gcRootsAlloc", x86MovTmp] .    || note: move is done before check so that the update is recorded if a GC happens
@@ -1101,17 +1101,25 @@ genInsn (AllocArray d a)
 
 || fill an array with a replicated value
 genInsn (FillArray a v)
-    = mova                                           .  || ensure operands are in registers
-      movv                                           .
-      genOpcode    "movq" [addX86Offset (-1) xa, xi] .  || xa is tagged heapPtr of array; get tagword
-      genOpcode    "sarq" [X86Imm 32, xi]            .  || extract array size (untagged)
-      genOpcode    "cmpq" [X86Imm 0, xi]             .  || test for empty array
-      genJmpOpcode "jle"  (cvtJmpAddr "1f")          .  || note: test for index <= 0 to compensate for starting at size
-      shows "0:\n"                                   .  || loop top
-      genOpcode    "movq" [xv, X86Idx xa xi 8 (-1)]  .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "decq" [xi]                       .
-      genJmpOpcode "jg"   (cvtJmpAddr "0b")          .  || note: test for index > 0 to compensate for starting at size
-      shows "1:\n"                                      || loop exit
+    = mova                                                 .    || ensure operands are in registers
+      movv                                                 .
+      genOpcode    "movq" [addX86Offset (-1) xa, xi]       .    || xa is tagged heapPtr of array; get tagword
+      genOpcode    "sarq" [X86Imm 32, xi]                  .    || extract array size (untagged)
+      genOpcode    "cmpq" [X86Imm 0, xi]                   .    || test for empty array
+      genJmpOpcode "jle"  (cvtJmpAddr "1f")                .    || note: test for index <= 0 to compensate for starting at size
+      shows "0:\n"                                         .    || loop top
+      genOpcode    "movq" [xv, X86Idx xa xi 8 (-1)]        .    || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
+      genOpcode    "decq" [xi]                             .
+      genJmpOpcode "jg"   (cvtJmpAddr "0b")                .    || note: test for index > 0 to compensate for starting at size
+      shows "1:\n"                                         .    || loop exit
+      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
+      genJmpOpcode "je"   (cvtJmpAddr "2f")                .
+      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
+      genJmpOpcode "jb"   (cvtJmpAddr "2f")                .
+      genWriteBarrierCheck xa "2f"                         .
+      genWriteBarrier xa                                   .
+      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      shows "2:\n"
       where
         xi         = x86Tmp0
         (xa, mova) = ensureX86Reg x86Tmp1 a
