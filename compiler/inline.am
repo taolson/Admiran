@@ -194,7 +194,7 @@ noReturn :: expr -> inSt -> bool
 noReturn (Evar n) st
     = member cmpname noReturnNames n \/ fromMaybef False checkThunk (fst (lookupEnv n st))
       where
-        checkThunk a = isDefPat a & noReturn (fnExpr a) st
+        checkThunk a = isDefPat a & ~view astAnnoRec a & noReturn (fnExpr a) st        || need to check annoRec to break a lookup loop with mutual recursion
 
 noReturn (Ecall e _) st = noReturn e st
 noReturn (Efail _)   st = True
