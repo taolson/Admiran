@@ -1,4 +1,4 @@
-|| aam -- Abstract Syntax Tree Accumulations / Traversals
+|| ast.am -- Abstract Syntax Tree Accumulations / Traversals
 
 
 %export +

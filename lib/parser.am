@@ -87,11 +87,11 @@ manySepBy ps p = someSepBy ps p <|> pure []
 
 || 0 or more pa until pb, keeping the list of pas
 manyUntil :: parser * -> parser ** -> parser [*]
-manyUntil pa pb = (pb >> pure []) <|> (pa $cons manyUntil pa pb)
+manyUntil pa pb = pb >> pure [] <|> pa $cons manyUntil pa pb
 
 || 0 or more pa until pb, keeping pb
 skipUntil :: parser * -> parser ** -> parser **
-skipUntil pa pb = pb <|> (pa >> skipUntil pa pb)
+skipUntil pa pb = pb <|> pa >> skipUntil pa pb
 
 || parser which passes only at end of input
 end :: parser ()

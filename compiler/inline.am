@@ -724,7 +724,7 @@ doInline genv
 inline :: globalEnv -> excpt globalEnv
 inline genv
     = ex.return genv  [], if ~useInlining
-    = doInline genv,      otherwise    
+    = doInline genv,      otherwise
 
 
 || make the stream function substitution map, by finding all of the stream functions that end with a single quote ('),

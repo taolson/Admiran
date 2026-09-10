@@ -374,7 +374,7 @@ p_unqualified p
 p_uIdentifier :: parser string
 p_uIdentifier = p_unqualified p_identifier <&> getName
 
-|| variable names in patterns an fnforms cannot be qualified (as the pattern binds the name),
+|| variable names in patterns and fnforms cannot be qualified (as the pattern binds the name),
 || but constructors can be
 p_uVarOrConstructor :: parser name
 p_uVarOrConstructor = p_unqualified p_var <|> p_constructor

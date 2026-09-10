@@ -751,10 +751,10 @@ void pushApplyToEnv (word arity, word nargs)
 {
   word extra = nargs - arity;
 
-  Stk -= extra + 1;                     // allocate space on stack for closure env and codePtr
+  Stk   -= extra + 1;                   // allocate space on stack for closure env and codePtr
   Stk[0] = ApplyToEnvFns[extra];        // closure codePtr is the appropriate ApplyToEnvFns for extra number of args
-  for (int i = 1; i <= extra; ++i) {    // save the extra args in the stack closure env
-    Stk[i] = Arg[nargs - i];            // save in reverse order, since stack grows down
+  for (int i = 0; i < extra; ++i) {     // save the extra args in the stack closure env
+    Stk[i + 1] = Arg[arity + i];
   }
 }
 

@@ -341,13 +341,6 @@ genCondJmp _ = error "genCondJmp: not a Jeq insn"
 
 || common x86-64 building blocks
 
-|| determine the correct x86 opcode to use to move a value (addresses use leaq, other values use movq)
-movOpForOpr :: opr -> string
-movOpForOpr (Imm (Caddr hp)) = "leaq"
-movOpForOpr (Imm (Haddr hp)) = "leaq"
-movOpForOpr (Ref (Frm, n))   = "leaq"
-movOpForOpr a                = "movq"
-
 || force an Opr to an x86Reg, if it doesn't already resolve to one
 || returns the x86Reg and a (possible empty) move operation to initialize it
 ensureX86Reg :: x86Opr -> opr -> (x86Opr, showS)
@@ -369,6 +362,13 @@ ensureX86DstReg default d
       where
         xd = cvtRef d
         op = genOpcode "movq" [default, xd]
+
+|| determine the correct x86 opcode to use to move a value (addresses use leaq, other values use movq)
+movOpForOpr :: opr -> string
+movOpForOpr (Imm (Caddr hp)) = "leaq"
+movOpForOpr (Imm (Haddr hp)) = "leaq"
+movOpForOpr (Ref (Frm, n))   = "leaq"
+movOpForOpr a                = "movq"
 
 || move opr to ref
 || code generation that can operate on any opr type (including Imm addresses and Frm offsets) should use this
@@ -403,14 +403,20 @@ genMoveToArgs oprs
                 relocate = genOpcode "movq" [xd, xdAlt],        if doReloc
                          = id,                                  otherwise
 
+|| generate a series of instructions to move N arguments from memory to a list of oprs (which should be Refs)
+genLoadOprs :: x86Opr -> [opr] -> showS
+genLoadOprs base
+    = foldr (.) id . map mov . enumerate
+      where
+        mov (i, r) = genOpcode "movq" [addX86Offset (i * 8) base, cvtOpr r]
+
 || generate a series of instructions to move a list of operands to a memory area
 || the first argument is the x86Opr holding the base address to move to
-genMoveToMem :: x86Opr -> [opr] -> showS
-genMoveToMem dBase
-    = foldr (.) id . map movEnv . enumerate
+genStoreOprs :: x86Opr -> [opr] -> showS
+genStoreOprs dBase
+    = foldr (.) id . map mov . enumerate
       where
-        movEnv (i, a)
-            = genOpcode (movOpForOpr a) [cvtOpr a, addX86Offset (i * 8) dBase]
+        mov (i, a) = genOpcode (movOpForOpr a) [cvtOpr a, addX86Offset (i * 8) dBase]
 
 || Generate the first common part of a combined div/mod operation
 || Since the x86-64 idivq instruction operates on fixed registers
@@ -488,50 +494,55 @@ genAllocVar allocReg szReg
       genJmpOpcode "jmp"   (cvtJmpAddr "GC")                         .  || and jump to the GC handler
       shows "0:\n"                                                      || label for continuation of succesful alloc
 
+|| generate code to allocate or pop the stack
+genAllocStack, genPopStack :: int -> showS
+genAllocStack 0 = id
+genAllocStack n = genOpcode "subq" [X86Imm (n * 8), x86SP]
+
+genPopStack   0 = id
+genPopStack   n = genOpcode "addq" [X86Imm (n * 8), x86SP]
+
 || generate the individual Pack functions to pack r0, args into a new closure
 || these functions are called from various locations in Update code and return using a ret insn
 || Note: no need to save r1, since it is only needed by Update and Vclosure stgInsns to
 || redirect to the correct PackArgs fn.
-genPackArgs :: showS
-genPackArgs
+genPackArgsFns :: showS
+genPackArgsFns
     = foldr (.) id (map genPack [0 .. codegenMaxArgs])
       where
         genPack n
-            = genCGlobal ("PackArgs" ++ showint n)                          .
-              genAlloc x86Env (n + 3)                                       .        || alloc heap space for tagword, unpackFn, r0, args
+            = genCGlobal       ("PackArgs" ++ showint n)                    .
+              genAlloc         x86Env (n + 3)                               .        || alloc heap space for tagword, unpackFn, r0, args
               genOpcode "movq" [X86Imm tag, addX86Offset 0 x86Env]          .
               genOpcode "leaq" [cvtMemAddr unpackFn, addX86Offset 8 x86Env] .        || move unpackFn for this pack into the codePtr
-              genOpcode "movq" [cvtReg 0, addX86Offset 16 x86Env]           .        || copy R0 to first location in env
-              genMoveToMem (addX86Offset 24 x86Env) args                    .        || copy args into remaining env locations
-              genOpcode "ret" []                                                     || return to the next continuation closure
+              genStoreOprs     (addX86Offset 16 x86Env) oprs                .        || copy r0, args into env
+              genOpcode "ret"  []                                                    || return to the next continuation closure
               where
                 tag      = genThunkTag (n + 1)                                       || r0, args
                 unpackFn = "UnpackArgs" ++ showint n
-                args     = map (Ref . pair Arg) [0 .. n - 1]
+                oprs     = r0Opr : map (Ref . pair Arg) [0 .. n - 1]
 
 || generate the individual Unpack continuation closure functions to unpack pack r0, args from a closure,
 || then pop a continuation from the stack and return to it
 || Note: need to restore the correct PackArgs function in r1 for this unpack, since
 || the continuation we are returning to may also perform a PackArgs
-genUnpackArgs :: showS
-genUnpackArgs
+genUnpackArgsFns :: showS
+genUnpackArgsFns
     = foldr (.) id (map genUnpack [0 .. codegenMaxArgs])
       where
         genUnpack n
-            = shows ("\nUnpackArgs" ++ showint n ++ ":\n")    .
-              genMove r0Ref e0Opr                             .  || unpack tag
-              genOpcode "leaq" [cvtCMemAddr packFn, cvtReg 1] .  || restore packFn (if we need to pack again due to another update)
-              genMoveToArgs env                               .  || move the rest of the Env to the Args
-              genOpcode "ret" []                                 || return to the continuation
+            = shows ("\nUnpackArgs" ++ showint n ++ ":\n")     .
+              genOpcode "leaq"  [cvtCMemAddr packFn, cvtReg 1] .  || restore packFn (if we need to pack again due to another update)
+              genLoadOprs (addX86Offset 15 x86Env) args        .
+              genOpcode "ret"   []                                || return to the continuation
               where
                 packFn = "PackArgs" ++ showint n
-                env    = map (Ref . pair Env) [1 .. n]
+                args   = map Ref $ r0Ref : map (pair Arg) [0 .. n - 1]
 
 || generate the individual ApplyToEnv continuation closure functions to apply r0
 || to the continuation env which is on the stack
-|| instead of popping into the Env save area, we pop directly into the Args registers to prevent double-copying
-genApplyToEnvs :: showS
-genApplyToEnvs
+genApplyToEnvFns :: showS
+genApplyToEnvFns
     = foldr (.) id (map genAppToEnv [0 .. codegenMaxArgs - 1]) .
       genSection "data"                                        .
       genCGlobal "ApplyToEnvFns"                               .
@@ -542,28 +553,38 @@ genApplyToEnvs
 
         genAppToEnv n
             = shows ("\nApplyToEnv" ++ showint n ++ ":\n") .
-              foldr (.) id (map doPop [n - 1, n - 2 .. 0]) .    || pop env on stack (reverse order due to Stk growing down) into Args registers
-              genInsn (Apply r0Opr env)
+              genLoadOprs      x86SP args                  .
+              genPopStack      n                           .
+              genInsn   (Apply r0Opr args)
               where
-                env     = map (Ref . pair Arg) [0 .. n - 1]
-                doPop n = genOpcode "popq" [cvtRef (Arg, n)]
+                args = map (Ref . pair Arg) [0 .. n - 1]
 
-|| generate the individual OverApplyThunk functions to push an ApplyToEnv, then enter the thunk
-genOverApplyThunk :: showS
-genOverApplyThunk
-    = foldr (.) id (map genApp [1 .. codegenMaxArgs - 1])      || no over-application for 0 args
+|| generate the individual OverApply functions to push a continuation on the stack for the extra args, then enter the closure
+genOverApplyFns :: showS
+genOverApplyFns
+    = foldr (.) id (map genApp [0 .. codegenMaxArgs - 1])
       where
-        genApp nargs
-            = shows ("\nOverApplyThunk" ++ showint nargs ++ ":\n") .
-              genInsn (PushCont applyToEnvPtr env)                 .
-              genJmpOpcode "jmp"  (addX86Offset 7 x86Env)                               || untag and jump to closure's cp
+        genApp n
+            = shows ("\nOverApply"  ++ showint n ++ ":\n")          .
+              genAllocStack n                                              .
+              genStoreOprs          x86SP args                      . || push n args onto the stack
+              genOpcode    "movzbq" [addX86Offset 0 x86Env, arity]  . || load the heapInfo arity (arity offset 1 == x86Env tag offset 1)
+              genOpcode    "leaq"   [X86Idx x86SP arity 8 0, x86SP] . || pop the stack by the arity
+              genOpcode    "movq"   [X86Imm n, extra]               .
+              genOpcode    "subq"   [arity, extra]                  . || compute #extra args
+              genOpcode    "leaq"   [applyFns, arity]               .
+              genOpcode    "pushq"  [X86Idx arity extra 8 0]        .
+              genJmpOpcode "jmp"    (addX86Offset 7 x86Env)           || args 0 .. arity-1 are still in Args; enter closure
               where
-                env = (map (Ref . pair Arg) [0 .. nargs - 1])
+                arity    = x86MovTmp
+                extra    = x86Tmp0
+                args     = map (Ref . pair Arg) [0 .. n - 1]
+                applyFns = cvtCMemAddr "ApplyToEnvFns"
 
 || generate the individual RetArg functions to return a particular Arg
 || move it into r0, then do a Ret
-genRetArg :: showS
-genRetArg
+genRetArgFns :: showS
+genRetArgFns
     = foldr (.) id (map genRet [0 .. codegenMaxArgs - 1]), if useSel
     = id,                                                  otherwise
       where
@@ -572,8 +593,8 @@ genRetArg
               genInsn (Ret (Ref (Arg, n)) (Imm (Word 0)))
 
 || generate the individual ApplyArg functions to perform an Apply on a particular Arg
-genApplyArg :: showS
-genApplyArg
+genApplyArgFns :: showS
+genApplyArgFns
     = foldr (.) id (map genApply [0 .. codegenMaxArgs - 1]), if useSel
     = id,                                                    otherwise
       where
@@ -586,8 +607,7 @@ genInsn :: stgInsn -> showS
 
 || call cp, moving args to Arg registers
 genInsn (Call cp args)
-    = genMoveToArgs args .
-      genJmpOpcode "jmp" (cvtJmpCodePtr cp)
+    = genMoveToArgs args . genJmpOpcode "jmp" (cvtJmpCodePtr cp)
 
 || enter closure pointed to by the heapPtr, setting r2 to the Env addr (hp + 16) and jumping to the codePtr at hp + 8
 genInsn (Enter hp args)
@@ -601,8 +621,8 @@ genInsn (EnterInd fopr args)
       where
         || save fopr in r0 if it will be overwritten during genMoveToArgs
         genArgs (Ref (Arg, n))
-            = genMove r0Ref fopr .
-              genMoveToArgs args .
+            = genMove r0Ref fopr     .
+              genMoveToArgs args     .
               genMove r2Ref r0Opr, if member cmpint [0 .. #args - 1] n
 
         genArgs fopr = genMoveToArgs args . genMove r2Ref fopr
@@ -614,8 +634,7 @@ genInsn (EnterInd fopr args)
 genInsn (Apply fopr args)
     = genArgs fopr . genApply
       where
-        nargs     = #args
-        applyAddr = cvtJmpAddr "GeneralApply"
+        nargs = #args
 
         || save fopr in r0 if it will be overwritten during genMoveToArgs
         || then move to r2 (x86Env)
@@ -630,29 +649,27 @@ genInsn (Apply fopr args)
             = genOpcode    "movq" [X86Imm (nargs), cvtReg 3]          . || put #args in Admiran R3 to pass to GeneralApply (R3 is temp at this point)
               genOpcode    "movq" [addX86Offset (-1) x86Env, tagword] . || load the heapInfo tagword, removing the tag bit from the addr first
               genOpcode    "cmpb" [X86Imm 2, tag]                     . || compare tag byte with 1
-              genJmpOpcode "ja"   applyAddr                           . || tag was > 2; need to perform general apply
-              genOpcode    "cmpb" [X86Imm (nargs), arity]             . || compare arity
-              genJmpOpcode "jne"  (cvtJmpAddr "0f")                   . || unequal: do special unequal arity handling checks
+              genJmpOpcode "jg"   applyAddr                           . || tag was > 2; need to perform general apply
+              genOpcode    "cmpb" [X86Imm (nargs), arity]             . || compare arities
+              genJmpOpcode "jne"  (cvtJmpAddr "0f")                   . || under-applied
               genJmpOpcode "jmp"  (addX86Offset 7 x86Env)             . || equal: jump to closure's cp
               shows "0:\n"                                            .
-              genUnequalArities nargs arity                             || generate special, but still common cases, or punt to GeneralApply
+              genUnequal   nargs                                        || do special check for #args = 0
               where
-                tagword = x86Tmp0
-                arity   = byte1 tagword
-                tag     = byte0 tagword
+                tagword   = x86Tmp0
+                arity     = byte1 tagword
+                tag       = byte0 tagword
+                applyAddr = cvtJmpAddr "GeneralApply"
+                overAddr  = cvtJmpAddr $ "OverApply" ++ showint nargs
 
-        || under-applied with no args: return the original fopr as a value
-        genUnequalArities 0 arity
-            = genMove r0Ref r2Opr       .               || return fopr (which was copied into r2 above)
-              genInsn (Ret r0Opr (Imm (Word 0)))        || set arity to 0
+                || called with no args; return fopr (now in r2)
+                genUnequal 0
+                    = genMove r0Ref r2Opr .
+                      genInsn (Ret r0Opr (Imm (Word 0)))
 
-        || check for over-application of a thunk, or jump to GeneralApply
-        genUnequalArities _ arity
-            = genOpcode    "cmpb" [X86Imm 0, arity]    .        || check for over-applied thunk (most common case)
-              genJmpOpcode "je"   (cvtJmpAddr overApp) .        || jump to special handler, if so
-              genJmpOpcode "jmp" applyAddr                      || otherwise, jump to GeneralApply
-              where
-                overApp = "OverApplyThunk" ++ showint nargs
+                genUnequal _
+                    = genJmpOpcode "jb"  overAddr .     || over-applied
+                      genJmpOpcode "jmp" applyAddr      || under-applied
 
 || the generic ApplyToEnv is replaced by the individual ApplyToEnv routines, and is not directly called
 genInsn ApplyToEnv = id
@@ -714,7 +731,8 @@ genInsn (PushCont cp env)
     = genPushAppArg env,    if useSel & cp == selApplyPtr
     = genPushGeneric,       otherwise
       where
-        genPushAppEnv n              = genPushCont (cvtMemAddr ("ApplyToEnv" ++ showint n)) env
+        || ApplyToEnv saves args on stack in normal (increasing) memory order to allow for OverApply processing
+        genPushAppEnv n = genPushCont (cvtMemAddr ("ApplyToEnv" ++ showint n)) env
 
         genPushRetArg [Imm (Word n)] = genPushCont (cvtMemAddr ("RetArg"   ++ showint n)) []
         genPushRetArg _              = unreachable
@@ -722,19 +740,17 @@ genInsn (PushCont cp env)
         genPushAppArg [Imm (Word n)] = genPushCont (cvtMemAddr ("ApplyArg" ++ showint n)) []
         genPushAppArg _              = unreachable
 
-        genPushGeneric               = genPushCont (cvtMemCodePtr cp) env
+        || genPushGeneric saves args on stack in decreasing memory order to allow for coalescing continuation closures (stack grows down)
+        genPushGeneric               = genPushCont (cvtMemCodePtr cp) (reverse env)
 
         genPushCont ptr env
-            = genAllocStk (#env)                        .       || allocate stack space for the env
-              genMoveToMem      x86SP (reverse env)     .       || move env oprs to stack (stack continuations grow down)
-              genOpcode "leaq"  [ptr, x86MovTmp]        .       || push continuation codePtr to return to
+            = genAllocStack     (#env)           .      || allocate stack space for the env
+              genStoreOprs      x86SP env        .      || move env oprs to stack
+              genOpcode "leaq"  [ptr, x86MovTmp] .      || push continuation codePtr to return to
               genOpcode "pushq" [x86MovTmp]
 
-        genAllocStk 0 = id                                      || no insn required for 0 env args
-        genAllocStk n = genOpcode "subq" [X86Imm (n * 8), x86SP]
-
 || pop a saved context environment from the stack
-genInsn (PopCont n) = genOpcode "addq" [X86Imm (n * 8), x86SP]
+genInsn (PopCont n) = genPopStack n
 
 || set x86Env base register to top of stack closure
 || x86XP points to last value in stack closure, and base register points to
@@ -752,7 +768,7 @@ genInsn (AllocFrame n)
 genInsn (Fclosure d cp ar env)
     = genOpcode "movq" [X86Imm tag, xd]                      .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
-      genMoveToMem     (addX86Offset 16 xd) env
+      genStoreOprs     (addX86Offset 16 xd) env
       where
         xd  = cvtRef d
         tag = genFunTag ar (#env)
@@ -761,7 +777,7 @@ genInsn (Fclosure d cp ar env)
 genInsn (Tclosure d cp env)
     = genOpcode "movq" [X86Imm tag, xd]                      .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
-      genMoveToMem     (addX86Offset 16 xd) zenv
+      genStoreOprs     (addX86Offset 16 xd) zenv
       where
         xd   = cvtRef d
         zenv = [Imm (Word 0)], if null env     || if no env, fill reserved update word with 0
@@ -775,7 +791,7 @@ genInsn (Aclosure d cp sg env)
     = mbAlloc          d (#env + 3)                          .  || +3 = slot for tag, slot for codePtr, slot for stackPtr value
       genOpcode "movq" [X86Imm tag, addX86Offset 0 xd]       .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
-      genMoveToMem     (addX86Offset 16 xd) env              .  || copy env to closure env
+      genStoreOprs     (addX86Offset 16 xd) env              .  || copy env to closure env
       genSaveSP                                              .
       mbTag            d                                        || tag destination as heapPtr, if we performed an alloc
       where
@@ -1327,7 +1343,7 @@ genSaveState
       genOpcode "movq" [x86Frm, cvtCMemAddr "Frm"]            .
       genOpcode "movq" [x86GcAlloc, cvtCMemAddr "gcNewAlloc"] .
       genOpcode "movq" [x86SP, cvtCMemAddr "Stk"]             .
-      genOpcode "subq" [X86Imm (8 * codegenMaxArgs), x86SP]   . || subtract maxArgs space for possibly saving ApplyToEnv args
+      genAllocStack    codegenMaxArgs                         . || allocate maxArgs space for possibly saving ApplyToEnv args
       genOpcode "andq" [X86Imm (-16), x86SP]                    || and force 16-byte alignment for x86-64 calling convention
       where
         saveArgs n = genOpcode "movq" [cvtArg n, cvtArgState n]
@@ -1417,12 +1433,12 @@ genInterface start
 || generate the expanded routines that replace generic handlers
 genGenerics :: showS
 genGenerics
-    = genPackArgs       .
-      genUnpackArgs     .
-      genApplyToEnvs    .
-      genOverApplyThunk .
-      genRetArg         .
-      genApplyArg
+    = genPackArgsFns   .
+      genUnpackArgsFns .
+      genApplyToEnvFns .
+      genOverApplyFns  .
+      genRetArgFns     .
+      genApplyArgFns
 
 || generate the code section, emitting the string for each codeObj as it is generated
 genCode :: stgCode -> string
