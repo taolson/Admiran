@@ -553,9 +553,9 @@ genApplyToEnvFns
 
         genAppToEnv n
             = shows ("\nApplyToEnv" ++ showint n ++ ":\n") .
-              genLoadOprs      x86SP args                  .
-              genPopStack      n                           .
-              genInsn   (Apply r0Opr args)
+              genLoadOprs x86SP args                       .
+              genPopStack n                                .
+              genInsn (Apply r0Opr args)
               where
                 args = map (Ref . pair Arg) [0 .. n - 1]
 
@@ -566,14 +566,14 @@ genOverApplyFns
       where
         genApp n
             = shows ("\nOverApply"  ++ showint n ++ ":\n")          .
-              genAllocStack n                                              .
+              genAllocStack n                                       .
               genStoreOprs          x86SP args                      . || push n args onto the stack
               genOpcode    "movzbq" [addX86Offset 0 x86Env, arity]  . || load the heapInfo arity (arity offset 1 == x86Env tag offset 1)
               genOpcode    "leaq"   [X86Idx x86SP arity 8 0, x86SP] . || pop the stack by the arity
               genOpcode    "movq"   [X86Imm n, extra]               .
               genOpcode    "subq"   [arity, extra]                  . || compute #extra args
               genOpcode    "leaq"   [applyFns, arity]               .
-              genOpcode    "pushq"  [X86Idx arity extra 8 0]        .
+              genOpcode    "pushq"  [X86Idx arity extra 8 0]        . || push the handler for extra args from the applyToEnvFns vector
               genJmpOpcode "jmp"    (addX86Offset 7 x86Env)           || args 0 .. arity-1 are still in Args; enter closure
               where
                 arity    = x86MovTmp
@@ -651,9 +651,9 @@ genInsn (Apply fopr args)
               genOpcode    "cmpb" [X86Imm 2, tag]                     . || compare tag byte with 1
               genJmpOpcode "jg"   applyAddr                           . || tag was > 2; need to perform general apply
               genOpcode    "cmpb" [X86Imm (nargs), arity]             . || compare arities
-              genJmpOpcode "jne"  (cvtJmpAddr "0f")                   . || under-applied
+              genJmpOpcode "jne"  (cvtJmpAddr "0f")                   . || unequal arity
               genJmpOpcode "jmp"  (addX86Offset 7 x86Env)             . || equal: jump to closure's cp
-              shows "0:\n"                                            .
+              shows        "0:\n"                                     .
               genUnequal   nargs                                        || do special check for #args = 0
               where
                 tagword   = x86Tmp0
@@ -743,9 +743,9 @@ genInsn (PushCont cp env)
         || genPushGeneric saves args on stack in decreasing memory order to allow for coalescing continuation closures (stack grows down)
         genPushGeneric               = genPushCont (cvtMemCodePtr cp) (reverse env)
 
-        genPushCont ptr env
-            = genAllocStack     (#env)           .      || allocate stack space for the env
-              genStoreOprs      x86SP env        .      || move env oprs to stack
+        genPushCont ptr oprs
+            = genAllocStack     (#oprs)          .      || allocate stack space for the env
+              genStoreOprs      x86SP oprs       .      || move env oprs to stack
               genOpcode "leaq"  [ptr, x86MovTmp] .      || push continuation codePtr to return to
               genOpcode "pushq" [x86MovTmp]
 
@@ -808,10 +808,9 @@ genInsn (Aclosure d cp sg env)
 
         || save the (possibly PopCont-adjusted) SP at the end of the env
         genSaveSP
-            = genOpcode "movq" [x86SP, addX86Offset spLoc xd],     if sg == 0
-            = genOpcode "movq" [x86SP, x86MovTmp]           .
-              genOpcode "addq" [X86Imm (sg * 8), x86MovTmp] .
-              genOpcode "movq" [x86MovTmp, addX86Offset spLoc xd], otherwise
+            = genOpcode "movq" [x86SP, addX86Offset spLoc xd],            if sg == 0
+            = genOpcode "leaq" [addX86Offset (sg * 8) x86SP, x86MovTmp] .
+              genOpcode "movq" [x86MovTmp, addX86Offset spLoc xd],        otherwise
 
 || generate a thunk closure for a saturated constructor value, capturing its tag and args
 || The tag and arg arity are not known at compile time, so the constructor puts the

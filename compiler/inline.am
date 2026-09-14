@@ -4,6 +4,7 @@
 %export inline streamSubst
 
 %import <base>
+%import <bitSet>        qualified as bs
 %import <lens>
 %import <map>           qualified as m
 %import <maybe>         as mb
@@ -151,13 +152,18 @@ wrapInLet loc e bdgs
               where
                 d = DefPat (Pvar n) e' an
 
-|| create a binding of args to vars, directly rewriting simpleExpr args,
+|| create a binding of args to vars, directly rewriting simple or usedAffine args,
 || and wrapping the rest in a let binding
-createBinding :: location -> expr -> [pat] -> [expr] -> expr
-createBinding loc e vars args
+createBinding :: location -> expr -> [pat] -> [expr] -> bs.bitSet -> expr
+createBinding loc e vars args aff
     = wrapInLet loc (replace e smp) cpx
       where
-        (smp, cpx) = zip2 vars args |> filter (fst .> isPvar) |> map (mapFst unPvar) |> partition (snd .> isSimple)
+        uses       = map (\i -> if' (bs.member i aff) Uone Umany) [0 .. #args - 1]
+        (smp, cpx) = zip3 vars args uses |> map extrPvars |> catMaybes |> partition simpleOrAffine |> mapBoth (map extrBinding)
+
+        extrPvars      (v, a, u) = if' (isPvar v) (Just (unPvar v, a, u)) Nothing
+        simpleOrAffine (_, a, u) = isSimple a \/ usedAffine u
+        extrBinding    (v, a, _) = (v, a)
 
 || perform beta-reduction on a defn with arguments, renaming all the Pvars in the defn first
 || to prevent name capture
@@ -166,12 +172,13 @@ betaReduce d args st
     = (e2, st')
       where
         loc            = fromMaybe emptyLocation $ view inLocation st
+        affine         = view astAnnoAffine d
         (d', genv')    = renameExpr "`" d $ view inGenv st      || rename inlined defn, prefixing included defns to hide them in reports
         st'            = set inGenv genv' st
         vars           = fnVars d'
         e              = fnExpr d'
         (args1, args2) = splitAt (#vars) args
-        e1             = createBinding loc e vars args1
+        e1             = createBinding loc e vars args1 affine
         e2             = e1,               if null args2
                        = (Ecall e1 args2), otherwise
 
@@ -573,17 +580,19 @@ simplifyAst k (Ecase b e alts an) st
             = foldr matchAlt Nothing alts
               where
                 matchAlt (CaseAlt (Pctor c' vars) e an) k
-                    = Just (createBinding loc e vars args, cpx), if _eq cmpname c' c
+                    = Just (createBinding loc e vars args aff, cpx), if _eq cmpname c' c
                       where
                         cpx = view annoCpx an - #vars - 2       || cpx of e
+                        aff = view annoAffine an
 
                 matchAlt (CaseAlt Pwildcard e an) k
                     = Just (e, view annoCpx an - 2)
 
                 matchAlt (CaseAlt (Pvar n) e an) k
-                    = Just (createBinding loc e [Pvar n] [ce], cpx)
+                    = Just (createBinding loc e [Pvar n] [ce] aff, cpx)
                       where
                         cpx = view annoCpx an - 2               || cpx of e
+                        aff = view annoAffine an
                         ce  = if' (null args) (Evar c) (Ecall (Evar c) args)
 
                 matchAlt a k = k
@@ -596,7 +605,7 @@ simplifyAst k (Ecase b e alts an) st
               where
                 matchAlt (CaseAlt (Plit (EprimInt n')) e an) k = Just (e, view annoCpx an - 3), if n' == n
                 matchAlt (CaseAlt Pwildcard e an)            k = Just (e, view annoCpx an - 2)
-                matchAlt (CaseAlt (Pvar v) e an)             k = Just (createBinding loc e [Pvar v] [EprimInt n], view annoCpx an - 2)
+                matchAlt (CaseAlt (Pvar v) e an)             k = Just (createBinding loc e [Pvar v] [EprimInt n] bs.empty, view annoCpx an - 2)
                 matchAlt a                                   k = k
 
 || this is needed when a partially-applied Ecall gets inlined
