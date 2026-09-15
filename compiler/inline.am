@@ -36,14 +36,6 @@ noInlineNames = map makeStdlibName               ["unsafeWriteStdErr", "trace", 
                 map (Qualified streamModuleName) ["toStream", "fromStream", "readByteStreamS"]       ++
                 noReturnNames
 
-|| a localEnv consists of a stack of frames, which are either a function boundary marker
-|| or a defnMap.  The function boundary marker is used to indicate whether we have crossed
-|| a function definition boundary when performing a lookup, to later determine viability
-|| of inlining the looked-up name (don't inline complex exprs if they get moved into a fnDefn that
-|| could be executed multiple times)
-frame    ::= FnBound | Env defnMap
-localEnv == [frame]
-
 || state passed through inline
 || dynamic state:
 || genv:       global environment
@@ -56,7 +48,7 @@ localEnv == [frame]
 || lenv: local lexical environment
 || loc:  locInfo
 inDynSt  == (globalEnv, nameMap, num, bool, [exception])
-inLexSt  == (locInfo, localEnv)
+inLexSt  == (locInfo, defnMap)
 inSt     == (inDynSt, inLexSt)
 
 || lenses for inSt fields
@@ -73,7 +65,7 @@ inLocation   = composeLens inLoc locInfoLocation
 inDefnPath   = composeLens inLoc locInfoDefnPath
 
 initInSt :: globalEnv -> nameMap -> inSt
-initInSt genv subst = ((genv, subst, inlineMaxComplexity, False, []), (emptyLocInfo, []))
+initInSt genv subst = ((genv, subst, inlineMaxComplexity, False, []), (emptyLocInfo, m.empty))
 
 || add a note to the inline state, limiting the length of the note string
 addNote :: string -> inSt -> inSt
@@ -97,25 +89,17 @@ addInfo s st
 
 || lookup the defn bound to a name in the local or global environments, along with
 || an indication of whether the lookup crossed a function definition boundary
-lookupEnv :: name -> inSt -> (maybe defn, bool)
+lookupEnv :: name -> inSt -> maybe defn
 lookupEnv n st
-    = lookFrame (view inLenv st) False, if m.null (view inSubst st)
-    = lookStream,                       otherwise
+    = lookupLocal <|> lookupGlobal, if m.null $ view inSubst st
+    = lookupGlobal,                 if getModName n ==$ streamModuleName
+    = Nothing,                      otherwise
       where
-        lookFrame []             cf = (lookupDefn (view inGenv st) n, cf)       || name not found in Lenv, check globalEnv
-        lookFrame (FnBound : fs) cf = lookFrame fs True                         || crossed a DefFn boundary
-        lookFrame (Env e : fs)   cf
-            = (md, cf),        if isJust md
-            = lookFrame fs cf, otherwise
-              where
-                md = m.lookup cmpname n e
+        genv = view inGenv st
+        lenv = view inLenv st
 
-        || only allow functions from the stream module to be inlined
-        lookStream
-            = (md,      False), if _eq cmpstring (getModName n) streamModuleName
-            = (Nothing, False), otherwise
-              where
-                md = lookupDefn (view inGenv st) n
+        lookupLocal  = m.lookup cmpname n lenv
+        lookupGlobal = lookupDefn genv n
 
 || rewrite an expr, directly replacing var references with the corresponding value of the binding
 replace :: expr -> [(name, expr)] -> expr
@@ -199,7 +183,7 @@ isSimple e                     = isSimpleExpr e
 || (used when rewriting nested case exprs, to prevent expansion of a non-returning expr)
 noReturn :: expr -> inSt -> bool
 noReturn (Evar n) st
-    = member cmpname noReturnNames n \/ fromMaybef False checkThunk (fst (lookupEnv n st))
+    = member cmpname noReturnNames n \/ fromMaybef False checkThunk (lookupEnv n st)
       where
         checkThunk a = isDefPat a & ~view astAnnoRec a & noReturn (fnExpr a) st        || need to check annoRec to break a lookup loop with mutual recursion
 
@@ -218,7 +202,8 @@ inlineAst k (Elet rec defs ps e) st
     = (Elet rec defs' ps e', st2)
       where
         (defs', st1) = astRewriteMap (astRewriteLex inlineAst) defs st                  || do inlining on all the defns, separately
-        (e', st2)    = astRewriteLex inlineAst e (over inLenv (Env defs' :) st1)        || then do inlining on the let expr, with the new defns
+        (e', st2)    = astRewriteLex inlineAst e (over inLenv (union defs') st1)        || then do inlining on the let expr, with the new defns
+        union m1 m2  = m.union cmpname m2 m1
 
 || inline builtinSel on constant ctor call
 inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) [Ecall (Evar c) args]) st
@@ -240,7 +225,7 @@ inlineAst k (Ecall (Tname (Builtin "sel") [x, (EprimInt idx)]) (Evar n : args)) 
         inlinable = isJust md & isDefPat d & isJust margs'
         note      = "inlined builtinSel on " ++ showName n
         st'       = st |> set inSimplified True |> addInfo note
-        md        = fst $ lookupEnv n st
+        md        = lookupEnv n st
         d         = fromJust md
         e         = fnExpr d
         margs'    = ctorCallArgs e
@@ -298,7 +283,7 @@ inlineAst k (Ecall (Evar n) args) st
     = k e st2, if inlinable
       where
         inlinable = canInline n & isJust md & ~view astAnnoRec d & fnArity d <= #args & cpx <= inlineMaxFnComplexity
-        (md, _)   = lookupEnv n st
+        md        = lookupEnv n st
         d         = fromJust md
         cpx       = view astAnnoCpx d
         deltaCpx  = cpx - #args - 3
@@ -316,14 +301,13 @@ inlineAst k (Ecase b (Evar n) alts an) st
     = k (Ecase b (Evar n) alts  an)  st,  otherwise         || don't do anything if the name is a top-level pat
       where
         || note: restriction on Internal only gives best overall results
-        inlinable    = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
-        (md, cf)     = lookupEnv n st
+        inlinable    = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
+        md           = lookupEnv n st
         d            = fromJust md
-        useInfo      = view astAnnoUse d
+        affine    = view astAnnoUse d |> usedAffine
         cpx          = view astAnnoCpx d
         deltaCpx     = cpx - 2
         an'          = over annoCpx (+ deltaCpx) an
-        affineCpx    = usedAffine useInfo & ~cf
         e            = fnExpr d
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
@@ -345,13 +329,12 @@ inlineAst k (Ecase b (Evar n) alts an) st
 inlineAst k (CaseAlt p (Evar n) an) st
     = k (CaseAlt p e' an) st2, if inlinable
       where
-        inlinable = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
-        (md, cf)  = lookupEnv n st
+        inlinable = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
+        md        = lookupEnv n st
         d         = fromJust md
-        useInfo   = view astAnnoUse d
+        affine    = view astAnnoUse d |> usedAffine
         cpx       = view astAnnoCpx d
         deltaCpx  = cpx - 2
-        affineCpx = usedAffine useInfo & ~cf
         e         = fnExpr d
         (e', st1) = betaReduce d [] st
         note      = "inlined caseAlt expr " ++ showName n
@@ -363,13 +346,12 @@ inlineAst k (Evar n) st
     = (Evar n, st), otherwise
       where
         || note: allowing non-Internals gives best overall results
-        inlinable = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affineCpx) & cpx <= inlineMaxFnComplexity
-        (md, cf)  = lookupEnv n st
+        inlinable = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
+        md        = lookupEnv n st
         d         = fromJust md
-        useInfo   = view astAnnoUse d
+        affine    = view astAnnoUse d |> usedAffine
         cpx       = view astAnnoCpx d
         deltaCpx  = cpx - 2
-        affineCpx = usedAffine useInfo & ~cf
         e         = fnExpr d
         (e', st1) = betaReduce d [] st
         note      = "inlined expr " ++ showName n
@@ -377,14 +359,11 @@ inlineAst k (Evar n) st
 
 || add locInfo for defn, and a FnBound frame to the local env when entering a DefFn
 inlineAst k a st
-    = k a st2, if isDefn a
+    = k a st', if isDefn a
     = k a st,  otherwise
       where
         loc = defnLocInfo a
-        st1 = over inLoc (mergeLocInfo loc) st
-        st2 = over inLenv (FnBound :) st1, if isDefFn a
-            = st1,                         otherwise
-
+        st' = over inLoc (mergeLocInfo loc) st
 
 || simplifyAst -- perform a series of simplification transformations on Ecase and Elet exprs that can
 || expose more opportunities for inlining (from the paper "Let-floating: moving bindings to give faster programs"
@@ -433,8 +412,10 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
 || expr if all defns are removed.  Note: this pattern comes after the previous simplification to an Elet, because
 || this Elet pattern is more general, and would make the previous unreachable
 simplifyAst k (Elet b defs ps e) st
-    = (k (Elet b defs ps e) st.>>= f) (over inLenv (Env defs :) st)
+    = (k (Elet b defs ps e) st.>>= f) (over inLenv (union defs) st)
       where
+        union m1 m2 = m.union cmpname m2 m1
+
         f (Elet rec defs pats e) st
             = (e, st'),                     if null ds
             = (Elet rec defs' pats e, st'), otherwise
@@ -680,23 +661,17 @@ simplifyAst k a st = k a st
 || and the code reverts to the un-inlined version
 inlineGroup :: defnMap -> [name] -> state inSt defnMap
 inlineGroup defs ns st
-    = (m.union cmpname defs ndefs2, st3), if ni < inlineMaxIterations & view inFuel st3 > 0  || add inlined version if inlining was succesful
-    = (m.union cmpname defs ndefs1, st3), otherwise                                          || revert to original if could only inline partial
+    = (m.union cmpname defs ndefs', st2), if ni < inlineMaxIterations & view inFuel st2 > 0  || add inlined version if inlining was succesful
+    = (m.union cmpname defs ndefs,  st2), otherwise                                          || revert to original if could only inline partial
       where
-        st1               = addNote (shows "--- " . showsListMapped " " showsName ns $ " ---") st
-        ndefs1            = foldl addDef m.empty ns
-        fuel              = inlineMaxComplexity * min2 cmpint 2 (#ns)   || limit total allowed fuel to 2*maxComplexity, if handling multiple defns in group
-        st2               = st1 |> set inSimplified True |> set inLenv [Env defs] |> set inFuel fuel
-        (ndefs2, st3, ni) = iterate inlineDefs (ndefs1, st2, 0) |> dropWhile canInlineMore |> hd
+        mdefs = view inGenv st |> view genvMod |> view modDefns
+        ndefs = map (\n -> (n, m.lookup cmpname n mdefs |> fromJust)) ns |> m.fromList cmpname
+        fuel  = inlineMaxComplexity * min2 cmpint 2 (#ns)   || limit total allowed fuel to 2*maxComplexity, if handling multiple defns in group
+        st1   = set inSimplified True st |> set inLenv defs |> set inFuel fuel |> addNote (shows "--- " . showsListMapped " " showsName ns $ " ---")
 
-        addDef m n
-            = m.insert cmpname n (fromJust md) m, if isJust md
-            = m,                                  otherwise
-              where
-                md = fst (lookupEnv n st1) <|> lookupDefn (view inGenv st) n
+        (ndefs', st2, ni) = iterate inlineDefs (ndefs, st1, 0) |> dropWhile canInlineMore |> hd
 
-        canInlineMore (d, st, i)
-            = i < inlineMaxIterations & view inSimplified st & view inFuel st > 0
+        canInlineMore (d, st, i) = i < inlineMaxIterations & view inSimplified st & view inFuel st > 0
 
         || note: instead of trying to track and adjust astAnnono values (cpx, free, uses) during
         || inlining and simplification, we just re-run analyze after inline and simplify, at least for now

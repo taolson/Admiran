@@ -129,7 +129,7 @@ lookupAffineInfo (Evar n)
         getInfo am genv
             = fromMaybe bs.empty check
               where
-                check = Nothing,        if isConstructor n      || ctors don't use any args, but escape all of them, so mark as all non-affine
+                check = Nothing,        if isConstructor n      || ctors don't use any args, but capture all of them, so mark as all non-affine
                       = checkBuiltin,   if isBuiltin n
                       = checkAffineMap, otherwise
 
@@ -146,7 +146,7 @@ lookupAffineInfo (Evar n)
 lookupAffineInfo (Tname n args)
     = st.pure $ bs.singleton 0, if _eq cmpname n builtinSelName || builtinSel uses its source arg once
     = st.pure $ bs.empty,       otherwise                       || builtinPack doesn't use any of its args, but is only used in ctors, which
-                                                                || escape all the args, so just mark as all non-affine
+                                                                || capture all the args, so just mark as all non-affine
 lookupAffineInfo _ = st.pure bs.empty
 
 
@@ -166,6 +166,10 @@ analyzeAst k (Ecase cs e alts an)
         analyzeSingle a = st.liftA3 triple (clrCpxUses >> astRewriteLex analyzeAst a) (st.view azCpx) (st.view azUses)
         analyzeAlt    a = analyzeSingle a st.<&> updateAlt
 
+        || note: updateAlt currently ignores annoAffine, but the information about uses is there if
+        || we want to update it (like in DefFn). Experiments show that the cost of doing so is probably more
+        || than the slight benefit it gives during inlining the corresponding CaseAlt for constant ctor scrutinees,
+        || but the code in simplifyAst does pass the annoAffine field to createBinding if we decide to update it here.
         updateAlt (a, c, u) = (lens.set astAnnoCpx c a |> lens.set astAnnoFree (m.keys u), c, u)
 
         updateCase inCpx inUses (e', eCpx, eUse) altCpxUses
