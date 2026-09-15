@@ -218,11 +218,11 @@ updateDefn inCpx inUses d
                 rec = m.member cmpname n free
                 d'  = lens.set astAnno (lens.view astAnnoLoc d, rec \/ lens.view astAnnoRec d, cpx, Umany, m.keys free', aff) d
 
-                free' = free m.<&> const Umany |> adjustForFn, if rec   || recursive defs capture all free vars
-                      = free,                                  otherwise
+                free' = free m.<&> const Umany |> adjustRec, if isDefFn d     || a DefFn can be called many times, so mark free vars as Umany
+                      = free,                                otherwise
 
-                adjustForFn = m.insert cmpname n Uzero, if isDefFn d    || count defn as Uzero for use in DefFn
-                            = id,                       otherwise       || count defn as Umany for DefPat
+                adjustRec = m.insert cmpname n Uzero, if rec    || don't count recursive uses as free vars
+                          = id,                       otherwise
 
 || check to see if Evar arguments passed to a function are usedAffine by the function,
 || and adjust the useInfoMap accordingly
