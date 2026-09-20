@@ -1,3 +1,39 @@
+--- performance regression from 3.1 in advent 2022 day20 ---
+3.1 = 46.579
+latest = 60.449
+
+most runtime appears to be in mix`rm. Seems to be purely due to runtime GC differences,
+with 3.1 spending ~40% of time in GC while latest spends ~50%. Sampling shows both histograms
+are very similar, all GC or in mix`rm.  Needs more looking into.
+
+--- Arm64 codegen ---
+
+* reorganize codegen for multiple architectures
+  - extract common defns & functions
+    - register ABI (args, caller vs callee save, etc.)
+      - limited #of args passed in registers; need to change codegen to push remaining on stack at caller site
+        and pop into new virtual registers at callee site
+    - insn structure (op, dest, srcs) instead of just text?
+    - how to handle 3-address (reg, imm) (arm) vs 2-address (reg / imm / mem) (x86)
+  - codegen needs to have state passed through it
+    - generate unique labels for data section jump tables
+
+* need 3? passes: instruction selection, live range analysis,  and register allocation
+  - instruction selection initally works with infinite virtual registers
+  - reg alloc uses first available from live range
+  - can we get by without having to spill/fill?
+
+* - can we get rid of Args[], Regs[] backing stores when transferring back and forth between Admiran
+    and runtime C code, by pushing live ranges onto stack before calling GC?  One problem is that
+    we can't have a single entry to call gcMinor, since the live-range spill would be variable at each
+    call, but adding it inline during codegen might blow up code too much? Also need to worry about other
+    entry communication like GeneralApply (pass all args and arg count on stack?
+
+* change handing over-applied functions to all be done in Admiran routines with stack communication?
+  - can split into a push of an ApplyToEnv, followed by a push of {caller arity} Args, then a pop of
+  - {callee-arity} Args
+
+
 --- Stack-allocation of Tclosure, Fclosure  ---
 There is an opportunity to allocate Tclosures and Fclosures on the stack, if they don't escape the current lexical context.  This
 would be when a closure is allocated, then we push a continuation closure on the stack, and then call some expr that uses the
@@ -56,19 +92,6 @@ single memoized function to be used over and over, but instead we:
 
 *** compiling the memoTree lib and the test without inlining fixes the problem for memopair, but the problem still persists
 for memostring, so there is still a memoization problem unrelated to inlining, there.
-
---- Default of Umany in inline:wrapInLet causes a few performance regressions ---
-2015
-   16          0.005          0.007  (+40.1%) -- inlining on day16.day16 was dropped
-   18          2.549          4.403  (+72.7%) -- inlining on getLight was dropped due to maxComplexity (Umany as default for WrapInLet)
-2017
-   15          5.969          7.511  (+25.8%) -- inlining on day15.day15 was dropped
-2024
-    6          0.465          0.628  (+35.1%) -- ""
-
-Currently Umany is used, as it is the safe default, but we could pass the defn's anAffine bitSet into createBinding and
-wrapInLet, and if the var's corresponding usedAffine bit is set, we can set initial use to Uone instead of Umany.
-
 
 --- Need to look at RetArg implementation and how word# values should be returned from functions ---
 The RetArg mechanism currently returns the particular Arg register value in R0, but subsequent code usually
@@ -150,23 +173,11 @@ after GC, to propagate any changes to them back to the args/regs/env).
 
 --- unify lexical environment implementations? ---
 currently there is a mix of two different lexical environment implementations in various modules:
-    inline, normalize, typecheck:     uses explicit stack of maps, adding a stack frame of a map in the new env
-    rename, stg:                     uses a combined map, inserting individual elements into the map when they are encountered
+    inline, rename, stg, use a single unified map
+    normalize, typecheck use a stack (list) of maps
 
-inline needs the stack because there is a mix of maps and function boundary markers, but the others
-can all use either style.  Performance difference seems to be negligible between the two styles
-
-also, analyze uses the dynamic state to hold the use count (which would more naturally be in the lexical state), because astRewriteLex
-restores the entire lexical state after running the subAsts.  However, we could substitute a new version of astRewriteLex that uses
-a stack of bag frames for the uses in the lex state, and restores it by popping the top frame off.
-
-An example is analyze.m, where the lexically-scoped name map is kept in the State portion of RWS because we need to update uses
-of names in outer scopes and collect free var references, and the initializing / merging of info around lexical boundaries is
-somewhat messy.  Instead, we could keep a list of lexical frames, each with its own bag of name ref counts and free var set; when
-we encounter a new lexical scope, add a new frame with the bag initialized to the names -> 0 and an empty free var set.  Then when
-we encounter a name, check for it in each frame until it is found (if not found, add it to the free var set of that frame) and increment
-its use count. On exit from a lexical scope, pop the top frame (after using it for e.g. updating the freevar list of a defn or the use
-count of a defn in a Let map).
+Need to reinvestigate claimed performace difference between the two in typecheck / normalized to see if they should be converted
+to a single unified map like the others.
 
 
 --- exception ---
@@ -181,13 +192,6 @@ exception printed out so that:
     - first is exception type (Error Warn), and location
     - next is any additional location info (e.g. in definition of, in application of, etc.)
     - next is a list of exceptions
-
-
---- options / configuration ---
-Make an options module (similar to how exceptions is done) that enumerates all the compiler options in a algebraic type, and add it
-to mirac and the globalEnv passed through all the passes so each pass module can examine its options from it.
-
-Also write a general command line parser for options and add it to lib?
 
 
 --- tokenizer, parser ---
@@ -338,10 +342,6 @@ Create the new name by trying consecutive numbers, starting with env size
 --- Nullary Constructor Defn ---
 Should nullary constructors (e.g. Nil, Nothing) be defined with a DefPat instead of a DefFn n []?  Currently everything works, but it seems odd that
 nullary constructors are DefFns....
-
-
---- AVL ---
-Look into replacing AVL with a red/black tree, to see if that performs better
 
 
 --- Annotated AST ---
@@ -503,11 +503,6 @@ also remove test for simpleExpr in admiranParser
 --- Using more Applicative style in desugar, rewrite, module ---
 Look into rewriting desugar, rewrite and module in a more applicative style (like typecheck),
 rather than explicitly threading the state during astRewrite
-
-
---- Build Dependency Checking ---
-build dependency checking needs to happen recursively on modules: if a submodule uses another module that needs to be rebuilt, it 
-needs to be parsed again -- something needs to change in parseFiles
 
 
 --- Parameterized Module (%free) Handling ---
