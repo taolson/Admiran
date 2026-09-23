@@ -103,7 +103,7 @@ mapM_ f xs
     = go xs
       where
         go []       r s w = ((), s, w)
-        go (x : xs) r s w = case f x of m -> case m r s w of (_, s', w') -> go xs r s' w'
+        go (x : xs) r s w = case f x r s w of (_, s', w') -> go xs r s' w'
 
 forM :: [****] -> (**** -> rws * ** *** *****) -> rws * ** *** ()
 forM xs f = mapM_ f xs
