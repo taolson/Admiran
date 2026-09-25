@@ -1,7 +1,8 @@
 || derive.am -- derive instances of show and ord for user-defined data types and synonyms
+||              and derive specs and defns for data constructors
 
 
-%export deriveInstances
+%export derive
 
 %import <base>
 %import <lens>
@@ -13,6 +14,45 @@
 %import "module"
 %import "name"
 %import "predef"
+
+
+|| derive constructor specs and defns for a user-defined data type
+|| if any field of a ctor is strict, create a strict version of the ctor that evaluates
+|| the strict fields, then calls a lazy version of the ctor with the results
+deriveCtors :: string -> defn -> [(defn, defn)]
+deriveCtors mn (DefData dt ctors an)
+    = enumerate ctors |> concatMap deriveCtor
+      where
+        deriveCtor (tag, Tname n cfs)
+            = [strictSpecFn, lazySpecFn n'], if any isStrict cfs
+            = [lazySpecFn n],                otherwise
+              where
+                t  = map unStrict cfs |> foldr Tarr dt  || type of ctor fn
+                n' = Private mn (getName n ++ "!")      || name for the lazy version of a strict ctor
+                nf = #cfs
+
+                lazySpecFn cn
+                    = (defSpec, defFn)
+                      where
+                        defSpec = DefSpec (Tname cn []) t an
+                        defFn   = DefFn cn [] (builtinPack cn tag nf) an
+
+                strictSpecFn
+                    = (defSpec, defFn)
+                      where
+                        (_, vs) = genNames "var" 0 cfs
+                        pvs     = map Pvar vs
+                        evs     = map Evar vs
+                        defSpec = DefSpec (Tname n []) t an
+                        defFn   = DefFn n pvs (foldr mkStrict (Ecall (Evar n') evs) (zip2 evs cfs)) an
+
+        mkStrict (e, t) k
+            = Ecase Csingle e [CaseAlt Pwildcard k an] an, if isStrict t
+            = k,                                           otherwise
+
+        deriveCtor _ = unreachable
+
+deriveCtors _ _ = unreachable
 
 
 || derive a show instance spec and defn for a user-defined data type or synonym
@@ -138,21 +178,23 @@ deriveOrd d
 
                 genPat _ _ = unreachable
 
-|| derive any missing instances for ord, show for the dataDefs
-deriveInstances :: globalEnv -> excpt globalEnv
-deriveInstances genv
-    = ex.foldM insInstance m (shows ++ ords) <&> \m -> set genvMod m genv
+|| derive ctor defns and missing instances for ord, show for the dataDefs
+derive :: globalEnv -> excpt globalEnv
+derive genv
+    = ex.foldM ins m (ctors ++ shows ++ ords) <&> \m -> set genvMod m genv
       where
-        m             = view genvMod genv
-        defs          = view modDefns m
-        pats          = view modPats m
-        ddefs         = m.elems defs |> filter isDerivable
-        shows         = filter (missing "show") ddefs |> map deriveShow
-        ords          = filter (missing "cmp")  ddefs |> map deriveOrd
-        isDerivable d = isDefData d & (not . null . view dataCtors) d \/ isDefSyn d
+        m     = view genvMod genv
+        mn    = view modName m
+        defs  = view modDefns m
+        pats  = view modPats m
+        ddefs = m.elems defs |> filter (\d -> isDefData d & ~null (view dataCtors d))
+        sdefs = m.elems defs |> filter isDefSyn
+        idefs = ddefs ++ sdefs
+        ctors = concatMap (deriveCtors mn) ddefs
+        shows = filter (missing "show") idefs |> map deriveShow
+        ords  = filter (missing "cmp")  idefs |> map deriveOrd
 
-        insInstance m (ds, df)
-            = modInsSpec ds m >>= modInsDef df
+        ins m (ds, df) = modInsSpec ds m >>= modInsDef df
 
         missing s d
             = isNothing (m.lookup cmpname n' defs) & ~any (match n') pats

@@ -108,8 +108,8 @@ buildModule mm n
         || eliminated in the final bootstrapBuild, because inlining is disabled.
         passes =
             [ reifyImports                || reify all the exports from imported modules
+            , derive                      || derive ctor fns and any missing instances for show, ord from the DefData and DefSyn defns
             , reifyDefns isDefData        || reify data type and constructor names early for desugaring constructor patterns
-            , deriveInstances             || derive any missing instances for show, ord from the DefData and DefSyn defns
             , desugar                     || desugar complex pats, list comprehensions, conditionals, etc.
             , reifyDefns notData          || reify all the desugared fn and pat definitions
             , rename                      || qualify or uniquely rename as Internal all Unqualified names

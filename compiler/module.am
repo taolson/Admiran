@@ -281,40 +281,6 @@ modInsPat d m
       where
         qd = qualifyDefn (view modName m) d
 
-|| make a constructor that has strict fields by inserting an Ecase evaluation of those
-|| fields before performing builtinPack
-makeStrictCtor :: name -> int -> [texpr] -> anno -> defn
-makeStrictCtor n tag cts an
-    = DefFn n pvs (Elet False (m.singleton sc d) [] (foldr mkStrict (Ecall (Evar sc) evs) (zip2 evs cts))) an
-      where
-        sc        = (Internal "Sc" 0)           || name for internal constructor to call after fields made strict
-        (_, vs )  = genNames "var" 0 cts        || generate names for the constructor vars
-        pvs       = map Pvar vs
-        evs       = map Evar vs
-        d         = DefFn sc [] (builtinPack n tag (#cts)) an  || note: nullary DefFn instead of DefPat; arity from builtinPack
-
-        mkStrict (e, t) k
-            = Ecase Csingle e [CaseAlt Pwildcard k an] an, if isStrict t
-            = k,                                           otherwise
-
-|| insert a data definition:
-|| insert a type specification for each constructor
-|| insert a function for each constructor which is an alias to builtinPack
-modInsData :: defn -> modInserter
-modInsData d m
-    = case d of
-        DefData dt ctors an -> ex.foldM (insFn dt an) m (enumerate ctors) ex.>>= modInsDef d
-        _                   -> ex.pure m
-      where
-        insFn dt an m (tag, (Tname n cts))
-            = modInsSpec spec m ex.>>= modInsDef fn
-              where
-                t      = foldr Tarr dt $ map unStrict cts
-                spec   = DefSpec (Tname n []) t an
-                fn     = makeStrictCtor n tag cts an,              if any isStrict cts
-                       = DefFn n [] (builtinPack n tag (#cts)) an, otherwise    || note: nullary DefFn instead of DefPat; arity from builtinPack
-        insFn _ _ _ _  = unreachable
-
 || insert a type specification
 modInsSpec :: defn -> modInserter
 modInsSpec d m

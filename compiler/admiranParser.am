@@ -607,9 +607,9 @@ p_tdef
       p.liftA3 mkData p_getLoc p_tform  (p.sym "::=" >> (p.inLayout p_constructs <|> p.expected "a data definition")) <|>
       p.liftA3 mkAbs  p_getLoc (p.ident "abstype" >> p_tform) (p.ident "with" >> p.inLayout p_sig)
       where
-        mkSyn  loc tf  t    = modInsDef  (DefSyn  tf  t                  (emptyAnnoLoc loc))
-        mkData loc tf ctors = modInsData (DefData tf  ctors              (emptyAnnoLoc loc))
-        mkAbs  loc tf ts    = modInsAbs  (DefAbs  tf  ts builtinTypeType (emptyAnnoLoc loc))
+        mkSyn  loc tf  t    = modInsDef (DefSyn  tf  t                  (emptyAnnoLoc loc))
+        mkData loc tf ctors = modInsDef (DefData tf  ctors              (emptyAnnoLoc loc))
+        mkAbs  loc tf ts    = modInsAbs (DefAbs  tf  ts builtinTypeType (emptyAnnoLoc loc))
 
 p_def :: parser (defn, modInserter)
 p_def
