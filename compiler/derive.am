@@ -40,11 +40,12 @@ deriveCtors mn (DefData dt ctors an)
                 strictSpecFn
                     = (defSpec, defFn)
                       where
-                        (_, vs) = genNames "var" 0 cfs
+                        vs      = genNames "var" 0 cfs |> snd
                         pvs     = map Pvar vs
                         evs     = map Evar vs
+                        seval   = foldr mkStrict (Ecall (Evar n') evs) (zip2 evs cfs)
                         defSpec = DefSpec (Tname n []) t an
-                        defFn   = DefFn n pvs (foldr mkStrict (Ecall (Evar n') evs) (zip2 evs cfs)) an
+                        defFn   = DefFn n pvs seval an
 
         mkStrict (e, t) k
             = Ecase Csingle e [CaseAlt Pwildcard k an] an, if isStrict t

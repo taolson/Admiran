@@ -151,9 +151,9 @@ showexception e = showsException e ""
 cmpexception = undef
 
 || lenses for exception
-excptType   = lensTup3_0
-excptInfo   = lensTup3_1
-excptLoc    = lensTup3_2
+excptType = lensTup3_0
+excptInfo = lensTup3_1
+excptLoc  = lensTup3_2
 
 
 || either a list of Errors, or a result along with a list of Notes and Warns
