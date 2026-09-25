@@ -1,0 +1,23 @@
+|| streamDemo.am -- show use and performance of stream interface vs lazy lists
+
+
+%import <base>
+%import <io>
+%import <stream>
+
+
+|| streams can be used to perform chained pipelines of functions like lazy lists,
+|| but support stream fusion that can fuse multiple pipe stages into a single recursive
+|| loop
+pipeList, pipeStrm :: int -> int
+pipeList n = [0 .. n]   |> map  (+ 1) |> filter  even |> sum
+pipeStrm n = rangeS 0 n |> mapS (+ 1) |> filterS even |> sumS
+
+
+main :: io ()
+main = mapM_ timeRun tests
+       where
+         tests = [("lazy list", pipeList), ("stream   ", pipeStrm)]
+
+         timeRun (s, f) = putStr (s ++ ": ") >> time f 100_000 >>= display
+         display (r, t) = putStrLn $ "result: " ++ showint r ++ " usec: " ++ showint t

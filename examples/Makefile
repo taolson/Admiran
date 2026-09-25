@@ -1,6 +1,6 @@
 AMC= ../bin/amc
 
-EXAMPLES= bowling caesar eDigits fib fizzBuzz hello primes wordHistogram zebra
+EXAMPLES= bowling caesar eDigits fib fizzBuzz hello primes streamDemo wordHistogram zebra
 
 .SUFFIXES:
 .SUFFIXES: .am
