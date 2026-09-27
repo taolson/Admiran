@@ -10,7 +10,7 @@
 digits = 10_000
 
 step :: mvector int -> int -> int -> io int
-step mv 0 x = io.pure x
+step mv 0 x = pure x
 step mv i x
     = case quotrem x i of
         (q, r) -> update >> v.unsafeRead mv i' >>= next

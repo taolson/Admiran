@@ -14,4 +14,4 @@ printEntry :: (string, int) -> io ()
 printEntry (s, n) = showint n |> padL 5 |> (++ " " ++ s) |> putStrLn
 
 main :: io ()
-main = getArgs >>= mapM readFile <&> concat >>= wordHistogram .> mapM_ printEntry
+main = getArgs >>= mapM readFile <&> concat .> wordHistogram >>= mapM_ printEntry

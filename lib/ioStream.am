@@ -13,8 +13,8 @@
 streamFile :: string -> io (stream char word#)
 streamFile fn world
     = case allocByteStream# 256# of s# ->
-      case writeByteStream s# fn of  _ ->
-      case openFileRead# s# of     fs# ->
+      case writeByteStream s# fn of _  ->
+      case openFileRead# s# of fs#     ->
       (Stream next fs#, world)
       where
         next fs#
