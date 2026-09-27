@@ -642,12 +642,12 @@ typecheckGroup ns
                   = installSpec,                                         if isNothing mspec   || install the inferred spec if not specified
                   = inLexEnv m.empty locSubsumes id_subst st.>>= verify, otherwise            || verify inferred against specified type
                     where
-                      mspec          = lookupSpec genv n
-                      spec           = fromJust mspec
-                      DefSpec _ t' _ = spec
-                      normt          = normalize t
-                      spec'          = DefSpec (Tname n []) normt (genvAnno genv)
-                      loc            = defnLocInfo spec
+                      mspec = lookupSpec genv n
+                      spec  = fromJust mspec
+                      t'    = lens.view defnType spec
+                      normt = normalize t
+                      spec' = DefSpec (Tname n []) normt (genvAnno genv)
+                      loc   = defnLocInfo spec
 
                       verify Nothing = typeSpecError
                       verify _       = installSpec, if hasTypeHole spec || install the inferred spec, if the spec matches but has a type hole

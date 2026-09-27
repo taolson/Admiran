@@ -25,9 +25,9 @@
 
 
 || a code object is a locInfo and a list of STG instructions
-codeObj  == (locInfo, [stgInsn])                || source fn name and loc info, stg code
-codePtr  == int                                 || index into the stgCode map
-stgCode  == (m.map codePtr codeObj, codePtr)    || code map, next unused codePtr value
+codeObj == (locInfo, [stgInsn])                 || source fn name and loc info, stg code
+codePtr == int                                  || index into the stgCode map
+stgCode == (m.map codePtr codeObj, codePtr)     || code map, next unused codePtr value
 
 || a heap object consists of a heapInfo tag along with a list of free-variable environment values
 heapInfo ::=
@@ -223,33 +223,33 @@ cmpbdLexSt  = undef
 showbdLexSt = undef
 
 || lenses for bdLexSt
-lexLenv     = lensTup8_0
-lexLcls     = lensTup8_1
-lexLoc      = lensTup8_2
-lexRegGen   = lensTup8_3
-lexFrmGen   = lensTup8_4
-lexStkGen   = lensTup8_5
-lexBuiltin  = lensTup8_6
-lexCaseAlt  = lensTup8_7
+lexLenv    = lensTup8_0
+lexLcls    = lensTup8_1
+lexLoc     = lensTup8_2
+lexRegGen  = lensTup8_3
+lexFrmGen  = lensTup8_4
+lexStkGen  = lensTup8_5
+lexBuiltin = lensTup8_6
+lexCaseAlt = lensTup8_7
 
 || lenses for bdSt
-bdDyn       = lensFst
-bdLex       = lensSnd
-bdGenv      = composeLens bdDyn  lensTup3_0
-bdCode      = composeLens bdDyn  lensTup3_1
-bdHeap      = composeLens bdDyn  lensTup3_2
-bdCodeMap   = composeLens bdCode lensFst
-bdCodePtr   = composeLens bdCode lensSnd
-bdHeapMap   = composeLens bdHeap lensFst
-bdHeapPtr   = composeLens bdHeap lensSnd
-bdLenv      = composeLens bdLex  lexLenv
-bdLcls      = composeLens bdLex  lexLcls
-bdLoc       = composeLens bdLex  lexLoc
-bdRegGen    = composeLens bdLex  lexRegGen
-bdFrmGen    = composeLens bdLex  lexFrmGen
-bdStkGen    = composeLens bdLex  lexStkGen
-bdBuiltin   = composeLens bdLex  lexBuiltin
-bdCaseAlt   = composeLens bdLex  lexCaseAlt
+bdDyn     = lensFst
+bdLex     = lensSnd
+bdGenv    = composeLens bdDyn  lensTup3_0
+bdCode    = composeLens bdDyn  lensTup3_1
+bdHeap    = composeLens bdDyn  lensTup3_2
+bdCodeMap = composeLens bdCode lensFst
+bdCodePtr = composeLens bdCode lensSnd
+bdHeapMap = composeLens bdHeap lensFst
+bdHeapPtr = composeLens bdHeap lensSnd
+bdLenv    = composeLens bdLex  lexLenv
+bdLcls    = composeLens bdLex  lexLcls
+bdLoc     = composeLens bdLex  lexLoc
+bdRegGen  = composeLens bdLex  lexRegGen
+bdFrmGen  = composeLens bdLex  lexFrmGen
+bdStkGen  = composeLens bdLex  lexStkGen
+bdBuiltin = composeLens bdLex  lexBuiltin
+bdCaseAlt = composeLens bdLex  lexCaseAlt
 
 || initial build state
 || fixed codePtrs for special generic operations, must ensure they match the order of the special routines in initBdSt
@@ -274,14 +274,14 @@ initBdSt genv
         heap = (m.empty, 0)
 
         || code for fixed code ptrs
-        special  = [ (unpackPtr,     (builtinInfo "<unpack>",     [RetEnv]))                                                || unpack packed value to args
-                   , (updatePtr,     (builtinInfo "<update>",     [Update e0Opr (Imm (Caddr unpackPtr)), Ret r0Opr r1Opr])) || pack args and update thunk
-                   , (applyToEnvPtr, (builtinInfo "<applytoenv>", [ApplyToEnv]))                                            || apply r0 to args in env
-                   , (enterEnv0Ptr,  (builtinInfo "<enterenv0>",  [EnterInd e0Opr []]))                                     || enter env0 for update fwd
-                   , (selRetPtr,     (builtinInfo "<selret>",     [Sel r0Ref (Ref (Env, 0)), Ret r0Opr (makeImmOpr 0)]))    || sel for a word value
-                   , (selApplyPtr,   (builtinInfo "<selapply>",   [Sel r0Ref (Ref (Env, 0)), Apply r0Opr []]))              || sel for a thunk value
-                   , (blackHolePtr,  (builtinInfo "<blackhole>",  [Jmp blackHolePtr]))                                      || blackhole update "trampoline"
-                   ]
+        special = [ (unpackPtr,     (builtinInfo "<unpack>",     [RetEnv]))                                                || unpack packed value to args
+                  , (updatePtr,     (builtinInfo "<update>",     [Update e0Opr (Imm (Caddr unpackPtr)), Ret r0Opr r1Opr])) || pack args and update thunk
+                  , (applyToEnvPtr, (builtinInfo "<applytoenv>", [ApplyToEnv]))                                            || apply r0 to args in env
+                  , (enterEnv0Ptr,  (builtinInfo "<enterenv0>",  [EnterInd e0Opr []]))                                     || enter env0 for update fwd
+                  , (selRetPtr,     (builtinInfo "<selret>",     [Sel r0Ref (Ref (Env, 0)), Ret r0Opr (makeImmOpr 0)]))    || sel for a word value
+                  , (selApplyPtr,   (builtinInfo "<selapply>",   [Sel r0Ref (Ref (Env, 0)), Apply r0Opr []]))              || sel for a thunk value
+                  , (blackHolePtr,  (builtinInfo "<blackhole>",  [Jmp blackHolePtr]))                                      || blackhole update "trampoline"
+                  ]
         builtinInfo s = pathOnlyLocInfo $ Builtin s
 
 || alloc a int resource in bdSt strictly
@@ -847,9 +847,9 @@ buildCode (Ecall (Tname f as) args)
         mkSel genv eis
             = PushCont selPtr [makeImmOpr i] : eis
               where
-                t       = lookupSpec genv cn |> fromJust |> lens.view defnType |> nthType i  || get the individual types of the ctor
-                selPtr  = selRetPtr,   if _eq cmptexpr t builtinTypeWord                || if we are selecting a word#, use Sel followed by a Ret
-                        = selApplyPtr, otherwise                                        || otherwise it is a thunk; use Sel followed by an Apply
+                t      = lookupSpec genv cn |> fromJust |> lens.view defnType |> nthType i      || get the individual types of the ctor
+                selPtr = selRetPtr,   if _eq cmptexpr t builtinTypeWord || if we are selecting a word#, use Sel followed by a Ret
+                       = selApplyPtr, otherwise                         || otherwise it is a thunk; use Sel followed by an Apply
 
 || general case for Ecall: make oprs from the fn and the args,
 || then either generate an Apply or Enter or Call insn, depending
@@ -902,9 +902,9 @@ buildCode d
         buildCodeDef (DefPat p e an)
             = inDefEnv loc [] fns (buildCode e) <&> mkCode
               where
-                bhInst     = Update r2Opr (Imm (Caddr blackHolePtr))            || update thunk to blackHole trampoline during evaluation
-                contInst   = PushCont updatePtr [r2Opr]                         || push a continuation to update thunk with result
-                noUpdate   = isCtorCall e \/ usedAffine (lens.view annoUse an)
+                bhInst   = Update r2Opr (Imm (Caddr blackHolePtr))      || update thunk to blackHole trampoline during evaluation
+                contInst = PushCont updatePtr [r2Opr]                   || push a continuation to update thunk with result
+                noUpdate = isCtorCall e \/ usedAffine (lens.view annoUse an)
 
                 || don't perform updates on thunks that are simple constructor calls
                 || since constructors are WHNF already and don't evaluate their args
@@ -971,14 +971,14 @@ reachableFrom ns genv
             = walk seen' (ns ++ deps'), if isBuiltin n \/ isJust md
             = errNotFound n,            otherwise
               where
-                md            = lookupDefn genv n
-                d             = fromJust md
-                deps          = lens.view astAnnoFree d |> filter topLevel   || find all top-level and builtin constructor dependencies
-                deps'         = if' (isBuiltin n) [] deps               || no deps for builtins
-                seen'         = m.insert cmpname n deps' seen
-                errNotFound n = error ("buildStg: " ++ showName n ++ " not found")
+                md    = lookupDefn genv n
+                d     = fromJust md
+                deps  = lens.view astAnnoFree d |> filter topLevel      || find all top-level and builtin constructor dependencies
+                deps' = if' (isBuiltin n) [] deps                       || no deps for builtins
+                seen' = m.insert cmpname n deps' seen
 
-                topLevel n = isConstructor n \/ ~isInternal n & ~isBuiltin n
+                errNotFound n = error ("buildStg: " ++ showName n ++ " not found")
+                topLevel n    = isConstructor n \/ ~isInternal n & ~isBuiltin n
 
 || make a top-level start function which evaluates the entry function of type io ()
 || and then exits
@@ -988,21 +988,21 @@ makeStart n genv
     = errNotIO,       if ~ioWorldSpec spec
     = (start, genv'), otherwise
       where
-        mspec      = lookupSpec genv n
-        spec       = fromJust mspec |> lens.view defnType
-        errNoSpec  = error ("entry function " ++ showName n ++ " not found")
-        errNotIO   = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
-        start      = Qualified (getModName n) "!start"
-        fns        = [n, worldName, builtinExitName]
-        anno       = lens.set annoFree fns (genvAnno genv)
-        startFn    = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0]) emptyAnno] emptyAnno
-        def        = DefPat (Pvar start) startFn anno
-        genv'      = lens.over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
+        mspec     = lookupSpec genv n
+        spec      = fromJust mspec |> lens.view defnType
+        errNoSpec = error ("entry function " ++ showName n ++ " not found")
+        errNotIO  = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
+        start     = Qualified (getModName n) "!start"
+        fns       = [n, worldName, builtinExitName]
+        anno      = lens.set annoFree fns (genvAnno genv)
+        startFn   = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0]) emptyAnno] emptyAnno
+        def       = DefPat (Pvar start) startFn anno
+        genv'     = lens.over (composeLens genvMod modDefns) (insDefnMapUnchecked def) genv
 
         || world type and World token used by io to sequence io actions
-        tWorld     = Tname (Qualified "io" "world") []
-        worldName  = Qualified "io" "World"
-        world      = Evar worldName
+        tWorld    = Tname (Qualified "io" "world") []
+        worldName = Qualified "io" "World"
+        world     = Evar worldName
 
         || must be "io ()" or its equivalent type expansion "World -> ((), World)"
         ioWorldSpec t
