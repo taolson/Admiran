@@ -25,9 +25,6 @@
 || functions which don't return (call error and terminate)
 noReturnNames = map makeStdlibName ["exit", "error#", "error", "blackHole", "undef", "unreachable", "caseFail", "matchFail", "cmpFn"]
 
-isIOfn :: name -> bool
-isIOfn n = getModName n ==$ "io"
-
 || functions we shouldn't inline
 || stdlib.getTag and stdlib.cmpTag need to force evaluation of arguments, but don't use the results
 || (just the evaluated tag in R0), which gets thrown away via dead code elimination during inlining
@@ -169,7 +166,7 @@ betaReduce d args st
 || see if name is something we can replace with its definition
 || IO functions don't benefit from being inlined, so we add them here
 canInline :: name -> bool
-canInline n = ~(isBuiltin n \/ isConstructor n \/ isIOfn n \/ member cmpname noInlineNames n)
+canInline n = ~(isBuiltin n \/ isConstructor n \/ member cmpname noInlineNames n)
 
 canInlineInternal :: name -> bool
 canInlineInternal n = isInternal n & canInline n

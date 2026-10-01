@@ -609,7 +609,7 @@ genInsn :: stgInsn -> showS
 genInsn (Call cp args)
     = genMoveToArgs args . genJmpOpcode "jmp" (cvtJmpCodePtr cp)
 
-|| enter closure pointed to by the heapPtr, setting r2 to the Env addr (hp + 16) and jumping to the codePtr at hp + 8
+|| enter closure pointed to by the heapPtr, setting r2 to the tagged heapPtr, and jumping to the closure's codePtr
 genInsn (Enter hp args)
     = genMoveToArgs args                                           .
       genOpcode    "leaq" [addX86Offset 1 (cvtHeapPtr hp), x86Env] .    || add tag bit to raw heapPtr
@@ -646,7 +646,7 @@ genInsn (Apply fopr args)
         genArgs fopr = genMoveToArgs args . genMove r2Ref fopr
 
         genApply
-            = genOpcode    "movq" [X86Imm (nargs), cvtReg 3]          . || put #args in Admiran R3 to pass to GeneralApply (R3 is temp at this point)
+            = genOpcode    "movq" [X86Imm (nargs), cvtReg 3]          . || put #args in STG r3 to pass to GeneralApply (r3 is temp at this point)
               genOpcode    "movq" [addX86Offset (-1) x86Env, tagword] . || load the heapInfo tagword, removing the tag bit from the addr first
               genOpcode    "cmpb" [X86Imm 2, tag]                     . || compare tag byte with 1
               genJmpOpcode "jg"   applyAddr                           . || tag was > 2; need to perform general apply
@@ -827,7 +827,7 @@ genInsn (Vclosure d cp)
 || overwrite the cp without touching the env, etc.  The second is more involved, having to create
 || a new thunk for the value, fwd the old closure to it, and update the gcRootsList if the updated
 || closure is in old space
-|| Note: ref d is always R2 (x86Env), so we just assume that in the code below
+|| Note: ref d is always r2 (x86Env), so we just assume that in the code below
 genInsn (Update d (Imm (Caddr cp)))
     = genUpdateBH, if cp == blackHolePtr
     = genUpdate,   otherwise
@@ -853,7 +853,7 @@ genInsn (Update d (Imm (Caddr cp)))
               shows "1:\n"                                              || use label 1, since 0 is used by genWriteBarrier
               where
                 packFn = cvtReg 1
-                upd    = cvtReg 3       || x86MovTmp is used, and R0, R1 (x86Tmp0, x86Tmp1) are live, but R3 is available
+                upd    = cvtReg 3       || x86MovTmp is used, and r0, r1 (x86Tmp0, x86Tmp1) are live, but r3 is available
                                         || and is not destroyed by the packFns, so it doesn't need to be saved
                 fwdPtr = cvtMemCodePtr enterEnv0Ptr
 
@@ -912,12 +912,10 @@ genInsn (Mul d a b)
               movd                              || move to final destination, if not a reg
 
 genInsn (QuotRem dq dr a b)
-    = genOpcode    "pushq" [x86rdx]      .      || save %rdx, as it is destroyed during QuotRem
-      genQuotRem xa xb                   .      || use xdr as a temp reg during f
-      genOpcode    "shlq"  [x86rax]      .
-      genOpcode    "movq"  [x86rax, xdq] .
-      genOpcode    "shlq"  [x86rdx]      .
-      genOpcode    "movq"  [x86rdx, xdr] .
+    = genOpcode    "pushq" [x86rdx]                 .   || save %rdx, as it is destroyed during QuotRem
+      genQuotRem xa xb                              .   || use xdr as a temp reg during f
+      genOpcode    "leaq"  [X86Scl x86rax 2 0, xdq] .   || tag quotient and move to dq
+      genOpcode    "leaq"  [X86Scl x86rdx 2 0, xdr] .   || tag remainder and move to dr
       genOpcode    "popq"  [x86rdx]
       where
         xa  = cvtOpr a
@@ -1087,7 +1085,7 @@ genInsn (WriteStream d s c)
       where
         lim        = x86MovTmp
         limw       = word0 lim
-        creg       = x86Tmp0            || note: d could also be R0 (x86Tmp0), but is written after the creg temp use
+        creg       = x86Tmp0            || note: d could also be r0 (x86Tmp0), but is written after the creg temp use
         cregb      = byte0 creg
         (xs, movs) = ensureX86Reg x86Tmp1 s
 
@@ -1394,7 +1392,7 @@ genGetStartClosure ha
       genOpcode "ret" []
 
 || generate the EnterAdmiran routine, which restores the Admiran register
-|| state, then enters the closure in Arg0
+|| state, then enters the closure in arg0
 genEnterAdmiran :: showS
 genEnterAdmiran
     = genCGlobal "EnterAdmiran"                         .
@@ -1402,7 +1400,7 @@ genEnterAdmiran
       genInsn (EnterInd (Ref (Arg, 0)) [])
 
 || generate the CallAdmiran routine, which restores the Admiran register
-|| state, then jumps to the codePtr in R0
+|| state, then jumps to the codePtr in r0
 genCallAdmiran :: showS
 genCallAdmiran
     = genCGlobal "CallAdmiran" .
