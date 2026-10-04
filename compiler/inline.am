@@ -13,7 +13,7 @@
 %import "ast"
 %import "config"
 %import "dependency"
-%import "exception"     as ex           -(>>=) -(<&>) -(<|>)
+%import "exception"     as ex           -(>>=) -(<&>)
 %import "grammar"
 %import "module"
 %import "name"

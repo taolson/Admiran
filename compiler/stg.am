@@ -992,7 +992,7 @@ makeStart n genv
         spec      = fromJust mspec |> lens.view defnType
         errNoSpec = error ("entry function " ++ showName n ++ " not found")
         errNotIO  = error ("entry function must be type 'io ()', but is type '" ++ showAst spec ++ "'")
-        start     = Qualified (getModName n) "!start"
+        start     = Qualified (getModName n) "start!"
         fns       = [n, worldName, builtinExitName]
         anno      = lens.set annoFree fns (genvAnno genv)
         startFn   = Ecase Csingle (Ecall (Evar n) [world]) [CaseAlt Pwildcard (Ecall builtinExit [EprimInt 0]) emptyAnno] emptyAnno

@@ -440,15 +440,8 @@ genQuotRem xa xb
       genOpcode "cqto"  []                           .  || sign-extend to %rdx for upper 64 bits of dividend
       genOpcode "idivq" [x86Tmp1]                       || perform 128b/64b divide; quotient in %rax, remainder in %rdx
 
-|| generate code to check if a write barrier is required
-|| second argument is the label to jump to if a write barrier isn't required
-genWriteBarrierCheck :: x86Opr -> string -> showS
-genWriteBarrierCheck upd lbl
-    = genOpcode    "cmpq"  [cvtCMemAddr "gcNewBase", upd] .
-      genJmpOpcode "jae"   (cvtJmpAddr lbl)                     || skip if upd >= gcNewBase (unsigned)
-      || fall through to code after write barrier check
-
 || generate code to perform a write barrier on upd by adding it to the roots list
+|| Note: upd cannot be x86MovTmp, because it is used internally, here
 genWriteBarrier :: x86Opr -> showS
 genWriteBarrier upd
     = genOpcode    "movq"  [cvtCMemAddr "gcRootsAlloc", x86MovTmp] .    || note: move is done before check so that the update is recorded if a GC happens
@@ -461,6 +454,30 @@ genWriteBarrier upd
       genJmpOpcode "call"  (cvtJmpAddr "GC")                       .    || and jump to the GC handler to compact the roots table
       shows "0:\n"
       || fall through to code after write barrier
+
+|| generate code to check if we need to perform a write barrier or not after a WriteArray
+|| a write barrier is required if all of the below are true:
+||     * destination is not already in gcRoots
+||     * value (xv) is in new space
+||     * destination (xa) is in old space
+|| Note: xa and xv cannot be x86MovTmp, as it is used internally, here
+genWriteBarrierCheck :: x86Opr -> x86Opr -> showS
+genWriteBarrierCheck xa (X86Imm _) = id                         || skip write barrier check if value is an X86Imm
+genWriteBarrierCheck xa xv
+    = genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
+      genJmpOpcode "je"   lbl                              .
+      genOpcode    "movq" [cvtCMemAddr "gcNewBase", tmp]   .
+      genOpcode    "cmpq" [tmp, xa]                        .    || check if xa is in new space
+      genJmpOpcode "jae"  lbl                              .
+      genOpcode    "cmpq" [tmp, xv]                        .    || check if xv is in old space
+      genJmpOpcode "jb"   lbl                              .
+      genWriteBarrier     xa                               .
+      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      shows "1:\n"
+      || fall through to code after write barrier check
+      where
+        tmp = x86MovTmp
+        lbl = cvtJmpAddr  "1f"
 
 || generate code to allocate a fixed number of words from the heap, generating a jump to
 || the GC handler if out of space
@@ -576,8 +593,8 @@ genOverApplyFns
               genOpcode    "pushq"  [X86Idx arity extra 8 0]        . || push the handler for extra args from the applyToEnvFns vector
               genJmpOpcode "jmp"    (addX86Offset 7 x86Env)           || args 0 .. arity-1 are still in Args; enter closure
               where
-                arity    = x86MovTmp
-                extra    = x86Tmp0
+                arity    = x86Tmp0
+                extra    = x86Tmp1
                 args     = map (Ref . pair Arg) [0 .. n - 1]
                 applyFns = cvtCMemAddr "ApplyToEnvFns"
 
@@ -848,9 +865,11 @@ genInsn (Update d (Imm (Caddr cp)))
               genOpcode    "leaq" [fwdPtr, addX86Offset 7 upd]       .  || update old closure's code ptr to do forwarding
               genOpcode    "leaq" [addX86Offset 1 x86Env, x86MovTmp] .  || update env 0 in old closure to point to new closure
               genOpcode    "movq" [x86MovTmp, addX86Offset 15 upd]   .
-              genWriteBarrierCheck upd "1f"                          .  || perform a write barrier check on upd
-              genWriteBarrier upd                                    .
-              shows "1:\n"                                              || use label 1, since 0 is used by genWriteBarrier
+              genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", upd]     .
+              genJmpOpcode "jae"  (cvtJmpAddr "1f")                  .  || skip write barrier if upd is in new space
+              genWriteBarrier     upd                                .
+              shows "1:\n"
+              || fall through to code after genUpdate
               where
                 packFn = cvtReg 1
                 upd    = cvtReg 3       || x86MovTmp is used, and r0, r1 (x86Tmp0, x86Tmp1) are live, but r3 is available
@@ -1083,11 +1102,11 @@ genInsn (WriteStream d s c)
       genMove      d (Imm (Word 0))                     .       || success indication
       shows "1:\n"
       where
-        lim        = x86MovTmp
+        lim        = x86Tmp0
         limw       = word0 lim
-        creg       = x86Tmp0            || note: d could also be r0 (x86Tmp0), but is written after the creg temp use
+        creg       = x86Tmp1
         cregb      = byte0 creg
-        (xs, movs) = ensureX86Reg x86Tmp1 s
+        (xs, movs) = ensureX86Reg x86MovTmp s
 
 || allocate an array
 || specialized version for size known at compile-time
@@ -1125,18 +1144,11 @@ genInsn (FillArray a v)
       genOpcode    "decq" [xi]                             .
       genJmpOpcode "jg"   (cvtJmpAddr "0b")                .    || note: test for index > 0 to compensate for starting at size
       shows "1:\n"                                         .    || loop exit
-      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "2f")                .
-      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "2f")                .
-      genWriteBarrierCheck xa "2f"                         .
-      genWriteBarrier xa                                   .
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
-      shows "2:\n"
+      genWriteBarrierCheck xa xv
       where
-        xi         = x86Tmp0
-        (xa, mova) = ensureX86Reg x86Tmp1 a
-        (xv, movv) = ensureX86Reg x86MovTmp v
+        (xa, mova) = ensureX86Reg x86Tmp0 a
+        (xv, movv) = ensureX86Reg x86Tmp1 v
+        xi         = x86MovTmp                          || ok to use for xi, because it is dead before genWriteBarrierCheck
 
 || copy an array
 || note: assumes sizes match!
@@ -1153,9 +1165,9 @@ genInsn (CopyArray d a)
       genJmpOpcode "jg"   (cvtJmpAddr "0b")          .  || note: test for index > 0 to compensate for starting at size
       shows "1:\n"                                      || loop exit
       where
-        xi         = x86Tmp0
-        (xa, mova) = ensureX86Reg x86Tmp1 a
-        tmp        = x86MovTmp
+        xi         = x86MovTmp
+        (xa, mova) = ensureX86Reg x86Tmp0 a
+        tmp        = x86Tmp1
         xd         = cvtOpr d                           || note: d is an opr in CopyArray, not a ref
 
 || read an array at an index
@@ -1172,25 +1184,16 @@ genInsn (ReadArray d a (Imm (Word i)))
 genInsn (ReadArray d a i)
     = mova                                      .
       movi                                      .
-      genOpcode "movq" [X86Idx xa xi 4 7, xd]       || offset of 8 -1 to subtract the tag bit
+      genOpcode "movq" [X86Idx xa xi 4 7, xd]           || offset of 8 -1 to subtract the tag bit
       where
         (xa, mova) = ensureX86Reg x86Tmp0 a
         (xi, movi) = ensureX86Reg x86Tmp1 i
         xd         = cvtRef d
 
-|| write an array at an index
-|| specialized version for index known at compile-time
 genInsn (WriteArray a (Imm (Word i)) v)
-    = mova                                                 .    || ensure array a operand is in a register
-      genOpcode    movv   [xv, addX86Offset idx xa]        .    || perform write
-      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "1f")                .
-      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "1f")                .
-      genWriteBarrierCheck xa "1f"                         .
-      genWriteBarrier xa                                   .
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
-      shows "1:\n"
+    = mova                                     .        || ensure array a operand is in a register
+      genOpcode movv [xv, addX86Offset idx xa] .        || perform write
+      genWriteBarrierCheck xa xv
       where
         (xa, mova) = ensureX86Reg x86Tmp0 a
         xv         = cvtOpr v
@@ -1199,22 +1202,15 @@ genInsn (WriteArray a (Imm (Word i)) v)
 
 || general version for index known at runtime
 genInsn (WriteArray a i v)
-    = mova                                                 .    || ensure all operands are in x86 registers for x86Idx insn
-      movi                                                 .
-      movv                                                 .
-      genOpcode    "movq" [xv, X86Idx xa xi 4 7]           .    || offset of 8 - 1 to subtract the tag bit
-      genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
-      genJmpOpcode "je"   (cvtJmpAddr "1f")                .
-      genOpcode    "cmpq" [cvtCMemAddr "gcNewBase", xv]    .    || check if xv is in new space
-      genJmpOpcode "jb"   (cvtJmpAddr "1f")                .    || not in new space,
-      genWriteBarrierCheck xa "1f"                         .
-      genWriteBarrier xa                                   .
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
-      shows "1:\n"
+    = mova                                    . || ensure all operands are in x86 registers for x86Idx insn
+      movi                                    .
+      movv                                    .
+      genOpcode "movq" [xv, X86Idx xa xi 4 7] . || perform write; offset of 8 - 1 to subtract the tag bit
+      genWriteBarrierCheck xa xv
       where
        (xa, mova) = ensureX86Reg x86Tmp0 a
-       (xi, movi) = ensureX86Reg x86Tmp1 i
-       (xv, movv) = ensureX86Reg x86MovTmp v
+       (xv, movv) = ensureX86Reg x86Tmp1 v
+       (xi, movi) = ensureX86Reg x86MovTmp i    || ok to use for xi, as it is dead before genWriteBarrierCheck
 
 || perform a system op, putting the op# in arg0, the destination register number in arg1, and the source operand in arg2
 genInsn (SystemOp n (Reg, d) s)

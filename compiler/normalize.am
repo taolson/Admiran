@@ -13,7 +13,7 @@
 %import <maybe>                         -(>>=)
 %import <state>         as st           -view -set -over -(<&>)
 %import "ast"
-%import "exception"     as ex           -(>>=) -(<&>) -(<|>)
+%import "exception"     as ex           -(>>=) -(<&>)
 %import "grammar"
 %import "module"
 %import "name"
