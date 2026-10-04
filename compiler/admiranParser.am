@@ -18,7 +18,7 @@
 %import <map>           qualified as m
 %import <maybe>                         -(>>=) -(<&>) -(<*>) -(<<) -(>>) -(<|>)
 %import <set>           qualified as s
-%import "exception"     as ex           -(>>=) -(<&>) -(<*>) -(<|>)
+%import "exception"     as ex           -(>>=) -(<&>) -(<*>)
 %import "grammar"
 %import "module"
 %import "name"

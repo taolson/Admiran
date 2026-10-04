@@ -162,4 +162,4 @@ main
     = solve givens |> go
       where
         go []  = putStrLn "no solutions found!"
-        go ss  = io.mapM_ (showSolution .> putStrLn) ss
+        go ss  = mapM_ (showSolution .> putStrLn) ss

@@ -196,7 +196,7 @@ errs :: [exception] -> excpt *
 errs es = Left es
 
 (>>=) :: excpt * -> (* -> excpt **) -> excpt **
-e >>= f = e e.>>= \(x, warns) -> f x e.<&> mapSnd (warns ++)
+m >>= f = m e.>>= \(x, warns) -> f x e.<&> mapSnd (warns ++)
 
 (>=>) :: (* -> excpt **) -> (** -> excpt ***) -> * -> excpt ***
 f >=> g = \x -> f x >>= g
@@ -218,18 +218,8 @@ m <&> f = f <$> m
 
 
 || applicative interface
-|| note: merges errors and warnings from both sides, so not written as the normal bind with fmap
 (<*>) :: excpt (* -> **) -> excpt * -> excpt **
-(<*>) (Left errs1)        (Left errs2)        = Left (errs1 ++ errs2)
-(<*>) (Left errs1)        (Right (a, warns))  = Left errs1
-(<*>) (Right (f, warns1)) (Left errs2)        = Left errs2
-(<*>) (Right (f, warns1)) (Right (a, warns2)) = Right (f a, warns1 ++ warns2)
+mf <*> ma = mf >>= (<$> ma)
 
 liftA2 :: (* -> ** -> ***) -> excpt * -> excpt ** -> excpt ***
 liftA2 f ma mb = (f <$> ma) <*> mb
-
-
-|| alternative interface
-(<|>) :: excpt * -> excpt * -> excpt *
-Left  x <|> er = er
-Right x <|> er = Right x

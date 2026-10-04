@@ -40,6 +40,10 @@ printSpecs comment m
         synDefs    = filter isDefSyn  defs
         defStrings = concatMap (map showAst .> sortBy cmpstring .> map (indent 4)) [dataDefs, synDefs, specs]
 
+|| process an Admiran source file by parsing it, then extracting the modSpecs field from the
+|| module and printing each spec.  It is done this way, rather than just extracting the modSpecs
+|| from the .x2 file deserialization, because that map is post- synonym expansion, so it doesn't
+|| reference the user-defined type synonyms that might exist.
 process :: string -> io ()
 process s
     = readFile fn >>= doParse
@@ -53,7 +57,7 @@ process s
         extractComment ('|' : '|' : ' ' : xs) = break (==. '\n') xs
         extractComment xs               = ([], xs)
 
-        check (e.Left _)       = error ("parsing " ++ showfileSpec fs)
+        check (e.Left _)       = error ("parsing " ++ fn)
         check (e.Right (m, _)) = m
 
 main :: io ()

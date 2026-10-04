@@ -34,8 +34,8 @@
 
 || turn an excpt * into an io *
 io_excpt :: excpt * -> io *
-io_excpt (Left errs)        = mapM_ (errStrLn . showexception) errs  >> exit 1       || print the errors and exit
-io_excpt (Right (r, warns)) = mapM_ (errStrLn . showexception) warns >> pure r    || print the warnings and continue with the result
+io_excpt (Left errs)        = mapM_ (errStrLn . showexception) errs  >> exit 1  || print the errors and exit
+io_excpt (Right (r, warns)) = mapM_ (errStrLn . showexception) warns >> pure r  || print the warnings and continue with the result
 
 || serialize a module to an ".x2" file
 serialize :: globalEnv -> io moduleMap
@@ -183,7 +183,7 @@ gen fs entry
         fn     = fullFileName fs
         mn     = fileSpecName fs
         qentry = Qualified mn entry
-        qstart = Qualified mn "!start"
+        qstart = Qualified mn "start!"
         asm    = withSuffix "s" fn
         rt     = fullFileName $ FileSpec stdlibPath runtimeName
 
