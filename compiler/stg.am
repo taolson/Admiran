@@ -820,7 +820,7 @@ buildCode (Ecase sel e alts an)
                 buildAlts      = inContEnv fns' (buildCodeAlts sel r0Opr alts)
 
                 insStkAdj sg eis ais
-                    = makeCode (addSetEnv (sg + #fns') ais) <&> \cp -> [PushCont cp foprs'] ++ eis
+                    = makeCode (addSetEnv (sg + #fns') ais) <&> \cp -> PushCont cp foprs' : eis
 
 || Handle the polymorphic psuedo-function <pack>, which is represented as a Tname.
 || While it is nominally packing together args for a constructor, most of the time we are just
