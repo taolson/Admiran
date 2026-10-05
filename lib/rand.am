@@ -1,10 +1,11 @@
 || rand.am -- pseudo-random number generator (Mersenne Twister MT19937)
 
-%export randState init rand randStream
+%export randState init rand randList randStream
 
 %import <base>
 %import <maybe> qualified as mb
 %import <state>
+%import <stream>
 %import <vector> as v
 
 
@@ -60,8 +61,15 @@ rand (v, k)
                 z  = y2 .^. (y2 .>>. l)
 
 || generate a lazy list of rands from an initial seed value
-randStream :: int -> [int]
-randStream seed
+randList :: int -> [int]
+randList seed
     = init seed |> gen
       where
         gen st = case rand st of (r, st') -> r : gen st'
+
+|| generate a lazy list of rands from an initial seed value
+randStream :: int -> stream int randState
+randStream seed
+    = init seed |> Stream next'
+      where
+        next' st = case rand st of (r, st') -> Yield r st'

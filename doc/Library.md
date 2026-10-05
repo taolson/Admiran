@@ -632,7 +632,8 @@ rand.am -- pseudo-random number generator (Mersenne Twister MT19937)
     rand.randState == (vector int, int)
     rand.init :: int -> randState
     rand.rand :: randState -> (int, randState)
-    rand.randStream :: int -> [int]
+    rand.randList :: int -> [int]
+    rand.randStream :: int -> stream int randState
 
 ### rws
 rws.am -- reader+writer+state functor/applicative/monad with strict writer and state
