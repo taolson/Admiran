@@ -1,4 +1,4 @@
-|| rand.am -- pseudo-random number generator (Mersienne Twister MT19937)
+|| rand.am -- pseudo-random number generator (Mersenne Twister MT19937)
 
 %export randState init rand randStream
 
