@@ -67,7 +67,7 @@ randList seed
       where
         gen st = case rand st of (r, st') -> r : gen st'
 
-|| generate a lazy list of rands from an initial seed value
+|| generate a stream of rands from an initial seed value
 randStream :: int -> stream int randState
 randStream seed
     = init seed |> Stream next'
