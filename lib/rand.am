@@ -1,0 +1,67 @@
+|| rand.am -- pseudo-random number generator (Mersienne Twister MT19937)
+
+%export randState init rand randStream
+
+%import <base>
+%import <maybe> qualified as mb
+%import <state>
+%import <vector> as v
+
+
+|| MT19937 constants
+n     = 624
+m     = 397
+w     = 32
+r     = 31
+umask = 0xffffffff .<<. r
+lmask = 0xffffffff .>>. (w - r)
+a     = 0x9908b0df
+u     = 11
+s     = 7
+t     = 15
+l     = 18
+b     = 0x9d2c5680
+c     = 0xefc60000
+f     = 1812433253
+
+randState == (vector int, int)
+
+|| initialize randState from a seed
+init :: int -> randState
+init seed
+    = unfoldr step (seed, 0) |> fromList |> ($pair 0)
+      where
+        step (s, i)
+            = mb.Nothing,            if i >= n
+            = mb.Just (s, (s', i')), otherwise
+              where
+                i' = i + 1
+                s' = f * (s .^. (s .>>. (w - 2))) + i
+
+|| generate the next rand from randState, and return it with the new randState
+rand :: randState -> (int, randState)
+rand (v, k)
+    = runST go |> ($pair (v, k'))
+      where
+        mv = unsafeThaw v
+        k' = (k + 1) $rem n
+        j  = if' (kn < 0) (kn + n) kn where kn = k - (n - 1)
+        j' = if' (km < 0) (km + n) km where km = k - (n - m)
+        go = bind3 (unsafeRead mv k) (unsafeRead mv j) (unsafeRead mv j') mix
+
+        mix vk vj vj'
+            = case vj' .^. xA of r -> unsafeWrite mv k' r >> pure z
+              where
+                x  = vk .&. umask .|. vj .&. lmask
+                xA = if' (odd x) (xa .^. a) xa where xa = x .>>. 1
+                y  = x  .^. (x .>>. u)
+                y1 = y  .^. ((y .<<. s) .&. b)
+                y2 = y1 .^. ((y .<<. t) .&. c)
+                z  = y2 .^. (y2 .>>. l)
+
+|| generate a lazy list of rands from an initial seed value
+randStream :: int -> [int]
+randStream seed
+    = init seed |> gen
+      where
+        gen st = case rand st of (r, st') -> r : gen st'
