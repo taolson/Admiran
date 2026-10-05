@@ -626,6 +626,14 @@ parser.am -- a parser combinator library for strings, based upon the maybeState 
 
     get put modify pure fail (>>=) (<$>) (<&>) (<*>) (<<) (>>) liftA2 liftA3 liftA4 mapM foldM bind2 bind3
 
+### rand
+rand.am -- pseudo-random number generator (Mersenne Twister MT19937)
+
+    rand.randState == (vector int, int)
+    rand.init :: int -> randState
+    rand.rand :: randState -> (int, randState)
+    rand.randStream :: int -> [int]
+
 ### rws
 rws.am -- reader+writer+state functor/applicative/monad with strict writer and state
 
