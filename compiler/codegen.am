@@ -931,16 +931,18 @@ genInsn (Mul d a b)
               movd                              || move to final destination, if not a reg
 
 genInsn (QuotRem dq dr a b)
-    = genOpcode    "pushq" [x86rdx]                 .   || save %rdx, as it is destroyed during QuotRem
-      genQuotRem xa xb                              .   || use xdr as a temp reg during f
-      genOpcode    "leaq"  [X86Scl x86rax 2 0, xdq] .   || tag quotient and move to dq
-      genOpcode    "leaq"  [X86Scl x86rdx 2 0, xdr] .   || tag remainder and move to dr
+    = genOpcode    "pushq" [x86rdx]                        .   || save %rdx, as it is destroyed during QuotRem
+      genQuotRem xa xb                                     .   || use xdr as a temp reg during f
+      genOpcode    "leaq"  [X86Scl x86rax 2 0, xq] . movq .   || tag quotient and move to dq
+      genOpcode    "leaq"  [X86Scl x86rdx 2 0, xr] . movr .   || tag remainder and move to dr
       genOpcode    "popq"  [x86rdx]
       where
+
         xa  = cvtOpr a
         xb  = cvtOpr b
-        xdq = cvtRef dq
-        xdr = cvtRef dr
+
+        (xq, movq) = ensureX86DstReg x86Tmp0 dq  || optimization assumes dq, dr are X86Regs
+        (xr, movr) = ensureX86DstReg x86Tmp1 dr
 
 genInsn (DivMod dq dr a b)
     = genOpcode    "pushq" [x86rdx]            .        || save %rdx, as it is destroyed during QuotRem

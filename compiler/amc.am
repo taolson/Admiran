@@ -133,7 +133,7 @@ build :: moduleMap -> io moduleMap
 build mm
     = eitherf cycleErr (io.foldM checkBuild mm) morder
       where
-        depGraph = (m.<$>) (modImportFiles .> map fileSpecName) mm |> m.toList |> makeDependencyGraph cmpstring
+        depGraph = (modImportFiles .> map fileSpecName) m.<$> mm |> m.toList |> makeDependencyGraph cmpstring
         morder   = dependencyOrder cmpstring depGraph
 
         cycleErr cyc = showCycles cyc |> DepCycle |> ($ex.error emptyLocInfo) |> io_excpt

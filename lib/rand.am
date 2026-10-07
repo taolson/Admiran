@@ -45,7 +45,7 @@ rand (v, k)
     = runST go |> ($pair (v, k'))
       where
         mv = unsafeThaw v
-        k' = (k + 1) $rem n
+        k' = if' (k1 < n) k1       0  where k1 = k + 1
         j  = if' (kn < 0) (kn + n) kn where kn = k - (n - 1)
         j' = if' (km < 0) (km + n) km where km = k - (n - m)
         go = bind3 (unsafeRead mv k) (unsafeRead mv j) (unsafeRead mv j') mix
@@ -55,10 +55,10 @@ rand (v, k)
               where
                 x  = vk .&. umask .|. vj .&. lmask
                 xA = if' (odd x) (xa .^. a) xa where xa = x .>>. 1
-                y  = x  .^. (x .>>. u)
-                y1 = y  .^. ((y .<<. s) .&. b)
-                y2 = y1 .^. ((y .<<. t) .&. c)
-                z  = y2 .^. (y2 .>>. l)
+                y  = x  .^. x  .>>. u
+                y1 = y  .^. y  .<<. s .&. b
+                y2 = y1 .^. y1 .<<. t .&. c
+                z  = y2 .^. y2 .>>. l
 
 || generate a lazy list of rands from an initial seed value
 randList :: int -> [int]
