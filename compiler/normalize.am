@@ -29,7 +29,7 @@
 || loc:  location info from enclosing definition
 || env:  stack of defnMaps defining the lexical environment
 nmDynSt   == (globalEnv, [defn], [exception])
-nmLexSt   == (locInfo, [defnMap])
+nmLexSt   == (locInfo, [defnMap], bool)
 nmSt      == (nmDynSt, nmLexSt)
 
 || lenses for nmSt fields
@@ -38,13 +38,14 @@ nmLex      = lensSnd
 nmGenv     = composeLens nmDyn  lensTup3_0
 nmThunks   = composeLens nmDyn  lensTup3_1
 nmErrs     = composeLens nmDyn  lensTup3_2
-nmLoc      = composeLens nmLex  lensFst
-nmLenv     = composeLens nmLex  lensSnd
+nmLoc      = composeLens nmLex  lensTup3_0
+nmLenv     = composeLens nmLex  lensTup3_1
+nmInAlloc  = composeLens nmLex  lensTup3_2
 nmGen      = composeLens nmGenv genvGen
 nmLocation = composeLens nmLoc locInfoLocation
 
 initNmSt :: globalEnv -> nmSt
-initNmSt genv = ((genv, [], []), (emptyLocInfo, []))
+initNmSt genv = ((genv, [], []), (emptyLocInfo, [], False))
 
 || add an error to the normalize state
 addNmErr :: exceptionInfo -> nmSt -> nmSt
@@ -112,17 +113,25 @@ normalizeAst k (Ecall f args) st
 
 || float any generated thunks out until reaching a Defn, Elet, or CaseAlt
 || then collect them into a nested sequence of Elets
+|| special-case handling for Ecase with scrutinee builtinAllocArray# to prevent generated thunks from being inserted
+|| between it and its subsequent initialization case evaluation, which could leave the AllocArray uninitialized during a
+|| subsequent AllocFrame
 normalizeAst k a st
-    = (a, st),              if isDefType a || no normalization for type definitions
-    = (k a >>= update) st1, if isDefn a \/ isCaseAlt a
-    = (k a >>= update) st2, if isLet a                             || add new lexical frame for let defns
+    = (a, st),              if isDefType a      || no normalization for type definitions
+    = (k a >>= update) st1, if isDefn a \/ isCaseAlt a & ~view nmInAlloc st
+    = (k a >>= update) st2, if isLet a          || add new lexical frame for let defns
+    = k a              st3, if isCaseAlloc a    || set inAllocArray to float any generated thunks up past the alloc
     = k a              st,  otherwise
       where
         inThunks = view nmThunks st
         loc      = defnLocInfo a, if isDefn a
                  = view nmLoc st, otherwise
-        st1      = over nmLoc (mergeLocInfo loc) . clrThunks $ st
+        st1      = over nmLoc (mergeLocInfo loc) . clrThunks . set nmInAlloc False $ st
         st2      = over nmLenv (getDefns a :) st1
+        st3      = set nmInAlloc True st
+
+        isCaseAlloc (Ecase _ (Ecall (Evar (Builtin "allocArray#")) _) _ _) = True
+        isCaseAlloc _                                                      = False
 
         getDefns (Elet _ defs _ _) = defs
         getDefns a                 = m.empty

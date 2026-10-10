@@ -640,7 +640,10 @@ map :: (* -> **) -> [*] -> [**]
 map f = \xs -> [f x | x <- xs]
 
 map2 :: (* -> ** -> ***) -> [*] -> [**] -> [***]
-map2 f = \xs ys -> [f x y | (x, y) <- zip2 xs ys]
+map2 f = go
+         where
+           go (x : xs) (y : ys) = f x y : go xs ys
+           go xs       ys       = []
 
 filter :: (* -> bool) -> [*] -> [*]
 filter f = \xs -> [x | x <- xs; f x]
