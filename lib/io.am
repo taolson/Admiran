@@ -24,42 +24,34 @@ unsafePerformIO e = evalState e World
 || which allows for top-level handle thunks like stdin
 handle ::= Handle word#
 
-|| Note: the following routines are written with an explicit state "world" argument, rather than partially-
-|| applied with an implicit state, because they don't rely upon the sequencing inherent in the state
-|| operations, but rather have a chain of case statements which handle strict evaluation of primitive
-|| operations.  However, we need to ensure that the state "world" is available before performing the
-|| case operations, so world is an explicit argument which is simply passed in, then returned at the end.
-|| Also, since the compiler inliner explicitly avoids inlining any function in this module, they
-|| don't benefit from being written in partially-applied form to aid with inlining.
-
 || read a character from a handle, re-filling the buffer from the file when it is empty
 hGetChar :: handle -> io char
-hGetChar (Handle fs#) world
-    = restart fs#
+hGetChar (Handle fs#)
+    = \world -> restart world
       where
-        restart fs#
+        restart world
             = case readByteStream# fs# of c#   ->
               case c# $cmp# 0# of
                 1# -> case readFile# fs# of r# ->       || buffer empty; reload from file
                       case r# $cmp# 0# of               || check for end of file (0 bytes read)
                         0# -> (C# c#, world)            || end of file; return (-1)
-                        _  -> restart fs#               || filled buffer; restart getLine
+                        _  -> restart world             || filled buffer; restart getLine
                 _  -> (C# c#, world)
 
 hGetLine :: handle -> io string
-hGetLine (Handle fs#) world
-    = restart fs#
+hGetLine (Handle fs#)
+    = \world -> restart world
       where
-        restart fs#
+        restart world
             =  case readByteStream# fs# of c#   ->
                case c# $cmp# 0# of
                  1# -> case readFile# fs# of r# ->      || buffer empty; reload from file
                        case r# $cmp# 0# of              || check for end of file (0 bytes read)
                          0# -> ([], world)              || end of file; return []
-                         _  -> restart fs#              || filled buffer; restart getLine
+                         _  -> restart world            || filled buffer; restart getLine
                  _  -> case c# $cmp# '\n'# of           || check for newline character
                          0# -> ([], world)              || got newline; return []
-                         _  -> case restart fs# of (s, world') ->
+                         _  -> case restart world of (s, world') ->
                                (C# c# : s, world')
 
 hGetContents :: handle -> io string
@@ -74,37 +66,38 @@ hPutStr h s = writeFileStream h s
 
 || lazy read from a handle, re-filling the buffer from the file when it is empty
 readFileStream :: handle -> io string
-readFileStream (Handle fs#) world
-    = restart fs#
+readFileStream (Handle fs#)
+    = \world -> restart world
       where
-        restart fs#
+        restart world
             = case readByteStream fs# of                        || fs# never changes, but the contents of fs# change
-                [] -> case readFile# fs# of r# ->               || buffer empty; reload from file
+                [] -> case readFile# fs# of r#         ->       || buffer empty; reload from file
                       case r# $cmp# 0# of                       || check for end of file (0 bytes read)
                         0# -> case closeFile# fs# of _ ->       || close file (runtime ignores close requests for stdin/out/err)
                               ([], world)                       || and return end of stream
-                        _  -> restart fs#                       || filled buffer; restart readFileStream
-                s  -> (s ++ s', world)                          || return buffer with a lazy read of the remaining file
+                        _  -> restart world                     || filled buffer; restart readFileStream
+                s  -> (s ++ s', world')                         || return buffer with a lazy read of the remaining file
               where
-                (s', _) = restart fs#
+                (s', world') = restart world
 
 || strict write to a handle, writing the buffer out to the file when it becomes full
 writeFileStream :: handle -> string -> io ()
-writeFileStream (Handle fs#) s world
-    = restart s
+writeFileStream (Handle fs#) s
+    = \world -> restart s world
       where
-        restart s
+        restart s world
             = case writeByteStream fs# s of
                 [] -> case writeFile# fs# of _ ->       || write complete; write any remaining bytes in byteStream
                       case closeFile# fs# of _ ->       || out to the file and close it
                       ((), world)                       || runtime ignores close requests for stdin/out/err
                 s' -> case writeFile# fs# of _ ->       || buffer full; write the buffer out to the file,
-                      restart s'                        || then continue with the unwritten portion of the string
+                      restart s' world                  || then continue with the unwritten portion of the string
 
 || lazy read of the contents of a file named by fn
 readFile, readFile' :: string -> io string
-readFile fn world
-    = case allocByteStream# 256# of s# ->       || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
+readFile fn
+    = \world ->
+      case allocByteStream# 256# of s# ->       || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
       case writeByteStream s# fn of _  ->       || write the fn (an arbitrary Admiran string) to the byteStream
       case openFileRead# s# of fs#     ->       || openFile returns the fileStream with the contents
       readFileStream (Handle fs#) world
@@ -114,32 +107,36 @@ readFile' fn = readFile fn >>= \s -> safeLast s $seq pure s
 
 || strict write to an existing file or create a new one
 writeFile :: string -> string -> io ()
-writeFile fn s world
-    = case allocByteStream# 256# of s# ->       || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
+writeFile fn s
+    = \world ->
+      case allocByteStream# 256# of s# ->       || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
       case writeByteStream s# fn of _  ->       || write the fn (an arbitrary Admiran string) to the byteStream
       case openFileWrite# s# of fs#    ->       || openFile returns the file buffer byteStream to write into
       writeFileStream (Handle fs#) s world
 
 || append to an existing file or create a new one
 appendFile :: string -> string -> io ()
-appendFile fn s world
-    = case allocByteStream# 256# of s# ->       || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
+appendFile fn s
+    = \world ->
+      case allocByteStream# 256# of s# ->       || alloc an empty byteStream buffer of size 256 qwords (2048 bytes)
       case writeByteStream s# fn of _  ->       || write the fn (an arbitrary Admiran string) to the byteStream
       case openFileAppend# s# of fs#   ->       || openFile returns the file buffer byteStream to write into
       writeFileStream (Handle fs#) s world
 
 || get the modification timestamp for a file (returns -1 for non-existent file)
 mtimeFile :: string -> io int
-mtimeFile fn world
-    = case allocByteStream# 256# of s# ->
+mtimeFile fn
+    = \world ->
+      case allocByteStream# 256# of s# ->
       case writeByteStream s# fn of _  ->
       case mtimeFile# s# of ts#        ->
       (I# ts#, world)
 
 || execute a shell command and return the result
 systemCmd :: string -> io int
-systemCmd cmd world
-    = case allocByteStream# 256#  of s# ->
+systemCmd cmd
+    = \world ->
+      case allocByteStream# 256#  of s# ->
       case writeByteStream s# cmd of _  ->
       case systemCmd# s# of r#          ->
       (I# r#, world)
@@ -198,8 +195,8 @@ getContents world = hGetContents stdin world
 || note: this is a CAF instead of a function, which is ok because the getArgs value
 || is constant, so it can be updated to its computed value
 getArgs :: io [string]
-getArgs
+getArgs world
     = case getArg# 0# of n# ->          || getArg 0# returns the number of args in the argv vector (argc)
-      pure $ map getArg [1 .. I# n#]    || convert each arg lazily into a Admiran list of byteStreams
+      (map getArg [1 .. I# n#], world)  || convert each arg lazily into a Admiran list of byteStreams
       where
         getArg (I# n#) = case getArg# n# of s# -> readByteStream s#

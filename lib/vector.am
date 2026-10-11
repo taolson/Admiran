@@ -37,7 +37,7 @@ safeIndex n i
 || create a vector with a single value
 singleton :: * -> vector *
 singleton x
-    = case allocArray# 1# of p# ->
+    = case allocArray# 1# of p#     ->
       case writeArray# p# 0# x of _ ->
       Vector 1 p#
 
@@ -221,7 +221,7 @@ fromStream n (Stream next s)
                         Done       -> Vector n p#
                         Skip s'    -> go i# s'
                         Yield x s' -> case writeArray# p# i# x of _ ->
-                                      case i# +# 1# of i'# ->
+                                      case i# +# 1# of i'#          ->
                                       go i'# s'
                 _  -> Vector n p#
 
@@ -257,8 +257,8 @@ mlength (MVector n p#) = n
 
 thaw :: vector * -> mvector *
 thaw (Vector n p#)
-    = case n of I# n# ->
-      case allocArray# n# of d# ->
+    = case n of I# n#            ->
+      case allocArray# n# of d#  ->
       case copyArray# d# p# of _ ->
       MVector n d#
 
@@ -268,71 +268,75 @@ thaw (Vector n p#)
 
 freeze :: mvector * -> state ** (vector *)
 freeze (MVector n p#)
-    = case n of I# n# ->
-      case allocArray# n# of d# ->
+    = \s ->
+      case n of I# n#            ->
+      case allocArray# n# of d#  ->
       case copyArray# d# p# of _ ->
-      pure $ Vector n d#
+      (Vector n d#, s)
 
 || make a mutable copy of a mutable vector
 clone :: mvector * -> state ** (mvector *)
 clone (MVector n p#)
-    = case n of I# n# ->
-      case allocArray# n# of d# ->
+    = \s ->
+      case n of I# n#            ->
+      case allocArray# n# of d#  ->
       case copyArray# d# p# of _ ->
-      pure $ MVector n d#
+      (MVector n d#, s)
 
 read :: mvector * -> int -> state ** *
 read (MVector n p#) i
-    = case safeIndex n i of I# i# ->
-      case readArray# p# i# of e ->
-      pure e
+    = \s ->
+      case safeIndex n i of I# i# ->
+      case readArray# p# i# of e  ->
+      (e, s)
 
 write :: mvector * -> int -> * -> state ** ()
 write (MVector n p#) i e
-    = case safeIndex n i of I# i# ->
+    = \s ->
+      case safeIndex n i of I# i#   ->
       case writeArray# p# i# e of _ ->
-      pure ()
+      ((), s)
 
 modify :: mvector * -> (* -> *) -> int -> state ** ()
 modify (MVector n p#) f i
-    = case safeIndex n i of I# i# ->
-      case readArray# p# i# of e ->
-      case f e of e' ->
+    = \s ->
+      case safeIndex n i of I# i#    ->
+      case readArray# p# i# of e     ->
+      case f e of e'                 ->
       case writeArray# p# i# e' of _ ->
-      pure ()
+      ((), s)
 
 fill :: mvector * -> * -> state ** ()
-fill (MVector _ p#) e = case fillArray# p# e of _ -> pure ()
+fill (MVector _ p#) e = \s -> case fillArray# p# e of _ -> ((), s)
 
 
 || unsafe in-place operations on mutable vectors without copying or bounds-checking
 
 unsafeFreeze :: mvector * -> state ** (vector *)
-unsafeFreeze (MVector n p#) = pure $ Vector n p#
+unsafeFreeze (MVector n p#) = \s -> (Vector n p#, s)
 
 unsafeRead :: mvector * -> int -> state ** *
-unsafeRead (MVector n p#) (I# i#)
-    = case readArray# p# i# of e -> pure e
+unsafeRead (MVector n p#) (I# i#) = \s -> case readArray# p# i# of e -> (e, s)
 
 unsafeWrite :: mvector * -> int -> * -> state ** ()
-unsafeWrite (MVector n p#) (I# i#) e
-    = case writeArray# p# i# e of _ -> pure ()
+unsafeWrite (MVector n p#) (I# i#) e = \s -> case writeArray# p# i# e of _ -> ((), s)
 
 unsafeModify :: mvector * -> (* -> *) -> int -> state ** ()
 unsafeModify (MVector n p#) f (I# i#)
-    = case readArray# p# i# of e ->
-      case f e of e' ->
+    = \s ->
+      case readArray# p# i# of e     ->
+      case f e of e'                 ->
       case writeArray# p# i# e' of _ ->
-      pure ()
+      ((), s)
 
 unsafeReplace :: mvector * -> [(int, *)] -> state ** ()
 unsafeReplace (MVector n p#) ies
-    = doRep ies
+    = \s -> doRep ies s
       where
-        doRep [] = pure ()
+        doRep [] s = ((), s)
 
-        doRep ((I# i#, e) : ies')
-            = case writeArray# p# i# e of _ -> doRep ies'
+        doRep ((I# i#, e) : ies') s
+            = case writeArray# p# i# e of _ -> doRep ies' s
 
 
 || ST monad for performing actions on mutable vectors and STRefs

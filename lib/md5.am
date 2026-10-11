@@ -48,7 +48,7 @@ makeBuffer s
         go3 i w cs
             = case cs of
                 []      -> case 0x80000000 .|. w of w'     -> v.unsafeWrite vbuf i w'
-                d : cs' -> case code d .<<. 24 .|. w of w' -> case v.unsafeWrite vbuf i w' of _ -> case i + 1 of i' -> go i' cs'
+                d : cs' -> case code d .<<. 24 .|. w of w' -> v.unsafeWrite vbuf i w' >> case i + 1 of i' -> go i' cs'
 
 || put the final message bit length in the last 2 words of the buffer
 addMsgLen :: int -> buffer -> buffer
