@@ -611,8 +611,8 @@ void gcMinor ()
   }
 
   // perform a gcMajor if we haven't yet recovered enough space to cover the gcRequestSize, or if we are
-  // getting close to filling oldSpace (75%)
-  if (gcHeapTop - gcNewAlloc <= gcRequestSize + gcMinFree || gcOldAlloc - gcOldBase >= (gcHeapTop - gcOldBase) * 3 / 8) {
+  // getting close to filling oldSpace (15/16 = 94%)
+  if (gcHeapTop - gcNewAlloc <= gcRequestSize + gcMinFree || gcOldAlloc - gcOldBase >= (gcHeapTop - gcOldBase) * 15 / 32) {
     gcMajor (gcOldAlloc);
   }
 }
@@ -1061,4 +1061,5 @@ int main (int argc, char **argv)
 
   // unreached
   return 0;
+
 }

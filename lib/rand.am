@@ -3,10 +3,10 @@
 %export randState init rand randList randStream
 
 %import <base>
-%import <maybe> qualified as mb
+%import <maybe>         qualified as mb
 %import <state>
 %import <stream>
-%import <vector> as v
+%import <vector>        as v
 
 
 || MT19937 constants
@@ -54,7 +54,8 @@ rand (v, k)
             = case vj' .^. xA of r -> unsafeWrite mv k' r >> pure z
               where
                 x  = vk .&. umask .|. vj .&. lmask
-                xA = if' (odd x) (xa .^. a) xa where xa = x .>>. 1
+                xa = x .>>. 1
+                xA = if' (odd x) (xa .^. a) xa
                 y  = x  .^. x  .>>. u
                 y1 = y  .^. y  .<<. s .&. b
                 y2 = y1 .^. y1 .<<. t .&. c
