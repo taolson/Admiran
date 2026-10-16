@@ -26,18 +26,18 @@
 || thunks: added definitions
 ||
 || lexically-scoped state:
-|| loc:  location info from enclosing definition
-|| env:  stack of defnMaps defining the lexical environment
-nmDynSt   == (globalEnv, [defn], [exception])
+|| loc:     location info from enclosing definition
+|| env:     stack of defnMaps defining the lexical environment
+|| inAlloc: currently in a case expression with a scrutinee calling builtinAllocArray#
+nmDynSt   == (globalEnv, [defn])
 nmLexSt   == (locInfo, [defnMap], bool)
 nmSt      == (nmDynSt, nmLexSt)
 
 || lenses for nmSt fields
 nmDyn      = lensFst
 nmLex      = lensSnd
-nmGenv     = composeLens nmDyn  lensTup3_0
-nmThunks   = composeLens nmDyn  lensTup3_1
-nmErrs     = composeLens nmDyn  lensTup3_2
+nmGenv     = composeLens nmDyn  lensFst
+nmThunks   = composeLens nmDyn  lensSnd
 nmLoc      = composeLens nmLex  lensTup3_0
 nmLenv     = composeLens nmLex  lensTup3_1
 nmInAlloc  = composeLens nmLex  lensTup3_2
@@ -45,11 +45,7 @@ nmGen      = composeLens nmGenv genvGen
 nmLocation = composeLens nmLoc locInfoLocation
 
 initNmSt :: globalEnv -> nmSt
-initNmSt genv = ((genv, [], []), (emptyLocInfo, [], False))
-
-|| add an error to the normalize state
-addNmErr :: exceptionInfo -> nmSt -> nmSt
-addNmErr ei st = over nmErrs ((Error, ei, view nmLoc st) :) st
+initNmSt genv = ((genv, []), (emptyLocInfo, [], False))
 
 clrThunks :: nmSt -> nmSt
 clrThunks = set nmThunks []
