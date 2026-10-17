@@ -119,14 +119,14 @@ not pa ps
         ra = fst $ pa ps
 
 optional :: parser * -> parser (maybe *)
-optional pa = (<$>) Just pa <|> pure Nothing
+optional pa = Just <$> pa <|> pure Nothing
 
 || run a parser and check the result against a guard predicate.  If the guard
-|| fails, rewind the parser to the original point (using (<|>)) and report
+|| fails, rewind the parser to the original point (using <|>) and report
 || unexpected input
 guard :: parser * -> (* -> parser **) -> parser **
 guard p g
-    = (p >>= g) <|> unexpected
+    = p >>= g <|> unexpected
 
 || parser for a token which satifies a condition
 satisfy :: parser * -> (* -> bool) -> parser *

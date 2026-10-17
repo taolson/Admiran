@@ -464,7 +464,7 @@ genWriteBarrier upd
 genWriteBarrierCheck :: x86Opr -> x86Opr -> showS
 genWriteBarrierCheck xa (X86Imm _) = id                         || skip write barrier check if value is an X86Imm
 genWriteBarrierCheck xa xv
-    = genOpcode    "cmpb" [X86Imm 7, addX86Offset (-1) xa] .    || check if we've already added xa to the roots list
+    = genOpcode    "cmpb" [tagb, addX86Offset (-1) xa]     .    || check if we've already added xa to the roots list
       genJmpOpcode "je"   lbl                              .
       genOpcode    "movq" [cvtCMemAddr "gcNewBase", tmp]   .
       genOpcode    "cmpq" [tmp, xa]                        .    || check if xa is in new space
@@ -472,12 +472,13 @@ genWriteBarrierCheck xa xv
       genOpcode    "cmpq" [tmp, xv]                        .    || check if xv is in old space
       genJmpOpcode "jb"   lbl                              .
       genWriteBarrier     xa                               .
-      genOpcode    "movb" [X86Imm 7, addX86Offset (-1) xa] .    || mark as being added to roots list
+      genOpcode    "movb" [tagb, addX86Offset (-1) xa]     .    || mark as being added to roots list
       shows "1:\n"
       || fall through to code after write barrier check
       where
-        tmp = x86MovTmp
-        lbl = cvtJmpAddr  "1f"
+        tmp  = x86MovTmp
+        lbl  = cvtJmpAddr  "1f"
+        tagb = hArrayRTagByte |> X86Imm || tag to check / update Harrays that are in the GC roots list
 
 || generate code to allocate a fixed number of words from the heap, generating a jump to
 || the GC handler if out of space
@@ -691,13 +692,6 @@ genInsn (Apply fopr args)
 || the generic ApplyToEnv is replaced by the individual ApplyToEnv routines, and is not directly called
 genInsn ApplyToEnv = id
 
-|| enter the Hfbalt closure pointed to by fopr, restoring the stack, env, and frame pointers to their captured values
-genInsn (Fail fopr)
-    = genMove r2Ref fopr                                       .        || copy fopr into x86Env
-      genOpcode    "movzwq" [addX86Offset 1 x86Env, x86Tmp0]   .        || extract the env size field and use it to index into the env
-      genOpcode    "movq"   [X86Idx x86Env x86Tmp0 8 7, x86SP] .        || copy saved sp to x86SP to unwind stack (7 to remove tag and get last word)
-      genJmpOpcode "jmp"    (addX86Offset 7 x86Env)                     || untag and jump to closure's cp
-
 genInsn (Ret val aty)
     = genMove r0Ref  val .      || update the returned tag value
       genArity aty       .      || generate the arity-setting move
@@ -801,33 +795,24 @@ genInsn (Tclosure d cp env)
              = env,            otherwise
         tag  = genThunkTag (#zenv)
 
-|| generate a fatbar alternate closure, capturing the current stack, env, and frame pointers.
+|| generate a fatbar alternate closure (same as a Tclosure, but never updated, so no space reserved for update)
 || if the destination is a Reg ref, then allocate space for the closure
 || if the destination is a Frm ref, then space has already been allocated
-genInsn (Aclosure d cp sg env)
-    = mbAlloc          d (#env + 3)                          .  || +3 = slot for tag, slot for codePtr, slot for stackPtr value
+genInsn (Aclosure d cp env)
+    = mbAlloc          d (#env + 2)                          .  || +2 for tag and cp
       genOpcode "movq" [X86Imm tag, addX86Offset 0 xd]       .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
       genStoreOprs     (addX86Offset 16 xd) env              .  || copy env to closure env
-      genSaveSP                                              .
       mbTag            d                                        || tag destination as heapPtr, if we performed an alloc
       where
         xd    = cvtRef d
-        nenv  = #env
-        tag   = genFbAltTag nenv
-        spLoc = (2 + nenv) * 8                  || tagword + cp + env words in front of spLoc
+        tag   = genThunkTag (#env)
 
         mbAlloc (Frm, _) n = id                 || destination is a frm ref, allocation already performed
         mbAlloc _ n        = genAlloc xd n      || destination is a register -- perform allocation
 
         mbTag (Frm, _) = id
         mbTag _        = genOpcode "incq" [xd]
-
-        || save the (possibly PopCont-adjusted) SP at the end of the env
-        genSaveSP
-            = genOpcode "movq" [x86SP, addX86Offset spLoc xd],            if sg == 0
-            = genOpcode "leaq" [addX86Offset (sg * 8) x86SP, x86MovTmp] .
-              genOpcode "movq" [x86MovTmp, addX86Offset spLoc xd],        otherwise
 
 || generate a thunk closure for a saturated constructor value, capturing its tag and args
 || The tag and arg arity are not known at compile time, so the constructor puts the
@@ -1270,8 +1255,8 @@ genCodeObj (cp, (locInfo, insns))
             = genInfoInsn   a   . go (b : insns),    otherwise
 
 || heapObj layout: tagWord {codePtr, heapPtr, or string label} [env]
-|| tagWord: byte 0   = heapInfo type [Hfun = 0, Hthunk = 1, Hfwd = 2, Hpap = 3, Hfbalt = 4, Hstream = 5, Harray = 6]
-||                     also, used by runtime: [HarrayR = 7 (Harray in Roots List), Hreloc = 8 (used by GC to mark relocated heapObjs)
+|| tagWord: byte 0   = heapInfo type [Hfun = 0, Hthunk = 1, Hfwd = 2, Hpap = 3, Hstream = 4, Harray = 5]
+||                     also, used by runtime: [HarrayR = 6 (Harray in Roots List), Hreloc = 7 (used by GC to mark relocated heapObjs)
 ||          byte 1   = arity of fn or thunk (0), or file descriptor for Hstream used as a file buffer
 ||          byte 2-3 = # of env entries or Hstream buffer size (in qwords, max 8191 limited by 16-bit read/write ptr fields)
 ||          byte 4-5 = stream buffer write ptr / limit (length in bytes)
@@ -1284,21 +1269,22 @@ genFunTag arity envSize = envSize .<<. 16 .|. arity .<<. 8 .|. 0x00
 genThunkTag :: int -> int
 genThunkTag envSize = envSize .<<. 16 .|. 0x01
 
-genFbAltTag :: int -> int
-genFbAltTag envSize = (envSize + 1) .<<. 16 .|. 0x04    || add 1 to account for stack pointer slot
-
 genHstreamTag :: int -> int -> int
-genHstreamTag fd envSize = envSize .<<. 16 .|. fd .<<. 8 .|. 0x05
+genHstreamTag fd envSize = envSize .<<. 16 .|. fd .<<. 8 .|. 0x04
 
 genPrimStringTag :: string -> int
 genPrimStringTag s
-    = size .<<. 32 .|. envSize .<<. 16 .|. 0x05
+    = size .<<. 32 .|. envSize .<<. 16 .|. 0x04
       where
         size    = #s
         envSize = max2 cmpint 1 $ stringWords s         || always generate at least 1 env word for forwarding
 
 genHarrayTag :: int -> int
-genHarrayTag size = size .<<. 32 .|. 0x06
+genHarrayTag size = size .<<. 32 .|. 0x05
+
+|| tag byte to use for Harrays to mark that they are in the roots list of the garbage collector
+hArrayRTagByte :: int
+hArrayRTagByte = 0x06
 
 genHeapObj :: (heapPtr, heapObj) -> showS
 genHeapObj (hp, (hi, env))

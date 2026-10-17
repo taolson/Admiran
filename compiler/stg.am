@@ -38,7 +38,6 @@ heapInfo ::=
 
     || these heapObjects need a more general helper function to apply
     Hpap    heapPtr     |       || partial application of Hfun at heapPtr; env values are the under-applied arguments
-    Halt    codePtr     |       || fatbar alternate; env values are the captured runtime stack and env pointers to restore
 
     || these heapObjects are data only (no codePtr)
     Hstream [char]      |       || a byteStream holding a packed list of chars
@@ -127,7 +126,6 @@ stgInsn ::=
     EnterInd    opr     [opr]           |    || enter known closure (indirectly referencing hp from opr0) with arguments [opr1..]
     Apply       opr     [opr]           |    || apply unknown closure [opr0] to arguments [opr1 ..], may be over- or under-saturated
     ApplyToEnv                          |    || apply unknown closure [Reg 0] to arguments [env], may be over- or under-saturated
-    Fail        opr                     |    || opr points to an Halt; restore the stack and env ptrs from the env and jump to Halt code ptr
     Ret         opr     opr             |    || copy [opr0,1] to Reg 0,1, pop a continuation from the stack, and enter it with current args vector
     RetEnv                              |    || copy env to Reg 0,1, args[0 .. #env-1], pop a continuation closure from the stack, and enter it
     CaseVec     opr     [codePtr]       |    || use [opr] as an index into the codePtrs and jump to that codePtr
@@ -143,7 +141,7 @@ stgInsn ::=
     AllocFrame  int                     |    || allocate int contiguous heapPtrs and store the base in the runtime frame ptr
     Fclosure    ref codePtr int [opr]   |    || ref := addr of new Hfun closure; int is arity of fn
     Tclosure    ref codePtr [opr]       |    || ref := addr of new Hthunk closure
-    Aclosure    ref codePtr int [opr]   |    || ref := addr of new Halt closure (env also includes runtime stack ptr adjusted by int)
+    Aclosure    ref codePtr [opr]       |    || ref := addr of new Hthunk closure for the alt leg of an Efatbar
     Vclosure    ref codePtr             |    || ref := addr of new Hthunk closure, with env = r0, r1, args[0..r1-1]
     Update      opr opr                 |    || update the closure pointed to by opr0 to the codePtr referenced by opr1,
                                              || with Reg 0, Reg 1 and current args vector as the environment vars
@@ -208,10 +206,8 @@ cmpstgInsn = undef
 || regGen:    next temp reg to allocate
 || frmGen:    next frame slot to allocate
 || stkGen:    next stack slot to allocate (also used as current Stk frame size in SetEnv)
-|| builtin:   currently evaluating a builtin (used in caseAlt code generation optimization of Pvar)
-|| caseAlt:   currently evaluating a caseAlt (used to qualify adding PopEnv to discard the continuation frames on a tail call)
-||            Note: these are state variables because it would be more difficult to pass these little-used booleans thoroughout the
-||            buildCode functions; they must be set correctly lexically any time we are building caseAlts
+|| builtin:   in evaluation of a builtin function
+|| caseAlt:   in evaluation of a caseAlt
 localEnv == m.map name opr
 localCls == m.map name closureInfo
 bdDynSt  == (globalEnv, stgCode, stgHeap)
@@ -856,13 +852,12 @@ buildCode (Ecall (Tname f as) args)
 || upon the lenv value of f
 buildCode (Ecall f args) = buildCodeCall f args
 
-|| alloc a closure for the fatbar alt, capturing the free vars in the alt, along with the
-|| current stkGen value to perform the effect of the required PopCont if the closure is invoked.
+|| alloc a closure for the fatbar alt, capturing the free vars in the alt
 || then bind the closure to the fatbar's Pvar and generate the insns for the primary
 buildCode (Efatbar (Pvar n) e1 e2)
-    = st.bind3 (st.view bdGenv) (st.view bdFrmGen) (st.view bdStkGen) build
+    = st.bind2 (st.view bdGenv) (st.view bdFrmGen) build
       where
-        build genv fg sg
+        build genv fg
             = allocClosure >>= \cls -> st.liftA3 mkClosure (st.mapM lookupOpr fns) (mkPrim cls) mkAlt
               where
                 fns        = analyzeExprFree e2 genv |> filter isInternal
@@ -870,17 +865,19 @@ buildCode (Efatbar (Pvar n) e1 e2)
                 mkPrim cls = st.over bdLenv (m.insert cmpname n (Ref cls)) >> buildCode e1 <&> pair cls
 
                 allocClosure
-                    = allocReg,                 if fg == 0      || no existing frame, so alloc to a reg
-                    = allocFrmSlots $ #fns + 1, otherwise       || allocate slots for free vars + stack ptr
+                    = allocReg,             if fg == 0      || no existing frame, so alloc to a reg
+                    = allocFrmSlots $ #fns, otherwise       || allocate slots for free vars
 
                 mkClosure fvs (ref, ins) altCp
-                    = Aclosure ref altCp sg fvs : ins
+                    = Aclosure ref altCp fvs : ins
 
-|| an Efail invokes the Aclosure through the Fail insn
+|| an Efail invokes the Aclosure, performing a PopCont to remove any current continuation closure, if required
 buildCode (Efail e)
-    = makeOpr e <&> mkFail
+    = st.liftA2 mkFail (st.view bdStkGen) (makeOpr e)
       where
-        mkFail fopr = [Fail fopr]
+        mkFail sg fopr
+            = [PopCont sg, EnterInd fopr []], if sg > 0
+            = [EnterInd fopr []],             otherwise
 
 buildCode d
     = buildCodeDef d

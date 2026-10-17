@@ -36,7 +36,7 @@ typedef uint64_t word;
 typedef void    *value;
 
 // Admiran HeapObj structure definitions
-enum heapInfoTag {Hfun, Hthunk, Hfwd, Hpap, Hfbalt, Hstream, Harray, HarrayR, Hreloc};   // note: must match enum values in codegen.m
+enum heapInfoTag {Hfun, Hthunk, Hfwd, Hpap, Hstream, Harray, HarrayR, Hreloc};   // note: must match enum values in codegen.m
 
 // a generic heapObj representation, only providing the tag byte for inspection and a data value (Hreloc)
 typedef struct _heapObj {
@@ -72,7 +72,7 @@ value tagWord (word n)
   return (value) (n << 1);
 }
 
-// codeObj representation of a heapObj (Hfun, Hthunk, Hfwd, Hpap, Hfbalt)
+// codeObj representation of a heapObj (Hfun, Hthunk, Hfwd, Hpap)
 typedef struct _codeObj {
   uint8_t  tag;
   uint8_t  arity;
@@ -403,7 +403,6 @@ void gcTraceObj (heapObj *obj)
   switch (obj -> tag) {
   case Hfun:
   case Hthunk:
-  case Hfbalt:
     co = (codeObj *)obj;
     heapRelocateBlock (co -> env, co -> env + co -> envSize);
     break;
