@@ -640,7 +640,8 @@ simplifyAst k (Ecall (Elet b defs ps f) args) st
 
 || remove FATBARs that no longer have the possibility of failing
 simplifyAst k (Efatbar (Pvar fn) e1 e2) st
-    = k e1 st', if fc == 0
+    = k e1 st', if fc == 0              || replace with e1, if e1 cannot fail to e2
+    = k e2 st', if fc == 1 & isFail e1  || replace with e2, if e1 is simply a fail to e2
       where
         fc  = astAccumTD countFails e1 0
         st' = st |> set inSimplified True |> addInfo "removed FATBAR"
