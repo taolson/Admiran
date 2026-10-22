@@ -380,7 +380,7 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
         cpx       = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
         used      = astAccumTD tallyUses e False
         alts'     = map insLet alts
-        deltaCpx  = #alts * cpx
+        deltaCpx  = tallyCpx alts' - tallyCpx alts
         deltaFuel = deltaCpx - cpx
         note      = "float let into case alts"
         an'       = over annoCpx (+ deltaCpx) an
@@ -401,6 +401,8 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
 
         insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an), if any (member cmpname keys) (view annoFree an)
         insLet alt              = alt
+
+        tallyCpx alts = map (view astAnnoCpx) alts |> sum
 
         tallyUses (Evar n) used = used \/ m.member cmpname n defs
         tallyUses a        used = used
