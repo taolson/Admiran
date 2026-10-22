@@ -893,7 +893,7 @@ buildCode d
         || is pushed, so that when the evaluation returns, it first returns to the generic update code (Caddr 1) which performs
         || the update, capturing the returned value and changing the codePtr to point to the standard unpack code (Caddr 0).
         || The update continuation isn't required for thunks which are usedAffine (used zero or one time), as determined during
-        || use analysis, and for any DefPat returning a constructor application, since that is already WHNF.  This applies to
+        || use analysis, and for any DefPat that is a constructor application, since that is already WHNF.  This applies to
         || constructors that have strict fields, as well, but that shouldn't be a big issue, since re-evaluating the strict field
         || should itself have been turned into a simple unpack of a thunk.
         buildCodeDef (DefPat p e an)

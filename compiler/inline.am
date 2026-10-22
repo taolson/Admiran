@@ -376,6 +376,7 @@ simplifyAst k a st
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
     = k (Ecase b e alts' an') st', if ~used
       where
+        keys      = m.keys defs
         cpx       = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
         used      = astAccumTD tallyUses e False
         alts'     = map insLet alts
@@ -398,8 +399,8 @@ simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
                 deltaCpx = cpx - 2
                 an'      = over annoCpx (+ deltaCpx) an
 
-        insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an)
-        insLet _                = unreachable
+        insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an), if any (member cmpname keys) (view annoFree an)
+        insLet alt              = alt
 
         tallyUses (Evar n) used = used \/ m.member cmpname n defs
         tallyUses a        used = used
