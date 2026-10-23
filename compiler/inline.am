@@ -376,33 +376,32 @@ simplifyAst k a st
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
     = k (Ecase b e alts' an') st', if ~used
       where
-        keys      = m.keys defs
-        cpx       = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
-        used      = astAccumTD tallyUses e False
-        alts'     = map insLet alts
-        deltaCpx  = tallyCpx alts' - tallyCpx alts
-        deltaFuel = deltaCpx - cpx
-        note      = "float let into case alts"
-        an'       = over annoCpx (+ deltaCpx) an
-        st'       = st |> set inSimplified True |> over inFuel (subtract deltaFuel) |> addInfo note
+        keys          = m.keys defs
+        cpx           = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
+        used          = astAccumTD tallyUses e False
+        (cpx', alts') = mapAccumL insLet 0 alts
+        deltaCpx      = cpx' - cpx
+        note          = "float let into case alts"
+        an'           = over annoCpx (+ deltaCpx) an
+        st'           = st |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
 
         || handle the degenerate case where the CaseAlt is an Evar ref for a defn in the let, by replacing it directly
         || this gets rid of extraneous thunk creation / updates which couldn't be optimized away by the inlining of
         || a caseAlt value (introduced Let bindings cause that pattern to fail)
-        insLet (CaseAlt p (Evar n) an)
-            = CaseAlt p e an', if isJust md & ~view astAnnoRec d & isDefPat d
+        insLet tot (CaseAlt p (Evar n) an)
+            = (tot + deltaCpx, CaseAlt p e an'), if isJust md & ~view astAnnoRec d & isDefPat d
               where
                 md       = m.lookup cmpname n defs
                 d        = fromJust md
                 e        = fnExpr d
-                cpx      = view astAnnoCpx d
-                deltaCpx = cpx - 2
+                deltaCpx = view astAnnoCpx d - 2
                 an'      = over annoCpx (+ deltaCpx) an
 
-        insLet (CaseAlt p e an) = CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an), if any (member cmpname keys) (view annoFree an)
-        insLet alt              = alt
+        || insert the let into the caseAlt if the caseAlt has any dependencies on the let defns
+        insLet tot (CaseAlt p e an)
+            = (tot + cpx, CaseAlt p (Elet rec defs ps e) (over annoCpx (+ cpx) an)), if any (member cmpname keys) (view annoFree an)
 
-        tallyCpx alts = map (view astAnnoCpx) alts |> sum
+        insLet tot alt = (tot, alt)
 
         tallyUses (Evar n) used = used \/ m.member cmpname n defs
         tallyUses a        used = used
