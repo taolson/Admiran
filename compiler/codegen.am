@@ -886,6 +886,7 @@ genInsn (Sub d a b)
         (xd, movd) = ensureX86DstReg x86Tmp0 d  || optimization assumes dst is an X86Reg
 
         optimize (X86Reg _) (X86Imm n) = genOpcode "leaq" [addX86Offset (-n) xa, xd]           . movd, if ~isX86Imm64 (X86Imm n)
+        optimize (X86Imm 0) (X86Reg _) = genOpcode "movq" [xb, xd] . genOpcode "negq" [xd]     . movd
         optimize _          _          = genOpcode "movq" [xa, xd] . genOpcode "subq" [xb, xd] . movd
 
 || Mul, optimized to use single insn "leaq" or the three-operand immediate equivalent, when possible
