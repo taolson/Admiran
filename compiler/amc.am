@@ -185,13 +185,13 @@ gen fs entry
         qentry = Qualified mn entry
         qstart = Qualified mn "start!"
         asm    = withSuffix "s" fn
-        rt     = fullFileName $ FileSpec stdlibPath runtimeName
+        rt     = FileSpec stdlibPath runtimeName |> fullFileName
 
         || generate the STG code from the module map
         genStg mm
             = putStr "generating STG code " >> pure (buildStg qentry genv)
               where
-                m      = fromJust $ m.lookup cmpstring mn mm
+                m      = m.lookup cmpstring mn mm |> fromJust
                 genv   = (m, mm, 0)
 
         || tally total insns generated to force evaluation of build before gen
@@ -199,7 +199,7 @@ gen fs entry
             = putStrLn (showint n ++ " STG insns") >> pure stg
               where
                 (_, c, _) = stg
-                n         = sum . map (length . snd) . m.elems . fst $ c
+                n         = fst c |> m.elems |> map (snd .> length) |> sum
 
         || generate the asm code
         genCode stg

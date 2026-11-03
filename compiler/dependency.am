@@ -53,7 +53,7 @@ dependencyOrder cmp g
       where
         sccs         = findSCCs cmp g
         (mutRec, d1) = partition ((> 1) . length) sccs        || detect any mutually-recursive components
-        (dirRec, d2) = partition isDirRec d1                  || detect any directly-recursive compoenents
+        (dirRec, d2) = partition isDirRec d1                  || detect any directly-recursive components
         isDirRec [c] = member cmp (edges cmp fwd c g) c
         isDirRec _   = False
 

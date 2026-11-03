@@ -1,10 +1,10 @@
 || stg.am -- convert AST to Spineless Tagless G-Machine VM representation, using eval-apply model
 
 
-%export codeObj codePtr stgCode heapInfo heapObj heapPtr stgHeap stackObj stgStack continuation value
+%export codeObj codePtr stgCode heapInfo heapObj heapPtr stgHeap value
         refSpace ref r0Ref r1Ref r2Ref e0Ref opr r0Opr r1Opr r2Opr e0Opr
         applyToEnvPtr enterEnv0Ptr selRetPtr selApplyPtr blackHolePtr
-        localEnv stgInsn showvalue cmpopr showopr showstgInsn showheapObj showstackObj
+        localEnv stgInsn showvalue cmpopr showopr showstgInsn showheapObj
         buildStg heapObjWords stringWords
 
 %import <base>
@@ -61,11 +61,6 @@ heapObjWords (info, env)
 || compute the number of 8-byte words each packed string requires
 stringWords :: string -> int
 stringWords s = case quotrem (#s) 8 of (q, r) -> q + if' (r > 0) 1 0
-
-|| a stack object (continuation) consists of a continuation codePtr and a list of free variable environment values
-stackObj     == (codePtr, [value])
-continuation == stackObj         || type synonym for stackObj
-stgStack     == [continuation]
 
 || values are either unboxed Words, codePtrs, or heapPtrs
 value ::= Word int | Caddr codePtr | Haddr heapPtr
@@ -393,9 +388,8 @@ makeRef :: pat -> state bdSt ref
 makeRef p
     = allocReg >>= checkPat p
       where
-        checkPat Pwildcard r = st.pure r
         checkPat (Pvar n)  r = st.pure r << st.over bdLenv (m.insert cmpname n (Ref r))
-        checkPat _         _ = unreachable
+        checkPat _         r = st.pure r
 
 || bind Pvar names to Arg references and install in the lenv
 || skip over any non-Pvar pats (e.g. Pwildcard) which don't provide a name to bind
@@ -474,14 +468,14 @@ inBuiltinEnv ma
 || run a build function in a new environment of Arg refs for a caseAlt
 inAltEnv :: [pat] -> state bdSt [stgInsn] -> state bdSt [stgInsn]
 inAltEnv pvs ma
-    = inLexEnv (initRes >> bindArgs pvs >> ma)
+    = inLexEnv $ initRes >> bindArgs pvs >> ma
       where
         initRes = st.over bdLex $ lens.set lexFrmGen 0 . lens.set lexCaseAlt True
 
 || run a build function in a new environment of Env refs for a fatbar alt
 inFbAltEnv :: [name] -> state bdSt [stgInsn] -> state bdSt [stgInsn]
 inFbAltEnv fns ma
-    = inLexEnv (initResources >> bindEnvs fns >> ma)
+    = inLexEnv $ initResources >> bindEnvs fns >> ma
 
 unPrimInt :: expr -> maybe int
 unPrimInt (EprimInt n) = Just n
@@ -531,9 +525,10 @@ buildCodeAlt (CaseAlt p e an)
 
 buildCodeAlt _ = unreachable
 
-|| convert a list of CaseAlts to the stgInsns to match against them,
+
+|| convert a list of CaseAlts to the continuation code to match against them,
 || based upon the caseSel of the Ecase and the tag opr, and return the code
-|| note that the alts all share a common context with the same env (union of all free vars)
+|| note that the alts all share a common continuation context with the union of all free vars
 buildCodeAlts :: caseSel -> opr -> [caseAlt] -> state bdSt [stgInsn]
 
 buildCodeAlts Csingle topr [alt]
@@ -568,6 +563,7 @@ buildCodeAlts Cpriority topr alts
                         ns = getName n
 
 buildCodeAlts _ _ _ = unreachable
+
 
 || build the code to handle a call to a builtin function; these will all be single stgInsns
 || the destination ref to use is passed in, as it can be optimized to a new Reg ref in
@@ -637,12 +633,14 @@ buildCodeCallBuiltin n args dsts
 
         go _ = unreachable
 
+
 || build code for an Ecall (function) or an Evar (thunk), based upon info from the call fopr and any closureInfo
 buildCodeCall :: expr -> [expr] -> state bdSt [stgInsn]
 
 buildCodeCall (Evar f) args
     = buildCodeCallBuiltin f args [r0Ref] <&> singleton, if isBuiltin f & ~isConstructor f
 
+|| build code for a general Ecall, using context to decide the best STGinsn to use (Call, Enter, EnterInd, Apply)
 buildCodeCall fe args
     = st.bind3 (makeOpr fe) (st.mapM makeOpr args) (lookupClosureInfo fe) mkCall
       where

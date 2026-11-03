@@ -286,6 +286,7 @@ cvtReg n
         err = error $ "Reg " ++ showint n ++ " exceeds limit -- increase codegenMaxRegs?"
 
 || convert an stgInsn reference to an x86Opr
+|| refs are destinations that are stored into, so we untag any tagged heap reference location
 cvtRef :: ref -> x86Opr
 cvtRef (Stk, n) = addX86Offset (n * -8)     x86Env      || x86Env holds untagged top of stack continuation frame, with stack growing down
 cvtRef (Env, n) = addX86Offset (n * 8 + 15) x86Env      || x86Env holds tagged closure base; adjust to remove tag bit and point to env field
@@ -294,12 +295,16 @@ cvtRef (Arg, n) = cvtArg n
 cvtRef (Reg, n) = cvtReg n
 
 || convert an stgInsn operand to an x86Opr
+|| oprs are sources that are evaluated, so they are tagged (or an existing tag is kept). however, (Ref (Env, x))
+|| oprs are special: they specify an indirection through the Env register with an offset to the field which is
+|| itself a tagged value; since the Env register base value is also tagged, we need to untag it so that the correct
+|| (tagged) field can be loaded. So Env oprs are converted like Env references.
 cvtOpr :: opr -> x86Opr
 cvtOpr (Imm (Word n))   = X86Imm (n * 2)                        || tag bit '0' added to word# values
-cvtOpr (Imm (Caddr cp)) = cvtMemCodePtr cp
+cvtOpr (Imm (Caddr cp)) = cvtMemCodePtr cp                      || codePtrs have implicit '0' tag
 cvtOpr (Imm (Haddr hp)) = addX86Offset 1 (cvtHeapPtr hp)        || tag bit '1' added to heapPtr values
 cvtOpr (Ref (Frm, n))   = addX86Offset (n * 8) x86Frm           || Frm register already has tag bit
-cvtOpr (Ref r)          = cvtRef r
+cvtOpr (Ref r)          = cvtRef r                              || all other oprs are converted like refs
 
 
 || generate an x86-64 opcode

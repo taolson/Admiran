@@ -163,14 +163,12 @@ betaReduce d args st
         e2             = e1,               if null args2
                        = (Ecall e1 args2), otherwise
 
-|| see if name is something we can replace with its definition
+|| don't inline ctors (to builtinPack# calls), as that foils constant ctor scrutinee simplifications
 canInline :: name -> bool
 canInline n = ~(isBuiltin n \/ isConstructor n \/ member cmpname noInlineNames n)
 
-canInlineInternal :: name -> bool
-canInlineInternal n = isInternal n & canInline n
-
-|| see if expr isSimpleExpr or a simple constructor
+|| Evars that are known bound to simple ctors (as well as other zero-cost simpleExprs) are
+|| beneficial to inline
 isSimple :: expr -> bool
 isSimple (Ecall (Evar c) args) = isConstructor c & all isSimpleExpr args
 isSimple e                     = isSimpleExpr e
@@ -294,10 +292,9 @@ inlineAst k (Ecall (Evar n) args) st
 inlineAst k (Ecase b (Evar n) alts an) st
     = k (Ecase b e'       alts  an') st2, if inlinable      || inline the case scrutinee
     = k (Ecase b (Evar n) alts' an)  st3, if isInternal n   || bind the name to the individual caseAlt patterns
-    = k (Ecase b (Evar n) alts  an)  st,  otherwise         || don't do anything if the name is a top-level pat
+    = k (Ecase b (Evar n) alts  an)  st,  otherwise         || don't do anything if the name is a top-level pat (avoid infinite recursion cases)
       where
-        || note: restriction on Internal only gives best overall results
-        inlinable    = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
+        inlinable    = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
         md           = lookupEnv n st
         d            = fromJust md
         affine       = view astAnnoUse d |> usedAffine
@@ -321,27 +318,11 @@ inlineAst k (Ecase b (Evar n) alts an) st
                 mkExpr (CaseAlt (Pctor c vars) e an) = Just (Ecall (Evar c) (map (unPvar .> Evar) vars), 2 + #vars), if all isPvar vars
                 mkExpr alt                           = Nothing
 
-|| do inlining of an expr as a caseAlt value
-inlineAst k (CaseAlt p (Evar n) an) st
-    = k (CaseAlt p e' an) st2, if inlinable
-      where
-        inlinable = canInlineInternal n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
-        md        = lookupEnv n st
-        d         = fromJust md
-        affine    = view astAnnoUse d |> usedAffine
-        cpx       = view astAnnoCpx d
-        deltaCpx  = cpx - 2
-        e         = fnExpr d
-        (e', st1) = betaReduce d [] st
-        note      = "inlined caseAlt expr " ++ showName n
-        st2       = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
-
 || do inlining of a simple expr
 inlineAst k (Evar n) st
     = (e', st2),    if inlinable
     = (Evar n, st), otherwise
       where
-        || note: allowing non-Internals gives best overall results
         inlinable = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
         md        = lookupEnv n st
         d         = fromJust md

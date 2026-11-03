@@ -235,7 +235,7 @@ isSymbol n
       where
         check []         = False
         check ('_' : cs) = False
-        check ('`' : cs) = check cs     || ignore prefix '`' which are used to mark names of inlined defns
+        check ('`' : cs) = check cs     || ignore prefix '`' which is used to mark names of inlined defns
         check (c   : cs) = ~letter c
 
 
