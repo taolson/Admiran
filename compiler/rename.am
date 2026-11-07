@@ -98,8 +98,10 @@ renameAst k (Elet rec defs ps e) st
         renamePat st n1
             = go (edges cmpname fwd n1 g)
               where
-                go [n2] = addRnEnv n1 (fromEither n2 (lookupRnEnv n2 st)) st    || check if n2 is renamed already
-                go _    = st    || n1 was not a renamePat; don't install a rename for it
+                go [n2] = case lookupRnEnv n2 st of
+                            Left ei -> addRnErr ei   st
+                            Right n -> addRnEnv n1 n st
+                go _    = st
 
         || rename other defns by running renameDef to get a new name, then install that in the defnMap
         || the rest of the defn will be renamed through the continuation
