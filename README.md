@@ -93,7 +93,7 @@ understandable by someone studying it.
 
   - inter-module inlining
   - compile-time evaluation of builtin functions and case selection for known constant operands
-  - let floating and case expression floating to expose more optimization opportunites
+  - let floating and case expression floating to expose more optimization opportunities
   - dead-code elimination
 
 * AST serialization / deserialization for modules
@@ -103,6 +103,7 @@ understandable by someone studying it.
   - Lowers to virtual STG instruction set (register-based)
   - Function call arity analysis and optimization for known functions or closures
   - Tail call optimization
+  - Continuation closure stack coalescing
   - Thunk update removal
   - Reachability analysis to only include used definitions (tree-shaking)
 
