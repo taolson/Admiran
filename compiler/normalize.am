@@ -26,9 +26,9 @@
 || thunks: added definitions
 ||
 || lexically-scoped state:
-|| loc:     location info from enclosing definition
-|| env:     stack of defnMaps defining the lexical environment
-|| inAlloc: currently in a case expression with a scrutinee calling builtinAllocArray#
+|| loc:    location info from enclosing definition
+|| env:    stack of defnMaps defining the lexical environment
+|| atomic: in atomic alloc
 nmDynSt   == (globalEnv, [defn])
 nmLexSt   == (locInfo, [defnMap], bool)
 nmSt      == (nmDynSt, nmLexSt)
@@ -40,7 +40,7 @@ nmGenv     = composeLens nmDyn  lensFst
 nmThunks   = composeLens nmDyn  lensSnd
 nmLoc      = composeLens nmLex  lensTup3_0
 nmLenv     = composeLens nmLex  lensTup3_1
-nmInAlloc  = composeLens nmLex  lensTup3_2
+nmAtomic   = composeLens nmLex  lensTup3_2
 nmGen      = composeLens nmGenv genvGen
 nmLocation = composeLens nmLoc locInfoLocation
 
@@ -70,7 +70,15 @@ getArity (Tname n as) st
 getArity e st = Nothing
 
 
+isAllocCall :: expr -> bool
+isAllocCall (Ecall (Evar (Builtin "allocArray#")) _) = True
+isAllocCall _                                        = False
+
 normalizeAst :: astRewriteTraverser nmSt
+
+|| float a let that may have been inserted between an atomic alloc and its initialization during inlining to outside of the alloc
+normalizeAst k (Ecase b1 e1 [Elet b2 defs ps alt] an) st
+    = k (Elet b2 defs ps (Ecase b1 e1 [alt] an)) st, if isAllocCall e1
 
 normalizeAst k (Ecall f args) st
     = (Ecall fSimp argsSimp, st1), if noArityNorm               || call with all arguments if unknown function arity, or exact arity
@@ -107,27 +115,24 @@ normalizeAst k (Ecall f args) st
 
         mkAnno st = view nmLocation st |> fromMaybe emptyLocation |> emptyAnnoLoc
 
-|| float any generated thunks out until reaching a Defn, Elet, or CaseAlt
-|| then collect them into a nested sequence of Elets
-|| special-case handling for Ecase with scrutinee builtinAllocArray# to prevent generated thunks from being inserted
-|| between it and its subsequent initialization case evaluation, which could leave the AllocArray uninitialized during a
-|| subsequent AllocFrame
+|| float any generated thunks out until reaching a Defn, Elet, or CaseAlt, then collect them into a nested sequence of Elets
+|| special-case handling for atomic sequences that cannot be separated by inserted thunks
 normalizeAst k a st
     = (a, st),              if isDefType a      || no normalization for type definitions
-    = (k a >>= update) st1, if isDefn a \/ isCaseAlt a & ~view nmInAlloc st
+    = (k a >>= update) st1, if isDefn a \/ isCaseAlt a & ~view nmAtomic st
     = (k a >>= update) st2, if isLet a          || add new lexical frame for let defns
-    = k a              st3, if isCaseAlloc a    || set inAllocArray to float any generated thunks up past the alloc
+    = k a              st3, if isCase a         || set nmAtomic approprately
     = k a              st,  otherwise
       where
         inThunks = view nmThunks st
         loc      = defnLocInfo a, if isDefn a
                  = view nmLoc st, otherwise
-        st1      = over nmLoc (mergeLocInfo loc) . clrThunks . set nmInAlloc False $ st
+        st1      = over nmLoc (mergeLocInfo loc) . clrThunks $ st
         st2      = over nmLenv (getDefns a :) st1
-        st3      = set nmInAlloc True st
+        st3      = set nmAtomic (isAtomic a) st
 
-        isCaseAlloc (Ecase _ (Ecall (Evar (Builtin "allocArray#")) _) _ _) = True
-        isCaseAlloc _                                                      = False
+        isAtomic (Ecase _ e _ _) = isAllocCall e
+        isAtomic _               = unreachable
 
         getDefns (Elet _ defs _ _) = defs
         getDefns a                 = m.empty

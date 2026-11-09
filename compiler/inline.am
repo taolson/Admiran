@@ -173,6 +173,10 @@ isSimple :: expr -> bool
 isSimple (Ecall (Evar c) args) = isConstructor c & all isSimpleExpr args
 isSimple e                     = isSimpleExpr e
 
+isBuiltinCall :: expr -> bool
+isBuiltinCall (Ecall (Evar n) _) = isBuiltin n
+isBuiltinCall _                  = False
+
 || see if expr can return a value or not
 || (used when rewriting nested case exprs, to prevent expansion of a non-returning expr)
 noReturn :: expr -> inSt -> bool
@@ -351,11 +355,11 @@ simplifyAst :: astRewriteTraverser inSt
 simplifyAst k a st
     = (a, st), if ~m.null (view inSubst st) \/ view inFuel st <= 0
 
-|| float a let into caseAlts, if unused in the case scrutinee
+|| float a let into caseAlts, if unused in the case scrutinee and scrutinee isn't a builtin
 || this will cause the lets to be specialized in each alt, allowing unused lets to be removed
 || (fewer runtime bindings created)
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
-    = k (Ecase b e alts' an') st', if ~used
+    = k (Ecase b e alts' an') st', if ~used & ~isBuiltinCall e
       where
         keys          = m.keys defs
         cpx           = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
@@ -419,6 +423,7 @@ simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts an) st
         an'  = over annoCpx (subtract cpx) an               || remove Elet cpx from scrutinee
         note = "float let out of case scrutinee"
         st'  = st |> set inSimplified True |> addInfo note
+
 
 || simplify operations on builtin functions with literal operands
 || note that this pattern match uses the more complex (Ecase (Ecall ..) [CaseAlt ..]) pattern, rather than
