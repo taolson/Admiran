@@ -46,11 +46,6 @@ makeTupleExpr elts
       where
         ntuple = Evar (builtinTupleName (#elts))
 
-|| make a Admiran tuple pattern from a list of names
-makeTuplePat :: [name] -> pat
-makeTuplePat [n] = Pvar n               || single name
-makeTuplePat ns  = Pctor (builtinTupleName (#ns)) (map Pvar ns)
-
 || make a generic Tuple constructor type from its constructor name
 || e.g. Tuple3 ==> * -> ** -> *** -> Ttuple * ** ***
 makeTupleCtorType :: name -> texpr
@@ -61,11 +56,6 @@ makeTupleCtorType n
         msize = stripPrefix cmpchar "Tuple" (getName n)
         tsize = intval (fromJust msize)
         tvars = map Tvar [1 .. tsize]
-
-|| make a generic Tuple type from its constructor name
-|| e.g. Tuple3 ==> Ttuple * ** ***
-makeTupleType :: name -> texpr
-makeTupleType = baseType . makeTupleCtorType
 
 || make a function name for a tuple, given the base function name and the tuple arity
 || note that this returns an Unqualified name, rather than Builtin or stdlib, because cmptupleN and showtupleN
@@ -102,9 +92,6 @@ stdFalseName     = makeStdlibName "False"
 stdTrueName      = makeStdlibName "True"
 stdAndName       = makeStdlibName "&"
 stdNegName       = makeStdlibName "neg"
-stdIntCtorName   = makeStdlibName "I#"
-stdCharCtorName  = makeStdlibName "C#"
-stdErrorName     = makeStdlibName "error"
 stdCaseFailName  = makeStdlibName "caseFail"
 stdMatchFailName = makeStdlibName "matchFail"
 stdBlackHoleName = makeStdlibName "blackHole"
@@ -115,7 +102,6 @@ stdRcomposeName  = makeStdlibName ".>"
 
 || stdlib types used in compiler
 stdInt      = makeStdlibType "int"
-stdNum      = makeStdlibType "num"
 stdChar     = makeStdlibType "char"
 stdBool     = makeStdlibType "bool"
 stdString   = makeStdlibType "string"
@@ -138,8 +124,6 @@ stdShowFn           = makeStdlibVar "showFn"
 stdShowList         = makeStdlibVar "showlist"
 stdCaseFail         = makeStdlibVar "caseFail"
 stdMatchFail        = makeStdlibVar "matchFail"
-stdError            = makeStdlibVar "error"
-stdBlackHole        = makeStdlibVar "blackHole"
 stdAppend           = makeStdlibVar "++"
 stdConverse         = makeStdlibVar "converse"
 stdRange            = makeStdlibVar "range"

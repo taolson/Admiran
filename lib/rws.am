@@ -85,12 +85,7 @@ m >>= f
 f >=> g = \x -> f x >>= g
 
 join :: rws * ** *** (rws * ** *** ****) -> rws * ** *** ****
-join ma
-    = go
-      where
-        go r s w
-            = case runRWS ma r s w of (mb, s', w') ->
-              runRWS mb r s' w'
+join ma = ma >>= runRWS
 
 mapM :: (**** -> rws * ** *** *****) -> [****] -> rws * ** *** [*****]
 mapM f xs = foldr (f .> liftA2 (:)) (pure []) xs

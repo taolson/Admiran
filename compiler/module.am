@@ -40,14 +40,6 @@ libPart ::=
     LibFile    fileSpec location |      || export all identifers exported from this module
     LibAll              location        || export all identifiers in this module (default, if no export directive)
 
-isLibIdent :: libPart -> bool
-isLibIdent (LibIdent n loc) = True
-isLibIdent lp               = False
-
-isLibRemove :: libPart -> bool
-isLibRemove (LibRemove n loc) = True
-isLibRemove lp                = False
-
 || qualification spec for imported identifiers
 libQual ::= LibUnqualified | LibQualified
 
@@ -59,12 +51,8 @@ libAlias ::=
 || %import directive
 libEnv == (fileSpec, location, libQual, string, [libAlias])
 
-|| lenses on libEnv
-libEnvFile  = lensTup5_0
-libEnvLoc   = lensTup5_1
-libEnvQual  = lensTup5_2
-libEnvAs    = lensTup5_3
-libEnvAlias = lensTup5_4
+libEnvFile :: libEnv -> fileSpec
+libEnvFile (fs, _, _, _, _) = fs
 
 || build status, used to differentiate modules that have only been parsed
 || with ones that are fully built (e.g. read in from a serialized version)
@@ -162,7 +150,7 @@ modImports
         overf fn (Module fs bs exs ins defs pats specs env) = Module fs bs exs (fn ins) defs pats specs env
 
 modImportFiles :: module -> [fileSpec]
-modImportFiles m = view modImports m |> map (view libEnvFile)
+modImportFiles m = view modImports m |> map libEnvFile
 
 modDefns :: lens module defnMap
 modDefns
@@ -260,10 +248,6 @@ modInsExp pts m
 || insert an %import declaration
 modInsImp :: libEnv -> modInserter
 modInsImp lenv m = over modImports (lenv :) m |> ex.pure
-
-|| insert a %free declaration
-modInsFre :: [defn] -> modInserter
-modInsFre specs m = ex.error (Unsupported "%free") emptyLocInfo
 
 || insert a top-level definition
 modInsDef :: defn -> modInserter

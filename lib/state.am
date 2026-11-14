@@ -7,7 +7,6 @@
 
 %export +
 
-%import <base>
 %import <lens>
 
 
@@ -58,7 +57,7 @@ m >>= f = \s -> case runState m s of (a, s') -> runState (f a) s'
 f >=> g = \x -> f x >>= g
 
 join :: state * (state * **) -> state * **
-join ma = \s -> runState ma s |> uncurry runState
+join ma = ma >>= runState
 
 mapM :: (** -> state * ***) -> [**] -> state * [***]
 mapM f xs = foldr (f .> liftA2 (:)) (pure []) xs

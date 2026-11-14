@@ -13,7 +13,7 @@
 %import "ast"
 %import "config"
 %import "dependency"
-%import "exception"     as ex           -(>>=) -(<&>)
+%import "exception"     as ex           -(<&>)
 %import "grammar"
 %import "module"
 %import "name"
@@ -84,12 +84,11 @@ addInfo s st
         attach ((et, ExMult eis, el) : es) = (et, ExMult (eis ++ [info]), el) : es
         attach ((et, ei, el) : es)         = (et, ExMult [ei, info], el) : es
 
-|| lookup the defn bound to a name in the local or global environments, along with
-|| an indication of whether the lookup crossed a function definition boundary
+|| lookup the defn bound to a name in the local or global environments
 lookupEnv :: name -> inSt -> maybe defn
 lookupEnv n st
-    = lookupLocal <|> lookupGlobal, if m.null $ view inSubst st
-    = lookupGlobal,                 if getModName n ==$ streamModuleName
+    = lookupLocal <|> lookupGlobal, if m.null $ view inSubst st                 || normal inlining
+    = lookupGlobal,                 if getModName n ==$ streamModuleName        || streamSubst inlining
     = Nothing,                      otherwise
       where
         genv = view inGenv st
@@ -140,10 +139,10 @@ createBinding loc e vars args aff
     = wrapInLet loc (replace e smp) cpx
       where
         uses       = map (\i -> if' (bs.member i aff) Uone Umany) [0 .. #args - 1]
-        (smp, cpx) = zip3 vars args uses |> map extrPvars |> catMaybes |> partition simpleOrAffine |> mapBoth (map extrBinding)
+        (smp, cpx) = zip3 vars args uses |> map extrPvars |> catMaybes |> partition affineOrSimple |> mapBoth (map extrBinding)
 
         extrPvars      (v, a, u) = if' (isPvar v) (Just (unPvar v, a, u)) Nothing
-        simpleOrAffine (_, a, u) = isSimple a \/ usedAffine u
+        affineOrSimple (_, a, u) = usedAffine u \/ isSimple a
         extrBinding    (v, a, _) = (v, a)
 
 || perform beta-reduction on a defn with arguments, renaming all the Pvars in the defn first
@@ -167,13 +166,10 @@ betaReduce d args st
 canInline :: name -> bool
 canInline n = ~(isBuiltin n \/ isConstructor n \/ member cmpname noInlineNames n)
 
-|| Evars that are known bound to simple ctors (as well as other zero-cost simpleExprs) are
-|| beneficial to inline
-isSimple :: expr -> bool
-isSimple (Ecall (Evar c) args) = isConstructor c & all isSimpleExpr args
-isSimple e                     = isSimpleExpr e
+isSimple, isBuiltinCall :: expr -> bool
+isSimple (Ecall (Evar c) args)   = isConstructor c & all isSimpleExpr args
+isSimple e                       = isSimpleExpr e
 
-isBuiltinCall :: expr -> bool
 isBuiltinCall (Ecall (Evar n) _) = isBuiltin n
 isBuiltinCall _                  = False
 
@@ -298,14 +294,14 @@ inlineAst k (Ecase b (Evar n) alts an) st
     = k (Ecase b (Evar n) alts' an)  st3, if isInternal n   || bind the name to the individual caseAlt patterns
     = k (Ecase b (Evar n) alts  an)  st,  otherwise         || don't do anything if the name is a top-level pat (avoid infinite recursion cases)
       where
-        inlinable    = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
+        inlinable    = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (simple \/ affine & cpx <= inlineMaxFnComplexity)
         md           = lookupEnv n st
         d            = fromJust md
         affine       = view astAnnoUse d |> usedAffine
+        simple       = fnExpr d |> isSimple
         cpx          = view astAnnoCpx d
         deltaCpx     = cpx - 2
         an'          = over annoCpx (+ deltaCpx) an
-        e            = fnExpr d
         (e', st1)    = betaReduce d [] st
         note         = "inlined case scrutinee " ++ showName n
         st2          = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
@@ -327,13 +323,13 @@ inlineAst k (Evar n) st
     = (e', st2),    if inlinable
     = (Evar n, st), otherwise
       where
-        inlinable = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (isSimple e \/ affine) & cpx <= inlineMaxFnComplexity
+        inlinable = canInline n & isJust md & ~view astAnnoRec d & isDefPat d & (simple \/ affine & cpx <= inlineMaxFnComplexity)
         md        = lookupEnv n st
         d         = fromJust md
         affine    = view astAnnoUse d |> usedAffine
+        simple    = fnExpr d |> isSimple
         cpx       = view astAnnoCpx d
         deltaCpx  = cpx - 2
-        e         = fnExpr d
         (e', st1) = betaReduce d [] st
         note      = "inlined expr " ++ showName n
         st2       = st1 |> set inSimplified True |> over inFuel (subtract deltaCpx) |> addInfo note
@@ -415,7 +411,7 @@ simplifyAst k (Elet b defs ps e) st
 
 || float a let outside of a case scrutinee
 || since the case evaluation is strict, the Elet bindings will always be evaluated, and this
-|| exposes opportunities to match case evaluation of a constant or simple expr
+|| exposes more case / case commutation opportunities
 simplifyAst k (Ecase b1 (Elet b2 defs ps e) alts an) st
     = k (Elet b2 defs ps (Ecase b1 e alts an')) st'
       where

@@ -59,7 +59,7 @@ modifyBackwards f = \s -> ((), mapFst f s)
                  (bw2, fw2) = s2
 
 join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
-join ma = \s -> runState ma s |> uncurry runState
+join ma = ma >>= runState
 
 pure :: *** -> tardis * ** ***
 pure x = \s -> (x, s)

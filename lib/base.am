@@ -750,5 +750,5 @@ withoutSuffix suf
     = go
       where
         go []         = []
-        go ('.' : xs) = [], if xs ==$ suf
+        go ('.' : xs) = [], if null xs \/ xs ==$ suf
         go (x   : xs) = x : go xs
