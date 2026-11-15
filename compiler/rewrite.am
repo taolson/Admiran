@@ -125,7 +125,7 @@ rewriteAst k (Efatbar p e1 e2) st
         canReplace = fc1 == 1 \/ isSimpleExpr e2'               || replace single fails in e1' with a normal e2', or multiple with a simple e2'
         st1'       = addFails inFails st1
         st2'       = addFails inFails st2
-        st1w       = addRwWarn (Unreachable e2') st1'
+        st1w       = addRwWarn Unreachable st1'
         e1r        = fst $ astRewriteTDCont repFail e1' e2'     || replace matching Efails in e1 with e2
 
         || replace Efails matching fn in e1 with e2

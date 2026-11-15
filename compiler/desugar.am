@@ -51,6 +51,10 @@ initDsSt genv = ((genv, [], m.empty), emptyLocInfo)
 addDsErr :: exceptionInfo -> dsSt -> dsSt
 addDsErr ei st = over dsErrs ((Error, ei, view dsLoc st) :) st
 
+|| add an exception to the desugar state
+addDsWarn :: exceptionInfo -> dsSt -> dsSt
+addDsWarn ei st = over dsErrs ((Warn, ei, view dsLoc st) :) st
+
 
 || an equation is a tuple of unmatched patterns, a final expression, and a rename map
 equation == ([pat], expr, nameMap)
@@ -352,13 +356,22 @@ desugarAst k (ElistComp e quals an) st
 
 || desugar if/otherwise conditionals
 desugarAst k (Econd conds) st
-    = k caseTree st
+    = k caseTree st'
       where
-        caseTree = foldr mkCase builtinFail conds
+        (caseTree, st') = makeCase conds st
 
-        mkCase (Cdefault e) rest = e            || early-out on default
-        mkCase (Cif tst e)  rest = makeBoolCase tst rest e
-        mkCase _            _    = unreachable
+        makeCase [] st = (builtinFail, st)              || no explicit Cdefault; add a runtime fail call if reached
+
+        makeCase (Cdefault e : es) st
+            = (e, st),                       if null es || Cdefault is last branch
+            = (e, addDsWarn Unreachable st), otherwise  || branches following a Cdefault are unreachable
+
+        makeCase (Cif tst e : es) st
+            = (makeBoolCase tst tree e, st')
+              where
+                (tree, st') = makeCase es st
+
+        makeCase _ _ = unreachable
 
 || desugar explicit case exprs (set the caseSel flag correctly)
 desugarAst k (Ecase Cnone e alts an) st
@@ -407,6 +420,7 @@ desugarAst k a st
       where
         loc = defnLocInfo a
         top = null (view dsDefnPath st)
+
 
 || desugar a constructor pattern definition
 || strategy:
