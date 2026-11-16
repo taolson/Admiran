@@ -782,7 +782,7 @@ genInsn (AllocFrame n)
 
 || generate an function closure
 genInsn (Fclosure d cp ar env)
-    = genOpcode "movq" [X86Imm tag, xd]                      .
+    = genOpcode "movq" [X86Imm tag, addX86Offset 0 xd]       .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
       genStoreOprs     (addX86Offset 16 xd) env
       where
@@ -791,7 +791,7 @@ genInsn (Fclosure d cp ar env)
 
 || generate a thunk closure
 genInsn (Tclosure d cp env)
-    = genOpcode "movq" [X86Imm tag, xd]                      .
+    = genOpcode "movq" [X86Imm tag, addX86Offset 0 xd]       .
       genOpcode "leaq" [cvtMemCodePtr cp, addX86Offset 8 xd] .
       genStoreOprs     (addX86Offset 16 xd) zenv
       where
@@ -1150,17 +1150,20 @@ genInsn (CopyArray d a)
       genOpcode    "sarq" [X86Imm 32, xi]            .  || extract array size (untagged)
       genOpcode    "cmpq" [X86Imm 0, xi]             .  || test for empty array
       genJmpOpcode "jle"  (cvtJmpAddr "1f")          .  || note: test for index <= 0 to compensate for starting at size
+      movd                                           .
+      genOpcode    "pushq" [x86rdx]                     .
       shows "0:\n"                                   .  || loop top
       genOpcode    "movq" [X86Idx xa xi 8 (-1), tmp] .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
       genOpcode    "movq" [tmp, X86Idx xd xi 8 (-1)] .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
       genOpcode    "decq" [xi]                       .
       genJmpOpcode "jg"   (cvtJmpAddr "0b")          .  || note: test for index > 0 to compensate for starting at size
-      shows "1:\n"                                      || loop exit
+      genOpcode    "popq" [x86rdx]                   .  || loop exit
+      shows "1:\n"
       where
-        xi         = x86MovTmp
         (xa, mova) = ensureX86Reg x86Tmp0 a
-        tmp        = x86Tmp1
-        xd         = cvtOpr d                           || note: d is an opr in CopyArray, not a ref
+        (xd, movd) = ensureX86Reg x86Tmp1 d             || note: d is an opr in CopyArray, not a ref
+        xi         = x86MovTmp
+        tmp        = x86rdx                             || note: x86rdx is pushed before copy loop, and popped after, to free up for tmp
 
 || read an array at an index
 || specialized version for index known at compile-time

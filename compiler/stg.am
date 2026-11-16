@@ -773,12 +773,16 @@ buildCode (Elet _ defs _ e)
 || only return word# results (value, tag, or tuple of words), so a Csingle caseAlt with all Pvar vars
 || is optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
 ||
-|| if any caseAlt will perform an AllocFrm due to an Elet, rebind any existing Frm-bound free vars to Regs
-|| so that they may be referenced correctly
+|| special handling for caseAlts that require an allocFrame or scrutinees that perform a heap allocation,
+|| rebinding existing Frm refs to Reg refs.
 buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
     = st.bind2 (rebindToRegs isFrmOpr fns) (mkDsts sel alts) mkCode, if isBuiltin fn & ~isConstructor fn
       where
-        fns = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
+        fnsCase = lens.view annoFree an |> filter isInternal
+        fnsAlts = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname, otherwise
+        fns     = if' scrutineeAllocs fnsCase fnsAlts
+
+        scrutineeAllocs = getName fn |> isPrefixOf cmpchar "alloc"
 
         needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
         needsFrm _                            = False
@@ -788,8 +792,11 @@ buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
         mkDsts _       _                           = st.pure [r0Ref]    <&>              pair Nothing   || multiple alts (cmp#)
 
         mkCode movs (me, dsts)
-            = st.liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
+            = inLexEnv (st.set bdFrmGen 0 >> build), if scrutineeAllocs || don't continue alloc on the current frame
+            = build,                                 otherwise          || use current frame for subsequent allocs
               where
+                build = st.liftA2 insMovs (buildCodeCallBuiltin fn args dsts) (buildAlts me)
+
                 buildAlts Nothing  = buildCodeAlts sel r0Opr alts
                 buildAlts (Just e) = buildCode e
 
