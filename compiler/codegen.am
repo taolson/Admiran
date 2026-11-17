@@ -1033,14 +1033,14 @@ genInsn (Sel d a) = id
 
 || allocate a new Hstream obj of the specified number of qwords and initialize
 || specialized version for size known at compile-time
-genInsn (AllocStream d (Imm (Word fd)) (Imm (Word sz)))
-    = genAlloc  xd (sz + 1)                            .        || tagword + stream size
+genInsn (AllocStream d (Imm (Word fd)) (Imm (Word n)))
+    = genAlloc  xd (n + 1)                             .        || tagword + stream size
       genOpcode "movq" [X86Imm tag, addX86Offset 0 xd] .
       genOpcode "incq" [xd]                            .
       movd
       where
         (xd, movd) = ensureX86DstReg x86Tmp0 d                  || xd must be an X86Reg to perform indirect write of tag
-        tag        = genHstreamTag fd sz
+        tag        = genHstreamTag fd n
 
 || general version for fd and size known at runtime
 genInsn (AllocStream d fd sz)
@@ -1100,70 +1100,79 @@ genInsn (WriteStream d s c)
         cregb      = byte0 creg
         (xs, movs) = ensureX86Reg x86MovTmp s
 
-|| allocate an array
+|| fill a new array of size n with a replicated value v
 || specialized version for size known at compile-time
-genInsn (AllocArray d (Imm (Word sz)))
-    = genAlloc  xd (sz + 1)                            . || tag word + array size
-      genOpcode "movq" [X86Imm tag, addX86Offset 0 xd] .
-      genOpcode "incq" [xd]                            .
+genInsn (FillArray d (Imm (Word n)) v)
+    = genAlloc     xd (n + 1)                             .
+      genOpcode    "movq" [X86Imm tag, addX86Offset 0 xd] .
+      genOpcode    "movq" [X86Imm n, xs]                  .                                              
+      genOpcode    "cmpq" [X86Imm 0, xs]                  .     || test for empty array
+      genJmpOpcode "jle"  (cvtJmpAddr "1f")               .     || note: test for index <= 0 to compensate for starting at size
+      movv                                                .
+      shows "0:\n"                                        .     || loop top
+      genOpcode    "movq" [xv, X86Idx xd xs 8 0]          .     || note: xs starts at size to compensate for tagword
+      genOpcode    "decq" [xs]                            .
+      genJmpOpcode "jg"   (cvtJmpAddr "0b")               .     || note: test for index > 0 to compensate for starting at size
+      shows "1:\n"                                        .     || loop exit
+      genOpcode    "incq" [xd]                            .
       movd
       where
-        (xd, movd) = ensureX86DstReg x86Tmp0 d           || xd must be an X86Reg to perform indirect write of tag
-        tag        = genHarrayTag sz
+        tag        = genHarrayTag n
+        xs         = x86Tmp0
+        (xd, movd) = ensureX86DstReg x86Tmp1   d
+        (xv, movv) = ensureX86Reg    x86MovTmp v
 
 || general version for size known at runtime
-genInsn (AllocArray d a)
-    = genOpcode (movOpForOpr a) [cvtOpr a, x86Tmp1] .   || note: tmp0 can't be used here, because d may be tmp0
-      genAllocVar xd x86Tmp1                        .   || note: xa contains a tagged value at runtime, so it is already scaled by 2
-      genOpcode "shlq" [X86Imm 31, x86Tmp1]         .   || move Harray size in qwords to correct field in tagword
-      genOpcode "addq" [X86Imm 6, x86Tmp1]          .   || add tag value 6 for Harray
-      genOpcode "movq" [x86Tmp1, addX86Offset 0 xd] .   || move the tagword into the heapObj
-      genOpcode "incq" [xd]                         .   || and return the tagged heapObj addr
+genInsn (FillArray d s v)
+    = genOpcode    "movq" [cvtOpr s, xs]           .
+      genAllocVar  xd xs                           .
+      genOpcode    "sarq" [xs]                     .    || untag size
+      genOpcode    "movq" [xs, tmp]                .
+      genOpcode    "shlq" [X86Imm 32, tmp]         .
+      genOpcode    "addq" [X86Imm tag, tmp]        .
+      genOpcode    "movq" [tmp, addX86Offset 0 xd] .    || write tag word
+      genOpcode    "cmpq" [X86Imm 0, xs]           .    || test for empty array
+      genJmpOpcode "jle"  (cvtJmpAddr "1f")        .    || note: test for index <= 0 to compensate for starting at size
+      movv                                         .
+      shows "0:\n"                                 .    || loop top
+      genOpcode    "movq" [xv, X86Idx xd xs 8 0]   .    || note: xs starts at size to compensate for tagword
+      genOpcode    "decq" [xs]                     .
+      genJmpOpcode "jg"   (cvtJmpAddr "0b")        .    || note: test for index > 0 to compensate for starting at size
+      shows "1:\n"                                 .    || loop exit
+      genOpcode    "incq" [xd]                     .
       movd
       where
-        (xd, movd) = ensureX86DstReg x86Tmp0 d          || xd must be an X86Reg to perform indirect write of tag
+        xs  = x86Tmp0
+        tmp = x86MovTmp                 || note: can use x86MovTmp, because tmp use doesn't overlap xv use
+        tag = hArrayTagByte
 
-|| fill an array with a replicated value
-genInsn (FillArray a v)
-    = mova                                                 .    || ensure operands are in registers
-      movv                                                 .
-      genOpcode    "movq" [addX86Offset (-1) xa, xi]       .    || xa is tagged heapPtr of array; get tagword
-      genOpcode    "sarq" [X86Imm 32, xi]                  .    || extract array size (untagged)
-      genOpcode    "cmpq" [X86Imm 0, xi]                   .    || test for empty array
-      genJmpOpcode "jle"  (cvtJmpAddr "1f")                .    || note: test for index <= 0 to compensate for starting at size
-      shows "0:\n"                                         .    || loop top
-      genOpcode    "movq" [xv, X86Idx xa xi 8 (-1)]        .    || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "decq" [xi]                             .
-      genJmpOpcode "jg"   (cvtJmpAddr "0b")                .    || note: test for index > 0 to compensate for starting at size
-      shows "1:\n"                                         .    || loop exit
-      genWriteBarrierCheck xa xv
-      where
-        (xa, mova) = ensureX86Reg x86Tmp0 a
-        (xv, movv) = ensureX86Reg x86Tmp1 v
-        xi         = x86MovTmp                          || ok to use for xi, because it is dead before genWriteBarrierCheck
+        (xd, movd) = ensureX86DstReg x86Tmp1   d
+        (xv, movv) = ensureX86Reg    x86MovTmp v
 
-|| copy an array
-|| note: assumes sizes match!
+|| copy an array into a new array
 genInsn (CopyArray d a)
-    = mova                                           .  || ensure array operand a is in a register
-      genOpcode    "movq" [addX86Offset (-1) xa, xi] .  || xa is tagged heapPtr of array; get tagword
-      genOpcode    "sarq" [X86Imm 32, xi]            .  || extract array size (untagged)
-      genOpcode    "cmpq" [X86Imm 0, xi]             .  || test for empty array
-      genJmpOpcode "jle"  (cvtJmpAddr "1f")          .  || note: test for index <= 0 to compensate for starting at size
-      movd                                           .
-      genOpcode    "pushq" [x86rdx]                     .
-      shows "0:\n"                                   .  || loop top
-      genOpcode    "movq" [X86Idx xa xi 8 (-1), tmp] .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "movq" [tmp, X86Idx xd xi 8 (-1)] .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
-      genOpcode    "decq" [xi]                       .
-      genJmpOpcode "jg"   (cvtJmpAddr "0b")          .  || note: test for index > 0 to compensate for starting at size
-      genOpcode    "popq" [x86rdx]                   .  || loop exit
-      shows "1:\n"
+    = genOpcode    "pushq" [xi]                       .  || save xi to free it as temp reg
+      mova                                            .
+      genOpcode    "movq"  [addX86Offset (-1) xa, xi] .  || xa is tagged heapPtr of array; get tagword
+      genOpcode    "sarq"  [X86Imm 31, xi]            .  || extract array size (tagged)
+      genAllocVar  xd xi                              .
+      genOpcode    "sarq"  [xi]                       .  || untag size
+      genOpcode    "cmpq"  [X86Imm 0, xi]             .  || test for empty array
+      genJmpOpcode "jl"    (cvtJmpAddr "1f")          .  || note: test for index < 0 to also copy tag of a
+      shows "0:\n"                                    .
+      genOpcode    "movq" [X86Idx xa xi 8 (-1), tmp]  .  || note: offset of (-1) to remove tag; idx starts at size to compensate for tagword
+      genOpcode    "movq" [tmp, X86Idx xd xi 8 0]     .
+      genOpcode    "decq" [xi]                        .
+      genJmpOpcode "jge"  (cvtJmpAddr "0b")           .
+      shows "1:\n"                                    .
+      genOpcode    "incq" [xd]                        .
+      movd                                            .
+      genOpcode    "popq" [xi]
       where
-        (xa, mova) = ensureX86Reg x86Tmp0 a
-        (xd, movd) = ensureX86Reg x86Tmp1 d             || note: d is an opr in CopyArray, not a ref
-        xi         = x86MovTmp
-        tmp        = x86rdx                             || note: x86rdx is pushed before copy loop, and popped after, to free up for tmp
+        (xa, mova) = ensureX86Reg    x86Tmp0 a
+        (xd, movd) = ensureX86DstReg x86Tmp1 d
+        xi         = x86rdx
+        tmp        = x86MovTmp
 
 || read an array at an index
 || specialized version for index known at compile-time
@@ -1291,8 +1300,9 @@ genPrimStringTag s
 genHarrayTag :: int -> int
 genHarrayTag size = size .<<. 32 .|. 0x05
 
-|| tag byte to use for Harrays to mark that they are in the roots list of the garbage collector
-hArrayRTagByte :: int
+|| tag byte to use for Harrays created dynamically
+hArrayTagByte, hArrayRTagByte :: int
+hArrayTagByte  = 0x05
 hArrayRTagByte = 0x06
 
 genHeapObj :: (heapPtr, heapObj) -> showS

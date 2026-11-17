@@ -308,7 +308,7 @@ inlineAst k (Ecase b (Evar n) alts an) st
         (alts', st3) = st.mapM bindInAlt alts st
 
         bindInAlt alt st
-            = (alt, st),                                                      if isNothing me
+            = (alt, st),                                                          if isNothing me
             = (replaceScrutinee alt cpx [(n, e)], over inFuel (subtract cpx) st), otherwise
               where
                 me       = mkExpr alt
