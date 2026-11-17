@@ -68,10 +68,6 @@ getArity (Tname n as) st
 getArity e st = Nothing
 
 
-isAllocCall :: expr -> bool
-isAllocCall (Ecall (Evar (Builtin "allocArray#")) _) = True
-isAllocCall _                                        = False
-
 normalizeAst :: astRewriteTraverser nmSt
 normalizeAst k (Ecall f args) st
     = (Ecall fSimp argsSimp, st1), if noArityNorm               || call with all arguments if unknown function arity, or exact arity
