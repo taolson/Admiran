@@ -7,7 +7,6 @@
 %import <base>
 %import <map>           qualified as m
 %import <state>
-%import <stdlib>
 %import "grammar"
 
 

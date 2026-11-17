@@ -166,12 +166,9 @@ betaReduce d args st
 canInline :: name -> bool
 canInline n = ~(isBuiltin n \/ isConstructor n \/ member cmpname noInlineNames n)
 
-isSimple, isBuiltinCall :: expr -> bool
+isSimple :: expr -> bool
 isSimple (Ecall (Evar c) args)   = isConstructor c & all isSimpleExpr args
 isSimple e                       = isSimpleExpr e
-
-isBuiltinCall (Ecall (Evar n) _) = isBuiltin n
-isBuiltinCall _                  = False
 
 || see if expr can return a value or not
 || (used when rewriting nested case exprs, to prevent expansion of a non-returning expr)
@@ -355,7 +352,7 @@ simplifyAst k a st
 || this will cause the lets to be specialized in each alt, allowing unused lets to be removed
 || (fewer runtime bindings created)
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
-    = k (Ecase b e alts' an') st', if ~used & ~isBuiltinCall e
+    = k (Ecase b e alts' an') st', if ~used
       where
         keys          = m.keys defs
         cpx           = m.elems defs |> map (view astAnnoCpx) |> sum || cpx for Elet without Ecase expr
