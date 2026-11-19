@@ -614,7 +614,7 @@ buildCodeCallBuiltin n args dsts
         || operations on arrays
         go "allocArray#"      = opDSS AllocArray
         go "fillArray#"       = opSS  FillArray
-        go "allocCopyArray#"  = opDS  CopyArray
+        go "copyArray#"       = opDS  CopyArray
         go "readArray#"       = opDSS ReadArray
         go "writeArray#"      = opSSS WriteArray
 
