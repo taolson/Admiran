@@ -18,9 +18,7 @@
 ||       just the right place.  Currently this means that the compatibility functions (e.g. map_, foldr_) cannot be
 ||        written using the (.) compose operator, but instead have to be written explicitly with nested function calls.
 
-%export + -seither -Sleft -Sright       || remove the internal versions of either / maybe / uncurry from the export
-          -smaybe -Snothing -Sjust
-          -suncurry
+%export + -maybe -either -uncurry       || remove the internal versions
 
 
 || note: in the original definition, the second type var is existential, restricting the operations that
@@ -31,16 +29,14 @@ stream * ** ::= Stream (** -> step * **) **
 
 step * ** ::= Done | Skip ** | Yield * **
 
-|| internal implementations of "either" and "maybe" data types, so that this module doesn't have a dependency
+|| internal implementations of maybe and either data types, so that this module doesn't have a dependency
 || on the actual ones
-seither * ** ::= Sleft * | Sright **
-smaybe *     ::= Snothing | Sjust *
+maybe *     ::= Nothing | Just *
+either * ** ::= Left *  | Right **
 
-suncurry :: (* -> ** -> ***) -> (*, **) -> ***
-suncurry f = \(a, b) -> f a b
+uncurry :: (* -> ** -> ***) -> (*, **) -> ***
+uncurry f = \(a, b) -> f a b
 
-
-|| internal stream versions of <stdlib> and <base> list functions
 
 || ord instance for stream
 cmpstream :: ordI * -> ordI (stream * **)
@@ -49,21 +45,24 @@ cmpstream cmp' (Stream nexta sa) (Stream nextb sb)
       where
         goA sa sb
             = case nexta sa of
-                Done        -> goB sa  sb Snothing
+                Done        -> goB sa  sb Nothing
                 Skip sa'    -> goA sa' sb
-                Yield a sa' -> goB sa' sb (Sjust a)
+                Yield a sa' -> goB sa' sb (Just a)
 
         goB sa sb ma
             = case nextb sb of
                 Done        -> case ma of
-                                 Snothing -> EQ
+                                 Nothing -> EQ
                                   _       -> GT
                 Skip sb'    -> goB sa sb' ma
                 Yield b sb' -> case ma of
-                                 Snothing -> LT
-                                 Sjust a  -> case cmp' a b of
+                                 Nothing -> LT
+                                 Just a  -> case cmp' a b of
                                                EQ -> goA sa sb'
                                                o  -> o
+
+
+|| stream source functions
 
 readByteStreamS :: word# -> stream char word#
 readByteStreamS p#
@@ -123,6 +122,9 @@ iterateS f x
       where
         next x = case f x of x' -> Yield x x'
 
+
+|| stream -> stream functions
+
 tlS :: stream * ** -> stream * (bool, **)
 tlS (Stream next s)
     = Stream next' (False, s)
@@ -137,18 +139,6 @@ tlS (Stream next s)
                 Done       -> Done
                 Skip s'    -> Skip (True, s')
                 Yield x s' -> Yield x (True, s')
-
-lastS :: stream * ** -> *
-lastS (Stream next s)
-    = go Snothing s
-      where
-        go mx s
-            = case next s of
-                Done       -> case mx of
-                                 Snothing -> error "lastS: empty stream"
-                                 Sjust x  -> x
-                Skip s'    -> go mx s'
-                Yield x s' -> go (Sjust x) s'
 
 mapS :: (* -> ***) -> stream * ** -> stream *** **
 mapS f (Stream next s)
@@ -169,105 +159,6 @@ filterS p (Stream next s)
                     Yield x s' -> case p x of
                                     False -> Skip s'
                                     True  -> Yield x s'
-
-foldrS :: (* -> *** -> ***) -> *** -> stream * ** -> ***
-foldrS f z (Stream next s)
-    = go s
-      where
-        go s = case next s of
-                 Done       -> z
-                 Skip s'    -> go s'
-                 Yield x s' -> f x (go s')
-
-foldr1S :: (* -> * -> *) -> stream * ** -> *
-foldr1S f (Stream next s)
-    = go Snothing s
-      where
-        go mx s
-            = case next s of
-                Done       -> case mx of
-                                Snothing -> error "foldr1S: empty stream"
-                                Sjust z  -> z
-                Skip s'    -> go mx s'
-                Yield x s' -> case mx of
-                                Snothing -> go (Sjust x) s'
-                                Sjust z  -> f z (go (Sjust x) s')
-
-foldlS :: (* -> *** -> *) -> * -> stream *** ** -> *
-foldlS f z (Stream next s)
-    = go z s
-      where
-        go z s = case next s of
-                   Done       -> z
-                   Skip s'    -> go z s'
-                   Yield x s' -> case f z x of z' -> (go z' s')
-
-foldl1S :: (* -> * -> *) -> stream * ** -> *
-foldl1S f (Stream next s)
-    = go Snothing s
-      where
-        go mx s
-            = case next s of
-                Done       -> case mx of
-                                Snothing -> error "foldl1S: empty stream"
-                                Sjust z  -> z
-                Skip s'    -> go mx s'
-                Yield x s' -> case mx of
-                                Snothing -> go (Sjust x) s'
-                                Sjust z  -> go (Sjust (f z x)) s'
-
-
-lengthS :: stream * ** -> int
-lengthS s = foldlS inc 0 s where inc n _ = n + 1
-
-appendS :: stream * ** -> stream * *** -> stream * (seither ** ***)
-appendS (Stream nexta sa) (Stream nextb sb)
-    = Stream next (Sleft sa)
-      where
-        next (Sleft s)  = case nexta s of
-                           Done       -> Skip (Sright sb)
-                           Skip s'    -> Skip (Sleft s')
-                           Yield x s' -> Yield x (Sleft s')
-
-        next (Sright s) = case nextb s of
-                           Done       -> Done
-                           Skip s'    -> Skip (Sright s')
-                           Yield x s' -> Yield x (Sright s')
-
-zip2S :: stream * ** -> stream *** **** -> stream (*, ***) (**, ****, smaybe *)
-zip2S (Stream nexta sa) (Stream nextb sb)
-    = Stream next (sa, sb, Snothing)
-      where
-        next (sa, sb, Snothing)      || don't have an element from the first stream, yet
-            = case nexta sa of
-                Done        -> Done
-                Skip sa'    -> Skip (sa', sb, Snothing)
-                Yield a sa' -> Skip (sa', sb, Sjust a)
-
-        next (sa, sb, Sjust a)
-            = case nextb sb of
-                Done        -> Done
-                Skip sb'    -> Skip (sa, sb', Sjust a)
-                Yield b sb' -> Yield (a, b) (sa, sb', Snothing)
-
-zipWithS :: (* -> ** -> ***) -> stream * **** -> stream ** ***** -> stream *** (****, *****, smaybe *)
-zipWithS f sa sb = mapS (suncurry f) (zip2S sa sb)
-
-concatMapS :: (* -> stream ** ***) -> stream * **** -> stream ** ((****, smaybe (stream ** ***)))
-concatMapS f (Stream nexta sa)
-    = Stream next (sa, Snothing)
-      where
-        next (sa, Snothing)
-            = case nexta sa of
-                Done        -> Done
-                Skip sa'    -> Skip (sa', Snothing)
-                Yield a sa' -> Skip (sa', Sjust (f a))
-
-        next (sa, Sjust (Stream nextb sb))
-            = case nextb sb of
-                Done        -> Skip (sa, Snothing)
-                Skip sb'    -> Skip (sa, Sjust (Stream nextb sb'))
-                Yield b sb' -> Yield b (sa, Sjust (Stream nextb sb'))
 
 takeS :: int -> stream * ** -> stream * (int, **)
 takeS n (Stream next s)
@@ -332,6 +223,94 @@ cycleS (Stream next sInit)
                     Skip s'    -> Skip s'
                     Yield x s' -> Yield x s'
 
+pairWiseS :: (* -> * -> ***) -> stream * ** -> stream *** (**, maybe *)
+pairWiseS f (Stream next s)
+    = Stream next' (s, Nothing)
+      where
+        next' (s, Nothing)
+            = case next s of
+                Done       -> Done
+                Skip s'    -> Skip (s', Nothing)
+                Yield x s' -> Skip (s', Just x)
+
+        next' (s, Just x)
+            = case next s of
+                Done       -> Done
+                Skip s'    -> Skip (s', Just x)
+                Yield y s' -> Yield (f x y) (s', Just y)
+
+deltaS s = pairWiseS (-) s
+
+
+linesS, wordsS :: stream char * -> stream [char] (maybe [char], *)
+linesS (Stream next s)
+    = Stream next' (Just [], s)
+      where
+        next' (Nothing, s) = Done
+        next' (Just xs, s)
+            = case next s of
+                Done       -> Yield (reverse xs) (Nothing, s)
+                Skip s'    -> Skip (Just xs, s')
+                Yield c s' -> case c ==. '\n' of
+                               False -> Skip (Just (c : xs), s')
+                               True  -> Yield (reverse xs) (Just [], s')
+
+wordsS (Stream next s)
+    = Stream next' (Nothing, s)
+      where
+        isSpace c = c ==. ' ' \/ c ==. '\t' \/ c ==. '\n'
+
+        next' (Nothing, s)
+            = case next s of
+                Done       -> Done
+                Skip s'    -> Skip (Nothing, s')
+                Yield c s' -> case isSpace c of
+                                False -> Skip (Just [c], s')
+                                True  -> Skip (Nothing, s')
+        next' (Just xs, s)
+            = case next s of
+                Done       -> Yield (reverse xs) (Nothing, s)
+                Skip s'    -> Skip (Just xs, s')
+                Yield c s' -> case isSpace c of
+                                False -> Skip (Just (c : xs), s')
+                                True  -> Yield (reverse xs) (Nothing, s')
+
+
+|| stream -> stream -> stream functions
+
+appendS :: stream * ** -> stream * *** -> stream * (either ** ***)
+appendS (Stream nexta sa) (Stream nextb sb)
+    = Stream next (Left sa)
+      where
+        next (Left s)  = case nexta s of
+                           Done       -> Skip (Right sb)
+                           Skip s'    -> Skip (Left s')
+                           Yield x s' -> Yield x (Left s')
+
+        next (Right s) = case nextb s of
+                           Done       -> Done
+                           Skip s'    -> Skip (Right s')
+                           Yield x s' -> Yield x (Right s')
+
+zip2S :: stream * ** -> stream *** **** -> stream (*, ***) (**, ****, maybe *)
+zip2S (Stream nexta sa) (Stream nextb sb)
+    = Stream next (sa, sb, Nothing)
+      where
+        next (sa, sb, Nothing)      || don't have an element from the first stream, yet
+            = case nexta sa of
+                Done        -> Done
+                Skip sa'    -> Skip (sa', sb, Nothing)
+                Yield a sa' -> Skip (sa', sb, Just a)
+
+        next (sa, sb, Just a)
+            = case nextb sb of
+                Done        -> Done
+                Skip sb'    -> Skip (sa, sb', Just a)
+                Yield b sb' -> Yield (a, b) (sa, sb', Nothing)
+
+zipWithS :: (* -> ** -> ***) -> stream * **** -> stream ** ***** -> stream *** (****, *****, maybe *)
+zipWithS f sa sb = mapS (uncurry f) (zip2S sa sb)
+
 interleaveS :: stream * ** -> stream * *** -> stream * (bool, **, ***)
 interleaveS (Stream nexta sa) (Stream nextb sb)
     = Stream next (False, sa, sb)
@@ -348,38 +327,70 @@ interleaveS (Stream nexta sa) (Stream nextb sb)
                 Skip sb'    -> Skip (True, sa, sb')
                 Yield b sb' -> Yield b (False, sa, sb')
 
-linesS, wordsS :: stream char * -> stream [char] (smaybe [char], *)
-linesS (Stream next s)
-    = Stream next' (Sjust [], s)
-      where
-        next' (Snothing, s) = Done
-        next' (Sjust xs, s)
-            = case next s of
-                Done       -> Yield (reverse xs) (Snothing, s)
-                Skip s'    -> Skip (Sjust xs, s')
-                Yield c s' -> case c ==. '\n' of
-                               False -> Skip (Sjust (c : xs), s')
-                               True  -> Yield (reverse xs) (Sjust [], s')
 
-wordsS (Stream next s)
-    = Stream next' (Snothing, s)
-      where
-        isSpace c = c ==. ' ' \/ c ==. '\t' \/ c ==. '\n'
+|| stream sink functions
 
-        next' (Snothing, s)
+lastS :: stream * ** -> *
+lastS (Stream next s)
+    = go Nothing s
+      where
+        go mx s
             = case next s of
-                Done       -> Done
-                Skip s'    -> Skip (Snothing, s')
-                Yield c s' -> case isSpace c of
-                                False -> Skip (Sjust [c], s')
-                                True  -> Skip (Snothing, s')
-        next' (Sjust xs, s)
+                Done       -> case mx of
+                                 Nothing -> error "lastS: empty stream"
+                                 Just x  -> x
+                Skip s'    -> go mx s'
+                Yield x s' -> go (Just x) s'
+
+foldrS :: (* -> *** -> ***) -> *** -> stream * ** -> ***
+foldrS f z (Stream next s)
+    = go s
+      where
+        go s = case next s of
+                 Done       -> z
+                 Skip s'    -> go s'
+                 Yield x s' -> f x (go s')
+
+foldr1S :: (* -> * -> *) -> stream * ** -> *
+foldr1S f (Stream next s)
+    = go Nothing s
+      where
+        go mx s
             = case next s of
-                Done       -> Yield (reverse xs) (Snothing, s)
-                Skip s'    -> Skip (Sjust xs, s')
-                Yield c s' -> case isSpace c of
-                                False -> Skip (Sjust (c : xs), s')
-                                True  -> Yield (reverse xs) (Snothing, s')
+                Done       -> case mx of
+                                Nothing -> error "foldr1S: empty stream"
+                                Just z  -> z
+                Skip s'    -> go mx s'
+                Yield x s' -> case mx of
+                                Nothing -> go (Just x) s'
+                                Just z  -> f z (go (Just x) s')
+
+foldlS :: (* -> *** -> *) -> * -> stream *** ** -> *
+foldlS f z (Stream next s)
+    = go z s
+      where
+        go z s = case next s of
+                   Done       -> z
+                   Skip s'    -> go z s'
+                   Yield x s' -> case f z x of z' -> (go z' s')
+
+foldl1S :: (* -> * -> *) -> stream * ** -> *
+foldl1S f (Stream next s)
+    = go Nothing s
+      where
+        go mx s
+            = case next s of
+                Done       -> case mx of
+                                Nothing -> error "foldl1S: empty stream"
+                                Just z  -> z
+                Skip s'    -> go mx s'
+                Yield x s' -> case mx of
+                                Nothing -> go (Just x) s'
+                                Just z  -> go (Just (f z x)) s'
+
+
+lengthS :: stream * ** -> int
+lengthS s = foldlS inc 0 s where inc n _ = n + 1
 
 anyS, allS :: (* -> bool) -> stream * ** -> bool
 anyS p = foldrS (p .> (\/)) False
@@ -471,9 +482,6 @@ zip2_ xs ys = fromStream (zip2S (toStream xs) (toStream ys))
 
 zipWith_ :: (* -> ** -> ***) -> [*] -> [**] -> [***]
 zipWith_ f xs ys = fromStream (zipWithS f (toStream xs) (toStream ys))
-
-concatMap_ :: (* -> [**]) -> [*] -> [**]
-concatMap_ f xs = fromStream (concatMapS (f .> toStream) (toStream xs))
 
 take_ :: int -> [*] -> [*]
 take_ n xs = fromStream (takeS n (toStream xs))

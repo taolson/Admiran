@@ -280,6 +280,16 @@ elemIndex p
 enumerate :: [*] -> [(int, *)]
 enumerate xs = zip2 [0 ..] xs
 
+pairWise :: (* -> * -> **) -> [*] -> [**]
+pairWise f xs
+    = go xs
+      where
+        go (a : b : xs) = f a b : go (b : xs)
+        go _            = []
+
+deltas :: [int] -> [int]
+deltas xs = pairWise subtract xs
+
 isPrefixOf, isInfixOf :: ordI * -> [*] -> [*] -> bool
 isPrefixOf cmp p
     = go p
