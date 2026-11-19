@@ -28,6 +28,14 @@
 %import "tokenizer"     as tok
 
 
+p_getLoc :: parser location
+p_getLoc ps
+    = (Just (mn, il, ic), ps)
+      where
+        (mn, _, _, ts) = ps
+        (_, il, ic)    = hd ts
+
+
 || Admiran expression parsing
 
 p_identifier :: parser name
@@ -301,14 +309,14 @@ p_casePat
         isCasePat _              = False
 
 p_caseAlt :: parser caseAlt
-p_caseAlt = p.liftA2 mkAlt p_casePat (p.rArrow >> p_rhs p.rArrow)
+p_caseAlt = p.liftA3 mkAlt p_getLoc p_casePat (p.rArrow >> p_rhs p.rArrow)
             where
-              mkAlt p e = CaseAlt p e emptyAnno
+              mkAlt loc p e = CaseAlt p e (emptyAnnoLoc loc)
 
 p_caseExpr :: parser expr
-p_caseExpr = p.liftA2 mkCase (p.ident "case" >> p_expr) (p.ident "of" >> p.inLayout (p.some p_caseAlt))
+p_caseExpr = p.liftA3 mkCase p_getLoc (p.ident "case" >> p_expr) (p.ident "of" >> p.inLayout (p.some p_caseAlt))
              where
-               mkCase e alts = Ecase Cnone e alts emptyAnno
+               mkCase loc e alts = Ecase Cnone e alts (emptyAnnoLoc loc)
 
 || parse an anonymous lambda expr by converting it to an Elet of a new function definition with a unique name
 p_lambdaExpr :: parser expr
@@ -571,13 +579,6 @@ p_constructs = p.someSepBy p.vBar p_construct
 
 
 || Admiran definition parsing
-
-p_getLoc :: parser location
-p_getLoc ps
-    = (Just (mn, il, ic), ps)
-      where
-        (mn, _, _, ts) = ps
-        (_, il, ic)    = hd ts
 
 || parse a type specification
 || used at both top-level and by a signature at top level, so

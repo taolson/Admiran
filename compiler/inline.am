@@ -348,9 +348,8 @@ simplifyAst :: astRewriteTraverser inSt
 simplifyAst k a st
     = (a, st), if ~m.null (view inSubst st) \/ view inFuel st <= 0
 
-|| float a let into caseAlts, if unused in the case scrutinee and scrutinee isn't a builtin
-|| this will cause the lets to be specialized in each alt, allowing unused lets to be removed
-|| (fewer runtime bindings created)
+|| float a let into caseAlts, if unused in the case scrutinee. This will cause the lets to be specialized
+|| in each alt, allowing unused lets to be removed (fewer runtime bindings created)
 simplifyAst k (Elet rec defs ps (Ecase b e alts an)) st
     = k (Ecase b e alts' an') st', if ~used
       where
