@@ -400,22 +400,32 @@ insNameMap loci k v nm
     = ex.error (NameClash k) loci,       if m.member cmpname k nm
     = ex.pure (m.insert cmpname k v nm), otherwise
 
-|| insert a  mapping into a name map, inserting all of the associated constructors if it is a data defn
+|| insert a defn name mapping into a name map, inserting all of the associated constructors if it is a data defn
 insNameMapDefn :: locInfo -> name -> defn -> nameMap -> excpt nameMap
 insNameMapDefn loci n d nm
-    = insNameMap loci (unqualifyName n) n' nm ex.>>= \nm' -> ex.foldM insName nm' ns
+    = insNameMap loci (unqualifyName n) n' nm ex.>>= \nm' -> ex.foldM ins nm' ns
       where
-        n'   = defnName d
-        ns   = map tformName (view dataCtors d), if isDefData d
-             = [],                               otherwise
+        n' = defnName d
+        ns = view dataCtors d |> map tformName, if isDefData d
+           = [],                                otherwise
 
-        insName nm n = insNameMap loci (unqualifyName n) n nm
+        ins nm n = insNameMap loci (unqualifyName n) n nm
 
 || delete a name mapping from a nameMap, or report an undefined error
 delNameMap :: locInfo -> name -> nameMap -> excpt nameMap
 delNameMap loci k nm
     = ex.pure (m.delete cmpname k nm), if m.member cmpname k nm
     = ex.error (Undefined k) loci,     otherwise
+
+|| delete a defn name from a nameMap, deleting all of the associated constructors if it is a data defn
+delNameMapDefn :: locInfo -> name -> defn -> nameMap -> excpt nameMap
+delNameMapDefn loci n d nm
+    = ex.foldM del nm (n : ns)
+      where
+        ns = view dataCtors d |> map tformName, if isDefData d
+           = [],                                otherwise
+
+        del nm n = delNameMap loci (unqualifyName n) nm
 
 || replace a key name in the nameMap
 || used for aliasing names during import

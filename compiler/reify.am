@@ -72,16 +72,18 @@ reifyExports genv
         doPart nm (LibFile f loc) = doMerge loc (fileSpecName f) em nm
 
         doPart nm (LibRemove n loc)
-            = delNameMap loci n nm
+            = lookupEnvMap n em |> eitherf err del
               where
                 loci = locOnlyInfo loc
+                err ei = ex.error ei loci
+                del n' = lookupDefn genv n' |> fromJust |> \d -> delNameMapDefn loci n d nm
 
         doPart nm (LibIdent n loc)
             = lookupEnvMap n em |> eitherf err ins
               where
                 loci   = locOnlyInfo loc
                 err ei = ex.error ei loci
-                ins _  = lookupDefn genv n |> fromJust |> \d -> insNameMapDefn loci n d nm
+                ins n' = lookupDefn genv n' |> fromJust |> \d -> insNameMapDefn loci n d nm
 
         doMerge loc mn em nm
             = mergeIntoNameMap loci mn em nm
