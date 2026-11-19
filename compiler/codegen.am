@@ -1100,9 +1100,9 @@ genInsn (WriteStream d s c)
         cregb      = byte0 creg
         (xs, movs) = ensureX86Reg x86MovTmp s
 
-|| fill a new array of size n with a replicated value v
+|| allocate a new array of size n and fill with a replicated value v
 || specialized version for size known at compile-time
-genInsn (FillArray d (Imm (Word n)) v)
+genInsn (AllocArray d (Imm (Word n)) v)
     = genAlloc     xd (n + 1)                             .
       genOpcode    "movq" [X86Imm tag, addX86Offset 0 xd] .
       genOpcode    "movq" [X86Imm n, xs]                  .                                              
@@ -1123,7 +1123,7 @@ genInsn (FillArray d (Imm (Word n)) v)
         (xv, movv) = ensureX86Reg    x86MovTmp v
 
 || general version for size known at runtime
-genInsn (FillArray d s v)
+genInsn (AllocArray d s v)
     = genOpcode    "movq" [cvtOpr s, xs]           .
       genAllocVar  xd xs                           .
       genOpcode    "sarq" [xs]                     .    || untag size
@@ -1148,6 +1148,24 @@ genInsn (FillArray d s v)
 
         (xd, movd) = ensureX86DstReg x86Tmp1   d
         (xv, movv) = ensureX86Reg    x86MovTmp v
+
+|| fill an existing array with a replicated value v
+genInsn (FillArray a v)
+    = mova                                            .
+      movv                                            .
+      genOpcode    "movq"  [addX86Offset (-1) xa, xi] .  || xa is tagged heapPtr of array; get tagword
+      genOpcode    "sarq"  [X86Imm 32, xi]            .  || extract array size (untagged)
+      genOpcode    "cmpq"  [X86Imm 0, xi]             .  || test for empty array
+      genJmpOpcode "jle"   (cvtJmpAddr "1f")          .  || note: test for index <= 0 to compensate for starting at size
+      shows "0:\n"                                    .
+      genOpcode    "movq" [xv, X86Idx xa xi 8 (-1)]   .  || note: xa starts at size to compensate for tagword
+      genOpcode    "decq" [xi]                        .
+      genJmpOpcode "jg"  (cvtJmpAddr "0b")            .  || note: test for index > 0 to compensate for starting at size
+      shows "1:\n"
+      where
+        (xa, mova) = ensureX86Reg x86Tmp0 a
+        (xv, movv) = ensureX86Reg x86Tmp1 v
+        xi         = x86MovTmp
 
 || copy an array into a new array
 genInsn (CopyArray d a)

@@ -204,8 +204,9 @@ builtinAllocByteStream  = makeBuiltinVar "allocByteStream#"
 builtinAllocFileStream  = makeBuiltinVar "allocFileStream#"
 builtinReadByteStream   = makeBuiltinVar "readByteStream#"
 builtinWriteByteStream  = makeBuiltinVar "writeByteStream#"
-builtinFillArray        = makeBuiltinVar "allocFillArray#"
-builtinCopyArray        = makeBuiltinVar "allocCopyArray#"
+builtinAllocArray       = makeBuiltinVar "allocArray#"
+builtinFillArray        = makeBuiltinVar "fillArray#"
+builtinCopyArray        = makeBuiltinVar "copyArray#"
 builtinReadArray        = makeBuiltinVar "readArray#"
 builtinWriteArray       = makeBuiltinVar "writeArray#"
 builtinOpenFileRead     = makeBuiltinVar "openFileRead#"
@@ -231,7 +232,7 @@ builtinEnv
           , builtinCmp, builtinAdd, builtinSub, builtinMul, builtinQuotRem, builtinDivMod
           , builtinAnd, builtinOr, builtinXor, builtinNot, builtinShl, builtinShr
           , builtinAllocByteStream, builtinAllocFileStream, builtinReadByteStream, builtinWriteByteStream
-          , builtinFillArray, builtinCopyArray, builtinReadArray, builtinWriteArray
+          , builtinAllocArray, builtinFillArray, builtinCopyArray, builtinReadArray, builtinWriteArray
           , builtinGetTag
           , builtinExit, builtinOpenFileRead, builtinOpenFileWrite, builtinOpenFileAppend, builtinCloseFile
           , builtinReadFile, builtinWriteFile, builtinMtimeFile, builtinGetArg, builtinSystemCmd, builtinClock
@@ -276,8 +277,9 @@ builtinSpecs
                 , "writeByteStream#  :: word# -> word# -> word#"        || write a byte to a byteStream ref, returning success/fail indication
 
                 || operations on arrays
-                , "allocFillArray#   :: word# -> * -> word#"            || allocate a new array of size n and fill with a constant value v
-                , "allocCopyArray#   :: word# -> word#"                 || allocate a new array and copy contents of src array to it
+                , "allocArray#       :: word# -> * -> word#"            || allocate a new array of size n and fill with a constant value v
+                , "fillArray#        :: word# -> * -> unit"             || fill an existing array with a constant value v
+                , "copyArray#        :: word# -> word#"                 || allocate a new array and copy contents of src array to it
                 , "readArray#        :: word# -> word# -> *"            || read a value from the array ref at the given index
                 , "writeArray#       :: word# -> word# -> * -> unit"    || write a value to the array ref at the given index
 

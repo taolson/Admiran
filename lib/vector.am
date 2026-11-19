@@ -37,14 +37,14 @@ safeIndex n i
 || create a vector with a single value
 singleton :: * -> vector *
 singleton x
-    = case allocFillArray# 1# x of p# ->
+    = case allocArray# 1# x of p# ->
       Vector 1 p#
 
 || make a new vector and fill with a repeated value (uses fillArray# which is a low-level memset)
 rep :: int -> * -> vector *
 rep n x
     = case n of I# n#                 ->
-      case allocFillArray# n# x of p# ->
+      case allocArray# n# x of p# ->
       Vector n p#
 
 || generate a vector from its index values
@@ -209,7 +209,7 @@ search cmp v tgt
 fromStream :: int -> stream * ** -> vector *
 fromStream n (Stream next s)
     = case n of I# n#                     ->
-      case allocFillArray# n# undef of p# ->
+      case allocArray# n# undef of p# ->
       go 0# s
       where
         go i# s
@@ -254,7 +254,7 @@ mlength (MVector n p#) = n
 
 thaw :: vector * -> mvector *
 thaw (Vector n p#)
-    = case allocCopyArray# p# of d# ->
+    = case copyArray# p# of d# ->
       MVector n d#
 
 || operations on mutable vectors within the state monad
@@ -264,15 +264,22 @@ thaw (Vector n p#)
 freeze :: mvector * -> state ** (vector *)
 freeze (MVector n p#)
     = \s ->
-      case allocCopyArray# p# of d# ->
+      case copyArray# p# of d# ->
       (Vector n d#, s)
 
 || make a mutable copy of a mutable vector
 clone :: mvector * -> state ** (mvector *)
 clone (MVector n p#)
     = \s ->
-      case allocCopyArray# p# of d# ->
+      case copyArray# p# of d# ->
       (MVector n d#, s)
+
+|| fill a mutable vector with a replicated value
+fill :: mvector * -> ** -> state *** ()
+fill (MVector n p#) v
+    = \s ->
+      case fillArray# p# v of _ ->
+      ((), s)
 
 read :: mvector * -> int -> state ** *
 read (MVector n p#) i

@@ -165,7 +165,8 @@ stgInsn ::=
     WriteStream ref opr opr             |    || write byte in opr1 to the byteStream ref in opr0, returning success/fail indication in ref
 
     || primitive operations on arrays
-    FillArray   ref opr opr             |    || fill a new array of size [opr1] with value [opr2]
+    AllocArray  ref opr opr             |    || allocate a new array of size [opr1] and fill with value [opr2]
+    FillArray   opr opr                 |    || fill an existing array with value [opr2]
     CopyArray   ref opr                 |    || fill a new array with a copy of array in [opr]
     ReadArray   ref opr opr             |    || ref := value from the array ref [opr1] at index [opr2]
     WriteArray  opr opr opr             |    || write value [opr3] to array ref [opr1] at index [opr2]
@@ -584,6 +585,7 @@ buildCodeCallBuiltin n args dsts
         opDZS op = op dst0 zero  <$>        opr0
         opDSS op = st.liftA2 (op dst0)      opr0 opr1
         opPSS op = st.liftA2 (op dst0 dst1) opr0 opr1
+        opSS  op = st.liftA2 op             opr0 opr1
         opSSS op = st.liftA3 op             opr0 opr1 opr2
 
         || primitive arithmetic operations on word#
@@ -610,7 +612,8 @@ buildCodeCallBuiltin n args dsts
         go "writeByteStream#" = opDSS WriteStream
 
         || operations on arrays
-        go "allocFillArray#"  = opDSS FillArray
+        go "allocArray#"      = opDSS AllocArray
+        go "fillArray#"       = opSS  FillArray
         go "allocCopyArray#"  = opDS  CopyArray
         go "readArray#"       = opDSS ReadArray
         go "writeArray#"      = opSSS WriteArray
