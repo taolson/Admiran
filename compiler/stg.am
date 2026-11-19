@@ -707,6 +707,9 @@ buildCodeCall fe args
                 mkGeneral = st.pure [Apply fopr aoprs]
 
 
+|| builtin functions which perform heap allocations
+allocateFns = map Builtin ["allocByteStream#", "allocFileStream#", "allocArray#", "copyArray#"]
+
 || convert an expr to a list of stgInsns that will evaluate that expr at runtime
 buildCode :: expr -> state bdSt [stgInsn]
 
@@ -782,7 +785,7 @@ buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
         fnsCase = lens.view annoFree an |> filter isInternal
         fnsAlts = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
 
-        scrutineeAllocs = getName fn |> isPrefixOf cmpchar "alloc"
+        scrutineeAllocs = member cmpname allocateFns fn
 
         needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
         needsFrm _                            = False

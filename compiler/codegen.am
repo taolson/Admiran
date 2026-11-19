@@ -1161,7 +1161,8 @@ genInsn (FillArray a v)
       genOpcode    "movq" [xv, X86Idx xa xi 8 (-1)]   .  || note: xa starts at size to compensate for tagword
       genOpcode    "decq" [xi]                        .
       genJmpOpcode "jg"  (cvtJmpAddr "0b")            .  || note: test for index > 0 to compensate for starting at size
-      shows "1:\n"
+      shows "1:\n"                                    .
+      genWriteBarrierCheck xa xv
       where
         (xa, mova) = ensureX86Reg x86Tmp0 a
         (xv, movv) = ensureX86Reg x86Tmp1 v
