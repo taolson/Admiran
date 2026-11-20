@@ -777,13 +777,11 @@ buildCode (Elet _ defs _ e)
 || is optimized here to a allocate new Regs, rather than creating a new thunk closure to hold the result
 ||
 || special handling for caseAlts that require an allocFrame or scrutinees that perform a heap allocation,
-|| rebinding existing Frm refs to Reg refs.
+|| terminating the current frame by rebinding free Frm refs to Reg refs and setting bdFrmGen to 0.
 buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
     = st.bind2 (rebindToRegs isFrmOpr fns) (mkDsts sel alts) mkCode, if isBuiltin fn & ~isConstructor fn
       where
-        fns     = if' scrutineeAllocs fnsCase fnsAlts
-        fnsCase = lens.view annoFree an |> filter isInternal
-        fnsAlts = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
+        fns = filter needsFrm alts |> concatMap internalFreeNames |> nub cmpname
 
         scrutineeAllocs = member cmpname allocateFns fn
 
