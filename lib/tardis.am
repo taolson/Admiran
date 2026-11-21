@@ -58,8 +58,11 @@ modifyBackwards f = \s -> ((), mapFst f s)
                  (bw1, fw1) = s1
                  (bw2, fw2) = s2
 
+|| note: the code used for other join implementations (join ma = ma >>= runState)
+|| executes too strictly for the tardis implementation, and results in a BLACK HOLE,
+|| so this lazy implementation is used, instead
 join :: tardis * ** (tardis * ** ***) -> tardis * ** ***
-join ma = ma >>= runState
+join ma = \s -> runState ma s |> uncurry runState
 
 pure :: *** -> tardis * ** ***
 pure x = \s -> (x, s)
