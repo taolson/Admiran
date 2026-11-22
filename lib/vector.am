@@ -336,7 +336,7 @@ unsafeReplace (MVector n p#) ies
 || ST monad for performing actions on mutable vectors and STRefs
 || Note: the ST monad in Haskell uses an existential type for the state, which is bound
 || to the particular reference to the array being modified.  However, Admiran does not
-|| have existential types, so here the ST monad is just the state monad with Unit state
+|| have existential types, so here the ST monad is just the state monad
 st * == state () *
 
 || run an STaction and return its value
@@ -353,14 +353,14 @@ runSTVector f v
 || STRef implemented using a singleton mvector
 stRef * == mvector *
 
-newSTRef :: * -> st (stRef *)
+newSTRef :: * -> state ** (stRef *)
 newSTRef x = singleton x |> unsafeThaw |> pure
 
-readSTRef :: stRef * -> st *
+readSTRef :: stRef * -> state ** *
 readSTRef a = unsafeRead a 0
 
-writeSTRef :: stRef * -> * -> st ()
+writeSTRef :: stRef * -> * -> state ** ()
 writeSTRef a = unsafeWrite a 0
 
-modifySTRef :: stRef * -> (* -> *) -> st ()
+modifySTRef :: stRef * -> (* -> *) -> state ** ()
 modifySTRef a f = unsafeModify a f 0

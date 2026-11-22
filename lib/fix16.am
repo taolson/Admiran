@@ -1,5 +1,7 @@
 || fixed-point representation with 16-bit fractional part, as a substitute for floats
 
+%import <base>
+
 abstype fix16 with
     (+%)            :: fix16  -> fix16 -> fix16
     (-%)            :: fix16  -> fix16 -> fix16
@@ -11,6 +13,9 @@ abstype fix16 with
     (<=%)           :: fix16  -> fix16 -> bool
     (>%)            :: fix16  -> fix16 -> bool
     (>=%)           :: fix16  -> fix16 -> bool
+    fabs            :: fix16  -> fix16
+    fneg            :: fix16  -> fix16
+    fsignum         :: fix16  -> int
     toFix16Int      :: int    -> fix16
     toFix16Frac     :: int    -> fix16
     fix16Int        :: fix16  -> int
@@ -36,6 +41,10 @@ a <% b  = a <  b
 a <=% b = a <= b
 a >% b  = a >  b
 a >=% b = a >= b
+
+fabs    x = abs x
+fneg    x = neg x
+fsignum x = signum x
 
 toFix16Int x  = x .<<. 16
 toFix16Frac x = x
