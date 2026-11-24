@@ -84,26 +84,40 @@ replace v ies
 v // ies = replace v ies
 
 
-|| common list-like operations on vectors
+|| functor / applicative for vector
 
 (<$>) :: (* -> **) -> vector * -> vector **
 f <$> v
-    = evalState (go mv >> unsafeFreeze mv) ()
+    = evalState (go >> unsafeFreeze mv) ()
       where
-        n     = length v
-        mv    = unsafeThaw $ rep n undef
-        go mv = forM [0 .. n - 1] (\i -> unsafeIndex v i |> f |> unsafeWrite mv i)
+        n  = length v
+        mv = rep n undef |> unsafeThaw
+        go = forM [0 .. n - 1] (\i -> unsafeIndex v i |> f |> unsafeWrite mv i)
 
 (<&>) :: vector * -> (* -> **) -> vector **
 v <&> f = f <$> v
 
+(<*>) :: vector (* -> **) -> vector * -> vector **
+vf <*> vx
+    = evalState (go >> unsafeFreeze mv) ()
+      where
+        n  = length vx
+        mv = rep n undef |> unsafeThaw
+        go = forM [0 .. n - 1] (\i -> (unsafeIndex vf i) (unsafeIndex vx i) |> unsafeWrite mv i)
+
+liftA2 :: (* -> ** -> ***) -> vector * -> vector ** -> vector ***
+liftA2 f va vb = f <$> va <*> vb
+
+
+|| list-like operations on vectors
+
 fmapWithIndex :: (int -> * -> **) -> vector * -> vector **
 fmapWithIndex f v
-    = evalState (go mv >> unsafeFreeze mv) ()
+    = evalState (go >> unsafeFreeze mv) ()
       where
-        n     = length v
-        mv    = unsafeThaw $ rep n undef
-        go mv = forM [0 .. n - 1] (\i -> unsafeIndex v i |> f i |> unsafeWrite mv i)
+        n  = length v
+        mv = rep n undef |> unsafeThaw
+        go = forM [0 .. n - 1] (\i -> unsafeIndex v i |> f i |> unsafeWrite mv i)
 
 || filter can change size of a vector, so it's easiest just to convert to/from stream
 filter :: (* -> bool) -> vector * -> vector *
