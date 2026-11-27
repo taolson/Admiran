@@ -485,13 +485,10 @@ cmplist :: ordI * -> ordI [*]
 cmplist cmp'
     = cmp
       where
-        cmp [] []       = EQ
-        cmp [] (y : ys) = LT
-        cmp (x : xs) [] = GT
-        cmp (x : xs) (y : ys)
-            = case cmp' x y of
-                EQ -> cmp xs ys
-                o  -> o
+        cmp []       []       = EQ
+        cmp []       (y : ys) = LT
+        cmp (x : xs) []       = GT
+        cmp (x : xs) (y : ys) = cmp' x y $thenCmp cmp xs ys
 
 || testing
 

@@ -30,7 +30,7 @@ printSpecs :: string -> module -> io ()
 printSpecs comment m
     = putStrLn ("### " ++ mn)     >>
       putStrLn (comment  ++ "\n") >>
-      forM defStrings putStrLn >>
+      forM defStrings putStrLn    >>
       putStrLn ""
       where
         mn         = view modName m
@@ -46,13 +46,11 @@ printSpecs comment m
 || reference the user-defined type synonyms that might exist.
 process :: string -> io ()
 process s
-    = readFile fn >>= doParse
+    = readFile fn >>= extractComment .> mapSnd (parse initModule .> check) .> uncurry printSpecs
       where
         fs         = fileSpecFromString s |> mb.fromMaybe (error $ "bad file name: " ++ s)
         fn         = fullFileName fs |> withSuffix "am"
         initModule = emptyModule fs m.empty
-
-        doParse s = extractComment s |> mapSnd (parse initModule .> check) |> uncurry printSpecs
 
         extractComment ('|' : '|' : ' ' : xs) = break (==. '\n') xs
         extractComment xs               = ([], xs)

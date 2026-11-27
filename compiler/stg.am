@@ -788,8 +788,8 @@ buildCode (Ecase sel (Ecall (Evar fn) args) alts an)
         needsFrm (CaseAlt _ (Elet _ _ _ _) _) = True        || caseAlt has an Elet, which allocs Frm slots
         needsFrm _                            = False
 
-        mkDsts Csingle [CaseAlt p e an]            =         makeRef p  <&> singleton .> pair (Just e), if isPvarOrWild p
         mkDsts Csingle [CaseAlt (Pctor c ps) e an] = st.mapM makeRef ps <&>              pair (Just e), if isBuiltinTuple c & all isPvarOrWild ps
+        mkDsts Csingle [CaseAlt p e an]            =         makeRef p  <&> singleton .> pair (Just e), if isPvarOrWild p
         mkDsts _       _                           = st.pure [r0Ref]    <&>              pair Nothing   || multiple alts (cmp#)
 
         mkCode movs (me, dsts)

@@ -182,7 +182,7 @@ attachTcNote info loc
 tcState * == maybeState tcSt *
 
 || alternative interface
-|| note: this cannot simply be an alias to (<|>), because we need to keep the exceptions generated
+|| note: this cannot simply be an alias to (maybeState.<|>), because we need to keep the exceptions generated
 || in the primary leg and pass them to the secondary leg
 (<|>) :: tcState * -> tcState * -> tcState *
 ma <|> mb
